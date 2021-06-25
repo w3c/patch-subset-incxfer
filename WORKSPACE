@@ -1,4 +1,4 @@
-workspace(name = "patch-subset-incxfer")
+workspace(name = "PFE_analysis")
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
@@ -8,6 +8,15 @@ http_archive(
     sha256 = "94c634d499558a76fa649edb13721dce6e98fb1e7018dfaeba3cd7a083945e91",
     strip_prefix = "googletest-release-1.10.0",
     url = "https://github.com/google/googletest/archive/release-1.10.0.zip",
+)
+
+# FontTools
+http_archive(
+    name = "fonttools",
+    build_file = "//third_party:fonttools.BUILD",
+    sha256 = "9d02d0d4408c0b547360d69a41dd3887e52968f0b9cf654c3b26a2d33c80f319",
+    strip_prefix = "fonttools-4.2.0",
+    url = "https://github.com/fonttools/fonttools/archive/4.2.0.zip",
 )
 
 # Brotli Encoder/Decoder
