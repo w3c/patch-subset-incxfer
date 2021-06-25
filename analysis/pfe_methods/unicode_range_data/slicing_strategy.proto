@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package analysis.pfe_methods.unicode_range_data;
+
+message SlicingStrategy {
+  repeated Subset subsets = 1;
+}
+
+message Subset {
+  // Set of unique codepoints.
+  reserved 1;
+  reserved "codepoints";
+  repeated Codepoint codepoint_frequencies = 2;
+}
+
+message Codepoint {
+  int32 codepoint = 1;
+  int64 count = 2;
+}
