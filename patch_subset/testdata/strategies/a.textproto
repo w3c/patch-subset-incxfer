@@ -1,0 +1,44 @@
+subsets: {
+  codepoint_frequencies: {
+    codepoint: 65
+    count: 2
+  }
+  codepoint_frequencies: {
+    codepoint: 66
+    count: 4
+  }
+  codepoint_frequencies: {
+    codepoint: 67
+    count: 6
+  }
+  codepoint_frequencies: {
+    codepoint: 68
+    count: 8
+  }
+  codepoint_frequencies: {
+    codepoint: 69
+    count: 10
+  }
+}
+subsets: {
+  codepoint_frequencies: {
+    codepoint: 75
+    count: 1
+  }
+  codepoint_frequencies: {
+    codepoint: 76
+    count: 3
+  }
+  codepoint_frequencies: {
+    codepoint: 77
+    count: 5
+  }
+  codepoint_frequencies: {
+    codepoint: 78
+    count: 7
+  }
+  codepoint_frequencies: {
+    codepoint: 79
+    count: 9
+  }
+}

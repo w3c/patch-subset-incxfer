@@ -1,0 +1,425 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Progressive Font Enrichment Demo</title>
+    <script src="./patch_subset_wasm.js"></script>
+    <script>
+      const SENTENCES = [
+          ['apache/roboto/Roboto-Thin.ttf', 'Almost before we knew it, we had left the ground.'],
+          ['apache/roboto/Roboto-Thin.ttf', 'All their equipment and instruments are alive.'],
+          ['apache/roboto/Roboto-Thin.ttf', 'A red flare silhouetted the jagged edge of a wing.'],
+          ['apache/roboto/Roboto-Thin.ttf', 'I watched the storm, so beautiful yet terrific.'],
+          ['apache/roboto/Roboto-Thin.ttf', 'A shining crescent far beneath the flying vessel.'],
+          ['apache/roboto/Roboto-Thin.ttf', 'It was going to be a lonely trip back.'],
+          ['apache/roboto/Roboto-Thin.ttf', 'Mist enveloped the ship three hours out from port.'],
+
+          ['apache/roboto/Roboto-Thin.ttf', 'Bầu trời trong xanh thăm thẳm, không một gợn mây.'],
+
+          ['apache/roboto/Roboto-Thin.ttf', 'Алая вспышка осветила силуэт зазубренного крыла.'],
+          ['apache/roboto/Roboto-Thin.ttf', 'В вечернем свете волны отчаянно бились о берег.'],
+          ['apache/roboto/Roboto-Thin.ttf', 'Возвращаться назад предстояло в одиночку.'],
+
+          ['ofl/notoserifsc/NotoSerifSC-ExtraLight.otf', '他们所有的设备和仪器彷佛都是有生命的。'],
+          ['ofl/notoserifsc/NotoSerifSC-ExtraLight.otf', '红色火光映出锯齿形机翼的轮廓。'],
+          ['ofl/notoserifsc/NotoSerifSC-ExtraLight.otf', '我看着暴风雨，美不胜收却也惊心动魄。'],
+          ['ofl/notoserifsc/NotoSerifSC-ExtraLight.otf', '不知不觉间，我们已经离开了地面。'],
+          ['ofl/notoserifsc/NotoSerifSC-ExtraLight.otf', '在飞船下方的远处，有一轮闪耀的新月。'],
+          ['ofl/notoserifsc/NotoSerifSC-ExtraLight.otf', '回程会是一趟孤独的旅途。'],
+          ['ofl/notoserifsc/NotoSerifSC-ExtraLight.otf', '船只离开港口后，就在薄雾的笼罩下航行了'
+           + '三小时。'],
+          ['ofl/notoserifsc/NotoSerifSC-ExtraLight.otf', '我的两种人格拥有共同的记忆。'],
+
+          ['apache/roboto/Roboto-Thin.ttf', 'Emoji Test'],
+      ];
+
+      const PARAGRAPHS = [
+          ['apache/roboto/Roboto-Regular.ttf', 'A peep at some distant orb has power to raise and purify our '
+           + 'thoughts like a strain of sacred music, or a noble picture, or a passage from the '
+           + 'grander poets. It always does one good.'],
+          ['apache/roboto/Roboto-Regular.ttf', 'Apparently we had reached a great height in the atmosphere, for '
+           + 'the sky was a dead black, and the stars had ceased to twinkle. By the same illusion '
+           + 'which lifts the horizon of the sea to the level of the spectator on a hillside, the '
+           + 'sable cloud beneath was dished out, and the car seemed to float in the middle of an '
+           + 'immense dark sphere, whose upper half was strewn with silver.'],
+          ['apache/roboto/Roboto-Regular.ttf', 'As I went on, still gaining velocity, the palpitation of night '
+           + 'and day merged into one continuous greyness; the sky took on a wonderful deepness of '
+           + 'blue, a splendid luminous color like that of early twilight; the jerking sun became a '
+           + 'streak of fire, a brilliant arch, in space; the moon a fainter fluctuating band; and '
+           + 'I could see nothing of the stars, save now and then a brighter circle flickering in '
+           + 'the blue.'],
+          ['apache/roboto/Roboto-Regular.ttf', 'As the minuteness of the parts formed a great hindrance to my '
+           + 'speed, I resolved, contrary to my first intention, to make the being of a gigantic '
+           + 'stature; that is to say, about eight feet in height, and proportionably large. After '
+           + 'having formed this determination, and having spent some months in successfully '
+           + 'collecting and arranging my materials, I began.'],
+          ['apache/roboto/Roboto-Regular.ttf', 'I shall see the face of Mars, anyhow, and that will be a rare '
+           + 'experience. It seems to me that a view of the heavenly bodies through a fine telescope, '
+           + 'as well as a tour round the world, should form a part of a liberal education.'],
+          ['apache/roboto/Roboto-Regular.ttf', 'Though the gravity still dragged at him, his muscles were making '
+           + 'great efforts to adjust. After the daily classes he no longer collapsed immediately '
+           + 'into bed. Only the nightmares got worse.'],
+          ['apache/roboto/Roboto-Regular.ttf', 'Truly it was a great journey, and in it I met with many, whom to '
+           + 'know was to love; but whom never could I see again; for life has not space enough; '
+           + 'and each must do his duty to the security and well-being of the Redoubt. Yet, for all '
+           + 'that I have set down, we travelled much, always; but there were so many millions, '
+           + 'and so few years.'],
+
+          ['apache/roboto/Roboto-Regular.ttf', 'Chúng tôi đã đạt tới độ cao rất lớn trong khí quyển '
+           + 'vì bầu trời tối đen và các vì sao không còn lấp lánh. Ảo giác về đường chân trời khiến '
+           + 'đám mây ảm đạm bên dưới lõm xuống và chiếc xe như trôi bồng bềnh giữa quả cầu khổng lồ '
+           + 'tăm tối.'],
+
+          ['apache/roboto/Roboto-Regular.ttf', 'Высокая гравитация выматывала его, но мышцы изо '
+           + 'всех сил пытались приспособиться. Обессиленный, он уже не валился в постель сразу '
+           + 'после занятий. Кошмары, не покидавшие его, стали только хуже.'],
+          ['apache/roboto/Roboto-Regular.ttf', 'Лишь один взгляд на далекую планету может возвысить '
+           + 'и очистить наши мысли не хуже духовной музыки, прекрасной картины или поэтических '
+           + 'строк. Это приносит человеку несомненную пользу.'],
+          ['apache/roboto/Roboto-Regular.ttf', 'Мелкие детали значительно замедлили бы работу, '
+           + 'поэтому, вопреки моему первоначальному намерению, я решил создать существо огромного '
+           + 'размера: мощное, около двух с половиной метров ростом. Потратив несколько месяцев на '
+           + 'сбор материалов, я приступил к делу.'],
+
+          ['ofl/notosanssc/NotoSansSC-Regular.otf', '远方的星体犹如圣乐、名画或伟大诗人的诗句，一眼瞬'
+           + '间就能让我们的思想升华与净化。它总是能给人带来积极的影响。'],
+          ['ofl/notosanssc/NotoSansSC-Regular.otf', '显然，我们已到达大气层中极高的位置，天空是一片'
+           + '死寂的黑，星星也不再闪烁。就像从山顶远眺时，会产生海平线与视野等高的错觉，下方乌云散开'
+           + '了，而车子彷佛漂浮在浓黑气团的中央，气团上半部还镶着银边。'],
+          ['ofl/notosanssc/NotoSansSC-Regular.otf', '我继续航行，速度还在加快，日与夜交替晃动，融合'
+           + '成连贯的灰；天空是一片美好深蓝，犹如黄昏的灿烂明亮；跳跃的太阳成了一道火焰，在太空中'
+           + '画出一道耀眼圆弧；月亮则是一长条起伏不断的弱光；我看不见任何星星，只是偶尔能看到一个'
+           + '明亮的光圈在这片深蓝中闪烁'],
+          ['ofl/notosanssc/NotoSansSC-Regular.otf', '由于各个零件都过于微小，我的制造速度受到了极大'
+           + '的阻碍，因此我决定违背自己的初衷，改为制造一个庞然大物，也就是说，高约8英尺，各部分也'
+           + '都按比例放大。下定决心后，我花费几个月的时间成功收集和整理了所需的材料，然后就开始实'
+           + '施我的计划了。'],
+          ['ofl/notosanssc/NotoSansSC-Regular.otf', '无论如何，我将会看到火星的面貌，而这将会是一次'
+           + '极其难得的经历。在我看来，通过高级望远镜观看天体以及环游世界，都应该是人文教育不可或'
+           + '缺的一部分。'],
+          ['ofl/notosanssc/NotoSansSC-Regular.otf', '尽管地心引力仍使他难以前行，但他的肌肉在努力'
+           + '地适应。上完每天的课程后，他不再立刻瘫倒在床上。只是梦魇越来越可怕。'],
+          ['ofl/notosanssc/NotoSansSC-Regular.otf', '这确实是一次十分不错的旅程。在旅途中，我遇到了'
+           + '很多让我感觉相见恨晚但又再也不会重逢的人；因为人生没有足够的空间，每个人都必须尽自己'
+           + '的责任去守护一方天地的安全和福祉。然而，尽管走过千山万水，我们依然坚持旅行，未曾停歇'
+           + '，只是世界风景多如繁星，人生却仅短短数十年。'],
+          ['ofl/notosanssc/NotoSansSC-Regular.otf', '有一个不明物体，看起来像是一小片紫色的草，且'
+           + '面积在 5 平方英尺以上，正穿过沙地朝着他们移动。当它靠得足够近时，他才发现这不是草，'
+           + '没有叶子，只有紫色的根。这一整片中的每株小植物的紫色根都在旋转，就像无边缘轮轴的辐条'
+           + '一样。'],
+
+          ['apache/notocoloremojicompat/NotoColorEmojiCompat-Regular.ttf',
+           '🤛🏻🤛🏼🤛🏽🤛🏿🧔🏿👨🏻‍🦰👨🏼‍🦰👨🏽‍🦰👨🏾‍🦰🧑🏻‍🦰🧑🏼‍🦰🧑🏽‍🦰🧑🏾‍🦰🧑🏿‍🦰👩🏻‍🦱👩🏼‍🦱👩🏽‍🦱👩🏾‍🦱🥬🥦🧄🧅🥜🍞🥐🚔🚖🚙🛻🚛'],
+      ];
+
+      var page_index = -1;
+      var states = {};
+      var also_load_unicode_range = true;
+      var show_unicode_range = false;
+      var use_prediction = false;
+
+      async function update_all_fonts() {
+          if (page_index < 0) {
+              update_transfer_bars();
+              return;
+          }
+
+          title_font = SENTENCES[page_index][0];
+          title_text = SENTENCES[page_index][1]
+          paragraph_font = PARAGRAPHS[page_index][0];
+          paragraph_text = PARAGRAPHS[page_index][1];
+
+          p1 = update_fonts(title_text,
+                            title_font,
+                            "Title Font");
+          p2 = update_fonts(paragraph_text,
+                            paragraph_font,
+                            "Paragraph Font");
+          await p1;
+          await p2;
+
+          document.getElementById("title_pfe").textContent = title_text;
+          document.getElementById("paragraph_pfe").textContent = paragraph_text;
+          if (also_load_unicode_range) {
+              document.getElementById("title_ur").textContent = title_text;
+              document.getElementById("paragraph_ur").textContent = paragraph_text;
+          }
+
+          document.getElementById("prev").disabled = (page_index == 0);
+          document.getElementById("next").disabled = (page_index == PARAGRAPHS.length - 1);
+
+          update_transfer_bars();
+          update_sample_toggle();
+      }
+
+      function update_sample_toggle() {
+          document.getElementById("sample_toggle").style.visibility =
+              (page_index >= 0 && also_load_unicode_range) ? "visible" : "hidden";
+          document.getElementById("sample_toggle").value =
+              show_unicode_range ? "Show progressive font enrichment" : "Show unicode range";
+
+          if (show_unicode_range) {
+              document.getElementById("pfe_sample").classList.add("hide");
+              document.getElementById("ur_sample").classList.remove("hide");
+          } else {
+              document.getElementById("pfe_sample").classList.remove("hide");
+              document.getElementById("ur_sample").classList.add("hide");
+          }
+      }
+
+      function update_fonts(text, font_id, font_face) {
+          cps = new Set()
+          for (var i = 0; text.codePointAt(i); i++) {
+              cps.add(text.codePointAt(i));
+          }
+
+          cps_array = []
+          for (let cp of cps) {
+              cps_array.push(cp);
+          }
+
+          return patch_codepoints(font_id, font_face, cps_array);
+      }
+
+      function patch_codepoints(font_id, font_face, cps) {
+          if (use_prediction) {
+              font_id = "with_prediction/" + font_id;
+          }
+          if (!states[font_id]) {
+              states[font_id] = new window.Module.State(font_id);
+          }
+          var state = states[font_id];
+          return new Promise(resolve => {
+              state.extend(cps, async function(result) {
+                  if (!result) {
+                      resolve(result);
+                      return;
+                  }
+                  font = state.font_data();
+                  font = new FontFace(font_face, font);
+                  if (font_face == "Title Font") {
+                      font.weight = 100;
+                  }
+                  document.fonts.add(font);
+                  await font.load();
+                  resolve(result);
+              });
+          });
+      }
+
+      function update_transfer_bars() {
+          var pfe_total = 0;
+          var ur_total = 0;
+          for (let r of performance.getEntriesByType("resource")) {
+              if (r.name.includes("/experimental/patch_subset")
+                  && (r.name.endsWith(".ttf") || r.name.endsWith(".otf"))) {
+                  pfe_total += r.transferSize;
+              }
+              if (r.name.includes("/s/")) {
+                  ur_total += r.transferSize;
+              }
+          }
+          var total = Math.max(Math.max(pfe_total, ur_total), 1);
+          document.getElementById("pfe_bar").style.width =
+              ((pfe_total / total) * 100) + "%";
+          document.getElementById("pfe_bar").textContent = as_string(pfe_total);
+
+          document.getElementById("ur_bar").style.width =
+              ((ur_total / total) * 100) + "%";
+          document.getElementById("ur_bar").textContent = as_string(ur_total);
+
+          document.getElementById("ur_byte_counter").style.visibility =
+              (also_load_unicode_range ? "visible" : "hidden");
+      }
+
+      function as_string(byte_count) {
+          return Math.round(byte_count / 1000).toLocaleString() + " kb";
+      }
+
+      createModule().then(function(Module) {
+          window.Module = Module;
+          update_transfer_bars();
+      });
+
+      window.addEventListener('DOMContentLoaded', function() {
+          prev = document.getElementById("prev");
+          prev.addEventListener("click", function() {
+              page_index--;
+              if (page_index < 0) page_index = 0;
+              update_all_fonts();
+          });
+          next = document.getElementById("next");
+          next.addEventListener("click", function() {
+              page_index++;
+              if (page_index >= PARAGRAPHS.length) page_index = PARAGRAPHS.length - 1;
+              update_all_fonts();
+          });
+          document.getElementById("also_ur").addEventListener("change", function(e) {
+              also_load_unicode_range = e.target.checked;
+              if (!also_load_unicode_range) {
+                  sample_toggle = false;
+              }
+              update_all_fonts();
+              update_sample_toggle();
+          });
+          document.getElementById("prediction").addEventListener("change", function(e) {
+              use_prediction = e.target.checked;
+          });
+          document.getElementById("sample_toggle").addEventListener("click", e => {
+              show_unicode_range = !show_unicode_range;
+              update_sample_toggle();
+          });
+      });
+      document.fonts.addEventListener('loadingdone', function() {
+          update_transfer_bars();
+      });
+    </script>
+    <style>
+      h1 {
+          font-size: 3em;
+      }
+
+      div.pfe, div.ur {
+          font-size: 1.5em;
+      }
+
+      h1.pfe {
+          font-family: "Title Font", serif;
+          font-weight: 100;
+      }
+
+      div.pfe {
+          font-family: "Paragraph Font", serif;
+      }
+
+      h1.ur {
+          font-family: "Roboto", "Noto Serif SC";
+          font-weight: 100;
+      }
+
+      div.ur {
+          font-family: "Roboto", "Noto Sans SC", "Noto Color Emoji Compat";
+      }
+
+      input, label {
+          font-family: sans-serif;
+          font-size: 1.5em;
+      }
+
+      .sample_text, .metrics, .controls {
+          padding: 1em;
+          margin: 0.3em;
+      }
+
+      .sample_text, .metrics {
+          border: 1px solid #AAAAAA;
+          border-radius: 0.3em;
+          height: 100%;
+      }
+
+      .text_and_metrics {
+          height: 50em;
+      }
+
+      .sample_text {
+          display: inline-block;
+          width: 45em;
+      }
+
+      .metrics {
+          display: inline-block;
+          width: 25em;
+          vertical-align: top;
+      }
+
+      .metrics_inner {
+          font-family: sans-serif;
+          font-size: 1.5em;
+      }
+
+      .metrics_inner span, .metrics_inner div {
+          margin: 0.3em 0;
+      }
+
+      .bar {
+          white-space: nowrap;
+          background-color: #1999d4;
+          padding: 0.25em 0 0.25em 0.2em;
+          border-radius: 2px;
+      }
+
+      .hide {
+          position: absolute;
+          top: 0;
+          left: -10000px;
+      }
+
+      #ur_byte_counter {
+          visibility: hidden;
+      }
+
+      .type {
+          font-size: 0.8em;
+          font-color: #BBBBBB;
+          font-family: sans-serif;
+      }
+    </style>
+    <link href="fonts.css" type="text/css" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="controls">
+      <input type="button" value="Previous" id="prev" disabled="true" />
+      <input type="button" value="Next" id="next"/>
+      <input type="button" value="Show Unicode Range" id="sample_toggle" style="visibility: hidden;" />
+      <br/>
+      <input type="checkbox" id="also_ur" name="also_ur" checked />
+      <label for="also_ur">Also load fonts via unicode range.</label><br/>
+      <input type="checkbox" id="prediction" name="prediction" />
+      <label for="prediction">Use codepoint prediction.</label>
+    </div>
+    <div class="text_and_metrics">
+      <div id="pfe_sample" class="sample_text">
+        <div class="type">Progressive Font Enrichment</div>
+        <h1 id="title_pfe" class="pfe">Progressive Font Enrichment Demo</h1>
+        <div id="paragraph_pfe" class="pfe">
+          This demonstrates the use of the patch subset progressive font enrichment protocol
+          to incrementaly load fonts for a variety of languages.
+          <br/><br/>
+          Instructions:
+          <ul>
+            <li>Next/Previous will switch between text samples. Switching to a new sample will use
+            PFE to load any additional font data needed for it.</li>
+            <li>If "Also load fonts via unicode range" is selected then fonts will be
+              loaded via the Google Fonts API (using unicode range) in parallel to
+              the progressive font enrichment.</li>
+            <li><b>Disable caching (via dev console) or force refresh the page (ctrl+shift+r) before
+              starting. If caching is enabled the unicode range font loading may be served from
+              the cache which will make the bytes transferred incorrect.</b></li>
+            <li>If unicode range loading is enabled you can switch the displayed text
+              sample between the two methods using the "Show unicode range" button.</li>
+          </ul>
+          Interesting things to try:
+          <ul>
+            <li>Switching between the unicode range and pfe text for the cyrillic and vietnamese
+              samples demonstrates how unicode range breaks kerning between characters in different
+              subsets</li>
+          </ul>
+        </div>
+      </div>
+      <div id="ur_sample" class="sample_text hide">
+        <div class="type">Unicode range</div>
+        <h1 id="title_ur" class="ur"></h1>
+        <div id="paragraph_ur" class="ur"></div>
+      </div>
+      <div class="metrics">
+        <div class="metrics_inner">
+          <span>Progressive enrichment transferred:</span>
+          <div id="pfe_bar" class="bar"></div>
+          <div id="ur_byte_counter">
+            <span>Unicode range transferred:</span>
+            <div id="ur_bar" class="bar"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
