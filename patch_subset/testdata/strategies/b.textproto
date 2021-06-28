@@ -1,0 +1,22 @@
+subsets: {
+  codepoint_frequencies: {
+    codepoint: 85
+    count: 2
+  }
+  codepoint_frequencies: {
+    codepoint: 86
+    count: 4
+  }
+  codepoint_frequencies: {
+    codepoint: 87
+    count: 6
+  }
+  codepoint_frequencies: {
+    codepoint: 88
+    count: 8
+  }
+  codepoint_frequencies: {
+    codepoint: 89
+    count: 10
+  }
+}

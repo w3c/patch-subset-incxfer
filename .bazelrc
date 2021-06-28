@@ -1,0 +1,43 @@
+build --cxxopt='-std=c++17'
+
+# Address sanitizer
+# To use it:
+# bazel build --config asan
+#
+build:asan --strip=never
+build:asan --copt -fsanitize=address
+build:asan --copt -DADDRESS_SANITIZER
+build:asan --copt -O2
+build:asan --copt -g
+build:asan --copt -fno-omit-frame-pointer
+build:asan --linkopt -fsanitize=address
+
+test:asan --strip=never
+test:asan --copt -fsanitize=address
+test:asan --copt -DADDRESS_SANITIZER
+test:asan --copt -O2
+test:asan --copt -g
+test:asan --copt -fno-omit-frame-pointer
+test:asan --linkopt -fsanitize=address
+
+test:ubsan --strip=never
+test:ubsan --copt -fsanitize=undefined
+test:ubsan --copt -DADDRESS_SANITIZER
+test:ubsan --copt -O2
+test:ubsan --copt -g
+test:ubsan --copt -fno-omit-frame-pointer
+test:ubsan --linkopt -fsanitize=undefined
+
+test:msan --strip=never
+test:msan --copt -fsanitize=memory
+test:msan --copt -DADDRESS_SANITIZER
+test:msan --copt -O2
+test:msan --copt -g
+test:msan --copt -fno-omit-frame-pointer
+test:msan --linkopt -fsanitize=memory
+
+##### WASM #####
+
+build:wasm --crosstool_top=//emscripten_toolchain:everything
+build:wasm --cpu=wasm
+build:wasm --host_crosstool_top=@bazel_tools//tools/cpp:toolchain

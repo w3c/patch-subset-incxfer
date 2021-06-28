@@ -1,0 +1,74 @@
+// Protos that the patch+subset incremental transfer client and server use to
+// communicate.
+//
+// See Patch+Subset incremental transfer design doc for more info:
+// go/patch-subset-design-doc
+syntax = "proto3";
+
+package patch_subset;
+
+enum PatchFormat {
+  BROTLI_SHARED_DICT = 0;
+  VCDIFF = 1;
+}
+
+enum ResponseType {
+  PATCH = 0;
+  REBASE = 1;
+  REINDEX = 2;
+}
+
+message PatchRequestProto {
+  uint64 original_font_fingerprint = 1;
+  uint64 base_fingerprint = 2;
+  repeated PatchFormat accept_format = 3;
+
+  CompressedSetProto codepoints_have = 4;
+  CompressedSetProto codepoints_needed = 5;
+
+  uint64 index_fingerprint = 6;
+  CompressedSetProto indices_have = 7;
+  CompressedSetProto indices_needed = 8;
+}
+
+message PatchResponseProto {
+  ResponseType type = 1;
+  uint64 original_font_fingerprint = 2;
+  PatchProto patch = 3;
+  CodepointRemappingProto codepoint_remapping = 4;
+}
+
+message CompressedSetProto {
+  bytes sparse_bit_set = 1;
+  repeated uint32 range_deltas = 2;
+}
+
+message PatchProto {
+  PatchFormat format = 1;
+  bytes patch = 2;
+  uint64 patched_fingerprint = 3;
+}
+
+message CompressedListProto {
+  // The value at index, i is deltas[i-1] + deltas[i].
+  // deltas[-1] is assumed to be 0.
+  repeated sint32 deltas = 2;
+}
+
+message CodepointRemappingProto {
+  CompressedListProto codepoint_ordering = 1;
+  // Key: index into the codepoint_ordering
+  // Value: block size for all codepoints at index greater than the key.
+  map<uint32, uint32> grouping_strategy = 2;
+  uint64 fingerprint = 3;
+}
+
+// Stores the state necessary for a client to make future enrichment
+// requests for a specific font. Stored in a proto so it can be easily
+// serialized into persistent storage.
+message ClientState {
+  string font_id = 1;
+  bytes font_data = 2;
+  uint64 original_font_fingerprint = 3;
+  CodepointRemappingProto codepoint_remapping = 4;
+}
