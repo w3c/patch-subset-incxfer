@@ -29,32 +29,3 @@ cc_proto_library(
     deps = [":slicing_strategy_proto"],
 )
 
-py_library(
-    name = "slicing_strategy_loader",
-    srcs = [
-        "slicing_strategy_loader.py",
-    ],
-    data = [
-        ":slicing_strategies",
-    ],
-    visibility = [
-        "//analysis/pfe_methods:__pkg__",
-    ],
-    deps = [
-        ":slicing_strategy_py_proto",
-        "@fonttools",
-    ],
-)
-
-py_test(
-    name = "slicing_strategy_loader_test",
-    srcs = [
-        "slicing_strategy_loader_test.py",
-    ],
-    data = [
-        "//patch_subset:testdata",
-    ],
-    deps = [
-        ":slicing_strategy_loader",
-    ],
-)

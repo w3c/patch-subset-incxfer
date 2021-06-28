@@ -10,15 +10,6 @@ http_archive(
     url = "https://github.com/google/googletest/archive/release-1.10.0.zip",
 )
 
-# FontTools
-http_archive(
-    name = "fonttools",
-    build_file = "//third_party:fonttools.BUILD",
-    sha256 = "9d02d0d4408c0b547360d69a41dd3887e52968f0b9cf654c3b26a2d33c80f319",
-    strip_prefix = "fonttools-4.2.0",
-    url = "https://github.com/fonttools/fonttools/archive/4.2.0.zip",
-)
-
 # Brotli Encoder/Decoder
 http_archive(
     name = "brotli",
