@@ -1,0 +1,174 @@
+Loading: 
+Loading: 0 packages loaded
+Analyzing: target //patch_subset/cbor:cbor (0 packages loaded, 0 targets configured)
+INFO: Analyzed target //patch_subset/cbor:cbor (1 packages loaded, 158 targets configured).
+INFO: Found 1 target...
+INFO: Writing explanation of rebuilds to '/tmp/log'
+[0 / 5] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+SUBCOMMAND: # @libcbor//:AJcbor_cmake [action 'Foreign Cc - CMake: Building AJcbor_cmake', configuration: 3a05a49f406b9d9155944ad535d876cb897e428b3b558db0412d8f407bb67223, execution platform: @local_config_platform//:host]
+(cd /usr/local/google/home/andyj/.cache/bazel/_bazel_andyj/28d3313ff997674bef59b0baef5b4258/execroot/w3c_patch_subset_incxfer && \
+  exec env - \
+    LD_LIBRARY_PATH=/usr/lib/mesa-diverted/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu/mesa:/usr/lib/x86_64-linux-gnu/dri:/usr/lib/x86_64-linux-gnu/gallium-pipe \
+    PATH=/usr/local/google/home/andyj/bin:/usr/lib/google-golang/bin:/usr/local/buildtools/java/jdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/google/home/andyj/bin:/usr/local/google/home/andyj/.local/bin:/google/bin/releases/fonts/internal/bin/fonts/fonttools:/google/bin/releases/fonts/internal/bin/fonts/util:/google/bin/releases/fonts/internal/bin/java/com/google/fonts/tools/push:/google/bin/releases/fonts/internal/bin/third_party/brotli/tools:/google/bin/releases/fonts/internal/bin/third_party/harfbuzz/util:/google/bin/releases/fonts/internal/bin/third_party/py/fontTools:/google/bin/releases/fonts/internal/bin/third_party/woff:/google/bin/releases/fonts/internal/genfiles/java/com/google/fonts/tools/axisregistrycopy:/google/bin/releases/fonts/internal/genfiles/java/com/google/fonts/tools/familycopy:/google/bin/releases/fonts/internal/genfiles/java/com/google/fonts/tools/designercopy:/google/bin/releases/fonts/internal/genfiles/java/com/google/fonts/tools/langcopy:/google/bin/releases/fonts/internal/genfiles/java/com/google/fonts/tools/env2env:/google/bin/releases/fonts/internal/genfiles/java/com/google/fonts/tools/vbump:/google/bin/releases/fonts/internal/third_party/py/fontTools/Tools \
+  /bin/bash -c bazel-out/k8-fastbuild/bin/external/libcbor/AJcbor_cmake_foreign_cc/wrapper_build_script.sh)
+[7 / 13] Foreign Cc - CMake: Building AJcbor_cmake; 1s linux-sandbox
+INFO: From Foreign Cc - CMake: Building AJcbor_cmake:
+1625733355.146057968: src/main/tools/linux-sandbox.cc:152: calling pipe(2)...
+1625733355.146094442: src/main/tools/linux-sandbox.cc:171: calling clone(2)...
+1625733355.146754925: src/main/tools/linux-sandbox.cc:180: linux-sandbox-pid1 has PID 3764546
+1625733355.146789941: src/main/tools/linux-sandbox-pid1.cc:434: Pid1Main started
+1625733355.146897831: src/main/tools/linux-sandbox.cc:197: done manipulating pipes
+1625733355.147007472: src/main/tools/linux-sandbox-pid1.cc:176: working dir: /usr/local/google/home/andyj/.cache/bazel/_bazel_andyj/28d3313ff997674bef59b0baef5b4258/sandbox/linux-sandbox/12/execroot/w3c_patch_subset_incxfer
+1625733355.147030057: src/main/tools/linux-sandbox-pid1.cc:208: writable: /usr/local/google/home/andyj/.cache/bazel/_bazel_andyj/28d3313ff997674bef59b0baef5b4258/sandbox/linux-sandbox/12/execroot/w3c_patch_subset_incxfer
+1625733355.147040683: src/main/tools/linux-sandbox-pid1.cc:208: writable: /tmp
+1625733355.147050099: src/main/tools/linux-sandbox-pid1.cc:208: writable: /dev/shm
+1625733355.147128723: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /
+1625733355.147150891: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /dev
+1625733355.147165702: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /dev/pts
+1625733355.147179901: src/main/tools/linux-sandbox-pid1.cc:279: remount rw: /dev/shm
+1625733355.147193856: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /dev/mqueue
+1625733355.147207172: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /dev/hugepages
+1625733355.147221299: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /run
+1625733355.147234882: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /run/lock
+1625733355.147247342: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /run/rpc_pipefs
+1625733355.147261160: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /run/user/154194
+1625733355.147275352: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /run/user/132
+1625733355.147288549: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /sys
+1625733355.147301390: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /sys/kernel/security
+1625733355.147353779: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /sys/fs/cgroup
+1625733355.147369905: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /sys/fs/pstore
+1625733355.147384524: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /sys/fs/bpf
+1625733355.147398262: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /sys/kernel/debug
+1625733355.147412884: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /sys/kernel/debug/tracing
+1625733355.147424001: src/main/tools/linux-sandbox-pid1.cc:300: remount(nullptr, /sys/kernel/debug/tracing, nullptr, 2101295, nullptr) failure (Permission denied) ignored
+1625733355.147451791: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /sys/kernel/tracing
+1625733355.147466682: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /sys/fs/fuse/connections
+1625733355.147482075: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /sys/kernel/config
+1625733355.147496156: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /proc
+1625733355.147510254: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /proc/sys/fs/binfmt_misc
+1625733355.147526028: src/main/tools/linux-sandbox-pid1.cc:300: remount(nullptr, /proc/sys/fs/binfmt_misc, nullptr, 2101281, nullptr) failure (Operation not permitted) ignored
+1625733355.147535470: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /proc/sys/fs/binfmt_misc
+1625733355.147550338: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /usr/local/google
+1625733355.147563975: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /boot
+1625733355.147609472: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /auto
+1625733355.147623315: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /home
+1625733355.147636282: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /var/google/session/loasd/tmpfs
+1625733355.147652027: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /google/data
+1625733355.147711790: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /google/bin
+1625733355.147744675: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /google/obj
+1625733355.147794765: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /google/src
+1625733355.147844385: src/main/tools/linux-sandbox-pid1.cc:279: remount rw: /usr/local/google/home/andyj/.cache/bazel/_bazel_andyj/28d3313ff997674bef59b0baef5b4258/sandbox/linux-sandbox/12/execroot/w3c_patch_subset_incxfer
+1625733355.147874394: src/main/tools/linux-sandbox-pid1.cc:279: remount rw: /usr/local/google/home/andyj/.cache/bazel/_bazel_andyj/28d3313ff997674bef59b0baef5b4258/sandbox/linux-sandbox/12/execroot/w3c_patch_subset_incxfer
+1625733355.147891783: src/main/tools/linux-sandbox-pid1.cc:279: remount rw: /tmp
+1625733355.147905091: src/main/tools/linux-sandbox-pid1.cc:279: remount rw: /dev/shm
+1625733355.148213299: src/main/tools/linux-sandbox-pid1.cc:363: calling fork...
+1625733355.148339862: src/main/tools/linux-sandbox-pid1.cc:393: child started with PID 2
+1625733360.316847775: src/main/tools/linux-sandbox-pid1.cc:410: wait returned pid=2, status=0x00
+1625733360.316880876: src/main/tools/linux-sandbox-pid1.cc:428: child exited normally with code 0
+1625733360.317421660: src/main/tools/linux-sandbox.cc:233: child exited normally with code 0
+[8 / 13] [Prepa] Foreign Cc - GNUMake: Building AJcbor
+SUBCOMMAND: # @libcbor//:AJcbor [action 'Foreign Cc - GNUMake: Building AJcbor', configuration: 3a05a49f406b9d9155944ad535d876cb897e428b3b558db0412d8f407bb67223, execution platform: @local_config_platform//:host]
+(cd /usr/local/google/home/andyj/.cache/bazel/_bazel_andyj/28d3313ff997674bef59b0baef5b4258/execroot/w3c_patch_subset_incxfer && \
+  exec env - \
+    LD_LIBRARY_PATH=/usr/lib/mesa-diverted/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu/mesa:/usr/lib/x86_64-linux-gnu/dri:/usr/lib/x86_64-linux-gnu/gallium-pipe \
+    PATH=/usr/local/google/home/andyj/bin:/usr/lib/google-golang/bin:/usr/local/buildtools/java/jdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/google/home/andyj/bin:/usr/local/google/home/andyj/.local/bin:/google/bin/releases/fonts/internal/bin/fonts/fonttools:/google/bin/releases/fonts/internal/bin/fonts/util:/google/bin/releases/fonts/internal/bin/java/com/google/fonts/tools/push:/google/bin/releases/fonts/internal/bin/third_party/brotli/tools:/google/bin/releases/fonts/internal/bin/third_party/harfbuzz/util:/google/bin/releases/fonts/internal/bin/third_party/py/fontTools:/google/bin/releases/fonts/internal/bin/third_party/woff:/google/bin/releases/fonts/internal/genfiles/java/com/google/fonts/tools/axisregistrycopy:/google/bin/releases/fonts/internal/genfiles/java/com/google/fonts/tools/familycopy:/google/bin/releases/fonts/internal/genfiles/java/com/google/fonts/tools/designercopy:/google/bin/releases/fonts/internal/genfiles/java/com/google/fonts/tools/langcopy:/google/bin/releases/fonts/internal/genfiles/java/com/google/fonts/tools/env2env:/google/bin/releases/fonts/internal/genfiles/java/com/google/fonts/tools/vbump:/google/bin/releases/fonts/internal/third_party/py/fontTools/Tools \
+  /bin/bash -c bazel-out/k8-fastbuild/bin/external/libcbor/AJcbor_foreign_cc/wrapper_build_script.sh)
+[8 / 13] Foreign Cc - GNUMake: Building AJcbor; 1s linux-sandbox
+ERROR: /usr/local/google/home/andyj/.cache/bazel/_bazel_andyj/28d3313ff997674bef59b0baef5b4258/external/libcbor/BUILD.bazel:28:5: Foreign Cc - GNUMake: Building AJcbor failed: (Exit 2): linux-sandbox failed: error executing command 
+  (cd /usr/local/google/home/andyj/.cache/bazel/_bazel_andyj/28d3313ff997674bef59b0baef5b4258/sandbox/linux-sandbox/13/execroot/w3c_patch_subset_incxfer && \
+  exec env - \
+    LD_LIBRARY_PATH=/usr/lib/mesa-diverted/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu/mesa:/usr/lib/x86_64-linux-gnu/dri:/usr/lib/x86_64-linux-gnu/gallium-pipe \
+    PATH=/usr/local/google/home/andyj/bin:/usr/lib/google-golang/bin:/usr/local/buildtools/java/jdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/google/home/andyj/bin:/usr/local/google/home/andyj/.local/bin:/google/bin/releases/fonts/internal/bin/fonts/fonttools:/google/bin/releases/fonts/internal/bin/fonts/util:/google/bin/releases/fonts/internal/bin/java/com/google/fonts/tools/push:/google/bin/releases/fonts/internal/bin/third_party/brotli/tools:/google/bin/releases/fonts/internal/bin/third_party/harfbuzz/util:/google/bin/releases/fonts/internal/bin/third_party/py/fontTools:/google/bin/releases/fonts/internal/bin/third_party/woff:/google/bin/releases/fonts/internal/genfiles/java/com/google/fonts/tools/axisregistrycopy:/google/bin/releases/fonts/internal/genfiles/java/com/google/fonts/tools/familycopy:/google/bin/releases/fonts/internal/genfiles/java/com/google/fonts/tools/designercopy:/google/bin/releases/fonts/internal/genfiles/java/com/google/fonts/tools/langcopy:/google/bin/releases/fonts/internal/genfiles/java/com/google/fonts/tools/env2env:/google/bin/releases/fonts/internal/genfiles/java/com/google/fonts/tools/vbump:/google/bin/releases/fonts/internal/third_party/py/fontTools/Tools \
+    TMPDIR=/tmp \
+  /usr/local/google/home/andyj/.cache/bazel/_bazel_andyj/install/f95ca91ebc34d56aa0f8ad499de91220/linux-sandbox -t 15 -w /usr/local/google/home/andyj/.cache/bazel/_bazel_andyj/28d3313ff997674bef59b0baef5b4258/sandbox/linux-sandbox/13/execroot/w3c_patch_subset_incxfer -w /tmp -w /dev/shm -N -D -- /bin/bash -c bazel-out/k8-fastbuild/bin/external/libcbor/AJcbor_foreign_cc/wrapper_build_script.sh)
+1625733360.391602141: src/main/tools/linux-sandbox.cc:152: calling pipe(2)...
+1625733360.391665890: src/main/tools/linux-sandbox.cc:171: calling clone(2)...
+1625733360.392547978: src/main/tools/linux-sandbox.cc:180: linux-sandbox-pid1 has PID 3765334
+1625733360.392602947: src/main/tools/linux-sandbox-pid1.cc:434: Pid1Main started
+1625733360.392731763: src/main/tools/linux-sandbox.cc:197: done manipulating pipes
+1625733360.392962662: src/main/tools/linux-sandbox-pid1.cc:176: working dir: /usr/local/google/home/andyj/.cache/bazel/_bazel_andyj/28d3313ff997674bef59b0baef5b4258/sandbox/linux-sandbox/13/execroot/w3c_patch_subset_incxfer
+1625733360.392993815: src/main/tools/linux-sandbox-pid1.cc:208: writable: /usr/local/google/home/andyj/.cache/bazel/_bazel_andyj/28d3313ff997674bef59b0baef5b4258/sandbox/linux-sandbox/13/execroot/w3c_patch_subset_incxfer
+1625733360.393009744: src/main/tools/linux-sandbox-pid1.cc:208: writable: /tmp
+1625733360.393024037: src/main/tools/linux-sandbox-pid1.cc:208: writable: /dev/shm
+1625733360.393107479: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /
+1625733360.393122587: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /dev
+1625733360.393132728: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /dev/pts
+1625733360.393141669: src/main/tools/linux-sandbox-pid1.cc:279: remount rw: /dev/shm
+1625733360.393150591: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /dev/mqueue
+1625733360.393159586: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /dev/hugepages
+1625733360.393168629: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /run
+1625733360.393177319: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /run/lock
+1625733360.393185448: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /run/rpc_pipefs
+1625733360.393199369: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /run/user/154194
+1625733360.393208554: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /run/user/132
+1625733360.393216992: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /sys
+1625733360.393225349: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /sys/kernel/security
+1625733360.393263587: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /sys/fs/cgroup
+1625733360.393275976: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /sys/fs/pstore
+1625733360.393285793: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /sys/fs/bpf
+1625733360.393295019: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /sys/kernel/debug
+1625733360.393304430: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /sys/kernel/debug/tracing
+1625733360.393310967: src/main/tools/linux-sandbox-pid1.cc:300: remount(nullptr, /sys/kernel/debug/tracing, nullptr, 2101295, nullptr) failure (Permission denied) ignored
+1625733360.393327063: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /sys/kernel/tracing
+1625733360.393337037: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /sys/fs/fuse/connections
+1625733360.393347314: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /sys/kernel/config
+1625733360.393356733: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /proc
+1625733360.393365245: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /proc/sys/fs/binfmt_misc
+1625733360.393376502: src/main/tools/linux-sandbox-pid1.cc:300: remount(nullptr, /proc/sys/fs/binfmt_misc, nullptr, 2101281, nullptr) failure (Operation not permitted) ignored
+1625733360.393382619: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /proc/sys/fs/binfmt_misc
+1625733360.393392029: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /usr/local/google
+1625733360.393401115: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /boot
+1625733360.393433538: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /auto
+1625733360.393443294: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /home
+1625733360.393451664: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /var/google/session/loasd/tmpfs
+1625733360.393462243: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /google/data
+1625733360.393524512: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /google/bin
+1625733360.393553078: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /google/obj
+1625733360.393607831: src/main/tools/linux-sandbox-pid1.cc:279: remount ro: /google/src
+1625733360.393654266: src/main/tools/linux-sandbox-pid1.cc:279: remount rw: /usr/local/google/home/andyj/.cache/bazel/_bazel_andyj/28d3313ff997674bef59b0baef5b4258/sandbox/linux-sandbox/13/execroot/w3c_patch_subset_incxfer
+1625733360.393671447: src/main/tools/linux-sandbox-pid1.cc:279: remount rw: /usr/local/google/home/andyj/.cache/bazel/_bazel_andyj/28d3313ff997674bef59b0baef5b4258/sandbox/linux-sandbox/13/execroot/w3c_patch_subset_incxfer
+1625733360.393679017: src/main/tools/linux-sandbox-pid1.cc:279: remount rw: /tmp
+1625733360.393685040: src/main/tools/linux-sandbox-pid1.cc:279: remount rw: /dev/shm
+1625733360.393889149: src/main/tools/linux-sandbox-pid1.cc:363: calling fork...
+1625733360.394062480: src/main/tools/linux-sandbox-pid1.cc:393: child started with PID 2
+1625733363.014920862: src/main/tools/linux-sandbox-pid1.cc:410: wait returned pid=2, status=0x200
+1625733363.014938650: src/main/tools/linux-sandbox-pid1.cc:428: child exited normally with code 2
+1625733363.015340208: src/main/tools/linux-sandbox.cc:233: child exited normally with code 2
+rules_foreign_cc: Build failed!
+rules_foreign_cc: Keeping temp build directory and dependencies directory for debug.
+rules_foreign_cc: Please note that the directories inside a sandbox are still cleaned unless you specify --sandbox_debug Bazel command line flag.
+rules_foreign_cc: Printing build logs:
+_____ BEGIN BUILD LOGS _____
+
+Bazel external C/C++ Rules. Building library AJcbor
+
+Environment:______________
+BUILD_SCRIPT=bazel-out/k8-fastbuild/bin/external/libcbor/AJcbor_foreign_cc/build_script.sh
+EXT_BUILD_ROOT=/usr/local/google/home/andyj/.cache/bazel/_bazel_andyj/28d3313ff997674bef59b0baef5b4258/sandbox/linux-sandbox/13/execroot/w3c_patch_subset_incxfer
+BUILD_LOG=bazel-out/k8-fastbuild/bin/external/libcbor/AJcbor_foreign_cc/GNUMake.log
+PWD=/usr/local/google/home/andyj/.cache/bazel/_bazel_andyj/28d3313ff997674bef59b0baef5b4258/sandbox/linux-sandbox/13/execroot/w3c_patch_subset_incxfer
+BUILD_WRAPPER_SCRIPT=bazel-out/k8-fastbuild/bin/external/libcbor/AJcbor_foreign_cc/wrapper_build_script.sh
+TMPDIR=/tmp
+EXT_BUILD_DEPS=/usr/local/google/home/andyj/.cache/bazel/_bazel_andyj/28d3313ff997674bef59b0baef5b4258/sandbox/linux-sandbox/13/execroot/w3c_patch_subset_incxfer/bazel-out/k8-fastbuild/bin/external/libcbor/AJcbor.ext_build_deps
+BUILD_TMPDIR=/usr/local/google/home/andyj/.cache/bazel/_bazel_andyj/28d3313ff997674bef59b0baef5b4258/sandbox/linux-sandbox/13/execroot/w3c_patch_subset_incxfer/bazel-out/k8-fastbuild/bin/external/libcbor/AJcbor.build_tmpdir
+SHLVL=2
+LD_LIBRARY_PATH=/usr/lib/mesa-diverted/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu/mesa:/usr/lib/x86_64-linux-gnu/dri:/usr/lib/x86_64-linux-gnu/gallium-pipe
+INSTALLDIR=/usr/local/google/home/andyj/.cache/bazel/_bazel_andyj/28d3313ff997674bef59b0baef5b4258/sandbox/linux-sandbox/13/execroot/w3c_patch_subset_incxfer/bazel-out/k8-fastbuild/bin/external/libcbor/AJcbor
+PATH=/usr/local/google/home/andyj/.cache/bazel/_bazel_andyj/28d3313ff997674bef59b0baef5b4258/sandbox/linux-sandbox/13/execroot/w3c_patch_subset_incxfer:/usr/local/google/home/andyj/bin:/usr/lib/google-golang/bin:/usr/local/buildtools/java/jdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/google/home/andyj/bin:/usr/local/google/home/andyj/.local/bin:/google/bin/releases/fonts/internal/bin/fonts/fonttools:/google/bin/releases/fonts/internal/bin/fonts/util:/google/bin/releases/fonts/internal/bin/java/com/google/fonts/tools/push:/google/bin/releases/fonts/internal/bin/third_party/brotli/tools:/google/bin/releases/fonts/internal/bin/third_party/harfbuzz/util:/google/bin/releases/fonts/internal/bin/third_party/py/fontTools:/google/bin/releases/fonts/internal/bin/third_party/woff:/google/bin/releases/fonts/internal/genfiles/java/com/google/fonts/tools/axisregistrycopy:/google/bin/releases/fonts/internal/genfiles/java/com/google/fonts/tools/familycopy:/google/bin/releases/fonts/internal/genfiles/java/com/google/fonts/tools/designercopy:/google/bin/releases/fonts/internal/genfiles/java/com/google/fonts/tools/langcopy:/google/bin/releases/fonts/internal/genfiles/java/com/google/fonts/tools/env2env:/google/bin/releases/fonts/internal/genfiles/java/com/google/fonts/tools/vbump:/google/bin/releases/fonts/internal/third_party/py/fontTools/Tools
+_=/usr/bin/env
+__________________________
+PKG_CONFIG_PATH=:/usr/local/google/home/andyj/.cache/bazel/_bazel_andyj/28d3313ff997674bef59b0baef5b4258/sandbox/linux-sandbox/13/execroot/w3c_patch_subset_incxfer/bazel-out/k8-fastbuild/bin/external/libcbor/AJcbor.ext_build_deps/AJcbor_cmake/lib/pkgconfig
++ /usr/local/google/home/andyj/.cache/bazel/_bazel_andyj/28d3313ff997674bef59b0baef5b4258/sandbox/linux-sandbox/13/execroot/w3c_patch_subset_incxfer/bazel-out/k8-opt-exec-2B5CBBC6/bin/external/rules_foreign_cc/toolchains/make/bin/make -C /usr/local/google/home/andyj/.cache/bazel/_bazel_andyj/28d3313ff997674bef59b0baef5b4258/sandbox/linux-sandbox/13/execroot/w3c_patch_subset_incxfer/bazel-out/k8-fastbuild/bin/external/libcbor/AJcbor_cmake
+make: Entering directory '/usr/local/google/home/andyj/.cache/bazel/_bazel_andyj/28d3313ff997674bef59b0baef5b4258/sandbox/linux-sandbox/13/execroot/w3c_patch_subset_incxfer/bazel-out/k8-fastbuild/bin/external/libcbor/AJcbor_cmake'
+make: *** No targets specified and no makefile found.  Stop.
+make: Leaving directory '/usr/local/google/home/andyj/.cache/bazel/_bazel_andyj/28d3313ff997674bef59b0baef5b4258/sandbox/linux-sandbox/13/execroot/w3c_patch_subset_incxfer/bazel-out/k8-fastbuild/bin/external/libcbor/AJcbor_cmake'
+_____ END BUILD LOGS _____
+rules_foreign_cc: Build wrapper script location: bazel-out/k8-fastbuild/bin/external/libcbor/AJcbor_foreign_cc/wrapper_build_script.sh
+rules_foreign_cc: Build script location: bazel-out/k8-fastbuild/bin/external/libcbor/AJcbor_foreign_cc/build_script.sh
+rules_foreign_cc: Build log location: bazel-out/k8-fastbuild/bin/external/libcbor/AJcbor_foreign_cc/GNUMake.log
+
+Target //patch_subset/cbor:cbor failed to build
+INFO: Elapsed time: 8.511s, Critical Path: 8.11s
+INFO: 4 processes: 3 internal, 1 linux-sandbox.
+FAILED: Build did NOT complete successfully
+FAILED: Build did NOT complete successfully

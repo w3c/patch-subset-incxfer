@@ -1,4 +1,4 @@
-workspace(name = "PFE_analysis")
+workspace(name = "w3c_patch_subset_incxfer")
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
@@ -113,5 +113,30 @@ npm_install(
     name = "npm",
     package_json = "@emscripten//:emscripten/package.json",
     package_lock_json = "@emscripten//:emscripten/package-lock.json",
+)
+
+# libcbor needs cmake and make
+http_archive(
+   name = "rules_foreign_cc",
+   # 0.4.0 sha256 = "f294fe98f8b9df1264dfb2b6f73225ce68de3246041e86ccf35d19303eed99d6",
+   sha256 = "bb22830b36f4dbb3d21cc0bf26f084a97ad8235ccf0cf6b3b2ec89c740f9aa8a",
+   # strip_prefix = "rules_foreign_cc-0.4.0",
+   strip_prefix = "rules_foreign_cc-bb2f0ab0aa7bf1cbcd4836dbfca353f06fd38c41",
+   # url = "https://github.com/bazelbuild/rules_foreign_cc/archive/0.4.0.zip",
+   # Need out_data_dirs feature, post 0.4.0. Update when next version released.
+   url = "https://github.com/bazelbuild/rules_foreign_cc/archive/bb2f0ab0aa7bf1cbcd4836dbfca353f06fd38c41.zip",
+)
+
+load("@rules_foreign_cc//foreign_cc:repositories.bzl", "rules_foreign_cc_dependencies")
+
+rules_foreign_cc_dependencies()
+
+# libcbor
+http_archive(
+    name = "libcbor",
+    build_file = "//third_party:libcbor.BUILD",
+    sha256 = "dd04ea1a7df484217058d389e027e7a0143a4f245aa18a9f89a5dd3e1a4fcc9a",
+    strip_prefix = "libcbor-0.8.0",
+    urls = ["https://github.com/PJK/libcbor/archive/refs/tags/v0.8.0.zip"],
 )
 
