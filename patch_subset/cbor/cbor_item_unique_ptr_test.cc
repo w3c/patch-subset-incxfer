@@ -19,7 +19,7 @@ TEST_F(CborItemUniquePtrTest, WrapCborItem) {
   cbor_item_unique_ptr ptr = wrap_cbor_item(item);
 
   EXPECT_EQ(ptr.get(), item);
-  EXPECT_EQ((uint64)ptr.get(), (uint64)item);
+  EXPECT_EQ((uint64_t)ptr.get(), (uint64_t)item);
 
   // Map (and internal memory) will be freed automatically.
 }

@@ -4,7 +4,7 @@
 #include <memory>
 
 #include "absl/strings/string_view.h"
-#include "libcbor/src/cbor.h"
+#include "cbor.h"
 
 namespace patch_subset::cbor {
 
