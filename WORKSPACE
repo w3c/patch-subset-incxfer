@@ -119,12 +119,8 @@ npm_install(
 http_archive(
    name = "rules_foreign_cc",
    sha256 = "f294fe98f8b9df1264dfb2b6f73225ce68de3246041e86ccf35d19303eed99d6",
-   # main, needed for out_lib_dirs. sha256 = "bb22830b36f4dbb3d21cc0bf26f084a97ad8235ccf0cf6b3b2ec89c740f9aa8a",
    strip_prefix = "rules_foreign_cc-0.4.0",
-   # main, needed for out_lib_dirs.strip_prefix = "rules_foreign_cc-bb2f0ab0aa7bf1cbcd4836dbfca353f06fd38c41",
    url = "https://github.com/bazelbuild/rules_foreign_cc/archive/0.4.0.zip",
-   # Need out_data_dirs feature, post 0.4.0. Update when next version released.
-   # url = "https://github.com/bazelbuild/rules_foreign_cc/archive/bb2f0ab0aa7bf1cbcd4836dbfca353f06fd38c41.zip",
 )
 
 load("@rules_foreign_cc//foreign_cc:repositories.bzl", "rules_foreign_cc_dependencies")
