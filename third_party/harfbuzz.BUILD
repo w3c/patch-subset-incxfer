@@ -30,7 +30,7 @@ cc_library(
         ],
     ),
     deps = [
-        "@PFE_analysis//third_party/harfbuzz:config",
+        "@w3c_patch_subset_incxfer//third_party/harfbuzz:config",
     ],
     hdrs = [
         "src/hb.h",
@@ -65,7 +65,7 @@ cc_library(
     copts = [
         "-DHAVE_CONFIG_H",
         "-DHB_EXPERIMENTAL_API",
-        "-Iexternal/PFE_analysis/third_party/harfbuzz",
+        "-Iexternal/w3c_patch_subset_incxfer/third_party/harfbuzz",
     ] + select({
         ":macos": ["-DHAVE_XLOCALE_H=1"],
         "//conditions:default": [],

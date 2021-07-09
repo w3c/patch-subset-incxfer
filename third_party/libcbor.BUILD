@@ -1,22 +1,36 @@
 load("@rules_foreign_cc//foreign_cc:defs.bzl", "cmake")
-#load("@rules_foreign_cc//foreign_cc:defs.bzl", "make")
 
-filegroup(
-    name = "srcs",
-    srcs = glob(["**"]),
-    visibility = ["//visibility:private"],
+# TODO: Switch to using Bazel-provided cmake.
+
+genrule(
+  name = "cbor_cmake",
+  srcs = glob(["**"]),
+  outs = ["libcbor.a", "cbor.h", "cbor/arrays.h", "cbor/bytestrings.h",
+          "cbor/callbacks.h", "cbor/cbor_export.h", "cbor/common.h", "cbor/configuration.h", "cbor/data.h",
+          "cbor/encoding.h", "cbor/floats_ctrls.h", "cbor/ints.h", "cbor/maps.h",
+          "cbor/serialization.h", "cbor/streaming.h", "cbor/strings.h", "cbor/tags.h"],
+  cmd = " && ".join([
+    # Remember where output should go.
+    "INITIAL_WD=`pwd`",
+    # Build libcbor library.
+    "cd `dirname $(location CMakeLists.txt)`",
+    "cmake -DCMAKE_BUILD_TYPE=Release -DCBOR_CUSTOM_ALLOC=ON .",
+    "cmake --build .",
+    # Export the .a and .h files for cbor rule, below.
+    "test -f src/libcbor.a",
+    "test -f src/cbor.h",
+    "cp src/libcbor.a src/cbor.h $$INITIAL_WD/$(RULEDIR)",
+    "cp src/cbor/*h cbor/configuration.h $$INITIAL_WD/$(RULEDIR)/cbor"]),
+  visibility = ["//visibility:private"],
 )
 
-cmake(
-    name = "AJcbor",
-#    cache_entries = {
-#        "CMAKE_MACOSX_RPATH": "True",
-#        "CMAKE_BUILD_TYPE": "Release",
-#        "CBOR_CUSTOM_ALLOC": "ON",
-#    },
-    lib_source = ":srcs",
-    out_lib_dir = "src",
-    out_static_libs = ["libcbor.a"],
-    visibility = ["//visibility:public"],
+cc_import(
+  name = "cbor",
+  hdrs = ["cbor.h", "cbor/arrays.h", "cbor/bytestrings.h",
+          "cbor/callbacks.h", "cbor/cbor_export.h", "cbor/common.h", "cbor/configuration.h", "cbor/data.h",
+          "cbor/encoding.h", "cbor/floats_ctrls.h", "cbor/ints.h", "cbor/maps.h",
+          "cbor/serialization.h", "cbor/streaming.h", "cbor/strings.h", "cbor/tags.h"],
+  static_library = "libcbor.a",
+  visibility = ["//visibility:public"],
 )
 
