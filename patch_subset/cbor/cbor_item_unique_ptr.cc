@@ -2,7 +2,7 @@
 
 #include <memory>
 
-// #include "patch_subset/cbor/cbor_utils.h"
+#include "patch_subset/cbor/cbor_utils.h"
 
 namespace patch_subset::cbor {
 
@@ -31,8 +31,7 @@ cbor_item_unique_ptr make_cbor_array(int length) {
 }
 
 cbor_item_unique_ptr make_cbor_int(int64_t n) {
-  return cbor_item_unique_ptr(nullptr, delete_cbor_item);
-  // return cbor_item_unique_ptr(CborUtils::EncodeInt(n), delete_cbor_item);
+  return cbor_item_unique_ptr(CborUtils::EncodeInt(n), delete_cbor_item);
 }
 
 cbor_item_unique_ptr make_cbor_string(const char* val) {
