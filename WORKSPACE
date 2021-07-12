@@ -1,4 +1,4 @@
-workspace(name = "PFE_analysis")
+workspace(name = "w3c_patch_subset_incxfer")
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
@@ -113,5 +113,26 @@ npm_install(
     name = "npm",
     package_json = "@emscripten//:emscripten/package.json",
     package_lock_json = "@emscripten//:emscripten/package-lock.json",
+)
+
+# libcbor needs cmake and make
+http_archive(
+   name = "rules_foreign_cc",
+   sha256 = "f294fe98f8b9df1264dfb2b6f73225ce68de3246041e86ccf35d19303eed99d6",
+   strip_prefix = "rules_foreign_cc-0.4.0",
+   url = "https://github.com/bazelbuild/rules_foreign_cc/archive/0.4.0.zip",
+)
+
+load("@rules_foreign_cc//foreign_cc:repositories.bzl", "rules_foreign_cc_dependencies")
+
+rules_foreign_cc_dependencies()
+
+# libcbor
+http_archive(
+    name = "libcbor",
+    build_file = "//third_party:libcbor.BUILD",
+    sha256 = "dd04ea1a7df484217058d389e027e7a0143a4f245aa18a9f89a5dd3e1a4fcc9a",
+    strip_prefix = "libcbor-0.8.0",
+    urls = ["https://github.com/PJK/libcbor/archive/refs/tags/v0.8.0.zip"],
 )
 
