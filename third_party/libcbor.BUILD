@@ -17,8 +17,6 @@ genrule(
     "cmake -DCMAKE_BUILD_TYPE=Release -DCBOR_CUSTOM_ALLOC=ON .",
     "cmake --build .",
     # Export the .a and .h files for cbor rule, below.
-    "test -f src/libcbor.a",
-    "test -f src/cbor.h",
     "cp src/libcbor.a src/cbor.h $$INITIAL_WD/$(RULEDIR)",
     "cp src/cbor/*h cbor/configuration.h $$INITIAL_WD/$(RULEDIR)/cbor"]),
   visibility = ["//visibility:private"],
