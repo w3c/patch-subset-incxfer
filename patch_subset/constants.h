@@ -5,6 +5,7 @@ namespace patch_subset {
 
 enum ProtocolVersion {
   ONE = 0,
+  // TODO: add ADVANCED version.
 };
 
 /**
