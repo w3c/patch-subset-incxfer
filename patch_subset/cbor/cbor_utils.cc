@@ -3,6 +3,9 @@
 namespace patch_subset::cbor {
 
 using absl::string_view;
+using std::optional;
+using std::set;
+using std::string;
 
 StatusCode CborUtils::GetField(const cbor_item_t& cbor_map, int field_number,
                                cbor_item_unique_ptr& out) {
