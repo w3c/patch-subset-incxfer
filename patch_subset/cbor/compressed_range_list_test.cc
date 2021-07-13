@@ -6,6 +6,9 @@
 
 namespace patch_subset::cbor {
 
+using std::optional;
+using std::vector;
+
 class CompressedRangeListTest : public ::testing::Test {};
 
 TEST_F(CompressedRangeListTest, Encode) {

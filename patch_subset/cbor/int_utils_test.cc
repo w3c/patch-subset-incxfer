@@ -6,6 +6,7 @@
 
 namespace patch_subset::cbor {
 
+using absl::string_view;
 using std::string;
 using std::vector;
 

@@ -10,9 +10,6 @@
 
 namespace patch_subset::cbor {
 
-using std::optional;
-using std::vector;
-
 typedef std::pair<uint32_t, uint32_t> range;
 typedef std::vector<range> range_vector;
 
@@ -30,9 +27,9 @@ class CompressedRangeList {
                            cbor_item_unique_ptr& bytestring_out);
 
   static StatusCode SetRangeListField(cbor_item_t& map, int field_number,
-                                      const optional<range_vector>& int_list);
+                                      const std::optional<range_vector>& int_list);
   static StatusCode GetRangeListField(const cbor_item_t& map, int field_number,
-                                      optional<range_vector>& out);
+                                      std::optional<range_vector>& out);
 };
 
 }  // namespace patch_subset::cbor

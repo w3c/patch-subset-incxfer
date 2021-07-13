@@ -5,6 +5,8 @@
 
 namespace patch_subset::cbor {
 
+using std::string;
+
 class CborItemUniquePtrTest : public ::testing::Test {};
 
 TEST_F(CborItemUniquePtrTest, Empty) {

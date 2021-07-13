@@ -5,6 +5,7 @@
 
 namespace patch_subset::cbor {
 
+using absl::string_view;
 using std::string;
 
 CompressedSet::CompressedSet()
@@ -97,8 +98,13 @@ CompressedSet& CompressedSet::ResetSparseBitSetBytes() {
   _sparse_bit_set_bytes.reset();
   return *this;
 }
-string CompressedSet::SparseBitSetBytes() const {
-  return _sparse_bit_set_bytes.has_value() ? _sparse_bit_set_bytes.value() : "";
+static const string kEmptyString;
+const string& CompressedSet::SparseBitSetBytes() const {
+  if (_sparse_bit_set_bytes.has_value()) {
+    return _sparse_bit_set_bytes.value();
+  } else {
+    return kEmptyString;
+  }
 }
 
 bool CompressedSet::HasRanges() const { return _ranges.has_value(); }
@@ -110,8 +116,13 @@ CompressedSet& CompressedSet::ResetRanges() {
   _ranges.reset();
   return *this;
 }
-range_vector CompressedSet::Ranges() const {
-  return _ranges.has_value() ? _ranges.value() : range_vector();
+static const range_vector kEmptyRanges;
+const range_vector& CompressedSet::Ranges() const {
+  if (_ranges.has_value()) {
+    return _ranges.value();
+  } else {
+    return kEmptyRanges;
+  }
 }
 
 bool CompressedSet::operator==(const CompressedSet& other) const {

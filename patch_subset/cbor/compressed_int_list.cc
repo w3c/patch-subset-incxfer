@@ -7,6 +7,8 @@
 namespace patch_subset::cbor {
 
 using absl::string_view;
+using std::optional;
+using std::vector;
 
 StatusCode CompressedIntList::IsEmpty(const cbor_item_t& bytestring,
                                       bool* out) {

@@ -10,9 +10,6 @@
 
 namespace patch_subset::cbor {
 
-using std::optional;
-using std::vector;
-
 /*
  * Compress lists of integers for encoding. The first value is stored, then
  * the remaining values are deltas between list elements. If values not sorted,
@@ -28,34 +25,34 @@ class CompressedIntList {
 
   // Create a compressed list given a list of integers.
   // Returns a cbor byte string.
-  static StatusCode Encode(const vector<int32_t>& ints,
+  static StatusCode Encode(const std::vector<int32_t>& ints,
                            cbor_item_unique_ptr& bytestring_out);
 
   // Interpret a CBOR byte string as a compressed list of integers.
-  static StatusCode Decode(const cbor_item_t& bytestring, vector<int32_t>& out);
+  static StatusCode Decode(const cbor_item_t& bytestring, std::vector<int32_t>& out);
 
   static StatusCode SetIntListField(cbor_item_t& map, int field_number,
-                                    const optional<vector<int32_t>>& int_list);
+                                    const std::optional<std::vector<int32_t>>& int_list);
   static StatusCode GetIntListField(const cbor_item_t& map, int field_number,
-                                    optional<vector<int32_t>>& out);
+                                    std::optional<std::vector<int32_t>>& out);
 
   // Create a compressed list given a sorted list of positive integers.
   // Giving up negative numbers, and negative deltas between integers, doubles
   // the range of integers that can be encoded in 1 byte.
   // Returns a cbor byte string.
-  static StatusCode EncodeSorted(const vector<int32_t>& positive_sorted_ints,
+  static StatusCode EncodeSorted(const std::vector<int32_t>& positive_sorted_ints,
                                  cbor_item_unique_ptr& bytestring_out);
 
   // Interpret a CBOR byte string as a compressed list of sorted positive
   // integers. Giving up negative numbers, and negative deltas between integers,
   // doubles the range of integers that can be encoded in 1 byte.
   static StatusCode DecodeSorted(const cbor_item_t& bytestring,
-                                 vector<int32_t>& out);
+                                 std::vector<int32_t>& out);
 
  private:
   static StatusCode Decode(const cbor_item_t& bytestring, bool sorted,
-                           vector<int32_t>& out);
-  static StatusCode Encode(const vector<int32_t>& ints, bool sorted,
+                           std::vector<int32_t>& out);
+  static StatusCode Encode(const std::vector<int32_t>& ints, bool sorted,
                            cbor_item_unique_ptr& bytestring_out);
 };
 

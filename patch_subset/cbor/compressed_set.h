@@ -11,7 +11,6 @@
 namespace patch_subset::cbor {
 
 using std::optional;
-using std::string;
 
 /*
  * // TODO: more doc.
@@ -21,8 +20,8 @@ using std::string;
  */
 class CompressedSet {
  private:
-  optional<string> _sparse_bit_set_bytes;
-  optional<range_vector> _ranges;
+  std::optional<std::string> _sparse_bit_set_bytes;
+  std::optional<range_vector> _ranges;
 
   // CBOR byte string, a SparseBitSet bit string.
   static const int kSparseBitSetFieldNumber = 0;
@@ -32,28 +31,28 @@ class CompressedSet {
 
  public:
   CompressedSet();
-  CompressedSet(string_view sparse_bit_set_bytes, const range_vector& ranges);
+  CompressedSet(absl::string_view sparse_bit_set_bytes, const range_vector& ranges);
 
   static StatusCode Decode(const cbor_item_t& cbor_map, CompressedSet& out);
 
   bool HasSparseBitSetBytes() const;
-  CompressedSet& SetSparseBitSetBytes(const string& bytes);
+  CompressedSet& SetSparseBitSetBytes(const std::string& bytes);
   CompressedSet& ResetSparseBitSetBytes();
-  string SparseBitSetBytes() const;
+  const std::string& SparseBitSetBytes() const;
 
   bool HasRanges() const;
   CompressedSet& SetRanges(range_vector ranges);
   CompressedSet& ResetRanges();
-  range_vector Ranges() const;
+  const range_vector& Ranges() const;
 
   StatusCode Encode(cbor_item_unique_ptr& map_out) const;
 
   static StatusCode SetCompressedSetField(
       cbor_item_t& map, int field_number,
-      const optional<CompressedSet>& compressed_set);
+      const std::optional<CompressedSet>& compressed_set);
   static StatusCode GetCompressedSetField(const cbor_item_t& map,
                                           int field_number,
-                                          optional<CompressedSet>& out);
+                                          std::optional<CompressedSet>& out);
 
   bool operator==(const CompressedSet& other) const;
   bool operator!=(const CompressedSet& other) const;

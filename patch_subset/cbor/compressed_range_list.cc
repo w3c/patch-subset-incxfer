@@ -5,6 +5,9 @@
 
 namespace patch_subset::cbor {
 
+using std::optional;
+using std::vector;
+
 StatusCode CompressedRangeList::Decode(const cbor_item_t& array,
                                        range_vector& out) {
   vector<int32_t> ints;

@@ -7,6 +7,7 @@
 namespace patch_subset::cbor {
 
 using absl::string_view;
+using std::string;
 
 class CompressedSetTest : public ::testing::Test {};
 

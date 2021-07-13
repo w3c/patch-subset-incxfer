@@ -8,12 +8,9 @@
 
 namespace patch_subset::cbor {
 
-using absl::string_view;
-using std::unique_ptr;
-
 void delete_cbor_item(cbor_item_t* item);
 
-typedef unique_ptr<cbor_item_t, decltype(&delete_cbor_item)>
+typedef std::unique_ptr<cbor_item_t, decltype(&delete_cbor_item)>
     cbor_item_unique_ptr;
 
 cbor_item_unique_ptr empty_cbor_ptr();
@@ -28,7 +25,7 @@ cbor_item_unique_ptr make_cbor_int(int64_t n);
 
 cbor_item_unique_ptr make_cbor_string(const char* val);
 
-cbor_item_unique_ptr make_cbor_bytestring(string_view string_view);
+cbor_item_unique_ptr make_cbor_bytestring(absl::string_view string_view);
 
 // Returns the contained item, with decremented ref count.
 // The item should be passed to a container which will own the item.
