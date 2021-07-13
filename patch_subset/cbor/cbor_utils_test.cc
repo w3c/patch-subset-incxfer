@@ -1,7 +1,7 @@
 #include "patch_subset/cbor/cbor_utils.h"
 
-#include "gtest/gtest.h"
 #include "absl/strings/str_format.h"
+#include "gtest/gtest.h"
 
 namespace patch_subset::cbor {
 
@@ -711,7 +711,8 @@ TEST_F(CborUtilsTest, SerializeToBytesExamples) {
 
   map = make_cbor_map(2);
   CborUtils::SetField(*map, 1, cbor_move(CborUtils::EncodeString("ABC")));
-  CborUtils::SetField(*map, 2, cbor_move(CborUtils::EncodeBytes({(char*)buf, 5})));
+  CborUtils::SetField(*map, 2,
+                      cbor_move(CborUtils::EncodeBytes({(char*)buf, 5})));
   ASSERT_EQ(bytes(*map), "a2 01 63 41 42 43 02 45 00 7f ff 7f 00");
 }
 

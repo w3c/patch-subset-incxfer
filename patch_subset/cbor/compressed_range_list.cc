@@ -56,8 +56,8 @@ StatusCode CompressedRangeList::SetRangeListField(
 }
 
 StatusCode CompressedRangeList::GetRangeListField(const cbor_item_t& map,
-                                                int field_number,
-                                                optional<range_vector>& out) {
+                                                  int field_number,
+                                                  optional<range_vector>& out) {
   cbor_item_unique_ptr field = empty_cbor_ptr();
   StatusCode sc = CborUtils::GetField(map, field_number, field);
   if (sc == StatusCode::kNotFound) {

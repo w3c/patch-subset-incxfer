@@ -11,7 +11,7 @@ uint32_t IntUtils::ZigZagEncode(int32_t signed_int) {
     // Need to be careful to avoid overflow while converting.
     uint64_t tmp = signed_int;
     tmp *= -2;
-    return (uint32_t )(tmp - 1);
+    return (uint32_t)(tmp - 1);
   }
 }
 

@@ -26,12 +26,12 @@ class CborUtils {
                                    std::optional<std::string>& out);
   static StatusCode GetBytesField(const cbor_item_t& map, int field_number,
                                   std::optional<std::string>& out);
-  static StatusCode GetProtocolVersionField(const cbor_item_t& map,
-                                            int field_number,
-                                            std::optional<ProtocolVersion>& out);
-  static StatusCode GetConnectionSpeedField(const cbor_item_t& map,
-                                            int field_number,
-                                            std::optional<ConnectionSpeed>& out);
+  static StatusCode GetProtocolVersionField(
+      const cbor_item_t& map, int field_number,
+      std::optional<ProtocolVersion>& out);
+  static StatusCode GetConnectionSpeedField(
+      const cbor_item_t& map, int field_number,
+      std::optional<ConnectionSpeed>& out);
 
   // Sets a field in a map.
   // Note: field_value must be a pointer, to work with CBOR library.
@@ -58,15 +58,18 @@ class CborUtils {
   static StatusCode DecodeUInt64(const cbor_item_t& int_element, uint64_t* out);
 
   static cbor_item_t* EncodeString(const std::string& s);
-  static StatusCode DecodeString(const cbor_item_t& string_item, std::string& out);
+  static StatusCode DecodeString(const cbor_item_t& string_item,
+                                 std::string& out);
 
   static cbor_item_t* EncodeBytes(const absl::string_view& bytes);
-  static StatusCode DecodeBytes(const cbor_item_t& bytes_item, std::string& out);
+  static StatusCode DecodeBytes(const cbor_item_t& bytes_item,
+                                std::string& out);
 
   static std::set<int> MapKeys(const cbor_item_t& map);
 
   static StatusCode SerializeToBytes(const cbor_item_t& item,
-                                     absl::string_view buffer, size_t* bytes_written);
+                                     absl::string_view buffer,
+                                     size_t* bytes_written);
 };
 
 }  // namespace patch_subset::cbor

@@ -31,7 +31,8 @@ class CompressedSet {
 
  public:
   CompressedSet();
-  CompressedSet(absl::string_view sparse_bit_set_bytes, const range_vector& ranges);
+  CompressedSet(absl::string_view sparse_bit_set_bytes,
+                const range_vector& ranges);
 
   static StatusCode Decode(const cbor_item_t& cbor_map, CompressedSet& out);
 

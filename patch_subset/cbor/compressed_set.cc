@@ -127,7 +127,7 @@ const range_vector& CompressedSet::Ranges() const {
 
 bool CompressedSet::operator==(const CompressedSet& other) const {
   return _sparse_bit_set_bytes == other._sparse_bit_set_bytes &&
-  _ranges == other._ranges;
+         _ranges == other._ranges;
 }
 bool CompressedSet::operator!=(const CompressedSet& other) const {
   return !(*this == other);

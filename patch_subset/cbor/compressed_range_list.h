@@ -26,8 +26,9 @@ class CompressedRangeList {
   static StatusCode Encode(const range_vector& ranges,
                            cbor_item_unique_ptr& bytestring_out);
 
-  static StatusCode SetRangeListField(cbor_item_t& map, int field_number,
-                                      const std::optional<range_vector>& int_list);
+  static StatusCode SetRangeListField(
+      cbor_item_t& map, int field_number,
+      const std::optional<range_vector>& int_list);
   static StatusCode GetRangeListField(const cbor_item_t& map, int field_number,
                                       std::optional<range_vector>& out);
 };
