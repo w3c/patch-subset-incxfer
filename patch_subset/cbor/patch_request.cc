@@ -1,0 +1,343 @@
+#include "patch_subset/cbor/patch_request.h"
+
+#include <memory>
+
+#include "patch_subset/cbor/cbor_utils.h"
+#include "patch_subset/cbor/patch_format_fields.h"
+
+namespace patch_subset::cbor {
+
+using patch_subset::PatchFormat;
+using std::vector;
+
+PatchRequest::PatchRequest()
+    : _protocol_version(std::nullopt),
+      _accept_formats(std::nullopt),
+      _codepoints_have(std::nullopt),
+      _codepoints_needed(std::nullopt),
+      _indices_have(std::nullopt),
+      _indices_needed(std::nullopt),
+      _ordering_checksum(std::nullopt),
+      _original_font_checksum(std::nullopt),
+      _base_checksum(std::nullopt),
+      _connection_speed(std::nullopt) {}
+
+PatchRequest::PatchRequest(
+    ProtocolVersion protocol_version, vector<PatchFormat> accept_formats,
+    CompressedSet codepoints_have, CompressedSet codepoints_needed,
+    CompressedSet indices_have, CompressedSet indices_needed,
+    uint64_t ordering_checksum, uint64_t original_font_checksum,
+    uint64_t base_checksum, ConnectionSpeed connection_speed)
+    : _protocol_version(protocol_version),
+      _accept_formats(accept_formats),
+      _codepoints_have(codepoints_have),
+      _codepoints_needed(codepoints_needed),
+      _indices_have(indices_have),
+      _indices_needed(indices_needed),
+      _ordering_checksum(ordering_checksum),
+      _original_font_checksum(original_font_checksum),
+      _base_checksum(base_checksum),
+      _connection_speed(connection_speed) {}
+
+StatusCode PatchRequest::Decode(const cbor_item_t& cbor_map,
+                                PatchRequest& out) {
+  if (!cbor_isa_map(&cbor_map)) {
+    return StatusCode::kInvalidArgument;
+  }
+  PatchRequest result;
+  StatusCode sc = CborUtils::GetProtocolVersionField(
+      cbor_map, kProtocolVersionFieldNumber, result._protocol_version);
+  if (sc != StatusCode::kOk) {
+    return StatusCode::kInvalidArgument;
+  }
+  sc = PatchFormatFields::GetPatchFormatsListField(
+      cbor_map, kAcceptPatchFormatsFieldNumber, result._accept_formats);
+  if (sc != StatusCode::kOk) {
+    return StatusCode::kInvalidArgument;
+  }
+  sc = CompressedSet::GetCompressedSetField(
+      cbor_map, kCodepointsHaveFieldNumber, result._codepoints_have);
+  if (sc != StatusCode::kOk) {
+    return StatusCode::kInvalidArgument;
+  }
+  sc = CompressedSet::GetCompressedSetField(
+      cbor_map, kCodepointsNeededFieldNumber, result._codepoints_needed);
+  if (sc != StatusCode::kOk) {
+    return StatusCode::kInvalidArgument;
+  }
+  sc = CompressedSet::GetCompressedSetField(cbor_map, kIndicesHaveFieldNumber,
+                                            result._indices_have);
+  if (sc != StatusCode::kOk) {
+    return StatusCode::kInvalidArgument;
+  }
+  sc = CompressedSet::GetCompressedSetField(cbor_map, kIndicesNeededFieldNumber,
+                                            result._indices_needed);
+  if (sc != StatusCode::kOk) {
+    return StatusCode::kInvalidArgument;
+  }
+  sc = CborUtils::GetUInt64Field(cbor_map, kOrderingChecksumFieldNumber,
+                                 result._ordering_checksum);
+  if (sc != StatusCode::kOk) {
+    return StatusCode::kInvalidArgument;
+  }
+  sc = CborUtils::GetUInt64Field(cbor_map, kOriginalFontChecksumFieldNumber,
+                                 result._original_font_checksum);
+  if (sc != StatusCode::kOk) {
+    return StatusCode::kInvalidArgument;
+  }
+  sc = CborUtils::GetUInt64Field(cbor_map, kBaseChecksumFieldNumber,
+                                 result._base_checksum);
+  if (sc != StatusCode::kOk) {
+    return StatusCode::kInvalidArgument;
+  }
+  sc = CborUtils::GetConnectionSpeedField(cbor_map, kConnectionSpeedFieldNumber,
+                                          result._connection_speed);
+  if (sc != StatusCode::kOk) {
+    return StatusCode::kInvalidArgument;
+  }
+  out = result;
+  return StatusCode::kOk;
+}
+
+StatusCode PatchRequest::Encode(cbor_item_unique_ptr& map_out) const {
+  int size = (_protocol_version.has_value() ? 1 : 0) +
+             (_accept_formats.has_value() ? 1 : 0) +
+             (_codepoints_have.has_value() ? 1 : 0) +
+             (_codepoints_needed.has_value() ? 1 : 0) +
+             (_indices_have.has_value() ? 1 : 0) +
+             (_indices_needed.has_value() ? 1 : 0) +
+             (_ordering_checksum.has_value() ? 1 : 0) +
+             (_original_font_checksum.has_value() ? 1 : 0) +
+             (_base_checksum.has_value() ? 1 : 0) +
+             (_connection_speed.has_value() ? 1 : 0);
+  cbor_item_unique_ptr map = make_cbor_map(size);
+  StatusCode sc = CborUtils::SetProtocolVersionField(
+      *map, kProtocolVersionFieldNumber, _protocol_version);
+  if (sc != StatusCode::kOk) {
+    return StatusCode::kInvalidArgument;
+  }
+  sc = PatchFormatFields::SetPatchFormatsListField(
+      *map, kAcceptPatchFormatsFieldNumber, _accept_formats);
+  if (sc != StatusCode::kOk) {
+    return StatusCode::kInvalidArgument;
+  }
+  sc = CompressedSet::SetCompressedSetField(*map, kCodepointsHaveFieldNumber,
+                                            _codepoints_have);
+  if (sc != StatusCode::kOk) {
+    return StatusCode::kInvalidArgument;
+  }
+  sc = CompressedSet::SetCompressedSetField(*map, kCodepointsNeededFieldNumber,
+                                            _codepoints_needed);
+  if (sc != StatusCode::kOk) {
+    return StatusCode::kInvalidArgument;
+  }
+  sc = CompressedSet::SetCompressedSetField(*map, kIndicesHaveFieldNumber,
+                                            _indices_have);
+  if (sc != StatusCode::kOk) {
+    return StatusCode::kInvalidArgument;
+  }
+  sc = CompressedSet::SetCompressedSetField(*map, kIndicesNeededFieldNumber,
+                                            _indices_needed);
+  if (sc != StatusCode::kOk) {
+    return StatusCode::kInvalidArgument;
+  }
+  sc = CborUtils::SetUInt64Field(*map, kOrderingChecksumFieldNumber,
+                                 _ordering_checksum);
+  if (sc != StatusCode::kOk) {
+    return StatusCode::kInvalidArgument;
+  }
+  sc = CborUtils::SetUInt64Field(*map, kOriginalFontChecksumFieldNumber,
+                                 _original_font_checksum);
+  if (sc != StatusCode::kOk) {
+    return StatusCode::kInvalidArgument;
+  }
+  sc =
+      CborUtils::SetUInt64Field(*map, kBaseChecksumFieldNumber, _base_checksum);
+  if (sc != StatusCode::kOk) {
+    return StatusCode::kInvalidArgument;
+  }
+  sc = CborUtils::SetConnectionSpeedField(*map, kConnectionSpeedFieldNumber,
+                                          _connection_speed);
+  if (sc != StatusCode::kOk) {
+    return StatusCode::kInvalidArgument;
+  }
+  map_out.swap(map);
+  return StatusCode::kOk;
+}
+
+bool PatchRequest::HasProtocolVersion() const {
+  return _protocol_version.has_value();
+}
+ProtocolVersion PatchRequest::GetProtocolVersion() const {
+  return _protocol_version.has_value() ? _protocol_version.value()
+                                       : ProtocolVersion::ONE;
+}
+PatchRequest& PatchRequest::SetProtocolVersion(ProtocolVersion version) {
+  _protocol_version.emplace(version);
+  return *this;
+}
+PatchRequest& PatchRequest::ResetProtocolVersion() {
+  _protocol_version.reset();
+  return *this;
+}
+
+bool PatchRequest::HasAcceptFormats() const {
+  return _accept_formats.has_value();
+}
+vector<PatchFormat> PatchRequest::AcceptFormats() const {
+  return _accept_formats.has_value() ? _accept_formats.value()
+                                     : vector<PatchFormat>();
+}
+PatchRequest& PatchRequest::SetAcceptFormats(
+    const vector<PatchFormat>& formats) {
+  _accept_formats.emplace(formats);
+  return *this;
+}
+PatchRequest& PatchRequest::ResetAcceptFormats() {
+  _accept_formats.reset();
+  return *this;
+}
+
+bool PatchRequest::HasCodepointsHave() const {
+  return _codepoints_have.has_value();
+}
+CompressedSet PatchRequest::CodepointsHave() const {
+  return _codepoints_have.has_value() ? _codepoints_have.value()
+                                      : CompressedSet();
+}
+PatchRequest& PatchRequest::SetCodepointsHave(const CompressedSet& codepoints) {
+  _codepoints_have.emplace(codepoints);
+  return *this;
+}
+PatchRequest& PatchRequest::ResetCodepointsHave() {
+  _codepoints_have.reset();
+  return *this;
+}
+
+bool PatchRequest::HasCodepointsNeeded() const {
+  return _codepoints_needed.has_value();
+}
+CompressedSet PatchRequest::CodepointsNeeded() const {
+  return _codepoints_needed.has_value() ? _codepoints_needed.value()
+                                        : CompressedSet();
+}
+PatchRequest& PatchRequest::SetCodepointsNeeded(
+    const CompressedSet& codepoints) {
+  _codepoints_needed.emplace(codepoints);
+  return *this;
+}
+PatchRequest& PatchRequest::ResetCodepointsNeeded() {
+  _codepoints_needed.reset();
+  return *this;
+}
+
+bool PatchRequest::HasOrderingChecksum() const {
+  return _ordering_checksum.has_value();
+}
+uint64_t PatchRequest::OrderingChecksum() const {
+  return _ordering_checksum.has_value() ? _ordering_checksum.value() : 0;
+}
+PatchRequest& PatchRequest::SetOrderingChecksum(uint64_t checksum) {
+  _ordering_checksum.emplace(checksum);
+  return *this;
+}
+PatchRequest& PatchRequest::ResetOrderingChecksum() {
+  _ordering_checksum.reset();
+  return *this;
+}
+
+bool PatchRequest::HasOriginalFontChecksum() const {
+  return _original_font_checksum.has_value();
+}
+uint64_t PatchRequest::OriginalFontChecksum() const {
+  return _original_font_checksum.has_value() ? _original_font_checksum.value()
+                                             : 0;
+}
+PatchRequest& PatchRequest::SetOriginalFontChecksum(uint64_t checksum) {
+  _original_font_checksum.emplace(checksum);
+  return *this;
+}
+PatchRequest& PatchRequest::ResetOriginalFontChecksum() {
+  _original_font_checksum.reset();
+  return *this;
+}
+
+bool PatchRequest::HasBaseChecksum() const {
+  return _base_checksum.has_value();
+}
+uint64_t PatchRequest::BaseChecksum() const {
+  return _base_checksum.has_value() ? _base_checksum.value() : 0;
+}
+PatchRequest& PatchRequest::SetBaseChecksum(uint64_t checksum) {
+  _base_checksum.emplace(checksum);
+  return *this;
+}
+PatchRequest& PatchRequest::ResetBaseChecksum() {
+  _base_checksum.reset();
+  return *this;
+}
+
+bool PatchRequest::HasConnectionSpeed() const {
+  return _connection_speed.has_value();
+}
+// TODO: Is AVERAGE a good default value?
+ConnectionSpeed PatchRequest::GetConnectionSpeed() const {
+  return _connection_speed.has_value() ? _connection_speed.value()
+                                       : ConnectionSpeed::AVERAGE;
+}
+PatchRequest& PatchRequest::SetConnectionSpeed(
+    ConnectionSpeed connection_speed) {
+  _connection_speed.emplace(connection_speed);
+  return *this;
+}
+PatchRequest& PatchRequest::ResetConnectionSpeed() {
+  _connection_speed.reset();
+  return *this;
+}
+
+bool PatchRequest::HasIndicesHave() const { return _indices_have.has_value(); }
+CompressedSet PatchRequest::IndicesHave() const {
+  return _indices_have.has_value() ? _indices_have.value() : CompressedSet();
+}
+PatchRequest& PatchRequest::SetIndicesHave(const CompressedSet& indices) {
+  _indices_have.emplace(indices);
+  return *this;
+}
+PatchRequest& PatchRequest::ResetIndicesHave() {
+  _indices_have.reset();
+  return *this;
+}
+
+bool PatchRequest::HasIndicesNeeded() const {
+  return _indices_needed.has_value();
+}
+CompressedSet PatchRequest::IndicesNeeded() const {
+  return _indices_needed.has_value() ? _indices_needed.value()
+                                     : CompressedSet();
+}
+PatchRequest& PatchRequest::SetIndicesNeeded(const CompressedSet& indices) {
+  _indices_needed.emplace(indices);
+  return *this;
+}
+PatchRequest& PatchRequest::ResetIndicesNeeded() {
+  _indices_needed.reset();
+  return *this;
+}
+
+bool PatchRequest::operator==(const PatchRequest& other) const {
+  return _protocol_version == other._protocol_version &&
+         _accept_formats == other._accept_formats &&
+         _codepoints_have == other._codepoints_have &&
+         _codepoints_needed == other._codepoints_needed &&
+         _indices_have == other._indices_have &&
+         _indices_needed == other._indices_needed &&
+         _ordering_checksum == other._ordering_checksum &&
+         _original_font_checksum == other._original_font_checksum &&
+         _base_checksum == other._base_checksum &&
+         _connection_speed == other._connection_speed;
+}
+bool PatchRequest::operator!=(const PatchRequest& other) const {
+  return !(*this == other);
+}
+
+}  // namespace patch_subset::cbor
