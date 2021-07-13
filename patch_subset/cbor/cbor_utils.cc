@@ -26,11 +26,10 @@ StatusCode CborUtils::GetField(const cbor_item_t& cbor_map, int field_number,
     if (id == field_number) {
       // Because we are putting the pointer into a cbor_item_unique_ptr, which
       // will eventually call cbor_decref(), the item has a new "owner".
-      cbor_item_t* value = pair->value;
-      if (value == nullptr) {
+      if (!pair->value) {
         return StatusCode::kInvalidArgument;
       }
-      out.reset(cbor_incref(value));
+      out.reset(cbor_incref(pair->value));
       return StatusCode::kOk;
     }
   }
@@ -39,6 +38,7 @@ StatusCode CborUtils::GetField(const cbor_item_t& cbor_map, int field_number,
   return StatusCode::kNotFound;
 }
 
+// TODO: Templatize these methods.
 StatusCode CborUtils::GetUInt64Field(const cbor_item_t& map, int field_number,
                                      optional<uint64_t>& out) {
   cbor_item_unique_ptr field = empty_cbor_ptr();
