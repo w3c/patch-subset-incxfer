@@ -40,7 +40,8 @@ class PatchResponse {
   PatchResponse(ProtocolVersion protocol_version, PatchFormat patch_format,
                 std::string patch, std::string replacement,
                 uint64_t original_font_checksum, uint64_t patched_checksum,
-                std::vector<int32_t> codepoint_ordering, uint64_t ordering_checksum);
+                std::vector<int32_t> codepoint_ordering,
+                uint64_t ordering_checksum);
 
   static StatusCode Decode(const cbor_item_t& cbor_map, PatchResponse& out);
 

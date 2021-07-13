@@ -17,12 +17,15 @@ namespace patch_subset::cbor {
  */
 class PatchFormatFields {
  public:
-  static StatusCode ToPatchFormat(int32_t value, patch_subset::PatchFormat* out);
+  static StatusCode ToPatchFormat(int32_t value,
+                                  patch_subset::PatchFormat* out);
 
-  static StatusCode Decode(const cbor_item_t& bytes, std::vector<patch_subset::PatchFormat>& out);
+  static StatusCode Decode(const cbor_item_t& bytes,
+                           std::vector<patch_subset::PatchFormat>& out);
 
-  static StatusCode Encode(const std::vector<patch_subset::PatchFormat>& formats,
-                           cbor_item_unique_ptr& bytestring_out);
+  static StatusCode Encode(
+      const std::vector<patch_subset::PatchFormat>& formats,
+      cbor_item_unique_ptr& bytestring_out);
 
   static StatusCode SetPatchFormatsListField(
       cbor_item_t& map, int field_number,
@@ -34,10 +37,9 @@ class PatchFormatFields {
   static StatusCode SetPatchFormatField(
       cbor_item_t& map, int field_number,
       const std::optional<patch_subset::PatchFormat>& format_list);
-  static StatusCode GetPatchFormatField(const cbor_item_t& map,
-                                        int field_number,
-                                        std::optional<patch_subset::PatchFormat>& out);
-
+  static StatusCode GetPatchFormatField(
+      const cbor_item_t& map, int field_number,
+      std::optional<patch_subset::PatchFormat>& out);
 };
 
 }  // namespace patch_subset::cbor

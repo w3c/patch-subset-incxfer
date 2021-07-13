@@ -60,7 +60,8 @@ class PatchRequest {
 
   bool HasAcceptFormats() const;
   std::vector<patch_subset::PatchFormat> AcceptFormats() const;
-  PatchRequest& SetAcceptFormats(const std::vector<patch_subset::PatchFormat>& formats);
+  PatchRequest& SetAcceptFormats(
+      const std::vector<patch_subset::PatchFormat>& formats);
   PatchRequest& ResetAcceptFormats();
 
   bool HasCodepointsHave() const;

@@ -31,7 +31,8 @@ class ClientState {
  public:
   ClientState();
   ClientState(const std::string& font_id, const std::string& font_data,
-              uint64_t fingerprint, const std::vector<int32_t>& codepoint_remapping);
+              uint64_t fingerprint,
+              const std::vector<int32_t>& codepoint_remapping);
 
   static StatusCode Decode(const cbor_item_t& cbor_map, ClientState& out);
 
@@ -50,7 +51,8 @@ class ClientState {
   [[nodiscard]] bool HasFingerprint() const;
   [[nodiscard]] uint64_t Fingerprint() const;
 
-  ClientState& SetCodepointRemapping(const std::vector<int32_t>& codepoint_remapping);
+  ClientState& SetCodepointRemapping(
+      const std::vector<int32_t>& codepoint_remapping);
   ClientState& ResetCodepointRemapping();
   [[nodiscard]] bool HasCodepointRemapping() const;
   [[nodiscard]] std::vector<int32_t> CodepointRemapping() const;
