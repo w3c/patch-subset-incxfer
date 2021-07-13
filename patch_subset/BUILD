@@ -87,6 +87,17 @@ cc_library(
 )
 
 cc_library(
+    name = "constants",
+    hdrs = [
+        "constants.h",
+    ],
+    visibility = [
+        "//patch_subset:__pkg__",
+        "//patch_subset/cbor:__pkg__",
+    ],
+)
+
+cc_library(
     name = "common",
     srcs = [
         "brotli_binary_diff.cc",

@@ -1,7 +1,7 @@
 #include "patch_subset/cbor/cbor_item_unique_ptr.h"
 
 #include "gtest/gtest.h"
-// #include "patch_subset/cbor/cbor_utils.h"
+#include "patch_subset/cbor/cbor_utils.h"
 
 namespace patch_subset::cbor {
 
@@ -46,7 +46,6 @@ TEST_F(CborItemUniquePtrTest, MakeCborArray) {
   // Array will be deleted automatically.
 }
 
-/*
 TEST_F(CborItemUniquePtrTest, MakeCborInt) {
   cbor_item_unique_ptr cint = make_cbor_int(1234);
   int32_t n;
@@ -83,7 +82,6 @@ TEST_F(CborItemUniquePtrTest, MakeCborBytestring) {
 
   // Bytestring will be deleted automatically.
 }
-*/
 
 TEST_F(CborItemUniquePtrTest, MoveOut) {
   cbor_item_t* item = cbor_build_uint8(0);
