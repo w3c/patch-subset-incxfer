@@ -81,6 +81,7 @@ StatusCode PatchResponse::Decode(const cbor_item_t& cbor_map,
   if (sc != StatusCode::kOk) {
     return StatusCode::kInvalidArgument;
   }
+  // TODO: see swap or move TODO
   out = result;
   return StatusCode::kOk;
 }
@@ -168,8 +169,13 @@ PatchResponse& PatchResponse::ResetPatchFormat() {
 }
 
 bool PatchResponse::HasPatch() const { return _patch.has_value(); }
-string PatchResponse::Patch() const {
-  return _patch.has_value() ? _patch.value() : "";
+static const string kEmptyString;
+const string& PatchResponse::Patch() const {
+  if (_patch.has_value()) {
+    return _patch.value();
+  } else {
+    return kEmptyString;
+  }
 }
 PatchResponse& PatchResponse::SetPatch(string patch) {
   _patch.emplace(patch);
@@ -181,8 +187,12 @@ PatchResponse& PatchResponse::ResetPatch() {
 }
 
 bool PatchResponse::HasReplacement() const { return _replacement.has_value(); }
-string PatchResponse::Replacement() const {
-  return _replacement.has_value() ? _replacement.value() : "";
+const string& PatchResponse::Replacement() const {
+  if (_replacement.has_value()) {
+    return _replacement.value();
+  } else {
+    return kEmptyString;
+  }
 }
 PatchResponse& PatchResponse::SetReplacement(string replacement) {
   _replacement.emplace(replacement);
@@ -227,9 +237,13 @@ PatchResponse& PatchResponse::ResetPatchedChecksum() {
 bool PatchResponse::HasCodepointOrdering() const {
   return _codepoint_ordering.has_value();
 }
-vector<int32_t> PatchResponse::CodepointOrdering() const {
-  return _codepoint_ordering.has_value() ? _codepoint_ordering.value()
-                                         : vector<int32_t>();
+static const vector<int32_t> kEmptyVector;
+const vector<int32_t>& PatchResponse::CodepointOrdering() const {
+  if (_codepoint_ordering.has_value()) {
+    return _codepoint_ordering.value();
+  } else {
+    return kEmptyVector;
+  }
 }
 PatchResponse& PatchResponse::SetCodepointOrdering(
     vector<int32_t> codepoint_ordering) {

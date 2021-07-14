@@ -95,6 +95,7 @@ StatusCode PatchRequest::Decode(const cbor_item_t& cbor_map,
   if (sc != StatusCode::kOk) {
     return StatusCode::kInvalidArgument;
   }
+  // TODO: see swap or move TODO
   out = result;
   return StatusCode::kOk;
 }
@@ -169,8 +170,7 @@ bool PatchRequest::HasProtocolVersion() const {
   return _protocol_version.has_value();
 }
 ProtocolVersion PatchRequest::GetProtocolVersion() const {
-  return _protocol_version.has_value() ? _protocol_version.value()
-                                       : ProtocolVersion::ONE;
+  return _protocol_version.value_or(ProtocolVersion::ONE);
 }
 PatchRequest& PatchRequest::SetProtocolVersion(ProtocolVersion version) {
   _protocol_version.emplace(version);
@@ -184,9 +184,13 @@ PatchRequest& PatchRequest::ResetProtocolVersion() {
 bool PatchRequest::HasAcceptFormats() const {
   return _accept_formats.has_value();
 }
-vector<PatchFormat> PatchRequest::AcceptFormats() const {
-  return _accept_formats.has_value() ? _accept_formats.value()
-                                     : vector<PatchFormat>();
+static const vector<PatchFormat> kEmptyVector;
+const vector<PatchFormat>& PatchRequest::AcceptFormats() const {
+  if (_accept_formats.has_value()) {
+    return _accept_formats.value();
+  } else {
+    return kEmptyVector;
+  }
 }
 PatchRequest& PatchRequest::SetAcceptFormats(
     const vector<PatchFormat>& formats) {
@@ -201,9 +205,13 @@ PatchRequest& PatchRequest::ResetAcceptFormats() {
 bool PatchRequest::HasCodepointsHave() const {
   return _codepoints_have.has_value();
 }
-CompressedSet PatchRequest::CodepointsHave() const {
-  return _codepoints_have.has_value() ? _codepoints_have.value()
-                                      : CompressedSet();
+static CompressedSet kEmptyCompressedSet;
+const CompressedSet& PatchRequest::CodepointsHave() const {
+  if (_codepoints_have.has_value()) {
+    return _codepoints_have.value();
+  } else {
+    return kEmptyCompressedSet;
+  }
 }
 PatchRequest& PatchRequest::SetCodepointsHave(const CompressedSet& codepoints) {
   _codepoints_have.emplace(codepoints);
@@ -217,9 +225,12 @@ PatchRequest& PatchRequest::ResetCodepointsHave() {
 bool PatchRequest::HasCodepointsNeeded() const {
   return _codepoints_needed.has_value();
 }
-CompressedSet PatchRequest::CodepointsNeeded() const {
-  return _codepoints_needed.has_value() ? _codepoints_needed.value()
-                                        : CompressedSet();
+const CompressedSet& PatchRequest::CodepointsNeeded() const {
+  if (_codepoints_needed.has_value()) {
+    return _codepoints_needed.value();
+  } else {
+    return kEmptyCompressedSet;
+  }
 }
 PatchRequest& PatchRequest::SetCodepointsNeeded(
     const CompressedSet& codepoints) {
@@ -296,8 +307,12 @@ PatchRequest& PatchRequest::ResetConnectionSpeed() {
 }
 
 bool PatchRequest::HasIndicesHave() const { return _indices_have.has_value(); }
-CompressedSet PatchRequest::IndicesHave() const {
-  return _indices_have.has_value() ? _indices_have.value() : CompressedSet();
+const CompressedSet& PatchRequest::IndicesHave() const {
+  if (_indices_have.has_value()) {
+    return _indices_have.value();
+  } else {
+    return kEmptyCompressedSet;
+  }
 }
 PatchRequest& PatchRequest::SetIndicesHave(const CompressedSet& indices) {
   _indices_have.emplace(indices);
@@ -311,9 +326,12 @@ PatchRequest& PatchRequest::ResetIndicesHave() {
 bool PatchRequest::HasIndicesNeeded() const {
   return _indices_needed.has_value();
 }
-CompressedSet PatchRequest::IndicesNeeded() const {
-  return _indices_needed.has_value() ? _indices_needed.value()
-                                     : CompressedSet();
+const CompressedSet& PatchRequest::IndicesNeeded() const {
+  if (_indices_needed.has_value()) {
+    return _indices_needed.value();
+  } else {
+    return kEmptyCompressedSet;
+  }
 }
 PatchRequest& PatchRequest::SetIndicesNeeded(const CompressedSet& indices) {
   _indices_needed.emplace(indices);

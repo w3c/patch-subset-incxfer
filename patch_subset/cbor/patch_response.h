@@ -58,12 +58,12 @@ class PatchResponse {
   PatchResponse& ResetPatchFormat();
 
   bool HasPatch() const;
-  std::string Patch() const;
+  const std::string& Patch() const;
   PatchResponse& SetPatch(std::string patch);
   PatchResponse& ResetPatch();
 
   bool HasReplacement() const;
-  std::string Replacement() const;
+  const std::string& Replacement() const;
   PatchResponse& SetReplacement(std::string replacement);
   PatchResponse& ResetReplacement();
 
@@ -78,7 +78,7 @@ class PatchResponse {
   PatchResponse& ResetPatchedChecksum();
 
   bool HasCodepointOrdering() const;
-  std::vector<int32_t> CodepointOrdering() const;
+  const std::vector<int32_t>& CodepointOrdering() const;
   PatchResponse& SetCodepointOrdering(std::vector<int32_t> codepoint_ordering);
   PatchResponse& ResetCodepointOrdering();
 

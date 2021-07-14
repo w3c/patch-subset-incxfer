@@ -48,6 +48,13 @@ StatusCode ClientState::Decode(const cbor_item_t& cbor_map, ClientState& out) {
   if (sc != StatusCode::kOk) {
     return StatusCode::kInvalidArgument;
   }
+  /*
+   * TODO
+   * This will result in copying the fontdata field, which could be sizable.
+   * Can you add a swap() method to ClientState which internally will use swap()
+   * on the fontdata string. Or alternatively implement a move constructor for
+   * ClientState and use std::move() here.
+   */
   out = result;
   return StatusCode::kOk;
 }

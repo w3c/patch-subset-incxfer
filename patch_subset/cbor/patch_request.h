@@ -59,28 +59,28 @@ class PatchRequest {
   PatchRequest& ResetProtocolVersion();
 
   bool HasAcceptFormats() const;
-  std::vector<patch_subset::PatchFormat> AcceptFormats() const;
+  const std::vector<patch_subset::PatchFormat>& AcceptFormats() const;
   PatchRequest& SetAcceptFormats(
       const std::vector<patch_subset::PatchFormat>& formats);
   PatchRequest& ResetAcceptFormats();
 
   bool HasCodepointsHave() const;
-  CompressedSet CodepointsHave() const;
+  const CompressedSet& CodepointsHave() const;
   PatchRequest& SetCodepointsHave(const CompressedSet& codepoints);
   PatchRequest& ResetCodepointsHave();
 
   bool HasCodepointsNeeded() const;
-  CompressedSet CodepointsNeeded() const;
+  const CompressedSet& CodepointsNeeded() const;
   PatchRequest& SetCodepointsNeeded(const CompressedSet& codepoints);
   PatchRequest& ResetCodepointsNeeded();
 
   bool HasIndicesHave() const;
-  CompressedSet IndicesHave() const;
+  const CompressedSet& IndicesHave() const;
   PatchRequest& SetIndicesHave(const CompressedSet& indices);
   PatchRequest& ResetIndicesHave();
 
   bool HasIndicesNeeded() const;
-  CompressedSet IndicesNeeded() const;
+  const CompressedSet& IndicesNeeded() const;
   PatchRequest& SetIndicesNeeded(const CompressedSet& indices);
   PatchRequest& ResetIndicesNeeded();
 
