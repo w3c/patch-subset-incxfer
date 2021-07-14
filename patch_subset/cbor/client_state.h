@@ -39,12 +39,12 @@ class ClientState {
   ClientState& SetFontId(const std::string& font_id);
   ClientState& ResetFontId();
   [[nodiscard]] bool HasFontId() const;
-  [[nodiscard]] std::string FontId() const;
+  [[nodiscard]] const std::string& FontId() const;
 
   ClientState& SetFontData(const std::string& font_data);
   ClientState& ResetFontData();
   [[nodiscard]] bool HasFontData() const;
-  [[nodiscard]] std::string FontData() const;
+  [[nodiscard]] const std::string& FontData() const;
 
   ClientState& SetFingerprint(uint64_t);
   ClientState& ResetFingerprint();
@@ -55,7 +55,7 @@ class ClientState {
       const std::vector<int32_t>& codepoint_remapping);
   ClientState& ResetCodepointRemapping();
   [[nodiscard]] bool HasCodepointRemapping() const;
-  [[nodiscard]] std::vector<int32_t> CodepointRemapping() const;
+  [[nodiscard]] const std::vector<int32_t>& CodepointRemapping() const;
 
   StatusCode Encode(cbor_item_unique_ptr& out) const;
 

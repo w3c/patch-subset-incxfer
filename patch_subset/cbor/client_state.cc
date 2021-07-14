@@ -88,8 +88,13 @@ ClientState& ClientState::ResetFontId() {
   return *this;
 }
 bool ClientState::HasFontId() const { return _font_id.has_value(); }
-string ClientState::FontId() const {
-  return _font_id.has_value() ? _font_id.value() : "";
+const string kEmptyString;
+const string& ClientState::FontId() const {
+  if (_font_id.has_value()) {
+    return _font_id.value();
+  } else {
+    return kEmptyString;
+  }
 }
 
 ClientState& ClientState::SetFontData(const string& font_data) {
@@ -101,8 +106,12 @@ ClientState& ClientState::ResetFontData() {
   return *this;
 }
 bool ClientState::HasFontData() const { return _font_data.has_value(); }
-string ClientState::FontData() const {
-  return _font_data.has_value() ? _font_data.value() : "";
+const string& ClientState::FontData() const {
+  if (_font_data.has_value()) {
+    return _font_data.value();
+  } else {
+    return kEmptyString;
+  }
 }
 
 ClientState& ClientState::SetFingerprint(uint64_t fingerprint) {
@@ -130,9 +139,13 @@ ClientState& ClientState::ResetCodepointRemapping() {
 bool ClientState::HasCodepointRemapping() const {
   return _codepoint_remapping.has_value();
 }
-vector<int32_t> ClientState::CodepointRemapping() const {
-  return _codepoint_remapping.has_value() ? _codepoint_remapping.value()
-                                          : vector<int32_t>();
+static const vector<int32_t> kEmptyRemappings;
+const vector<int32_t>& ClientState::CodepointRemapping() const {
+  if (_codepoint_remapping.has_value()) {
+    return _codepoint_remapping.value();
+  } else {
+    return kEmptyRemappings;
+  }
 }
 
 bool ClientState::operator==(const ClientState& other) const {
