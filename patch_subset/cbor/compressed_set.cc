@@ -11,9 +11,18 @@ using std::string;
 CompressedSet::CompressedSet()
     : _sparse_bit_set_bytes(std::nullopt), _ranges(std::nullopt) {}
 
+CompressedSet::CompressedSet(CompressedSet&& other)
+    : _sparse_bit_set_bytes(std::move(other._sparse_bit_set_bytes)),
+      _ranges(std::move(other._ranges)) {}
+
 CompressedSet::CompressedSet(string_view sparse_bit_set_bytes,
                              const range_vector& ranges)
     : _sparse_bit_set_bytes(sparse_bit_set_bytes), _ranges(ranges) {}
+
+bool CompressedSet::empty() const {
+  return (!_sparse_bit_set_bytes || _sparse_bit_set_bytes->empty()) &&
+         (!_ranges || _ranges->empty());
+}
 
 StatusCode CompressedSet::Decode(const cbor_item_t& cbor_map,
                                  CompressedSet& out) {
@@ -31,7 +40,7 @@ StatusCode CompressedSet::Decode(const cbor_item_t& cbor_map,
   if (sc != StatusCode::kOk) {
     return StatusCode::kInvalidArgument;
   }
-  out = result;
+  out = std::move(result);
   return StatusCode::kOk;
 }
 
@@ -123,6 +132,12 @@ const range_vector& CompressedSet::Ranges() const {
   } else {
     return kEmptyRanges;
   }
+}
+
+CompressedSet& CompressedSet::operator=(CompressedSet&& other) {
+  _sparse_bit_set_bytes = std::move(other._sparse_bit_set_bytes);
+  _ranges = std::move(other._ranges);
+  return *this;
 }
 
 bool CompressedSet::operator==(const CompressedSet& other) const {

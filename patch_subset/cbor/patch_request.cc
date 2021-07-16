@@ -22,6 +22,18 @@ PatchRequest::PatchRequest()
       _base_checksum(std::nullopt),
       _connection_speed(std::nullopt) {}
 
+PatchRequest::PatchRequest(PatchRequest&& other)
+    : _protocol_version(other._protocol_version),
+      _accept_formats(std::move(other._accept_formats)),
+      _codepoints_have(std::move(other._codepoints_have)),
+      _codepoints_needed(std::move(other._codepoints_needed)),
+      _indices_have(std::move(other._indices_have)),
+      _indices_needed(std::move(other._indices_needed)),
+      _ordering_checksum(other._ordering_checksum),
+      _original_font_checksum(other._original_font_checksum),
+      _base_checksum(other._base_checksum),
+      _connection_speed(other._connection_speed) {}
+
 PatchRequest::PatchRequest(
     ProtocolVersion protocol_version, vector<PatchFormat> accept_formats,
     CompressedSet codepoints_have, CompressedSet codepoints_needed,
@@ -95,8 +107,7 @@ StatusCode PatchRequest::Decode(const cbor_item_t& cbor_map,
   if (sc != StatusCode::kOk) {
     return StatusCode::kInvalidArgument;
   }
-  // TODO: see swap or move TODO
-  out = result;
+  out = std::move(result);
   return StatusCode::kOk;
 }
 
@@ -339,6 +350,20 @@ PatchRequest& PatchRequest::SetIndicesNeeded(const CompressedSet& indices) {
 }
 PatchRequest& PatchRequest::ResetIndicesNeeded() {
   _indices_needed.reset();
+  return *this;
+}
+
+PatchRequest& PatchRequest::operator=(PatchRequest&& other) {
+  _protocol_version = other._protocol_version;
+  _accept_formats = std::move(other._accept_formats);
+  _codepoints_have = std::move(other._codepoints_have);
+  _codepoints_needed = std::move(other._codepoints_needed);
+  _indices_have = std::move(other._indices_have);
+  _indices_needed = std::move(other._indices_needed);
+  _ordering_checksum = other._ordering_checksum;
+  _original_font_checksum = other._original_font_checksum;
+  _base_checksum = other._base_checksum;
+  _connection_speed = std::move(other._connection_speed);
   return *this;
 }
 

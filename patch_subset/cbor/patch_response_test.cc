@@ -14,6 +14,20 @@ using std::vector;
 
 class PatchResponseTest : public ::testing::Test {};
 
+TEST_F(PatchResponseTest, EmptyConstructor) {
+  PatchResponse response;
+
+  EXPECT_EQ(response.GetProtocolVersion(), ProtocolVersion::ONE);
+  // TODO: Add UNKNOWN value.
+  EXPECT_EQ(response.GetPatchFormat(), PatchFormat::BROTLI_SHARED_DICT);
+  EXPECT_TRUE(response.Patch().empty());
+  EXPECT_TRUE(response.Replacement().empty());
+  EXPECT_EQ(response.OriginalFontChecksum(), 0);
+  EXPECT_EQ(response.PatchedChecksum(), 0);
+  EXPECT_TRUE(response.CodepointOrdering().empty());
+  EXPECT_EQ(response.OrderingChecksum(), 0);
+}
+
 TEST_F(PatchResponseTest, Constructor) {
   PatchFormat patch_format = PatchFormat::VCDIFF;
   string patch = "patch-data";
@@ -35,8 +49,45 @@ TEST_F(PatchResponseTest, Constructor) {
   EXPECT_EQ(response.PatchedChecksum(), patched_checksum);
   EXPECT_EQ(response.CodepointOrdering(), codepoint_ordering);
   EXPECT_EQ(response.OrderingChecksum(), ordering_checksum);
+}
+
+TEST_F(PatchResponseTest, CopyConstructor) {
+  PatchFormat patch_format = PatchFormat::VCDIFF;
+  string patch = "patch-data";
+  string replacement = "replacement-data";
+  uint64_t original_font_checksum = 1234;
+  uint64_t patched_checksum = 2345;
+  vector<int32_t> codepoint_ordering{1, 5, 10, 20};
+  uint64_t ordering_checksum = 3456;
+  PatchResponse response(ProtocolVersion::ONE, patch_format, patch, replacement,
+                         original_font_checksum, patched_checksum,
+                         codepoint_ordering, ordering_checksum);
 
   EXPECT_EQ(PatchResponse(response), response);
+}
+
+TEST_F(PatchResponseTest, MoveConstructor) {
+  PatchFormat patch_format = PatchFormat::VCDIFF;
+  string patch = "patch-data";
+  string replacement = "replacement-data";
+  uint64_t original_font_checksum = 1234;
+  uint64_t patched_checksum = 2345;
+  vector<int32_t> codepoint_ordering{1, 5, 10, 20};
+  uint64_t ordering_checksum = 3456;
+  PatchResponse origional(ProtocolVersion::ONE, patch_format, patch,
+                          replacement, original_font_checksum, patched_checksum,
+                          codepoint_ordering, ordering_checksum);
+
+  PatchResponse moved = std::move(origional);
+
+  EXPECT_EQ(moved.GetProtocolVersion(), ProtocolVersion::ONE);
+  EXPECT_EQ(moved.GetPatchFormat(), patch_format);
+  EXPECT_EQ(moved.Patch(), patch);
+  EXPECT_EQ(moved.Replacement(), replacement);
+  EXPECT_EQ(moved.OriginalFontChecksum(), original_font_checksum);
+  EXPECT_EQ(moved.PatchedChecksum(), patched_checksum);
+  EXPECT_EQ(moved.CodepointOrdering(), codepoint_ordering);
+  EXPECT_EQ(moved.OrderingChecksum(), ordering_checksum);
 }
 
 TEST_F(PatchResponseTest, Encode) {
