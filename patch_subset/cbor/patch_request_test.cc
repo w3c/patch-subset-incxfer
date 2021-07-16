@@ -14,6 +14,21 @@ class PatchRequestTest : public ::testing::Test {};
 using std::string;
 using std::vector;
 
+TEST_F(PatchRequestTest, EmptyConstructor) {
+  PatchRequest request;
+
+  EXPECT_EQ(request.GetProtocolVersion(), ProtocolVersion::ONE);
+  EXPECT_TRUE(request.AcceptFormats().empty());
+  EXPECT_TRUE(request.CodepointsHave().empty());
+  EXPECT_TRUE(request.CodepointsNeeded().empty());
+  EXPECT_TRUE(request.IndicesHave().empty());
+  EXPECT_TRUE(request.IndicesNeeded().empty());
+  EXPECT_EQ(request.OrderingChecksum(), 0);
+  EXPECT_EQ(request.OriginalFontChecksum(), 0);
+  EXPECT_EQ(request.BaseChecksum(), 0);
+  EXPECT_EQ(request.GetConnectionSpeed(), ConnectionSpeed::AVERAGE);
+}
+
 TEST_F(PatchRequestTest, Constructor) {
   vector<PatchFormat> accept_formats{PatchFormat::BROTLI_SHARED_DICT};
   CompressedSet codepoints_have(string{"data1"}, range_vector{{1, 10}});
@@ -42,6 +57,45 @@ TEST_F(PatchRequestTest, Constructor) {
   EXPECT_EQ(request.GetConnectionSpeed(), speed);
 
   EXPECT_EQ(PatchRequest(request), request);
+}
+
+TEST_F(PatchRequestTest, CopyConstructor) {
+  vector<PatchFormat> accept_formats{PatchFormat::BROTLI_SHARED_DICT};
+  CompressedSet codepoints_have(string{"data1"}, range_vector{{1, 10}});
+  CompressedSet codepoints_needed(string{"data2"}, range_vector{{2, 20}});
+  CompressedSet indices_have(string{"data3"}, range_vector{});
+  CompressedSet indices_needed(string{"data4"}, range_vector{{3, 30}});
+  uint64_t ordering_checksum = 98989898L;
+  uint64_t original_font_checksum = 34343434L;
+  uint64_t base_checksum = 12121212L;
+  ConnectionSpeed speed = ConnectionSpeed::VERY_FAST;
+  PatchRequest request(ProtocolVersion::ONE, accept_formats, codepoints_have,
+                       codepoints_needed, indices_have, indices_needed,
+                       ordering_checksum, original_font_checksum, base_checksum,
+                       speed);
+
+  EXPECT_EQ(PatchRequest(request), request);
+}
+
+TEST_F(PatchRequestTest, MoveConstructor) {
+  vector<PatchFormat> accept_formats{PatchFormat::BROTLI_SHARED_DICT};
+  CompressedSet codepoints_have(string{"data1"}, range_vector{{1, 10}});
+  CompressedSet codepoints_needed(string{"data2"}, range_vector{{2, 20}});
+  CompressedSet indices_have(string{"data3"}, range_vector{});
+  CompressedSet indices_needed(string{"data4"}, range_vector{{3, 30}});
+  uint64_t ordering_checksum = 98989898L;
+  uint64_t original_font_checksum = 34343434L;
+  uint64_t base_checksum = 12121212L;
+  ConnectionSpeed speed = ConnectionSpeed::VERY_FAST;
+  PatchRequest origional(ProtocolVersion::ONE, accept_formats, codepoints_have,
+                         codepoints_needed, indices_have, indices_needed,
+                         ordering_checksum, original_font_checksum,
+                         base_checksum, speed);
+  PatchRequest copy(origional);
+
+  PatchRequest moved = std::move(origional);
+
+  EXPECT_EQ(moved, copy);
 }
 
 TEST_F(PatchRequestTest, Decode) {

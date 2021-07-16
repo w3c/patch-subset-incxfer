@@ -23,6 +23,12 @@ ClientState::ClientState(const string& font_id, const string& font_data,
       _fingerprint(fingerprint),
       _codepoint_remapping(codepoint_remapping) {}
 
+ClientState::ClientState(ClientState&& other)
+    : _font_id(std::move(other._font_id)),
+      _font_data(std::move(other._font_data)),
+      _fingerprint(other._fingerprint),
+      _codepoint_remapping(std::move(other._codepoint_remapping)) {}
+
 StatusCode ClientState::Decode(const cbor_item_t& cbor_map, ClientState& out) {
   ClientState result;
   if (!cbor_isa_map(&cbor_map) || cbor_map_is_indefinite(&cbor_map)) {
@@ -48,14 +54,7 @@ StatusCode ClientState::Decode(const cbor_item_t& cbor_map, ClientState& out) {
   if (sc != StatusCode::kOk) {
     return StatusCode::kInvalidArgument;
   }
-  /*
-   * TODO
-   * This will result in copying the fontdata field, which could be sizable.
-   * Can you add a swap() method to ClientState which internally will use swap()
-   * on the fontdata string. Or alternatively implement a move constructor for
-   * ClientState and use std::move() here.
-   */
-  out = result;
+  out = std::move(result);
   return StatusCode::kOk;
 }
 
@@ -153,6 +152,14 @@ const vector<int32_t>& ClientState::CodepointRemapping() const {
   } else {
     return kEmptyRemappings;
   }
+}
+
+ClientState& ClientState::operator=(ClientState&& other) {
+  _font_id = std::move(other._font_id);
+  _font_data = std::move(other._font_data);
+  _fingerprint = other._fingerprint;
+  _codepoint_remapping = std::move(other._codepoint_remapping);
+  return *this;
 }
 
 bool ClientState::operator==(const ClientState& other) const {

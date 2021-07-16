@@ -14,6 +14,15 @@ using std::vector;
 
 class ClientStateTest : public ::testing::Test {};
 
+TEST_F(ClientStateTest, EmptyConstructor) {
+  ClientState client_state;
+
+  EXPECT_EQ(client_state.FontId(), "");
+  EXPECT_EQ(client_state.FontData(), "");
+  EXPECT_EQ(client_state.Fingerprint(), 0);
+  EXPECT_TRUE(client_state.CodepointRemapping().empty());
+}
+
 TEST_F(ClientStateTest, Constructor) {
   string font_id("test.ttf");
   string font_data{"ABC"};
@@ -22,22 +31,55 @@ TEST_F(ClientStateTest, Constructor) {
 
   ClientState client_state(font_id, font_data, fingerprint, remapping);
 
-  ASSERT_EQ(client_state.FontId(), font_id);
-  ASSERT_EQ(client_state.FontData(), font_data);
-  ASSERT_EQ(client_state.Fingerprint(), fingerprint);
-  ASSERT_EQ(client_state.CodepointRemapping(), remapping);
+  EXPECT_EQ(client_state.FontId(), font_id);
+  EXPECT_EQ(client_state.FontData(), font_data);
+  EXPECT_EQ(client_state.Fingerprint(), fingerprint);
+  EXPECT_EQ(client_state.CodepointRemapping(), remapping);
+}
 
-  ASSERT_EQ(ClientState(client_state), client_state);
+TEST_F(ClientStateTest, CopyConstructor) {
+  string font_id("test.ttf");
+  string font_data{"ABC"};
+  uint64_t fingerprint = 999L;
+  vector<int32_t> remapping{1, 5, 10};
+  ClientState other(font_id, font_data, fingerprint, remapping);
+
+  EXPECT_EQ(ClientState(other), other);
+}
+
+TEST_F(ClientStateTest, MoveConstructor) {
+  string font_id(4096, 'A');
+  string font_data(4096, 'B');
+  uint64_t fingerprint = 999L;
+  vector<int32_t> remapping{1, 5, 10};
+  // Note: This constructor *does* make a copy of the buffers.
+  ClientState other(font_id, font_data, fingerprint, remapping);
+  auto other_id_pointer = (uint64_t)other.FontId().data();
+  auto other_data_pointer = (uint64_t)other.FontData().data();
+
+  // This should not result in the buffers being copied.
+  ClientState moved = std::move(other);
+
+  EXPECT_EQ((uint64_t)moved.FontId().data(), other_id_pointer);
+  EXPECT_EQ(moved.FontId(), font_id);
+  EXPECT_EQ((uint64_t)moved.FontData().data(), other_data_pointer);
+  EXPECT_EQ(moved.FontData(), font_data);
+  EXPECT_EQ(moved.Fingerprint(), fingerprint);
+  EXPECT_EQ(moved.CodepointRemapping(), remapping);
+
+  // Buffers were moved out.
+  EXPECT_EQ(other.FontId(), "");
+  EXPECT_EQ(other.FontData(), "");
 }
 
 TEST_F(ClientStateTest, Decode) {
-  string font_id("foo.ttf");
-  string data("QWERTY");
+  string font_id(4096, 'A');
+  string font_data(4096, 'B');
   uint64_t fingerprint = 999L;
   vector<int32_t> remapping{};
   cbor_item_unique_ptr map = make_cbor_map(4);
   CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString(font_id)));
-  CborUtils::SetField(*map, 1, cbor_move(CborUtils::EncodeBytes(data)));
+  CborUtils::SetField(*map, 1, cbor_move(CborUtils::EncodeBytes(font_data)));
   CborUtils::SetField(*map, 2, cbor_move(CborUtils::EncodeInt(fingerprint)));
   cbor_item_unique_ptr remapping_field = empty_cbor_ptr();
   StatusCode sc = CompressedIntList::Encode(remapping, remapping_field);
@@ -49,7 +91,7 @@ TEST_F(ClientStateTest, Decode) {
 
   ASSERT_EQ(sc, StatusCode::kOk);
   ASSERT_EQ(client_state.FontId(), font_id);
-  ASSERT_EQ(client_state.FontData(), data);
+  ASSERT_EQ(client_state.FontData(), font_data);
   ASSERT_EQ(client_state.Fingerprint(), fingerprint);
   ASSERT_EQ(client_state.CodepointRemapping(), remapping);
 }

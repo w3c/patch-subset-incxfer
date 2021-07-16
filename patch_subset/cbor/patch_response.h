@@ -37,6 +37,8 @@ class PatchResponse {
 
  public:
   PatchResponse();
+  PatchResponse(const PatchResponse& other) = default;
+  PatchResponse(PatchResponse&& other);
   PatchResponse(ProtocolVersion protocol_version, PatchFormat patch_format,
                 std::string patch, std::string replacement,
                 uint64_t original_font_checksum, uint64_t patched_checksum,
@@ -87,6 +89,7 @@ class PatchResponse {
   PatchResponse& SetOrderingChecksum(uint64_t checksum);
   PatchResponse& ResetOrderingChecksum();
 
+  PatchResponse& operator=(PatchResponse&& other);
   bool operator==(const PatchResponse& other) const;
   bool operator!=(const PatchResponse& other) const;
 };

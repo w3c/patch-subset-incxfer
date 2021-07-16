@@ -19,6 +19,16 @@ PatchResponse::PatchResponse()
       _codepoint_ordering(std::nullopt),
       _ordering_checksum(std::nullopt) {}
 
+PatchResponse::PatchResponse(PatchResponse&& other)
+    : _protocol_version(other._protocol_version),
+      _patch_format(other._patch_format),
+      _patch(std::move(other._patch)),
+      _replacement(std::move(other._replacement)),
+      _original_font_checksum(other._original_font_checksum),
+      _patched_checksum(other._patched_checksum),
+      _codepoint_ordering(std::move(other._codepoint_ordering)),
+      _ordering_checksum(other._ordering_checksum) {}
+
 PatchResponse::PatchResponse(ProtocolVersion protocol_version,
                              PatchFormat patch_format, string patch,
                              string replacement,
@@ -81,8 +91,7 @@ StatusCode PatchResponse::Decode(const cbor_item_t& cbor_map,
   if (sc != StatusCode::kOk) {
     return StatusCode::kInvalidArgument;
   }
-  // TODO: see swap or move TODO
-  out = result;
+  out = std::move(result);
   return StatusCode::kOk;
 }
 
@@ -267,6 +276,18 @@ PatchResponse& PatchResponse::SetOrderingChecksum(uint64_t checksum) {
 }
 PatchResponse& PatchResponse::ResetOrderingChecksum() {
   _ordering_checksum.reset();
+  return *this;
+}
+
+PatchResponse& PatchResponse::operator=(PatchResponse&& other) {
+  _protocol_version = other._protocol_version;
+  _patch_format = other._patch_format;
+  _patch = std::move(other._patch);
+  _replacement = std::move(other._replacement);
+  _original_font_checksum = other._original_font_checksum;
+  _patched_checksum = other._patched_checksum;
+  _codepoint_ordering = std::move(other._codepoint_ordering);
+  _ordering_checksum = other._ordering_checksum;
   return *this;
 }
 

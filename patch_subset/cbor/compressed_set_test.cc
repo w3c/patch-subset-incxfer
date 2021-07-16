@@ -11,6 +11,15 @@ using std::string;
 
 class CompressedSetTest : public ::testing::Test {};
 
+TEST_F(CompressedSetTest, EmptyConstructor) {
+  CompressedSet compressed_set;
+
+  EXPECT_FALSE(compressed_set.HasSparseBitSetBytes());
+  EXPECT_EQ(compressed_set.SparseBitSetBytes(), "");
+  EXPECT_FALSE(compressed_set.HasRanges());
+  EXPECT_TRUE(compressed_set.Ranges().empty());
+}
+
 TEST_F(CompressedSetTest, Constructor) {
   string bytes("010001010");
   range_vector ranges{{2, 4}, {4, 8}};
@@ -23,6 +32,40 @@ TEST_F(CompressedSetTest, Constructor) {
   EXPECT_EQ(compressed_set.Ranges(), ranges);
 
   EXPECT_EQ(CompressedSet(compressed_set), compressed_set);
+}
+
+TEST_F(CompressedSetTest, CopyConstructor) {
+  string bytes("010001010");
+  range_vector ranges{{2, 4}, {4, 8}};
+  CompressedSet compressed_set(bytes, ranges);
+
+  EXPECT_EQ(CompressedSet(compressed_set), compressed_set);
+}
+
+TEST_F(CompressedSetTest, MoveConstructor) {
+  string bytes("010001010");
+  range_vector ranges{{2, 4}, {4, 8}};
+  CompressedSet origional(bytes, ranges);
+  CompressedSet origionalCopy(origional);
+
+  CompressedSet moved = std::move(origional);
+
+  EXPECT_EQ(moved, origionalCopy);
+}
+
+TEST_F(CompressedSetTest, EmptyTrue) {
+  CompressedSet empty;
+  EXPECT_TRUE(empty.empty());
+}
+
+TEST_F(CompressedSetTest, FalseBitSet) {
+  CompressedSet has_bitset("00101010", {});
+  EXPECT_FALSE(has_bitset.empty());
+}
+
+TEST_F(CompressedSetTest, FalseRanges) {
+  CompressedSet has_ranges("", {{1, 2}});
+  EXPECT_FALSE(has_ranges.empty());
 }
 
 TEST_F(CompressedSetTest, Decode) {
