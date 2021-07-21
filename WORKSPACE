@@ -31,9 +31,9 @@ http_archive(
 http_archive(
     name = "harfbuzz",
     build_file = "//third_party:harfbuzz.BUILD",
-    sha256 = "c7d1d52d530b967a0cef8b7bb157474821c2e1ab609672fa255cced12e90c869",
-    strip_prefix = "harfbuzz-2.6.7",
-    urls = ["https://github.com/harfbuzz/harfbuzz/archive/2.6.7.zip"],
+    sha256 = "50e0f2b193ee25e595f146a0bb71a61e9928635cc03c428b56e43bb9e62ac33d",
+    strip_prefix = "harfbuzz-2.8.2",
+    urls = ["https://github.com/harfbuzz/harfbuzz/archive/2.8.2.zip"],
 )
 
 # farmhash
