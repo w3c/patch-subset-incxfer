@@ -58,6 +58,7 @@ cc_library(
         "src/hb-set.h",
         "src/hb-shape.h",
         "src/hb-shape-plan.h",
+        "src/hb-style.h",
         "src/hb-subset.h",
         "src/hb-unicode.h",
         "src/hb-version.h",
