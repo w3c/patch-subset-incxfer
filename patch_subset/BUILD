@@ -40,7 +40,7 @@ cc_library(
         "//analysis/pfe_methods/unicode_range_data:slicing_strategies",
     ],
     visibility = [
-        "//patch_subset/py:__pkg__",
+        "//visibility:public",
     ],
     deps = [
         ":common",
@@ -73,8 +73,7 @@ cc_library(
         "request_logger.h",
     ],
     visibility = [
-        "//js_client:__pkg__",
-        "//patch_subset/py:__pkg__",
+        "//visibility:public",
     ],
     deps = [
         ":common",
@@ -123,9 +122,7 @@ cc_library(
         "sparse_bit_set.h",
     ],
     visibility = [
-        "//js_client:__pkg__",
-        "//patch_subset/py:__pkg__",
-        "//util:__pkg__",
+        "//visibility:public",
     ],
     deps = [
         ":patch_subset_cc_proto",
