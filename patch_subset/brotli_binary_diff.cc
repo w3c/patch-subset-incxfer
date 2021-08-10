@@ -2,7 +2,7 @@
 
 #include <vector>
 
-#include "c/include/brotli/encode.h"
+#include "brotli/encode.h"
 #include "common/logging.h"
 #include "common/status.h"
 #include "patch_subset/font_data.h"
