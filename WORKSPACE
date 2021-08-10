@@ -13,9 +13,9 @@ http_archive(
 # Brotli Encoder/Decoder
 http_archive(
     name = "brotli",
-    sha256 = "f6284bf90cb9d227134738cd17fde60ccfcaa87b5929b6cc0e73faeaa5c8bb26",
-    strip_prefix = "brotli-master",
-    url = "https://github.com/google/brotli/archive/master.zip",
+    sha256 = "e96f58fd91ac7691e1d8299cf0c4ca734acbdc8e31b915e1697ff3d303d64e9b",
+    strip_prefix = "brotli-19d86fb9a60aa7034d4981b69a5b656f5b90017e",
+    url = "https://github.com/google/brotli/archive/19d86fb9a60aa7034d4981b69a5b656f5b90017e.zip",
 )
 
 # WOFF2 Encoder/Decoder
