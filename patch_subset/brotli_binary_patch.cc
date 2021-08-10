@@ -2,7 +2,7 @@
 
 #include <vector>
 
-#include "c/include/brotli/decode.h"
+#include "brotli/decode.h"
 #include "common/logging.h"
 #include "common/status.h"
 #include "patch_subset/binary_patch.h"
