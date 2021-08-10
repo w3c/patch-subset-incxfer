@@ -36,22 +36,15 @@ StatusCode HarfbuzzSubsetter::Subset(const FontData& font,
   // reduce patch size by keeping the ids consistent between patches. However
   // for fonts with large numbers of codepoints the additional overhead added
   // encoding the empty gids is not worth the future savings on patch size.
-  hb_subset_input_set_retain_gids(input, ShouldRetainGids(font));
+  hb_subset_input_set_flags(input, ShouldRetainGids(font)
+                                       ? HB_SUBSET_FLAGS_RETAIN_GIDS
+                                       : HB_SUBSET_FLAGS_DEFAULT);
 
-  // hb-subset by default drops layout tables, keep them.
-  hb_set_del(hb_subset_input_drop_tables_set(input),
-             HB_TAG('G', 'S', 'U', 'B'));
-  hb_set_del(hb_subset_input_drop_tables_set(input),
-             HB_TAG('G', 'P', 'O', 'S'));
-  hb_set_del(hb_subset_input_drop_tables_set(input),
-             HB_TAG('G', 'D', 'E', 'F'));
-
-  hb_face_t* subset_face = hb_subset(face, input);
+  hb_face_t* subset_face = hb_subset_or_fail(face, input);
   hb_subset_input_destroy(input);
   hb_face_destroy(face);
 
-  bool result = (subset_face != hb_face_get_empty());
-  if (!result) {
+  if (!subset_face) {
     hb_face_destroy(subset_face);
     LOG(WARNING) << "Internal subsetting failure.";
     return StatusCode::kInternal;
