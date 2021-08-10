@@ -48,29 +48,9 @@ http_archive(
 # abseil-cpp
 http_archive(
     name = "com_google_absl",
-    sha256 = "aa6386de0481bd4a096c25a0dc7ae50c2b57a064abd39f961fb3ce68eda933f8",
-    strip_prefix = "abseil-cpp-20200225",
-    urls = ["https://github.com/abseil/abseil-cpp/archive/20200225.zip"],
-)
-
-# abseil-py
-http_archive(
-    name = "io_abseil_py",
-    sha256 = "e7f5624c861c51901d9d40ebb09490cf728e3bd6133c9ce26059cdc548fc201e",
-    strip_prefix = "abseil-py-pypi-v0.9.0",
-    urls = ["https://github.com/abseil/abseil-py/archive/pypi-v0.9.0.zip"],
-)
-
-# six archive - needed by abseil-py
-http_archive(
-    name = "six_archive",
-    build_file = "@//third_party:six.BUILD",
-    sha256 = "105f8d68616f8248e24bf0e9372ef04d3cc10104f1980f54d57b2ce73a5ad56a",
-    strip_prefix = "six-1.10.0",
-    urls = [
-        "http://mirror.bazel.build/pypi.python.org/packages/source/s/six/six-1.10.0.tar.gz",
-        "https://pypi.python.org/packages/source/s/six/six-1.10.0.tar.gz",
-    ],
+    sha256 = "1a7edda1ff56967e33bc938a4f0a68bb9efc6ba73d62bb4a5f5662463698056c",
+    strip_prefix = "abseil-cpp-20210324.2",
+    urls = ["https://github.com/abseil/abseil-cpp/archive/20210324.2.zip"],
 )
 
 # Proto buf generating rules
