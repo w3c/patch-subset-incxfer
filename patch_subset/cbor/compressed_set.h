@@ -6,7 +6,7 @@
 #include "cbor.h"
 #include "common/status.h"
 #include "patch_subset/cbor/cbor_item_unique_ptr.h"
-#include "patch_subset/cbor/compressed_range_list.h"
+#include "patch_subset/cbor/range_list.h"
 
 namespace patch_subset::cbor {
 

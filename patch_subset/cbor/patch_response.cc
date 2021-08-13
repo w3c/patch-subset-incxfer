@@ -1,7 +1,7 @@
 #include "patch_subset/cbor/patch_response.h"
 
 #include "patch_subset/cbor/cbor_utils.h"
-#include "patch_subset/cbor/compressed_int_list.h"
+#include "patch_subset/cbor/integer_list.h"
 #include "patch_subset/cbor/patch_format_fields.h"
 
 namespace patch_subset::cbor {
@@ -81,8 +81,8 @@ StatusCode PatchResponse::Decode(const cbor_item_t& cbor_map,
   if (sc != StatusCode::kOk) {
     return StatusCode::kInvalidArgument;
   }
-  sc = CompressedIntList::GetIntListField(
-      cbor_map, kCodepointOrderingFieldNumber, result._codepoint_ordering);
+  sc = IntegerList::GetIntegerListField(cbor_map, kCodepointOrderingFieldNumber,
+                                        result._codepoint_ordering);
   if (sc != StatusCode::kOk) {
     return StatusCode::kInvalidArgument;
   }
@@ -132,8 +132,8 @@ StatusCode PatchResponse::Encode(cbor_item_unique_ptr& map_out) const {
   if (sc != StatusCode::kOk) {
     return sc;
   }
-  sc = CompressedIntList::SetIntListField(*map, kCodepointOrderingFieldNumber,
-                                          _codepoint_ordering);
+  sc = IntegerList::SetIntegerListField(*map, kCodepointOrderingFieldNumber,
+                                        _codepoint_ordering);
   if (sc != StatusCode::kOk) {
     return sc;
   }

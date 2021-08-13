@@ -1,7 +1,7 @@
 #include "patch_subset/cbor/compressed_set.h"
 
 #include "patch_subset/cbor/cbor_utils.h"
-#include "patch_subset/cbor/compressed_int_list.h"
+#include "patch_subset/cbor/integer_list.h"
 
 namespace patch_subset::cbor {
 
@@ -35,8 +35,8 @@ StatusCode CompressedSet::Decode(const cbor_item_t& cbor_map,
   if (sc != StatusCode::kOk) {
     return StatusCode::kInvalidArgument;
   }
-  sc = CompressedRangeList::GetRangeListField(
-      cbor_map, kSRangeDeltasFieldNumber, result._ranges);
+  sc = RangeList::GetRangeListField(cbor_map, kSRangeDeltasFieldNumber,
+                                    result._ranges);
   if (sc != StatusCode::kOk) {
     return StatusCode::kInvalidArgument;
   }
@@ -53,8 +53,7 @@ StatusCode CompressedSet::Encode(cbor_item_unique_ptr& map_out) const {
   if (sc != StatusCode::kOk) {
     return StatusCode::kInvalidArgument;
   }
-  sc = CompressedRangeList::SetRangeListField(*map, kSRangeDeltasFieldNumber,
-                                              _ranges);
+  sc = RangeList::SetRangeListField(*map, kSRangeDeltasFieldNumber, _ranges);
   if (sc != StatusCode::kOk) {
     return StatusCode::kInvalidArgument;
   }

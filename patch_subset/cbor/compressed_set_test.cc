@@ -74,7 +74,7 @@ TEST_F(CompressedSetTest, Decode) {
   cbor_item_unique_ptr map = make_cbor_map(2);
   CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeBytes(bytes)));
   cbor_item_unique_ptr ranges_bytestring = empty_cbor_ptr();
-  StatusCode sc = CompressedRangeList::Encode(ranges, ranges_bytestring);
+  StatusCode sc = RangeList::Encode(ranges, ranges_bytestring);
   ASSERT_EQ(sc, StatusCode::kOk);
   CborUtils::SetField(*map, 1, move_out(ranges_bytestring));
 
@@ -100,7 +100,7 @@ TEST_F(CompressedSetTest, DecodeNotMap) {
 TEST_F(CompressedSetTest, DecodeNotDefinateMap) {
   cbor_item_unique_ptr map = wrap_cbor_item(cbor_new_indefinite_map());
   cbor_item_unique_ptr ranges_bytestring = empty_cbor_ptr();
-  StatusCode sc = CompressedRangeList::Encode({{0, 256}}, ranges_bytestring);
+  StatusCode sc = RangeList::Encode({{0, 256}}, ranges_bytestring);
   ASSERT_EQ(sc, StatusCode::kOk);
   cbor_map_add(map.get(),
                cbor_pair{.key = cbor_move(CborUtils::EncodeInt(0)),
@@ -120,7 +120,7 @@ TEST_F(CompressedSetTest, DecodeInvalidBytes) {
   cbor_item_unique_ptr map = make_cbor_map(2);
   CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString("not-bytes")));
   cbor_item_unique_ptr ranges_bytestring = empty_cbor_ptr();
-  StatusCode sc = CompressedRangeList::Encode({{0, 256}}, ranges_bytestring);
+  StatusCode sc = RangeList::Encode({{0, 256}}, ranges_bytestring);
   ASSERT_EQ(sc, StatusCode::kOk);
   CborUtils::SetField(*map, 1, move_out(ranges_bytestring));
 
@@ -171,7 +171,7 @@ TEST_F(CompressedSetTest, Encode) {
   ASSERT_EQ(sc, StatusCode::kOk);
   ASSERT_NE(field.get(), nullptr);
   range_vector range_results;
-  sc = CompressedRangeList::Decode(*field, range_results);
+  sc = RangeList::Decode(*field, range_results);
   ASSERT_EQ(sc, StatusCode::kOk);
   ASSERT_EQ(range_results, ranges);
 }
