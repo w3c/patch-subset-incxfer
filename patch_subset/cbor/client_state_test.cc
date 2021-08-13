@@ -5,7 +5,7 @@
 #include "gtest/gtest.h"
 #include "patch_subset/cbor/cbor_item_unique_ptr.h"
 #include "patch_subset/cbor/cbor_utils.h"
-#include "patch_subset/cbor/compressed_int_list.h"
+#include "patch_subset/cbor/integer_list.h"
 
 namespace patch_subset::cbor {
 
@@ -82,7 +82,7 @@ TEST_F(ClientStateTest, Decode) {
   CborUtils::SetField(*map, 1, cbor_move(CborUtils::EncodeBytes(font_data)));
   CborUtils::SetField(*map, 2, cbor_move(CborUtils::EncodeInt(fingerprint)));
   cbor_item_unique_ptr remapping_field = empty_cbor_ptr();
-  StatusCode sc = CompressedIntList::Encode(remapping, remapping_field);
+  StatusCode sc = IntegerList::Encode(remapping, remapping_field);
   ASSERT_EQ(sc, StatusCode::kOk);
   CborUtils::SetField(*map, 3, move_out(remapping_field));
   ClientState client_state;
@@ -131,7 +131,7 @@ TEST_F(ClientStateTest, DecodeFieldsThreeAndFour) {
   cbor_item_unique_ptr map = make_cbor_map(2);
   CborUtils::SetField(*map, 2, cbor_move(CborUtils::EncodeInt(fingerprint)));
   cbor_item_unique_ptr remapping_field = empty_cbor_ptr();
-  StatusCode sc = CompressedIntList::Encode(remapping, remapping_field);
+  StatusCode sc = IntegerList::Encode(remapping, remapping_field);
   ASSERT_EQ(sc, StatusCode::kOk);
   CborUtils::SetField(*map, 3, move_out(remapping_field));
   // No field # 0 or 1.
@@ -193,7 +193,7 @@ TEST_F(ClientStateTest, Encode) {
   ASSERT_EQ(sc, StatusCode::kOk);
   ASSERT_NE(field.get(), nullptr);
   vector<int32_t> v;
-  sc = CompressedIntList::Decode(*field, v);
+  sc = IntegerList::Decode(*field, v);
   ASSERT_EQ(sc, StatusCode::kOk);
   ASSERT_EQ(v, remapping);
 }
@@ -270,7 +270,7 @@ TEST_F(ClientStateTest, EncodeFieldsOneAndFour) {
   ASSERT_EQ(sc, StatusCode::kOk);
   ASSERT_NE(field.get(), nullptr);
   vector<int32_t> v;
-  sc = CompressedIntList::Decode(*field, v);
+  sc = IntegerList::Decode(*field, v);
   ASSERT_EQ(sc, StatusCode::kOk);
   ASSERT_EQ(v, remapping);
 }

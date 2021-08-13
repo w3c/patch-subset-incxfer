@@ -2,7 +2,7 @@
 
 #include "common/status.h"
 #include "patch_subset/cbor/cbor_utils.h"
-#include "patch_subset/cbor/compressed_int_list.h"
+#include "patch_subset/cbor/integer_list.h"
 
 namespace patch_subset::cbor {
 
@@ -49,7 +49,7 @@ StatusCode ClientState::Decode(const cbor_item_t& cbor_map, ClientState& out) {
   if (sc != StatusCode::kOk) {
     return StatusCode::kInvalidArgument;
   }
-  sc = CompressedIntList::GetIntListField(
+  sc = IntegerList::GetIntegerListField(
       cbor_map, kCodepointRemappingFieldNumber, result._codepoint_remapping);
   if (sc != StatusCode::kOk) {
     return StatusCode::kInvalidArgument;
@@ -76,8 +76,8 @@ StatusCode ClientState::Encode(cbor_item_unique_ptr& out) const {
   if (sc != StatusCode::kOk) {
     return sc;
   }
-  sc = CompressedIntList::SetIntListField(*map, kCodepointRemappingFieldNumber,
-                                          _codepoint_remapping);
+  sc = IntegerList::SetIntegerListField(*map, kCodepointRemappingFieldNumber,
+                                        _codepoint_remapping);
   if (sc != StatusCode::kOk) {
     return sc;
   }

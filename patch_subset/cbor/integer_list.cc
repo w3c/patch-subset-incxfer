@@ -1,4 +1,4 @@
-#include "patch_subset/cbor/compressed_int_list.h"
+#include "patch_subset/cbor/integer_list.h"
 
 #include "absl/strings/string_view.h"
 #include "patch_subset/cbor/cbor_utils.h"
@@ -10,8 +10,7 @@ using absl::string_view;
 using std::optional;
 using std::vector;
 
-StatusCode CompressedIntList::IsEmpty(const cbor_item_t& bytestring,
-                                      bool* out) {
+StatusCode IntegerList::IsEmpty(const cbor_item_t& bytestring, bool* out) {
   if (!cbor_isa_bytestring(&bytestring)) {
     return StatusCode::kInvalidArgument;
   }
@@ -19,12 +18,12 @@ StatusCode CompressedIntList::IsEmpty(const cbor_item_t& bytestring,
   return StatusCode::kOk;
 }
 
-StatusCode CompressedIntList::Decode(const cbor_item_t& bytestring,
-                                     vector<int32_t>& out) {
+StatusCode IntegerList::Decode(const cbor_item_t& bytestring,
+                               vector<int32_t>& out) {
   return Decode(bytestring, false, out);
 }
 
-StatusCode CompressedIntList::SetIntListField(
+StatusCode IntegerList::SetIntegerListField(
     cbor_item_t& map, int field_number,
     const optional<vector<int32_t>>& int_list) {
   if (!int_list.has_value()) {
@@ -38,9 +37,9 @@ StatusCode CompressedIntList::SetIntListField(
   return CborUtils::SetField(map, field_number, move_out(encoded));
 }
 
-StatusCode CompressedIntList::GetIntListField(const cbor_item_t& map,
-                                              int field_number,
-                                              optional<vector<int32_t>>& out) {
+StatusCode IntegerList::GetIntegerListField(const cbor_item_t& map,
+                                            int field_number,
+                                            optional<vector<int32_t>>& out) {
   cbor_item_unique_ptr field = empty_cbor_ptr();
   StatusCode sc = CborUtils::GetField(map, field_number, field);
   if (sc == StatusCode::kNotFound) {
@@ -58,13 +57,13 @@ StatusCode CompressedIntList::GetIntListField(const cbor_item_t& map,
   return StatusCode::kOk;
 }
 
-StatusCode CompressedIntList::DecodeSorted(const cbor_item_t& bytestring,
-                                           vector<int32_t>& out) {
+StatusCode IntegerList::DecodeSorted(const cbor_item_t& bytestring,
+                                     vector<int32_t>& out) {
   return Decode(bytestring, true, out);
 }
 
-StatusCode CompressedIntList::Decode(const cbor_item_t& bytestring, bool sorted,
-                                     vector<int32_t>& out) {
+StatusCode IntegerList::Decode(const cbor_item_t& bytestring, bool sorted,
+                               vector<int32_t>& out) {
   if (!cbor_isa_bytestring(&bytestring)) {
     return StatusCode::kInvalidArgument;
   }
@@ -104,8 +103,8 @@ StatusCode CompressedIntList::Decode(const cbor_item_t& bytestring, bool sorted,
   return StatusCode::kOk;
 }
 
-StatusCode CompressedIntList::Encode(const vector<int32_t>& ints, bool sorted,
-                                     cbor_item_unique_ptr& bytestring_out) {
+StatusCode IntegerList::Encode(const vector<int32_t>& ints, bool sorted,
+                               cbor_item_unique_ptr& bytestring_out) {
   if (ints.empty()) {
     bytestring_out.reset(cbor_build_bytestring(nullptr, 0));
     return StatusCode::kOk;
@@ -145,12 +144,12 @@ StatusCode CompressedIntList::Encode(const vector<int32_t>& ints, bool sorted,
   return StatusCode::kOk;
 }
 
-StatusCode CompressedIntList::Encode(const vector<int32_t>& ints,
-                                     cbor_item_unique_ptr& bytestring_out) {
+StatusCode IntegerList::Encode(const vector<int32_t>& ints,
+                               cbor_item_unique_ptr& bytestring_out) {
   return Encode(ints, false, bytestring_out);
 }
 
-StatusCode CompressedIntList::EncodeSorted(
+StatusCode IntegerList::EncodeSorted(
     const vector<int32_t>& positive_sorted_ints,
     cbor_item_unique_ptr& bytestring_out) {
   return Encode(positive_sorted_ints, true, bytestring_out);

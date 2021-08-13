@@ -1,5 +1,5 @@
-#ifndef PATCH_SUBSET_CBOR_COMPRESSED_RANGE_LIST_H_
-#define PATCH_SUBSET_CBOR_COMPRESSED_RANGE_LIST_H_
+#ifndef PATCH_SUBSET_CBOR_RANGE_LIST_H_
+#define PATCH_SUBSET_CBOR_RANGE_LIST_H_
 
 #include <optional>
 #include <vector>
@@ -15,9 +15,9 @@ typedef std::vector<range> range_vector;
 
 /*
  * Convert a range list (sorted), e.g. [1..5], [9..13], [20,25], into a sorted
- * integer list which is encoded by the CompressedIntList class.
+ * integer list which is encoded by the IntegerList class.
  */
-class CompressedRangeList {
+class RangeList {
  public:
   // Interpret a CBOR bytestring as a compressed range list, of sorted values.
   static StatusCode Decode(const cbor_item_t& array, range_vector& out);
@@ -35,4 +35,4 @@ class CompressedRangeList {
 
 }  // namespace patch_subset::cbor
 
-#endif  // PATCH_SUBSET_CBOR_COMPRESSED_RANGE_LIST_H_
+#endif  // PATCH_SUBSET_CBOR_RANGE_LIST_H_

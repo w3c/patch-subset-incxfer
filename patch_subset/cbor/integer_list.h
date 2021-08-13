@@ -1,5 +1,5 @@
-#ifndef PATCH_SUBSET_CBOR_COMPRESSED_INT_LIST_H_
-#define PATCH_SUBSET_CBOR_COMPRESSED_INT_LIST_H_
+#ifndef PATCH_SUBSET_CBOR_COMPRESSED_INTEGER_LIST_H_
+#define PATCH_SUBSET_CBOR_COMPRESSED_INTEGER_LIST_H_
 
 #include <optional>
 #include <vector>
@@ -19,7 +19,7 @@ namespace patch_subset::cbor {
  * chunks, with the high bit indicating there are more chunks. This lets small
  * values be encoded in one byte.
  */
-class CompressedIntList {
+class IntegerList {
  public:
   static StatusCode IsEmpty(const cbor_item_t& bytestring, bool* out);
 
@@ -32,11 +32,12 @@ class CompressedIntList {
   static StatusCode Decode(const cbor_item_t& bytestring,
                            std::vector<int32_t>& out);
 
-  static StatusCode SetIntListField(
+  static StatusCode SetIntegerListField(
       cbor_item_t& map, int field_number,
       const std::optional<std::vector<int32_t>>& int_list);
-  static StatusCode GetIntListField(const cbor_item_t& map, int field_number,
-                                    std::optional<std::vector<int32_t>>& out);
+  static StatusCode GetIntegerListField(
+      const cbor_item_t& map, int field_number,
+      std::optional<std::vector<int32_t>>& out);
 
   // Create a compressed list given a sorted list of positive integers.
   // Giving up negative numbers, and negative deltas between integers, doubles
@@ -61,4 +62,4 @@ class CompressedIntList {
 
 }  // namespace patch_subset::cbor
 
-#endif  // PATCH_SUBSET_CBOR_COMPRESSED_INT_LIST_H_
+#endif  // PATCH_SUBSET_CBOR_COMPRESSED_INTEGER_LIST_H_

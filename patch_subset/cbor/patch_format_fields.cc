@@ -1,7 +1,7 @@
 #include "patch_subset/cbor/patch_format_fields.h"
 
 #include "patch_subset/cbor/cbor_utils.h"
-#include "patch_subset/cbor/compressed_int_list.h"
+#include "patch_subset/cbor/integer_list.h"
 
 namespace patch_subset::cbor {
 
@@ -27,7 +27,7 @@ StatusCode PatchFormatFields::ToPatchFormat(int32_t value, PatchFormat* out) {
 StatusCode PatchFormatFields::Decode(const cbor_item_t& bytes,
                                      vector<PatchFormat>& out) {
   vector<int32_t> int_values;
-  StatusCode sc = CompressedIntList::Decode(bytes, int_values);
+  StatusCode sc = IntegerList::Decode(bytes, int_values);
   if (sc != StatusCode::kOk) {
     return StatusCode::kInvalidArgument;
   }
@@ -50,7 +50,7 @@ StatusCode PatchFormatFields::Encode(const vector<PatchFormat>& formats,
   for (PatchFormat format : formats) {
     int_values.push_back(format);
   }
-  return CompressedIntList::Encode(int_values, bytestring_out);
+  return IntegerList::Encode(int_values, bytestring_out);
 }
 
 StatusCode PatchFormatFields::SetPatchFormatsListField(

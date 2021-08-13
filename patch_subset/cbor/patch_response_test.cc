@@ -5,7 +5,7 @@
 #include "gtest/gtest.h"
 #include "patch_subset/cbor/cbor_item_unique_ptr.h"
 #include "patch_subset/cbor/cbor_utils.h"
-#include "patch_subset/cbor/compressed_int_list.h"
+#include "patch_subset/cbor/integer_list.h"
 
 namespace patch_subset::cbor {
 
@@ -152,7 +152,7 @@ TEST_F(PatchResponseTest, Encode) {
   sc = CborUtils::GetField(*map, 6, field);
   ASSERT_EQ(sc, StatusCode::kOk);
   vector<int32_t> order;
-  sc = CompressedIntList::Decode(*field, order);
+  sc = IntegerList::Decode(*field, order);
   ASSERT_EQ(sc, StatusCode::kOk);
   ASSERT_EQ(order, response.CodepointOrdering());
 
@@ -187,7 +187,7 @@ TEST_F(PatchResponseTest, Decode) {
   CborUtils::SetField(*map, 5,
                       cbor_move(CborUtils::EncodeUInt64(patched_checksum)));
   cbor_item_unique_ptr remapping = empty_cbor_ptr();
-  CompressedIntList::Encode(codepoint_ordering, remapping);
+  IntegerList::Encode(codepoint_ordering, remapping);
   CborUtils::SetField(*map, 6, move_out(remapping));
   CborUtils::SetField(*map, 7,
                       cbor_move(CborUtils::EncodeUInt64(ordering_checksum)));

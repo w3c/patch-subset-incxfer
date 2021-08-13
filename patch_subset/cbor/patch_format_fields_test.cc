@@ -4,7 +4,7 @@
 
 #include "gtest/gtest.h"
 #include "patch_subset/cbor/cbor_utils.h"
-#include "patch_subset/cbor/compressed_int_list.h"
+#include "patch_subset/cbor/integer_list.h"
 #include "patch_subset/constants.h"
 
 namespace patch_subset::cbor {
@@ -47,7 +47,7 @@ TEST_F(PatchFormatFieldsTest, Encode) {
   ASSERT_NE(result.get(), nullptr);
 
   vector<int32_t> result_ints;
-  sc = CompressedIntList::Decode(*result, result_ints);
+  sc = IntegerList::Decode(*result, result_ints);
   ASSERT_EQ(sc, StatusCode::kOk);
   vector<int32_t> expected_ints{PatchFormat::BROTLI_SHARED_DICT,
                                 PatchFormat::VCDIFF};
@@ -56,7 +56,7 @@ TEST_F(PatchFormatFieldsTest, Encode) {
 
 TEST_F(PatchFormatFieldsTest, Decode) {
   cbor_item_unique_ptr bytes = empty_cbor_ptr();
-  CompressedIntList::Encode({1, 0}, bytes);
+  IntegerList::Encode({1, 0}, bytes);
   vector<PatchFormat> results;
 
   StatusCode sc = PatchFormatFields::Decode(*bytes, results);
@@ -141,7 +141,7 @@ TEST_F(PatchFormatFieldsTest, SetPatchFormatsListFieldPresent) {
   sc = CborUtils::GetField(*map, 0, field);
   ASSERT_EQ(sc, StatusCode::kOk);
   vector<int32_t> result;
-  sc = CompressedIntList::Decode(*field, result);
+  sc = IntegerList::Decode(*field, result);
   ASSERT_EQ(sc, StatusCode::kOk);
   vector<int32_t> expected{PatchFormat::VCDIFF};
   ASSERT_EQ(result, expected);
@@ -160,7 +160,7 @@ TEST_F(PatchFormatFieldsTest, GetPatchFormatsListField) {
   cbor_item_unique_ptr map = make_cbor_map(1);
   vector<int32_t> formats{PatchFormat::BROTLI_SHARED_DICT, PatchFormat::VCDIFF};
   cbor_item_unique_ptr field = empty_cbor_ptr();
-  CompressedIntList::Encode(formats, field);
+  IntegerList::Encode(formats, field);
   CborUtils::SetField(*map, 0, move_out(field));
   optional<vector<PatchFormat>> result;
 
