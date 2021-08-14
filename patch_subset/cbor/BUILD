@@ -3,6 +3,7 @@ load("@rules_cc//cc:defs.bzl", "cc_library")
 cc_library(
     name = "cbor",
     srcs = [
+        "array.cc",
         "cbor_item_unique_ptr.cc",
         "cbor_utils.cc",
         "client_state.cc",
@@ -15,6 +16,7 @@ cc_library(
         "range_list.cc",
     ],
     hdrs = [
+        "array.h",
         "cbor_item_unique_ptr.h",
         "cbor_utils.h",
         "client_state.h",
@@ -41,6 +43,7 @@ cc_test(
     name = "tests",
     size = "small",
     srcs = [
+        "array_test.cc",
         "cbor_item_unique_ptr_test.cc",
         "cbor_utils_test.cc",
         "client_state_test.cc",

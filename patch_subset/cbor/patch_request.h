@@ -35,10 +35,12 @@ class PatchRequest {
   static const int kCodepointsNeededFieldNumber = 3;
   static const int kIndicesHaveFieldNumber = 4;
   static const int kIndicesNeededFieldNumber = 5;
-  static const int kOrderingChecksumFieldNumber = 6;
-  static const int kOriginalFontChecksumFieldNumber = 7;
-  static const int kBaseChecksumFieldNumber = 8;
-  static const int kConnectionSpeedFieldNumber = 9;
+  static const int kAxisSpaceHave = 6;
+  static const int kAxisSpaceNeeded = 7;
+  static const int kOrderingChecksumFieldNumber = 8;
+  static const int kOriginalFontChecksumFieldNumber = 9;
+  static const int kBaseChecksumFieldNumber = 10;
+  static const int kConnectionSpeedFieldNumber = 11;
 
  public:
   PatchRequest();
