@@ -1,6 +1,7 @@
 #ifndef PATCH_SUBSET_CBOR_ARRAY_H_
 #define PATCH_SUBSET_CBOR_ARRAY_H_
 
+#include <optional>
 #include <vector>
 
 #include "cbor.h"
