@@ -75,10 +75,10 @@ TEST_F(IntUtilsTest, ZigZagTranscodeTopDown) {
 
 TEST_F(IntUtilsTest, UIntBase128Encode) {
   uint8_t buffer[]{0, 0, 0, 0, 0, 0};
-  uint8_t expected[]{0b10000001, 0b00000001, 0, 0, 0, 0};  // 128 + 1 = 129.
+  uint8_t expected[]{0b10000001, 0b00000011, 0, 0, 0, 0};  // 128 + 3 = 131.
   size_t size_in_out = 6;
 
-  StatusCode sc = IntUtils::UIntBase128Encode(129, buffer, &size_in_out);
+  StatusCode sc = IntUtils::UIntBase128Encode(131, buffer, &size_in_out);
 
   ASSERT_EQ(sc, StatusCode::kOk);
   ASSERT_EQ(size_in_out, 2);
@@ -90,24 +90,24 @@ TEST_F(IntUtilsTest, UIntBase128EncodeExamples) {
   EXPECT_EQ(encoded_bytes(1), "00000000000000000000000000000001 -> 00000001");
   EXPECT_EQ(encoded_bytes(127), "00000000000000000000000001111111 -> 01111111");
   EXPECT_EQ(encoded_bytes(128),
-            "00000000000000000000000010000000 -> 10000000 00000001");
+            "00000000000000000000000010000000 -> 10000001 00000000");
   EXPECT_EQ(encoded_bytes(255),
-            "00000000000000000000000011111111 -> 11111111 00000001");
+            "00000000000000000000000011111111 -> 10000001 01111111");
   EXPECT_EQ(encoded_bytes(16256),
-            "00000000000000000011111110000000 -> 10000000 01111111");
+            "00000000000000000011111110000000 -> 11111111 00000000");
   EXPECT_EQ(encoded_bytes(2080768),
             "00000000000111111100000000000000 -> "
-            "10000000 10000000 01111111");
+            "11111111 10000000 00000000");
   EXPECT_EQ(encoded_bytes(266338304),
             "00001111111000000000000000000000 -> "
-            "10000000 10000000 10000000 01111111");
+            "11111111 10000000 10000000 00000000");
   EXPECT_EQ(encoded_bytes(UINT32_MAX),
             "11111111111111111111111111111111 -> "
-            "11111111 11111111 11111111 11111111 00001111");
+            "10001111 11111111 11111111 11111111 01111111");
 }
 
 TEST_F(IntUtilsTest, UintBase128Decode) {
-  uint8_t buffer[]{0b10000001, 0b00000001, 0, 0};
+  uint8_t buffer[]{0b10000001, 0b00100100, 0, 0};
   string_view buffer_view((char*)buffer, 4);
   uint32_t n = -1;
   size_t num_bytes;
@@ -115,7 +115,7 @@ TEST_F(IntUtilsTest, UintBase128Decode) {
   StatusCode sc = IntUtils::UintBase128Decode(buffer_view, &n, &num_bytes);
 
   ASSERT_EQ(sc, StatusCode::kOk);
-  ASSERT_EQ(n, 129);
+  ASSERT_EQ(n, 164);
   ASSERT_EQ(num_bytes, 2);
 }
 
