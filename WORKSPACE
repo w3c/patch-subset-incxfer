@@ -36,13 +36,13 @@ http_archive(
     urls = ["https://github.com/harfbuzz/harfbuzz/archive/c08f1b89037b9a0277b8cef67ff2f38bcf253dfd.zip"],
 )
 
-# farmhash
+# Fast Hash
 http_archive(
-    name = "farmhash",
-    build_file = "//third_party:farmhash.BUILD",
-    sha256 = "470e87745d1393cc2793f49e9bfbd2c2cf282feeeb0c367f697996fa7e664fc5",
-    strip_prefix = "farmhash-0d859a811870d10f53a594927d0d0b97573ad06d",
-    urls = ["https://github.com/google/farmhash/archive/0d859a811870d10f53a594927d0d0b97573ad06d.zip"],
+    name = "fasthash",
+    build_file = "//third_party:fasthash.BUILD",
+    sha256 = "0f8fba20ea2b502c2aaec56d850367768535003ee0fc0e56043283db64e483ee",
+    strip_prefix = "fast-hash-ae3bb53c199fe75619e940b5b6a3584ede99c5fc",
+    urls = ["https://github.com/ztanml/fast-hash/archive/ae3bb53c199fe75619e940b5b6a3584ede99c5fc.zip"],
 )
 
 # abseil-cpp

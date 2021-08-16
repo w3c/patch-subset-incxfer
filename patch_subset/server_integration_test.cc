@@ -4,7 +4,7 @@
 #include "patch_subset/codepoint_mapper.h"
 #include "patch_subset/codepoint_mapping_checksum.h"
 #include "patch_subset/compressed_set.h"
-#include "patch_subset/farm_hasher.h"
+#include "patch_subset/fast_hasher.h"
 #include "patch_subset/file_font_provider.h"
 #include "patch_subset/harfbuzz_subsetter.h"
 #include "patch_subset/hb_set_unique_ptr.h"
@@ -24,7 +24,7 @@ class PatchSubsetServerIntegrationTest : public ::testing::Test {
             0, std::unique_ptr<FontProvider>(font_provider_),
             std::unique_ptr<Subsetter>(new HarfbuzzSubsetter()),
             std::unique_ptr<BinaryDiff>(binary_diff_),
-            std::unique_ptr<Hasher>(new FarmHasher()),
+            std::unique_ptr<Hasher>(new FastHasher()),
             std::unique_ptr<CodepointMapper>(nullptr),
             std::unique_ptr<CodepointMappingChecksum>(nullptr),
             std::unique_ptr<CodepointPredictor>(new NoopCodepointPredictor())) {
@@ -34,7 +34,7 @@ class PatchSubsetServerIntegrationTest : public ::testing::Test {
     FontData roboto_regular;
     font_provider_->GetFont("Roboto-Regular.ttf", &roboto_regular);
 
-    FarmHasher hasher;
+    FastHasher hasher;
     original_font_fingerprint_ = hasher.Checksum(roboto_regular.str());
     subset_ab_fingerprint_ = hasher.Checksum(roboto_ab_.str());
     subset_abcd_fingerprint_ = hasher.Checksum(roboto_abcd_.str());
