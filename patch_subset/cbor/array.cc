@@ -9,8 +9,8 @@
 
 namespace patch_subset::cbor {
 
-StatusCode Array::EncodeIntegerArray(const std::vector<uint64_t>& ints,
-                                     cbor_item_unique_ptr& array_out) {
+StatusCode Array::Encode(const std::vector<uint64_t>& ints,
+                         cbor_item_unique_ptr& array_out) {
   cbor_item_unique_ptr out = make_cbor_array(ints.size());
   for (uint64_t i : ints) {
     if (!cbor_array_push(out.get(), cbor_move(CborUtils::EncodeUInt64(i)))) {
@@ -22,8 +22,10 @@ StatusCode Array::EncodeIntegerArray(const std::vector<uint64_t>& ints,
   return StatusCode::kOk;
 }
 
-StatusCode Array::DecodeIntegerArray(const cbor_item_t& array,
-                                     std::vector<uint64_t>& out) {
+StatusCode Array::Decode(const cbor_item_t& array, std::vector<uint64_t>& out) {
+  if (!cbor_isa_array(&array) || !cbor_array_is_definite(&array))
+    return StatusCode::kInvalidArgument;
+
   std::vector<uint64_t> decoded;
   for (size_t i = 0; i < cbor_array_size(&array); i++) {
     cbor_item_unique_ptr cbor_int = wrap_cbor_item(cbor_array_get(&array, i));
@@ -33,7 +35,7 @@ StatusCode Array::DecodeIntegerArray(const cbor_item_t& array,
         StatusCode::kOk) {
       return code;
     }
-    out.push_back(value);
+    decoded.push_back(value);
   }
   out.swap(decoded);
   return StatusCode::kOk;
@@ -47,7 +49,7 @@ StatusCode Array::SetIntegerArrayField(
   }
 
   cbor_item_unique_ptr encoded = empty_cbor_ptr();
-  StatusCode code = EncodeIntegerArray(*value, encoded);
+  StatusCode code = Encode(*value, encoded);
   if (code != StatusCode::kOk) {
     return code;
   }
@@ -67,7 +69,7 @@ StatusCode Array::GetIntegerArrayField(
     return StatusCode::kInvalidArgument;
   }
   std::vector<uint64_t> results;
-  sc = DecodeIntegerArray(*field, results);
+  sc = Decode(*field, results);
   if (sc != StatusCode::kOk) {
     return sc;
   }

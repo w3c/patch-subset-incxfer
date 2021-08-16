@@ -11,11 +11,11 @@ namespace patch_subset::cbor {
 
 class Array {
  public:
-  static StatusCode EncodeIntegerArray(const std::vector<uint64_t>& ints,
-                                       cbor_item_unique_ptr& array_out);
+  static StatusCode Encode(const std::vector<uint64_t>& ints,
+                           cbor_item_unique_ptr& array_out);
 
-  static StatusCode DecodeIntegerArray(const cbor_item_t& array,
-                                       std::vector<uint64_t>& out);
+  static StatusCode Decode(const cbor_item_t& array,
+                           std::vector<uint64_t>& out);
 
   static StatusCode SetIntegerArrayField(
       cbor_item_t& map, int field_number,
