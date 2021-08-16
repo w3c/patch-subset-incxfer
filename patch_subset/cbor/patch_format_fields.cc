@@ -1,7 +1,7 @@
 #include "patch_subset/cbor/patch_format_fields.h"
 
-#include "patch_subset/cbor/cbor_utils.h"
 #include "patch_subset/cbor/array.h"
+#include "patch_subset/cbor/cbor_utils.h"
 
 namespace patch_subset::cbor {
 
