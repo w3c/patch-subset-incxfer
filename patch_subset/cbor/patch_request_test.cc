@@ -116,24 +116,50 @@ TEST_F(PatchRequestTest, Decode) {
 
   cbor_item_unique_ptr map = make_cbor_map(10);
   cbor_item_unique_ptr field = empty_cbor_ptr();
-  CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeUInt64(0)));
+  CborUtils::SetField(*map,
+                      PatchRequest::kProtocolVersionFieldNumber,
+                      cbor_move(CborUtils::EncodeUInt64(0)));
+
   PatchFormatFields::Encode(accept_formats, field);
-  CborUtils::SetField(*map, 1, move_out(field));
+  CborUtils::SetField(*map,
+                      PatchRequest::kAcceptPatchFormatsFieldNumber,
+                      move_out(field));
+
   codepoints_have.Encode(field);
-  CborUtils::SetField(*map, 2, move_out(field));
+  CborUtils::SetField(*map,
+                      PatchRequest::kCodepointsHaveFieldNumber,
+                      move_out(field));
+
   codepoints_needed.Encode(field);
-  CborUtils::SetField(*map, 3, move_out(field));
+  CborUtils::SetField(*map,
+                      PatchRequest::kCodepointsNeededFieldNumber,
+                      move_out(field));
+
   indices_have.Encode(field);
-  CborUtils::SetField(*map, 4, move_out(field));
+  CborUtils::SetField(*map,
+                      PatchRequest::kIndicesHaveFieldNumber,
+                      move_out(field));
+
   indices_needed.Encode(field);
-  CborUtils::SetField(*map, 5, move_out(field));
-  CborUtils::SetField(*map, 6,
+  CborUtils::SetField(*map,
+                      PatchRequest::kIndicesNeededFieldNumber,
+                      move_out(field));
+
+  CborUtils::SetField(*map,
+                      PatchRequest::kOrderingChecksumFieldNumber,
                       cbor_move(CborUtils::EncodeUInt64(ordering_checksum)));
-  CborUtils::SetField(
-      *map, 7, cbor_move(CborUtils::EncodeUInt64(original_font_checksum)));
-  CborUtils::SetField(*map, 8,
+
+  CborUtils::SetField(*map,
+                      PatchRequest::kOriginalFontChecksumFieldNumber,
+                      cbor_move(CborUtils::EncodeUInt64(original_font_checksum)));
+
+  CborUtils::SetField(*map,
+                      PatchRequest::kBaseChecksumFieldNumber,
                       cbor_move(CborUtils::EncodeUInt64(base_checksum)));
-  CborUtils::SetField(*map, 9, cbor_move(CborUtils::EncodeInt(1)));
+
+  CborUtils::SetField(*map,
+                      PatchRequest::kConnectionSpeedFieldNumber,
+                      cbor_move(CborUtils::EncodeInt(1)));
   PatchRequest result;
 
   StatusCode sc = PatchRequest::Decode(*map, result);
@@ -211,28 +237,28 @@ TEST_F(PatchRequestTest, Encode) {
   ASSERT_EQ(sc, StatusCode::kOk);
   ASSERT_EQ(result_indices_needed, indices_needed);
 
-  sc = CborUtils::GetField(*map, 6, field);
+  sc = CborUtils::GetField(*map, 8, field);
   ASSERT_EQ(sc, StatusCode::kOk);
   uint64_t result_ordering_checksum;
   sc = CborUtils::DecodeUInt64(*field, &result_ordering_checksum);
   ASSERT_EQ(sc, StatusCode::kOk);
   ASSERT_EQ(result_ordering_checksum, ordering_checksum);
 
-  sc = CborUtils::GetField(*map, 7, field);
+  sc = CborUtils::GetField(*map, 9, field);
   ASSERT_EQ(sc, StatusCode::kOk);
   uint64_t result_original_font_checksum;
   sc = CborUtils::DecodeUInt64(*field, &result_original_font_checksum);
   ASSERT_EQ(sc, StatusCode::kOk);
   ASSERT_EQ(result_original_font_checksum, original_font_checksum);
 
-  sc = CborUtils::GetField(*map, 8, field);
+  sc = CborUtils::GetField(*map, 10, field);
   ASSERT_EQ(sc, StatusCode::kOk);
   uint64_t result_base_checksum;
   sc = CborUtils::DecodeUInt64(*field, &result_base_checksum);
   ASSERT_EQ(sc, StatusCode::kOk);
   ASSERT_EQ(result_base_checksum, base_checksum);
 
-  sc = CborUtils::GetField(*map, 9, field);
+  sc = CborUtils::GetField(*map, 11, field);
   ASSERT_EQ(sc, StatusCode::kOk);
   int result_speed;
   sc = CborUtils::DecodeInt(*field, &result_speed);
