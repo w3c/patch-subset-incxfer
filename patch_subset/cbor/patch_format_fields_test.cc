@@ -158,7 +158,8 @@ TEST_F(PatchFormatFieldsTest, SetPatchFormatsListFieldAbsent) {
 
 TEST_F(PatchFormatFieldsTest, GetPatchFormatsListField) {
   cbor_item_unique_ptr map = make_cbor_map(1);
-  vector<uint64_t> formats{PatchFormat::BROTLI_SHARED_DICT, PatchFormat::VCDIFF};
+  vector<uint64_t> formats{PatchFormat::BROTLI_SHARED_DICT,
+                           PatchFormat::VCDIFF};
   cbor_item_unique_ptr field = empty_cbor_ptr();
   Array::Encode(formats, field);
   CborUtils::SetField(*map, 0, move_out(field));
