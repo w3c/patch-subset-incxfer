@@ -69,13 +69,13 @@ StatusCode IntegerList::Decode(const cbor_item_t& bytestring, bool sorted,
   }
   out.clear();
   size_t size = cbor_bytestring_length(&bytestring);
-  auto* next_byte = (uint8_t*) cbor_bytestring_handle(&bytestring);
+  auto* next_byte = (uint8_t*)cbor_bytestring_handle(&bytestring);
   int32_t current = 0;
   // Keep reading till we consume all the bytes.
   while (size > 0) {
     uint32_t udelta;
     size_t num_bytes = 0;
-    string_view sv((char*) next_byte, size);
+    string_view sv((char*)next_byte, size);
     // Read zig-zag encoded unsigned int.
     StatusCode sc = IntUtils::UintBase128Decode(sv, &udelta, &num_bytes);
     if (sc != StatusCode::kOk) {
