@@ -50,7 +50,8 @@ StatusCode IntUtils::UIntBase128Encode(uint32_t value, uint8_t* buffer,
 
 StatusCode IntUtils::UintBase128Decode(string_view bytes, uint32_t* uint_out,
                                        size_t* num_bytes_out) {
-  if (bytes.data() == nullptr || bytes.empty() || uint_out == nullptr || num_bytes_out == nullptr) {
+  if (bytes.data() == nullptr || bytes.empty() || uint_out == nullptr ||
+      num_bytes_out == nullptr) {
     return StatusCode::kInvalidArgument;
   }
 
