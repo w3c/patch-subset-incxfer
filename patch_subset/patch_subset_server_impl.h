@@ -12,7 +12,7 @@
 #include "patch_subset/codepoint_mapping_checksum.h"
 #include "patch_subset/codepoint_mapping_checksum_impl.h"
 #include "patch_subset/codepoint_predictor.h"
-#include "patch_subset/farm_hasher.h"
+#include "patch_subset/fast_hasher.h"
 #include "patch_subset/file_font_provider.h"
 #include "patch_subset/font_provider.h"
 #include "patch_subset/frequency_codepoint_predictor.h"
@@ -91,7 +91,7 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
  public:
   static std::unique_ptr<PatchSubsetServer> CreateServer(
       const ServerConfig& config) {
-    Hasher* hasher = new FarmHasher();
+    Hasher* hasher = new FastHasher();
     return std::unique_ptr<PatchSubsetServer>(new PatchSubsetServerImpl(
         config.max_predicted_codepoints,
         std::unique_ptr<FontProvider>(
