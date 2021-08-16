@@ -1,7 +1,7 @@
 #include "patch_subset/cbor/patch_format_fields.h"
 
 #include "patch_subset/cbor/cbor_utils.h"
-#include "patch_subset/cbor/integer_list.h"
+#include "patch_subset/cbor/array.h"
 
 namespace patch_subset::cbor {
 
@@ -9,7 +9,7 @@ using patch_subset::PatchFormat;
 using std::optional;
 using std::vector;
 
-StatusCode PatchFormatFields::ToPatchFormat(int32_t value, PatchFormat* out) {
+StatusCode PatchFormatFields::ToPatchFormat(uint64_t value, PatchFormat* out) {
   if (out == nullptr) {
     return StatusCode::kInvalidArgument;
   }
@@ -26,14 +26,14 @@ StatusCode PatchFormatFields::ToPatchFormat(int32_t value, PatchFormat* out) {
 
 StatusCode PatchFormatFields::Decode(const cbor_item_t& bytes,
                                      vector<PatchFormat>& out) {
-  vector<int32_t> int_values;
-  StatusCode sc = IntegerList::Decode(bytes, int_values);
+  vector<uint64_t> int_values;
+  StatusCode sc = Array::Decode(bytes, int_values);
   if (sc != StatusCode::kOk) {
     return StatusCode::kInvalidArgument;
   }
   out.resize(int_values.size());
   out.clear();
-  for (int32_t int_value : int_values) {
+  for (uint64_t int_value : int_values) {
     PatchFormat patch_format;
     sc = ToPatchFormat(int_value, &patch_format);
     if (sc == StatusCode::kOk) {
@@ -45,12 +45,12 @@ StatusCode PatchFormatFields::Decode(const cbor_item_t& bytes,
 
 StatusCode PatchFormatFields::Encode(const vector<PatchFormat>& formats,
                                      cbor_item_unique_ptr& bytestring_out) {
-  vector<int32_t> int_values(formats.size());
+  vector<uint64_t> int_values(formats.size());
   int_values.clear();
   for (PatchFormat format : formats) {
     int_values.push_back(format);
   }
-  return IntegerList::Encode(int_values, bytestring_out);
+  return Array::Encode(int_values, bytestring_out);
 }
 
 StatusCode PatchFormatFields::SetPatchFormatsListField(

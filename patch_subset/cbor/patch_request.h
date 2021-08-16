@@ -29,6 +29,7 @@ class PatchRequest {
   std::optional<uint64_t> _base_checksum;
   std::optional<ConnectionSpeed> _connection_speed;
 
+ public:
   static const int kProtocolVersionFieldNumber = 0;
   static const int kAcceptPatchFormatsFieldNumber = 1;
   static const int kCodepointsHaveFieldNumber = 2;

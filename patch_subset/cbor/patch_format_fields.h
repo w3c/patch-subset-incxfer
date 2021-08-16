@@ -17,7 +17,7 @@ namespace patch_subset::cbor {
  */
 class PatchFormatFields {
  public:
-  static StatusCode ToPatchFormat(int32_t value,
+  static StatusCode ToPatchFormat(uint64_t value,
                                   patch_subset::PatchFormat* out);
 
   static StatusCode Decode(const cbor_item_t& bytes,
