@@ -9,7 +9,7 @@ namespace patch_subset {
 struct LittleEndianInt {
  public:
   LittleEndianInt& operator=(int32_t value) {
-    data[0] = (value) & 0xFF;
+    data[0] = (value)&0xFF;
     data[1] = (value >> 8) & 0xFF;
     data[2] = (value >> 16) & 0xFF;
     data[3] = (value >> 24) & 0xFF;
