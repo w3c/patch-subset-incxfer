@@ -1,9 +1,9 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary")
 
 cc_binary(
-    name = "fingerprint",
+    name = "checksum",
     srcs = [
-        "fingerprint.cc",
+        "checksum.cc",
     ],
     deps = [
         "//patch_subset:common",
