@@ -101,7 +101,7 @@ TEST_F(PatchSubsetClientServerIntegrationTest, SessionWithCodepointRemapping) {
   EXPECT_EQ(state.original_font_fingerprint(), 0xC722EE0E33D3B460);
   EXPECT_EQ(state.font_data(), roboto_ab_.str());
   EXPECT_TRUE(state.has_codepoint_remapping());
-  EXPECT_EQ(state.codepoint_remapping().fingerprint(), 0x54F18716151824C);
+  EXPECT_EQ(state.codepoint_remapping().fingerprint(), 0xD5BD080511DD60DD);
 
   hb_set_unique_ptr set_abcd = make_hb_set_from_ranges(1, 0x61, 0x64);
   EXPECT_EQ(client_with_mapping_.Extend(*set_abcd, &state), StatusCode::kOk);
@@ -110,7 +110,7 @@ TEST_F(PatchSubsetClientServerIntegrationTest, SessionWithCodepointRemapping) {
   EXPECT_EQ(state.original_font_fingerprint(), 0xC722EE0E33D3B460);
   EXPECT_EQ(state.font_data(), roboto_abcd_.str());
   EXPECT_TRUE(state.has_codepoint_remapping());
-  EXPECT_EQ(state.codepoint_remapping().fingerprint(), 0x54F18716151824C);
+  EXPECT_EQ(state.codepoint_remapping().fingerprint(), 0xD5BD080511DD60DD);
 }
 
 }  // namespace patch_subset

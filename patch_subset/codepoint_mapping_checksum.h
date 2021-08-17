@@ -1,7 +1,6 @@
 #ifndef PATCH_SUBSET_CODEPOINT_MAPPING_CHECKSUM_H_
 #define PATCH_SUBSET_CODEPOINT_MAPPING_CHECKSUM_H_
 
-#include "patch_subset/hasher.h"
 #include "patch_subset/patch_subset.pb.h"
 
 namespace patch_subset {
