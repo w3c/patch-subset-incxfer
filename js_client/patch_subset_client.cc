@@ -14,7 +14,7 @@
 #include "hb.h"
 #include "patch_subset/brotli_binary_patch.h"
 #include "patch_subset/compressed_set.h"
-#include "patch_subset/farm_hasher.h"
+#include "patch_subset/fast_hasher.h"
 #include "patch_subset/hb_set_unique_ptr.h"
 #include "patch_subset/null_request_logger.h"
 #include "patch_subset/patch_subset.pb.h"
@@ -77,7 +77,7 @@ class State {
                 std::unique_ptr<patch_subset::BinaryPatch>(
                     new patch_subset::BrotliBinaryPatch()),
                 std::unique_ptr<patch_subset::Hasher>(
-                    new patch_subset::FarmHasher())) {
+                    new patch_subset::FastHasher())) {
     _state.set_font_id(font_id);
   }
 
