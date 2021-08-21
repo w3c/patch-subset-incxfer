@@ -45,4 +45,19 @@ TEST_F(IntegerListChecksumImplTest, ChecksumOnlyDeltas) {
             5871708787516736757u);
 }
 
+TEST_F(IntegerListChecksumImplTest, SpecChecksumExample) {
+  // Test that the checksum example given in the spec gets the same result:
+  // https://w3c.github.io/IFT/Overview.html#reordering-checksum
+  // Checksum of [106, 97, 105, 120, 100] == 0x6986dc19f4e621e
+  vector<int32_t> codepoint_ordering;
+
+  codepoint_ordering.push_back(106);
+  codepoint_ordering.push_back(97);
+  codepoint_ordering.push_back(105);
+  codepoint_ordering.push_back(120);
+  codepoint_ordering.push_back(100);
+  EXPECT_EQ(integer_list_checksum_.Checksum(codepoint_ordering),
+            0x6986dc19f4e621eu);
+}
+
 }  // namespace patch_subset

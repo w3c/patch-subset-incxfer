@@ -145,6 +145,7 @@ cc_test(
         "codepoint_map_test.cc",
         "compressed_set_test.cc",
         "fake_subsetter.h",
+        "fast_hasher_test.cc",
         "file_font_provider_test.cc",
         "frequency_codepoint_predictor_test.cc",
         "harfbuzz_subsetter_test.cc",
