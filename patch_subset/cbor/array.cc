@@ -3,9 +3,9 @@
 #include <vector>
 
 #include "cbor.h"
-#include "cbor_utils.h"
 #include "common/status.h"
 #include "patch_subset/cbor/cbor_item_unique_ptr.h"
+#include "patch_subset/cbor/cbor_utils.h"
 
 namespace patch_subset::cbor {
 
