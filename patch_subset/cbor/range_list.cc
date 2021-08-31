@@ -36,8 +36,8 @@ StatusCode RangeList::Encode(const range_vector& ranges,
     if (ranges[i].first > INT32_MAX || ranges[i].second > INT32_MAX) {
       return StatusCode::kInvalidArgument;
     }
-    ints[j] = (int32_t) ranges[i].first;
-    ints[j + 1] = (int32_t) ranges[i].second;
+    ints[j] = (int32_t)ranges[i].first;
+    ints[j + 1] = (int32_t)ranges[i].second;
   }
   // EncodeSorted() will enforce sorting.
   return IntegerList::EncodeSorted(ints, bytestring_out);

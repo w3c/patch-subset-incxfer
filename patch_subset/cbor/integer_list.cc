@@ -86,7 +86,7 @@ StatusCode IntegerList::Decode(const cbor_item_t& bytestring, bool sorted,
     int32_t delta;
     if (sorted) {
       if (udelta <= INT32_MAX) {
-        delta = (int32_t) udelta;
+        delta = (int32_t)udelta;
       } else {
         return StatusCode::kInvalidArgument;
       }
@@ -97,7 +97,7 @@ StatusCode IntegerList::Decode(const cbor_item_t& bytestring, bool sorted,
     if (current64 < INT32_MIN || current64 > INT32_MAX) {
       return StatusCode::kInvalidArgument;
     }
-    current = (int64_t) current64;
+    current = (int64_t)current64;
     out.push_back(current);
   }
   return StatusCode::kOk;

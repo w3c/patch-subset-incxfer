@@ -56,9 +56,8 @@ StatusCode Array::SetArrayField(
   return CborUtils::SetField(map, field_number, move_out(encoded));
 }
 
-StatusCode Array::GetArrayField(
-    const cbor_item_t& map, int field_number,
-    std::optional<std::vector<uint64_t>>& out) {
+StatusCode Array::GetArrayField(const cbor_item_t& map, int field_number,
+                                std::optional<std::vector<uint64_t>>& out) {
   // TODO: update this to array
   cbor_item_unique_ptr field = empty_cbor_ptr();
   StatusCode sc = CborUtils::GetField(map, field_number, field);
