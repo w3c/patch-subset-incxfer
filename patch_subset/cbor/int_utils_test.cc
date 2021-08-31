@@ -319,8 +319,9 @@ bool encode_avoids_buffer_overruns(uint32_t n, size_t req_bytes) {
     }
   }
   // All large-enough buffers should work.
-  for (int i = req_bytes; i < 8; i++) {
-    auto buffer = std::make_unique<uint8_t[]>(std::max(1, i));
+  for (size_t i = req_bytes; i < 8; i++) {
+    size_t buff_size = i > 0 ? i : 1;
+    auto buffer = std::make_unique<uint8_t[]>(buff_size);
     size_t size_in_out = i;
     StatusCode sc = IntUtils::UIntBase128Encode(n, buffer.get(), &size_in_out);
     if (sc != StatusCode::kOk || size_in_out != req_bytes) {

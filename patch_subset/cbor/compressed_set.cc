@@ -11,7 +11,7 @@ using std::string;
 CompressedSet::CompressedSet()
     : _sparse_bit_set_bytes(std::nullopt), _ranges(std::nullopt) {}
 
-CompressedSet::CompressedSet(CompressedSet&& other)
+CompressedSet::CompressedSet(CompressedSet&& other) noexcept
     : _sparse_bit_set_bytes(std::move(other._sparse_bit_set_bytes)),
       _ranges(std::move(other._ranges)) {}
 
@@ -116,7 +116,7 @@ const string& CompressedSet::SparseBitSetBytes() const {
 }
 
 bool CompressedSet::HasRanges() const { return _ranges.has_value(); }
-CompressedSet& CompressedSet::SetRanges(range_vector ranges) {
+CompressedSet& CompressedSet::SetRanges(const range_vector& ranges) {
   _ranges.emplace(ranges);
   return *this;
 }
@@ -133,7 +133,7 @@ const range_vector& CompressedSet::Ranges() const {
   }
 }
 
-CompressedSet& CompressedSet::operator=(CompressedSet&& other) {
+CompressedSet& CompressedSet::operator=(CompressedSet&& other) noexcept {
   _sparse_bit_set_bytes = std::move(other._sparse_bit_set_bytes);
   _ranges = std::move(other._ranges);
   return *this;

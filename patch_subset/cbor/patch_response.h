@@ -38,7 +38,7 @@ class PatchResponse {
  public:
   PatchResponse();
   PatchResponse(const PatchResponse& other) = default;
-  PatchResponse(PatchResponse&& other);
+  PatchResponse(PatchResponse&& other) noexcept;
   PatchResponse(ProtocolVersion protocol_version, PatchFormat patch_format,
                 std::string patch, std::string replacement,
                 uint64_t original_font_checksum, uint64_t patched_checksum,
@@ -61,12 +61,12 @@ class PatchResponse {
 
   bool HasPatch() const;
   const std::string& Patch() const;
-  PatchResponse& SetPatch(std::string patch);
+  PatchResponse& SetPatch(const std::string& patch);
   PatchResponse& ResetPatch();
 
   bool HasReplacement() const;
   const std::string& Replacement() const;
-  PatchResponse& SetReplacement(std::string replacement);
+  PatchResponse& SetReplacement(const std::string& replacement);
   PatchResponse& ResetReplacement();
 
   bool HasOriginalFontChecksum() const;
@@ -81,7 +81,7 @@ class PatchResponse {
 
   bool HasCodepointOrdering() const;
   const std::vector<int32_t>& CodepointOrdering() const;
-  PatchResponse& SetCodepointOrdering(std::vector<int32_t> codepoint_ordering);
+  PatchResponse& SetCodepointOrdering(const std::vector<int32_t>& codepoint_ordering);
   PatchResponse& ResetCodepointOrdering();
 
   bool HasOrderingChecksum() const;
@@ -89,7 +89,7 @@ class PatchResponse {
   PatchResponse& SetOrderingChecksum(uint64_t checksum);
   PatchResponse& ResetOrderingChecksum();
 
-  PatchResponse& operator=(PatchResponse&& other);
+  PatchResponse& operator=(PatchResponse&& other) noexcept;
   bool operator==(const PatchResponse& other) const;
   bool operator!=(const PatchResponse& other) const;
 };

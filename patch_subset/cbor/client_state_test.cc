@@ -80,7 +80,7 @@ TEST_F(ClientStateTest, Decode) {
   cbor_item_unique_ptr map = make_cbor_map(4);
   CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString(font_id)));
   CborUtils::SetField(*map, 1, cbor_move(CborUtils::EncodeBytes(font_data)));
-  CborUtils::SetField(*map, 2, cbor_move(CborUtils::EncodeInt(fingerprint)));
+  CborUtils::SetField(*map, 2, cbor_move(CborUtils::EncodeUInt64(fingerprint)));
   cbor_item_unique_ptr remapping_field = empty_cbor_ptr();
   StatusCode sc = IntegerList::Encode(remapping, remapping_field);
   ASSERT_EQ(sc, StatusCode::kOk);
@@ -129,7 +129,7 @@ TEST_F(ClientStateTest, DecodeFieldsThreeAndFour) {
   uint64_t fingerprint = 999L;
   vector<int32_t> remapping{};
   cbor_item_unique_ptr map = make_cbor_map(2);
-  CborUtils::SetField(*map, 2, cbor_move(CborUtils::EncodeInt(fingerprint)));
+  CborUtils::SetField(*map, 2, cbor_move(CborUtils::EncodeUInt64(fingerprint)));
   cbor_item_unique_ptr remapping_field = empty_cbor_ptr();
   StatusCode sc = IntegerList::Encode(remapping, remapping_field);
   ASSERT_EQ(sc, StatusCode::kOk);

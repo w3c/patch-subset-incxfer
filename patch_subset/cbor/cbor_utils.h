@@ -65,7 +65,7 @@ class CborUtils {
   static StatusCode DecodeBytes(const cbor_item_t& bytes_item,
                                 std::string& out);
 
-  static std::set<int> MapKeys(const cbor_item_t& map);
+  static std::set<uint64_t> MapKeys(const cbor_item_t& map);
 
   static StatusCode SerializeToBytes(const cbor_item_t& item,
                                      absl::string_view buffer,

@@ -31,7 +31,7 @@ class ClientState {
  public:
   ClientState();
   ClientState(const ClientState& other) = default;
-  ClientState(ClientState&& other);
+  ClientState(ClientState&& other) noexcept;
   ClientState(const std::string& font_id, const std::string& font_data,
               uint64_t fingerprint,
               const std::vector<int32_t>& codepoint_remapping);
@@ -60,7 +60,7 @@ class ClientState {
   [[nodiscard]] bool HasCodepointRemapping() const;
   [[nodiscard]] const std::vector<int32_t>& CodepointRemapping() const;
 
-  ClientState& operator=(ClientState&& other);
+  ClientState& operator=(ClientState&& other) noexcept;
   bool operator==(const ClientState& other) const;
   bool operator!=(const ClientState& other) const;
 };
