@@ -81,7 +81,8 @@ class PatchResponse {
 
   bool HasCodepointOrdering() const;
   const std::vector<int32_t>& CodepointOrdering() const;
-  PatchResponse& SetCodepointOrdering(const std::vector<int32_t>& codepoint_ordering);
+  PatchResponse& SetCodepointOrdering(
+      const std::vector<int32_t>& codepoint_ordering);
   PatchResponse& ResetCodepointOrdering();
 
   bool HasOrderingChecksum() const;

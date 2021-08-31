@@ -20,9 +20,9 @@ int32_t IntUtils::ZigZagDecode(uint32_t unsigned_int) {
     if (unsigned_int == UINT32_MAX) {
       return INT32_MIN;
     }
-    return (int32_t) -((unsigned_int + 1U) / 2U);
+    return (int32_t) - ((unsigned_int + 1U) / 2U);
   } else {
-    return (int32_t) unsigned_int / 2U;
+    return (int32_t)unsigned_int / 2U;
   }
 }
 
