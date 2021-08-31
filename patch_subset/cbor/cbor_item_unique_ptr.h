@@ -17,11 +17,11 @@ cbor_item_unique_ptr empty_cbor_ptr();
 
 cbor_item_unique_ptr wrap_cbor_item(cbor_item_t* item);
 
-cbor_item_unique_ptr make_cbor_map(int size);
+cbor_item_unique_ptr make_cbor_map(size_t size);
 
-cbor_item_unique_ptr make_cbor_array(int length);
+cbor_item_unique_ptr make_cbor_array(size_t length);
 
-cbor_item_unique_ptr make_cbor_int(int64_t n);
+cbor_item_unique_ptr make_cbor_int(int32_t n);
 
 cbor_item_unique_ptr make_cbor_string(const char* val);
 

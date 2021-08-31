@@ -41,22 +41,22 @@ StatusCode Array::Decode(const cbor_item_t& array, std::vector<uint64_t>& out) {
   return StatusCode::kOk;
 }
 
-StatusCode Array::SetIntegerArrayField(
+StatusCode Array::SetArrayField(
     cbor_item_t& map, int field_number,
-    const std::optional<std::vector<uint64_t>>& value) {
-  if (!value.has_value()) {
+    const std::optional<std::vector<uint64_t>>& int_list) {
+  if (!int_list.has_value()) {
     return StatusCode::kOk;  // Nothing to do.
   }
 
   cbor_item_unique_ptr encoded = empty_cbor_ptr();
-  StatusCode code = Encode(*value, encoded);
+  StatusCode code = Encode(*int_list, encoded);
   if (code != StatusCode::kOk) {
     return code;
   }
   return CborUtils::SetField(map, field_number, move_out(encoded));
 }
 
-StatusCode Array::GetIntegerArrayField(
+StatusCode Array::GetArrayField(
     const cbor_item_t& map, int field_number,
     std::optional<std::vector<uint64_t>>& out) {
   // TODO: update this to array

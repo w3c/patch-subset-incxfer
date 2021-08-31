@@ -19,7 +19,7 @@ PatchResponse::PatchResponse()
       _codepoint_ordering(std::nullopt),
       _ordering_checksum(std::nullopt) {}
 
-PatchResponse::PatchResponse(PatchResponse&& other)
+PatchResponse::PatchResponse(PatchResponse&& other) noexcept
     : _protocol_version(other._protocol_version),
       _patch_format(other._patch_format),
       _patch(std::move(other._patch)),
@@ -186,7 +186,7 @@ const string& PatchResponse::Patch() const {
     return kEmptyString;
   }
 }
-PatchResponse& PatchResponse::SetPatch(string patch) {
+PatchResponse& PatchResponse::SetPatch(const string& patch) {
   _patch.emplace(patch);
   return *this;
 }
@@ -203,7 +203,7 @@ const string& PatchResponse::Replacement() const {
     return kEmptyString;
   }
 }
-PatchResponse& PatchResponse::SetReplacement(string replacement) {
+PatchResponse& PatchResponse::SetReplacement(const string& replacement) {
   _replacement.emplace(replacement);
   return *this;
 }
@@ -255,7 +255,7 @@ const vector<int32_t>& PatchResponse::CodepointOrdering() const {
   }
 }
 PatchResponse& PatchResponse::SetCodepointOrdering(
-    vector<int32_t> codepoint_ordering) {
+    const vector<int32_t>& codepoint_ordering) {
   _codepoint_ordering.emplace(codepoint_ordering);
   return *this;
 }
@@ -279,7 +279,7 @@ PatchResponse& PatchResponse::ResetOrderingChecksum() {
   return *this;
 }
 
-PatchResponse& PatchResponse::operator=(PatchResponse&& other) {
+PatchResponse& PatchResponse::operator=(PatchResponse&& other) noexcept {
   _protocol_version = other._protocol_version;
   _patch_format = other._patch_format;
   _patch = std::move(other._patch);

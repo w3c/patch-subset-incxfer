@@ -18,11 +18,11 @@ class Array {
   static StatusCode Decode(const cbor_item_t& array,
                            std::vector<uint64_t>& out);
 
-  static StatusCode SetIntegerArrayField(
+  static StatusCode SetArrayField(
       cbor_item_t& map, int field_number,
       const std::optional<std::vector<uint64_t>>& int_list);
 
-  static StatusCode GetIntegerArrayField(
+  static StatusCode GetArrayField(
       const cbor_item_t& map, int field_number,
       std::optional<std::vector<uint64_t>>& out);
 };

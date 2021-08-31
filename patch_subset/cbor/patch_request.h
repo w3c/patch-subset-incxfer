@@ -46,7 +46,7 @@ class PatchRequest {
  public:
   PatchRequest();
   PatchRequest(const PatchRequest& other) = default;
-  PatchRequest(PatchRequest&& other);
+  PatchRequest(PatchRequest&& other) noexcept;
   PatchRequest(ProtocolVersion protocol_version,
                std::vector<patch_subset::PatchFormat> accept_formats,
                CompressedSet codepoints_have, CompressedSet codepoints_needed,
@@ -109,7 +109,7 @@ class PatchRequest {
   PatchRequest& SetConnectionSpeed(ConnectionSpeed connection_speed);
   PatchRequest& ResetConnectionSpeed();
 
-  PatchRequest& operator=(PatchRequest&& other);
+  PatchRequest& operator=(PatchRequest&& other) noexcept;
   bool operator==(const PatchRequest& other) const;
   bool operator!=(const PatchRequest& other) const;
 };

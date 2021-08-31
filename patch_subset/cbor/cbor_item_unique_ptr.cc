@@ -21,16 +21,16 @@ cbor_item_unique_ptr wrap_cbor_item(cbor_item_t* item) {
   return cbor_item_unique_ptr(item, delete_cbor_item);
 }
 
-cbor_item_unique_ptr make_cbor_map(int size) {
+cbor_item_unique_ptr make_cbor_map(size_t size) {
   return cbor_item_unique_ptr(cbor_new_definite_map(size), delete_cbor_item);
 }
 
-cbor_item_unique_ptr make_cbor_array(int length) {
+cbor_item_unique_ptr make_cbor_array(size_t length) {
   return cbor_item_unique_ptr(cbor_new_definite_array(length),
                               delete_cbor_item);
 }
 
-cbor_item_unique_ptr make_cbor_int(int64_t n) {
+cbor_item_unique_ptr make_cbor_int(int32_t n) {
   return cbor_item_unique_ptr(CborUtils::EncodeInt(n), delete_cbor_item);
 }
 

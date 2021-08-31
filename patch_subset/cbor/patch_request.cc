@@ -22,7 +22,7 @@ PatchRequest::PatchRequest()
       _base_checksum(std::nullopt),
       _connection_speed(std::nullopt) {}
 
-PatchRequest::PatchRequest(PatchRequest&& other)
+PatchRequest::PatchRequest(PatchRequest&& other) noexcept
     : _protocol_version(other._protocol_version),
       _accept_formats(std::move(other._accept_formats)),
       _codepoints_have(std::move(other._codepoints_have)),
@@ -353,7 +353,7 @@ PatchRequest& PatchRequest::ResetIndicesNeeded() {
   return *this;
 }
 
-PatchRequest& PatchRequest::operator=(PatchRequest&& other) {
+PatchRequest& PatchRequest::operator=(PatchRequest&& other) noexcept {
   _protocol_version = other._protocol_version;
   _accept_formats = std::move(other._accept_formats);
   _codepoints_have = std::move(other._codepoints_have);
@@ -363,7 +363,7 @@ PatchRequest& PatchRequest::operator=(PatchRequest&& other) {
   _ordering_checksum = other._ordering_checksum;
   _original_font_checksum = other._original_font_checksum;
   _base_checksum = other._base_checksum;
-  _connection_speed = std::move(other._connection_speed);
+  _connection_speed = other._connection_speed;
   return *this;
 }
 

@@ -13,13 +13,14 @@ using std::vector;
 class ArrayTest : public ::testing::Test {};
 
 static void check_cbor_array_equal(const cbor_item_t& cbor_array,
-                                   const vector<uint64_t> array) {
+                                   const vector<uint64_t>& array) {
   ASSERT_TRUE(cbor_array_is_definite(&cbor_array));
   ASSERT_EQ(cbor_array_size(&cbor_array), array.size());
   for (unsigned i = 0; i < array.size(); i++) {
     uint64_t value;
-    ASSERT_EQ(StatusCode::kOk,
-              CborUtils::DecodeUInt64(*cbor_array_get(&cbor_array, i), &value));
+    cbor_item_unique_ptr element =
+        wrap_cbor_item(cbor_array_get(&cbor_array, i));
+    ASSERT_EQ(StatusCode::kOk, CborUtils::DecodeUInt64(*element, &value));
     ASSERT_EQ(array[i], value);
   }
 }
@@ -63,7 +64,7 @@ TEST_F(ArrayTest, SetIntegerArrayField) {
   cbor_item_unique_ptr map = make_cbor_map(1);
 
   vector<uint64_t> data{101, 200, 1000, 500, 20, 0};
-  ASSERT_EQ(StatusCode::kOk, Array::SetIntegerArrayField(*map, 42, data));
+  ASSERT_EQ(StatusCode::kOk, Array::SetArrayField(*map, 42, data));
 
   ASSERT_EQ(cbor_map_size(map.get()), 1);
   cbor_pair pair = cbor_map_handle(map.get())[0];
@@ -83,7 +84,7 @@ TEST_F(ArrayTest, GetIntegerArrayField) {
   CborUtils::SetField(*map, 0, move_out(value));
 
   optional<vector<uint64_t>> result;
-  sc = Array::GetIntegerArrayField(*map, 0, result);
+  sc = Array::GetArrayField(*map, 0, result);
 
   ASSERT_EQ(sc, StatusCode::kOk);
   ASSERT_TRUE(result);
@@ -94,7 +95,7 @@ TEST_F(ArrayTest, GetIntegerArrayFieldNotFound) {
   cbor_item_unique_ptr map = make_cbor_map(0);
 
   optional<vector<uint64_t>> result({1, 2, 3});
-  StatusCode sc = Array::GetIntegerArrayField(*map, 0, result);
+  StatusCode sc = Array::GetArrayField(*map, 0, result);
 
   ASSERT_EQ(sc, StatusCode::kOk);
   ASSERT_FALSE(result.has_value());
@@ -105,7 +106,7 @@ TEST_F(ArrayTest, GetIntegerArrayFieldInvalid) {
   CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString("bad")));
   optional<vector<uint64_t>> result({1, 2});
 
-  StatusCode sc = Array::GetIntegerArrayField(*map, 0, result);
+  StatusCode sc = Array::GetArrayField(*map, 0, result);
 
   ASSERT_EQ(sc, StatusCode::kInvalidArgument);
   ASSERT_EQ(*result, vector<uint64_t>({1, 2}));

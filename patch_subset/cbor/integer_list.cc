@@ -86,7 +86,7 @@ StatusCode IntegerList::Decode(const cbor_item_t& bytestring, bool sorted,
     int32_t delta;
     if (sorted) {
       if (udelta <= INT32_MAX) {
-        delta = udelta;
+        delta = (int32_t) udelta;
       } else {
         return StatusCode::kInvalidArgument;
       }
@@ -97,7 +97,7 @@ StatusCode IntegerList::Decode(const cbor_item_t& bytestring, bool sorted,
     if (current64 < INT32_MIN || current64 > INT32_MAX) {
       return StatusCode::kInvalidArgument;
     }
-    current = current64;
+    current = (int64_t) current64;
     out.push_back(current);
   }
   return StatusCode::kOk;
@@ -126,7 +126,7 @@ StatusCode IntegerList::Encode(const vector<int32_t>& ints, bool sorted,
     } else {
       udelta = IntUtils::ZigZagEncode(delta);
     }
-    int bytes_left = buffer_size - (next_byte - buffer_start);
+    size_t bytes_left = buffer_size - (next_byte - buffer_start);
     if (bytes_left < 0) {
       return StatusCode::kInternal;  // Not expected to happen.
     }

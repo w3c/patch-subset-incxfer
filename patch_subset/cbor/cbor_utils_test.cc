@@ -13,7 +13,7 @@ using std::string;
 
 class CborUtilsTest : public ::testing::Test {};
 
-int serialized_size(int n);
+size_t serialized_size(int n);
 bool string_transcoded(const string& s);
 string bytes(const cbor_item_t& item);
 
@@ -24,7 +24,7 @@ TEST_F(CborUtilsTest, SetField) {
   StatusCode sc = CborUtils::SetField(*map, 21, value.get());
 
   ASSERT_EQ(sc, StatusCode::kOk);
-  set<int> expected{21};
+  set<uint64_t> expected{21};
   ASSERT_EQ(CborUtils::MapKeys(*map), expected);
   ASSERT_EQ(cbor_map_size(map.get()), 1);
   cbor_pair* pairs = cbor_map_handle(map.get());
@@ -716,7 +716,7 @@ TEST_F(CborUtilsTest, SerializeToBytesExamples) {
   ASSERT_EQ(bytes(*map), "a2 01 63 41 42 43 02 45 00 7f ff 7f 00");
 }
 
-int serialized_size(int n) {
+size_t serialized_size(int n) {
   const size_t buffer_size = 8;
   unsigned char buffer[buffer_size];
   cbor_item_unique_ptr cbor_int = make_cbor_int(n);

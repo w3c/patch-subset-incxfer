@@ -23,7 +23,7 @@ ClientState::ClientState(const string& font_id, const string& font_data,
       _fingerprint(fingerprint),
       _codepoint_remapping(codepoint_remapping) {}
 
-ClientState::ClientState(ClientState&& other)
+ClientState::ClientState(ClientState&& other) noexcept
     : _font_id(std::move(other._font_id)),
       _font_data(std::move(other._font_data)),
       _fingerprint(other._fingerprint),
@@ -154,7 +154,7 @@ const vector<int32_t>& ClientState::CodepointRemapping() const {
   }
 }
 
-ClientState& ClientState::operator=(ClientState&& other) {
+ClientState& ClientState::operator=(ClientState&& other) noexcept {
   _font_id = std::move(other._font_id);
   _font_data = std::move(other._font_data);
   _fingerprint = other._fingerprint;

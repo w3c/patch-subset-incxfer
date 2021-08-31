@@ -32,9 +32,12 @@ StatusCode RangeList::Encode(const range_vector& ranges,
   size_t size = ranges.size();
   vector<int32_t> ints(2 * size);
   for (size_t i = 0; i < size; i++) {
-    int j = 2 * i;
-    ints[j] = ranges[i].first;
-    ints[j + 1] = ranges[i].second;
+    size_t j = 2 * i;
+    if (ranges[i].first > INT32_MAX || ranges[i].second > INT32_MAX) {
+      return StatusCode::kInvalidArgument;
+    }
+    ints[j] = (int32_t) ranges[i].first;
+    ints[j + 1] = (int32_t) ranges[i].second;
   }
   // EncodeSorted() will enforce sorting.
   return IntegerList::EncodeSorted(ints, bytestring_out);

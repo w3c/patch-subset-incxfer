@@ -333,8 +333,8 @@ StatusCode CborUtils::DecodeBytes(const cbor_item_t& bytes_item, string& out) {
   return StatusCode::kOk;
 }
 
-set<int> CborUtils::MapKeys(const cbor_item_t& map) {
-  set<int> keys;
+set<uint64_t> CborUtils::MapKeys(const cbor_item_t& map) {
+  set<uint64_t> keys;
   size_t size = cbor_map_size(&map);
   cbor_pair* pairs = cbor_map_handle(&map);
   for (size_t i = 0; i < size; i++) {

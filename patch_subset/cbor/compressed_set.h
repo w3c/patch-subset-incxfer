@@ -32,7 +32,7 @@ class CompressedSet {
  public:
   CompressedSet();
   CompressedSet(const CompressedSet& other) = default;
-  CompressedSet(CompressedSet&& other);
+  CompressedSet(CompressedSet&& other) noexcept;
   CompressedSet(absl::string_view sparse_bit_set_bytes,
                 const range_vector& ranges);
 
@@ -46,7 +46,7 @@ class CompressedSet {
   const std::string& SparseBitSetBytes() const;
 
   bool HasRanges() const;
-  CompressedSet& SetRanges(range_vector ranges);
+  CompressedSet& SetRanges(const range_vector& ranges);
   CompressedSet& ResetRanges();
   const range_vector& Ranges() const;
 
@@ -57,7 +57,7 @@ class CompressedSet {
                                           int field_number,
                                           std::optional<CompressedSet>& out);
 
-  CompressedSet& operator=(CompressedSet&& other);
+  CompressedSet& operator=(CompressedSet&& other) noexcept;
   bool operator==(const CompressedSet& other) const;
   bool operator!=(const CompressedSet& other) const;
 };
