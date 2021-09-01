@@ -253,7 +253,6 @@ TEST_F(PatchSubsetServerImplTest, PatchRequestWithCodepointPrediction) {
   EXPECT_EQ(response.patched_fingerprint(), 44);
   EXPECT_EQ(response.format(), PatchFormat::BROTLI_SHARED_DICT);
 
-
   EXPECT_FALSE(response.has_codepoint_remapping());
 }
 
