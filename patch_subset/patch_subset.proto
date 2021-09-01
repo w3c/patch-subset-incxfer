@@ -32,10 +32,12 @@ message PatchRequestProto {
 }
 
 message PatchResponseProto {
-  ResponseType type = 1;
-  uint64 original_font_fingerprint = 2;
-  PatchProto patch = 3;
-  CodepointRemappingProto codepoint_remapping = 4;
+  PatchFormat format = 1;
+  bytes patch = 2;
+  bytes replacement = 3;
+  uint64 original_font_fingerprint = 4;
+  uint64 patched_fingerprint = 5;
+  CodepointRemappingProto codepoint_remapping = 6;
 }
 
 message CompressedSetProto {

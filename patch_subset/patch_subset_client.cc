@@ -100,29 +100,36 @@ StatusCode PatchSubsetClient::EncodeCodepoints(const ClientState& state,
 StatusCode PatchSubsetClient::ComputePatched(const PatchResponseProto& response,
                                              const ClientState& state,
                                              FontData* patched) {
-  if (response.type() == ResponseType::REINDEX) {
+  if (response.patch().empty() && response.replacement().empty()) {
     // TODO(garretrieger): implement support.
     LOG(WARNING) << "Re-indexing is not yet implemented.";
     return StatusCode::kUnimplemented;
   }
 
   FontData base;
-  if (response.type() == ResponseType::PATCH) {
+  if (!response.patch().empty()) {
     base.copy(state.font_data());
   }
 
-  const PatchProto& patch = response.patch();
-  if (patch.format() != PatchFormat::BROTLI_SHARED_DICT) {
-    LOG(WARNING) << "Unsupported patch format " << patch.format();
+  if (response.format() != PatchFormat::BROTLI_SHARED_DICT) {
+    LOG(WARNING) << "Unsupported patch format " << response.format();
     return StatusCode::kFailedPrecondition;
   }
 
   FontData patch_data;
-  patch_data.copy(patch.patch());
+  if (!response.patch().empty() && !response.replacement().empty()) {
+    // Error
+  } else if (!response.patch().empty()) {
+  patch_data.copy(response.patch());
+  } else if (!response.replacement().empty()) {
+    patch_data.copy(response.replacement());
+  } else {
+    // Error
+  }
 
   binary_patch_->Patch(base, patch_data, patched);
 
-  if (hasher_->Checksum(patched->str()) != patch.patched_fingerprint()) {
+  if (hasher_->Checksum(patched->str()) != response.patched_fingerprint()) {
     LOG(WARNING) << "Patched checksum mismatch.";
     return StatusCode::kFailedPrecondition;
   }
