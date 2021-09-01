@@ -45,12 +45,6 @@ message CompressedSetProto {
   repeated uint32 range_deltas = 2;
 }
 
-message PatchProto {
-  PatchFormat format = 1;
-  bytes patch = 2;
-  uint64 patched_fingerprint = 3;
-}
-
 message CompressedListProto {
   // The value at index, i is deltas[i-1] + deltas[i].
   // deltas[-1] is assumed to be 0.
