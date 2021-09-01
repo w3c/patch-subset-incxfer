@@ -120,7 +120,7 @@ StatusCode PatchSubsetClient::ComputePatched(const PatchResponseProto& response,
   if (!response.patch().empty() && !response.replacement().empty()) {
     // Error
   } else if (!response.patch().empty()) {
-  patch_data.copy(response.patch());
+    patch_data.copy(response.patch());
   } else if (!response.replacement().empty()) {
     patch_data.copy(response.replacement());
   } else {

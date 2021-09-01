@@ -223,9 +223,9 @@ void PatchSubsetServerImpl::ConstructResponse(
   response->set_format(PatchFormat::BROTLI_SHARED_DICT);
   if (state.IsPatch()) {
     response->set_patch(state.patch.data(), state.patch.size());
-  } else if (state.IsRebase()){
+  } else if (state.IsRebase()) {
     response->set_replacement(state.patch.data(), state.patch.size());
-  } else if (state.IsReindex()){
+  } else if (state.IsReindex()) {
     // Not yet.
   } else {
     // Error.
