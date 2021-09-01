@@ -81,11 +81,10 @@ TEST_F(PatchSubsetServerIntegrationTest, NewRequest) {
             StatusCode::kOk);
 
   EXPECT_EQ(response.original_font_fingerprint(), original_font_fingerprint_);
-  EXPECT_EQ(response.type(), ResponseType::REBASE);
-  EXPECT_EQ(response.patch().patched_fingerprint(), subset_abcd_fingerprint_);
-  EXPECT_EQ(response.patch().format(), PatchFormat::BROTLI_SHARED_DICT);
+  EXPECT_EQ(response.patched_fingerprint(), subset_abcd_fingerprint_);
+  EXPECT_EQ(response.format(), PatchFormat::BROTLI_SHARED_DICT);
 
-  CheckPatch(empty_, roboto_abcd_, response.patch().patch());
+  CheckPatch(empty_, roboto_abcd_, response.replacement());
 }
 
 TEST_F(PatchSubsetServerIntegrationTest, PatchRequest) {
@@ -103,9 +102,8 @@ TEST_F(PatchSubsetServerIntegrationTest, PatchRequest) {
             StatusCode::kOk);
 
   EXPECT_EQ(response.original_font_fingerprint(), original_font_fingerprint_);
-  EXPECT_EQ(response.type(), ResponseType::PATCH);
-  EXPECT_EQ(response.patch().patched_fingerprint(), subset_abcd_fingerprint_);
-  EXPECT_EQ(response.patch().format(), PatchFormat::BROTLI_SHARED_DICT);
+  EXPECT_EQ(response.patched_fingerprint(), subset_abcd_fingerprint_);
+  EXPECT_EQ(response.format(), PatchFormat::BROTLI_SHARED_DICT);
 
   CheckPatch(roboto_ab_, roboto_abcd_, response.patch().patch());
 }
@@ -125,9 +123,8 @@ TEST_F(PatchSubsetServerIntegrationTest, BadOriginalFingerprint) {
             StatusCode::kOk);
 
   EXPECT_EQ(response.original_font_fingerprint(), original_font_fingerprint_);
-  EXPECT_EQ(response.type(), ResponseType::REBASE);
-  EXPECT_EQ(response.patch().patched_fingerprint(), subset_abcd_fingerprint_);
-  EXPECT_EQ(response.patch().format(), PatchFormat::BROTLI_SHARED_DICT);
+  EXPECT_EQ(response.patched_fingerprint(), subset_abcd_fingerprint_);
+  EXPECT_EQ(response.format(), PatchFormat::BROTLI_SHARED_DICT);
 
   CheckPatch(empty_, roboto_abcd_, response.patch().patch());
 }
@@ -147,11 +144,10 @@ TEST_F(PatchSubsetServerIntegrationTest, BadBaseFingerprint) {
             StatusCode::kOk);
 
   EXPECT_EQ(response.original_font_fingerprint(), original_font_fingerprint_);
-  EXPECT_EQ(response.type(), ResponseType::REBASE);
-  EXPECT_EQ(response.patch().patched_fingerprint(), subset_abcd_fingerprint_);
-  EXPECT_EQ(response.patch().format(), PatchFormat::BROTLI_SHARED_DICT);
+  EXPECT_EQ(response.patched_fingerprint(), subset_abcd_fingerprint_);
+  EXPECT_EQ(response.format(), PatchFormat::BROTLI_SHARED_DICT);
 
-  CheckPatch(empty_, roboto_abcd_, response.patch().patch());
+  CheckPatch(empty_, roboto_abcd_, response.replacement());
 }
 
 }  // namespace patch_subset

@@ -163,10 +163,10 @@ TEST_F(PatchSubsetServerImplTest, NewRequest) {
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, &response),
             StatusCode::kOk);
   EXPECT_EQ(response.original_font_fingerprint(), 42);
-  EXPECT_EQ(response.type(), ResponseType::REBASE);
-  EXPECT_EQ(response.patch().patch(), "Roboto-Regular.ttf:abcd");
-  EXPECT_EQ(response.patch().patched_fingerprint(), 43);
-  EXPECT_EQ(response.patch().format(), PatchFormat::BROTLI_SHARED_DICT);
+  EXPECT_TRUE(response.patch().empty());
+  EXPECT_EQ(response.replacement(), "Roboto-Regular.ttf:abcd");
+  EXPECT_EQ(response.patched_fingerprint(), 43);
+  EXPECT_EQ(response.format(), PatchFormat::BROTLI_SHARED_DICT);
 
   EXPECT_FALSE(response.has_codepoint_remapping());
 }
@@ -216,11 +216,10 @@ TEST_F(PatchSubsetServerImplTest, PatchRequest) {
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, &response),
             StatusCode::kOk);
   EXPECT_EQ(response.original_font_fingerprint(), 42);
-  EXPECT_EQ(response.type(), ResponseType::PATCH);
-  EXPECT_EQ(response.patch().patch(),
+  EXPECT_EQ(response.patch(),
             "Roboto-Regular.ttf:abcd - Roboto-Regular.ttf:ab");
-  EXPECT_EQ(response.patch().patched_fingerprint(), 44);
-  EXPECT_EQ(response.patch().format(), PatchFormat::BROTLI_SHARED_DICT);
+  EXPECT_EQ(response.patched_fingerprint(), 44);
+  EXPECT_EQ(response.format(), PatchFormat::BROTLI_SHARED_DICT);
 
   EXPECT_FALSE(response.has_codepoint_remapping());
 }
@@ -249,11 +248,11 @@ TEST_F(PatchSubsetServerImplTest, PatchRequestWithCodepointPrediction) {
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, &response),
             StatusCode::kOk);
   EXPECT_EQ(response.original_font_fingerprint(), 42);
-  EXPECT_EQ(response.type(), ResponseType::PATCH);
-  EXPECT_EQ(response.patch().patch(),
+  EXPECT_EQ(response.patch(),
             "Roboto-Regular.ttf:abcde - Roboto-Regular.ttf:ab");
-  EXPECT_EQ(response.patch().patched_fingerprint(), 44);
-  EXPECT_EQ(response.patch().format(), PatchFormat::BROTLI_SHARED_DICT);
+  EXPECT_EQ(response.patched_fingerprint(), 44);
+  EXPECT_EQ(response.format(), PatchFormat::BROTLI_SHARED_DICT);
+
 
   EXPECT_FALSE(response.has_codepoint_remapping());
 }
@@ -279,11 +278,10 @@ TEST_F(PatchSubsetServerImplWithCodepointRemappingTest,
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, &response),
             StatusCode::kOk);
   EXPECT_EQ(response.original_font_fingerprint(), 42);
-  EXPECT_EQ(response.type(), ResponseType::PATCH);
-  EXPECT_EQ(response.patch().patch(),
+  EXPECT_EQ(response.patch(),
             "Roboto-Regular.ttf:abcd - Roboto-Regular.ttf:ab");
-  EXPECT_EQ(response.patch().patched_fingerprint(), 44);
-  EXPECT_EQ(response.patch().format(), PatchFormat::BROTLI_SHARED_DICT);
+  EXPECT_EQ(response.patched_fingerprint(), 44);
+  EXPECT_EQ(response.format(), PatchFormat::BROTLI_SHARED_DICT);
 
   // Patch request should not send back a codepoint remapping.
   EXPECT_FALSE(response.has_codepoint_remapping());
@@ -306,8 +304,8 @@ TEST_F(PatchSubsetServerImplWithCodepointRemappingTest, BadIndexChecksum) {
             StatusCode::kOk);
 
   // Re-index should have no patch, but contain a codepoint mapping.
-  EXPECT_EQ(response.type(), ResponseType::REINDEX);
-  EXPECT_FALSE(response.has_patch());
+  EXPECT_TRUE(response.patch().empty());
+  EXPECT_TRUE(response.replacement().empty());
   EXPECT_EQ(response.codepoint_remapping().fingerprint(), 44);
 
   EXPECT_EQ(response.codepoint_remapping().codepoint_ordering().deltas_size(),
@@ -334,10 +332,9 @@ TEST_F(PatchSubsetServerImplTest, BadOriginalFontChecksum) {
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, &response),
             StatusCode::kOk);
   EXPECT_EQ(response.original_font_fingerprint(), 42);
-  EXPECT_EQ(response.type(), ResponseType::REBASE);
-  EXPECT_EQ(response.patch().patch(), "Roboto-Regular.ttf:abcd");
-  EXPECT_EQ(response.patch().patched_fingerprint(), 44);
-  EXPECT_EQ(response.patch().format(), PatchFormat::BROTLI_SHARED_DICT);
+  EXPECT_EQ(response.replacement(), "Roboto-Regular.ttf:abcd");
+  EXPECT_EQ(response.patched_fingerprint(), 44);
+  EXPECT_EQ(response.format(), PatchFormat::BROTLI_SHARED_DICT);
 }
 
 TEST_F(PatchSubsetServerImplTest, BadBaseChecksum) {
@@ -357,10 +354,9 @@ TEST_F(PatchSubsetServerImplTest, BadBaseChecksum) {
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, &response),
             StatusCode::kOk);
   EXPECT_EQ(response.original_font_fingerprint(), 42);
-  EXPECT_EQ(response.type(), ResponseType::REBASE);
-  EXPECT_EQ(response.patch().patch(), "Roboto-Regular.ttf:abcd");
-  EXPECT_EQ(response.patch().patched_fingerprint(), 44);
-  EXPECT_EQ(response.patch().format(), PatchFormat::BROTLI_SHARED_DICT);
+  EXPECT_EQ(response.replacement(), "Roboto-Regular.ttf:abcd");
+  EXPECT_EQ(response.patched_fingerprint(), 44);
+  EXPECT_EQ(response.format(), PatchFormat::BROTLI_SHARED_DICT);
 }
 
 TEST_F(PatchSubsetServerImplTest, NotFound) {

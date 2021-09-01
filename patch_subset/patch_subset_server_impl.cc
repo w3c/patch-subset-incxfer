@@ -210,14 +210,6 @@ void PatchSubsetServerImpl::ValidatePatchBase(uint64_t base_fingerprint,
 
 void PatchSubsetServerImpl::ConstructResponse(
     const RequestState& state, PatchResponseProto* response) const {
-  if (state.IsReindex()) {
-    response->set_type(ResponseType::REINDEX);
-  } else if (state.IsRebase()) {
-    response->set_type(ResponseType::REBASE);
-  } else {
-    response->set_type(ResponseType::PATCH);
-  }
-
   if ((state.IsReindex() || state.IsRebase()) && codepoint_mapper_) {
     AddCodepointRemapping(state, response->mutable_codepoint_remapping());
   }
@@ -228,9 +220,16 @@ void PatchSubsetServerImpl::ConstructResponse(
     return;
   }
 
-  PatchProto* patch_proto = response->mutable_patch();
-  patch_proto->set_format(PatchFormat::BROTLI_SHARED_DICT);
-  patch_proto->set_patch(state.patch.data(), state.patch.size());
+  response->set_format(PatchFormat::BROTLI_SHARED_DICT);
+  if (state.IsPatch()) {
+    response->set_patch(state.patch.data(), state.patch.size());
+  } else if (state.IsRebase()){
+    response->set_replacement(state.patch.data(), state.patch.size());
+  } else if (state.IsReindex()){
+    // Not yet.
+  } else {
+    // Error.
+  }
 
   AddFingerprints(state.font_data, state.client_target_subset, response);
 }
@@ -252,7 +251,7 @@ void PatchSubsetServerImpl::AddFingerprints(
     PatchResponseProto* response) const {
   response->set_original_font_fingerprint(
       hasher_->Checksum(string_view(font_data.str())));
-  response->mutable_patch()->set_patched_fingerprint(
+  response->set_patched_fingerprint(
       hasher_->Checksum(string_view(target_subset.str())));
 }
 

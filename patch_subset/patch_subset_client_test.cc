@@ -69,11 +69,14 @@ class PatchSubsetClientTest : public ::testing::Test {
 
   PatchResponseProto CreateResponse(ResponseType type) {
     PatchResponseProto response;
-    response.set_type(type);
     response.set_original_font_fingerprint(kOriginalFingerprint);
-    response.mutable_patch()->set_format(PatchFormat::BROTLI_SHARED_DICT);
-    response.mutable_patch()->set_patch("roboto.patch.ttf");
-    response.mutable_patch()->set_patched_fingerprint(kPatchedFingerprint);
+    response.set_format(PatchFormat::BROTLI_SHARED_DICT);
+    if (type == ResponseType::PATCH) {
+      response.set_patch("roboto.patch.ttf");
+    } else if (type == ResponseType::REBASE) {
+      response.set_replacement("roboto.patch.ttf");
+    }
+    response.set_patched_fingerprint(kPatchedFingerprint);
     return response;
   }
 
