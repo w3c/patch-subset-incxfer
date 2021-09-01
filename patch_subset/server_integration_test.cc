@@ -105,7 +105,7 @@ TEST_F(PatchSubsetServerIntegrationTest, PatchRequest) {
   EXPECT_EQ(response.patched_fingerprint(), subset_abcd_fingerprint_);
   EXPECT_EQ(response.format(), PatchFormat::BROTLI_SHARED_DICT);
 
-  CheckPatch(roboto_ab_, roboto_abcd_, response.patch().patch());
+  CheckPatch(roboto_ab_, roboto_abcd_, response.patch());
 }
 
 TEST_F(PatchSubsetServerIntegrationTest, BadOriginalFingerprint) {
@@ -126,7 +126,7 @@ TEST_F(PatchSubsetServerIntegrationTest, BadOriginalFingerprint) {
   EXPECT_EQ(response.patched_fingerprint(), subset_abcd_fingerprint_);
   EXPECT_EQ(response.format(), PatchFormat::BROTLI_SHARED_DICT);
 
-  CheckPatch(empty_, roboto_abcd_, response.patch().patch());
+  CheckPatch(empty_, roboto_abcd_, response.patch());
 }
 
 TEST_F(PatchSubsetServerIntegrationTest, BadBaseFingerprint) {
