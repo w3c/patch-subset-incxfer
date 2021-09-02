@@ -126,7 +126,7 @@ TEST_F(PatchSubsetServerIntegrationTest, BadOriginalFingerprint) {
   EXPECT_EQ(response.patched_fingerprint(), subset_abcd_fingerprint_);
   EXPECT_EQ(response.format(), PatchFormat::BROTLI_SHARED_DICT);
 
-  CheckPatch(empty_, roboto_abcd_, response.patch());
+  CheckPatch(empty_, roboto_abcd_, response.replacement());
 }
 
 TEST_F(PatchSubsetServerIntegrationTest, BadBaseFingerprint) {

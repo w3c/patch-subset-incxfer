@@ -225,10 +225,6 @@ void PatchSubsetServerImpl::ConstructResponse(
     response->set_patch(state.patch.data(), state.patch.size());
   } else if (state.IsRebase()) {
     response->set_replacement(state.patch.data(), state.patch.size());
-  } else if (state.IsReindex()) {
-    // Not yet.
-  } else {
-    // Error.
   }
 
   AddFingerprints(state.font_data, state.client_target_subset, response);
