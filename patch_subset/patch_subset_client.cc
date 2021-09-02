@@ -123,7 +123,7 @@ StatusCode PatchSubsetClient::ComputePatched(const PatchResponseProto& response,
     patch_data.copy(response.patch());
   } else {
     patch_data.copy(response.replacement());
-  } 
+  }
 
   binary_patch_->Patch(base, patch_data, patched);
 
