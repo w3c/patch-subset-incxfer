@@ -118,14 +118,12 @@ StatusCode PatchSubsetClient::ComputePatched(const PatchResponseProto& response,
 
   FontData patch_data;
   if (!response.patch().empty() && !response.replacement().empty()) {
-    // Error
+    return StatusCode::kUnimplemented;
   } else if (!response.patch().empty()) {
     patch_data.copy(response.patch());
-  } else if (!response.replacement().empty()) {
-    patch_data.copy(response.replacement());
   } else {
-    // Error
-  }
+    patch_data.copy(response.replacement());
+  } 
 
   binary_patch_->Patch(base, patch_data, patched);
 
