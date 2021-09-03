@@ -74,12 +74,12 @@ StatusCode PatchSubsetClient::Extend(const hb_set_t& additional_codepoints,
 StatusCode PatchSubsetClient::EncodeCodepoints(const ClientState& state,
                                                hb_set_t* codepoints_have,
                                                hb_set_t* codepoints_needed) {
-  if (!state.has_codepoint_remapping()) {
+  if (!state.has_codepoint_ordering()) {
     return StatusCode::kOk;
   }
 
   CodepointMap map;
-  map.FromProto(state.codepoint_remapping());
+  map.FromProto(state.codepoint_ordering());
 
   StatusCode result;
   map.IntersectWithMappedCodepoints(codepoints_have);
@@ -147,7 +147,9 @@ StatusCode PatchSubsetClient::AmendState(const PatchResponseProto& response,
   state->set_original_font_fingerprint(response.original_font_fingerprint());
 
   if (response.has_codepoint_remapping()) {
-    *state->mutable_codepoint_remapping() = response.codepoint_remapping();
+    *state->mutable_codepoint_ordering() =
+        response.codepoint_remapping().codepoint_ordering();
+    state->set_ordering_checksum(response.codepoint_remapping().fingerprint());
   }
 
   return StatusCode::kOk;
@@ -171,8 +173,8 @@ void PatchSubsetClient::CreateRequest(const hb_set_t& codepoints_have,
   CompressedSet::Encode(codepoints_needed, &codepoints_needed_encoded);
   *request->mutable_codepoints_needed() = codepoints_needed_encoded;
 
-  if (state.has_codepoint_remapping()) {
-    request->set_index_fingerprint(state.codepoint_remapping().fingerprint());
+  if (state.has_codepoint_ordering()) {
+    request->set_index_fingerprint(state.ordering_checksum());
   }
 }
 

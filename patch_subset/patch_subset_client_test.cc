@@ -70,7 +70,6 @@ class PatchSubsetClientTest : public ::testing::Test {
   PatchResponseProto CreateResponse(ResponseType type) {
     PatchResponseProto response;
     response.set_original_font_fingerprint(kOriginalFingerprint);
-    response.set_format(PatchFormat::BROTLI_SHARED_DICT);
     if (type == ResponseType::PATCH) {
       response.set_patch("roboto.patch.ttf");
     } else if (type == ResponseType::REBASE) {
@@ -164,8 +163,8 @@ TEST_F(PatchSubsetClientTest, SendPatchRequest_WithCodepointMapping) {
   state.set_font_id("roboto");
   state.set_font_data(roboto_ab_.data(), roboto_ab_.size());
   state.set_original_font_fingerprint(kOriginalFingerprint);
-  map.ToProto(state.mutable_codepoint_remapping());
-  state.mutable_codepoint_remapping()->set_fingerprint(13);
+  map.ToProto(state.mutable_codepoint_ordering());
+  state.set_ordering_checksum(13);
 
   client_->Extend(*codepoints_needed, &state);
 }
@@ -240,9 +239,9 @@ TEST_F(PatchSubsetClientTest, HandlesRebaseResponse_WithCodepointMapping) {
   EXPECT_EQ(state.font_data(), "roboto.patched.ttf");
   EXPECT_EQ(state.original_font_fingerprint(), kOriginalFingerprint);
 
-  EXPECT_EQ(state.codepoint_remapping().codepoint_ordering().deltas_size(), 1);
-  EXPECT_EQ(state.codepoint_remapping().codepoint_ordering().deltas(0), 13);
-  EXPECT_EQ(state.codepoint_remapping().fingerprint(), 14);
+  EXPECT_EQ(state.codepoint_ordering().deltas_size(), 1);
+  EXPECT_EQ(state.codepoint_ordering().deltas(0), 13);
+  EXPECT_EQ(state.ordering_checksum(), 14);
 }
 
 TEST_F(PatchSubsetClientTest, HandlesPatchResponse) {

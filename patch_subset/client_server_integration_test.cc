@@ -2,8 +2,8 @@
 #include "patch_subset/brotli_binary_diff.h"
 #include "patch_subset/brotli_binary_patch.h"
 #include "patch_subset/codepoint_mapper.h"
-#include "patch_subset/codepoint_mapping_checksum.h"
-#include "patch_subset/codepoint_mapping_checksum_impl.h"
+#include "patch_subset/compressed_list_checksum.h"
+#include "patch_subset/compressed_list_checksum_impl.h"
 #include "patch_subset/compressed_set.h"
 #include "patch_subset/fast_hasher.h"
 #include "patch_subset/file_font_provider.h"
@@ -34,7 +34,7 @@ class PatchSubsetClientServerIntegrationTest : public ::testing::Test {
             std::unique_ptr<BinaryDiff>(new BrotliBinaryDiff()),
             std::unique_ptr<Hasher>(new FastHasher()),
             std::unique_ptr<CodepointMapper>(nullptr),
-            std::unique_ptr<CodepointMappingChecksum>(nullptr),
+            std::unique_ptr<CompressedListChecksum>(nullptr),
             std::unique_ptr<CodepointPredictor>(new NoopCodepointPredictor())),
         client_(&server_, &request_logger_,
                 std::unique_ptr<BinaryPatch>(new BrotliBinaryPatch()),
@@ -47,8 +47,8 @@ class PatchSubsetClientServerIntegrationTest : public ::testing::Test {
             std::unique_ptr<BinaryDiff>(new BrotliBinaryDiff()),
             std::unique_ptr<Hasher>(new FastHasher()),
             std::unique_ptr<CodepointMapper>(new SimpleCodepointMapper()),
-            std::unique_ptr<CodepointMappingChecksum>(
-                new CodepointMappingChecksumImpl(hasher_.get())),
+            std::unique_ptr<CompressedListChecksum>(
+                new CompressedListChecksumImpl(hasher_.get())),
             std::unique_ptr<CodepointPredictor>(new NoopCodepointPredictor())),
         client_with_mapping_(
             &server_with_mapping_, &request_logger_,
@@ -88,7 +88,7 @@ TEST_F(PatchSubsetClientServerIntegrationTest, Session) {
   EXPECT_EQ(state.font_id(), "Roboto-Regular.ttf");
   EXPECT_EQ(state.original_font_fingerprint(), 0xC722EE0E33D3B460);
   EXPECT_EQ(state.font_data(), roboto_abcd_.str());
-  EXPECT_FALSE(state.has_codepoint_remapping());
+  EXPECT_FALSE(state.has_codepoint_ordering());
 }
 
 TEST_F(PatchSubsetClientServerIntegrationTest, SessionWithCodepointRemapping) {
@@ -100,8 +100,8 @@ TEST_F(PatchSubsetClientServerIntegrationTest, SessionWithCodepointRemapping) {
   EXPECT_EQ(state.font_id(), "Roboto-Regular.ttf");
   EXPECT_EQ(state.original_font_fingerprint(), 0xC722EE0E33D3B460);
   EXPECT_EQ(state.font_data(), roboto_ab_.str());
-  EXPECT_TRUE(state.has_codepoint_remapping());
-  EXPECT_EQ(state.codepoint_remapping().fingerprint(), 0xD5BD080511DD60DD);
+  EXPECT_TRUE(state.has_codepoint_ordering());
+  EXPECT_EQ(state.ordering_checksum(), 0xD5BD080511DD60DD);
 
   hb_set_unique_ptr set_abcd = make_hb_set_from_ranges(1, 0x61, 0x64);
   EXPECT_EQ(client_with_mapping_.Extend(*set_abcd, &state), StatusCode::kOk);
@@ -109,8 +109,8 @@ TEST_F(PatchSubsetClientServerIntegrationTest, SessionWithCodepointRemapping) {
   EXPECT_EQ(state.font_id(), "Roboto-Regular.ttf");
   EXPECT_EQ(state.original_font_fingerprint(), 0xC722EE0E33D3B460);
   EXPECT_EQ(state.font_data(), roboto_abcd_.str());
-  EXPECT_TRUE(state.has_codepoint_remapping());
-  EXPECT_EQ(state.codepoint_remapping().fingerprint(), 0xD5BD080511DD60DD);
+  EXPECT_TRUE(state.has_codepoint_ordering());
+  EXPECT_EQ(state.ordering_checksum(), 0xD5BD080511DD60DD);
 }
 
 }  // namespace patch_subset
