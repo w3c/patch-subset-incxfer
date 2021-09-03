@@ -32,11 +32,9 @@ class CodepointMap {
 
   // Load the codepoint remapping specified in 'proto'. Replaces
   // any existing mappings currently in this object.
-  void FromProtoOld(const CodepointRemappingProto& proto);
   void FromProto(const CompressedListProto& proto);
 
-  // Serialize this mapping to a CodepointRemappingProto.
-  StatusCode ToProtoOld(CodepointRemappingProto* proto /* OUT */) const;
+  // Serialize this mapping to a CompressedListProto.
   StatusCode ToProto(CompressedListProto* proto /* OUT */) const;
 
   // Apply the mapping transformation to all codepoints in the provided set.

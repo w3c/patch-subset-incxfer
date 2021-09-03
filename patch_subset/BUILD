@@ -18,7 +18,6 @@ cc_proto_library(
 cc_library(
     name = "server",
     srcs = [
-        "codepoint_mapping_checksum_impl.cc",
         "compressed_list_checksum_impl.cc",
         "frequency_codepoint_predictor.cc",
         "harfbuzz_subsetter.cc",
@@ -28,8 +27,6 @@ cc_library(
     ],
     hdrs = [
         "codepoint_mapper.h",
-        "codepoint_mapping_checksum.h",
-        "codepoint_mapping_checksum_impl.h",
         "codepoint_predictor.h",
         "compressed_list_checksum.h",
         "compressed_list_checksum_impl.h",
@@ -146,7 +143,7 @@ cc_test(
         "brotli_request_logger_test.cc",
         "client_server_integration_test.cc",
         "codepoint_map_test.cc",
-        "codepoint_mapping_checksum_impl_test.cc",
+        "compressed_list_checksum_impl_test.cc",
         "compressed_set_test.cc",
         "fake_subsetter.h",
         "file_font_provider_test.cc",
@@ -154,7 +151,6 @@ cc_test(
         "harfbuzz_subsetter_test.cc",
         "mock_binary_diff.h",
         "mock_binary_patch.h",
-        "mock_codepoint_mapping_checksum.h",
         "mock_codepoint_predictor.h",
         "mock_compressed_list_checksum.h",
         "mock_font_provider.h",

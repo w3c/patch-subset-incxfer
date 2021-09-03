@@ -168,7 +168,7 @@ TEST_F(PatchSubsetServerImplTest, NewRequest) {
   EXPECT_EQ(response.patched_fingerprint(), 43);
   EXPECT_EQ(response.format(), PatchFormat::BROTLI_SHARED_DICT);
 
-  EXPECT_FALSE(response.has_codepoint_remapping());
+  EXPECT_FALSE(response.has_codepoint_ordering());
 }
 
 TEST_F(PatchSubsetServerImplWithCodepointRemappingTest,
@@ -189,13 +189,12 @@ TEST_F(PatchSubsetServerImplWithCodepointRemappingTest,
             StatusCode::kOk);
 
   // Check that a codepoint mapping response has been included.
-  EXPECT_EQ(response.codepoint_remapping().fingerprint(), 44);
-  EXPECT_EQ(response.codepoint_remapping().codepoint_ordering().deltas_size(),
-            6);
+  EXPECT_EQ(response.ordering_checksum(), 44);
+  EXPECT_EQ(response.codepoint_ordering().deltas_size(), 6);
 
-  EXPECT_EQ(response.codepoint_remapping().codepoint_ordering().deltas(0), 97);
+  EXPECT_EQ(response.codepoint_ordering().deltas(0), 97);
   for (int i = 1; i < 6; i++) {
-    EXPECT_EQ(response.codepoint_remapping().codepoint_ordering().deltas(i), 1);
+    EXPECT_EQ(response.codepoint_ordering().deltas(i), 1);
   }
 }
 
@@ -221,7 +220,7 @@ TEST_F(PatchSubsetServerImplTest, PatchRequest) {
   EXPECT_EQ(response.patched_fingerprint(), 44);
   EXPECT_EQ(response.format(), PatchFormat::BROTLI_SHARED_DICT);
 
-  EXPECT_FALSE(response.has_codepoint_remapping());
+  EXPECT_FALSE(response.has_codepoint_ordering());
 }
 
 TEST_F(PatchSubsetServerImplTest, PatchRequestWithCodepointPrediction) {
@@ -253,7 +252,7 @@ TEST_F(PatchSubsetServerImplTest, PatchRequestWithCodepointPrediction) {
   EXPECT_EQ(response.patched_fingerprint(), 44);
   EXPECT_EQ(response.format(), PatchFormat::BROTLI_SHARED_DICT);
 
-  EXPECT_FALSE(response.has_codepoint_remapping());
+  EXPECT_FALSE(response.has_codepoint_ordering());
 }
 
 TEST_F(PatchSubsetServerImplWithCodepointRemappingTest,
@@ -283,7 +282,7 @@ TEST_F(PatchSubsetServerImplWithCodepointRemappingTest,
   EXPECT_EQ(response.format(), PatchFormat::BROTLI_SHARED_DICT);
 
   // Patch request should not send back a codepoint remapping.
-  EXPECT_FALSE(response.has_codepoint_remapping());
+  EXPECT_FALSE(response.has_codepoint_ordering());
 }
 
 TEST_F(PatchSubsetServerImplWithCodepointRemappingTest, BadIndexChecksum) {
@@ -305,13 +304,12 @@ TEST_F(PatchSubsetServerImplWithCodepointRemappingTest, BadIndexChecksum) {
   // Re-index should have no patch, but contain a codepoint mapping.
   EXPECT_TRUE(response.patch().empty());
   EXPECT_TRUE(response.replacement().empty());
-  EXPECT_EQ(response.codepoint_remapping().fingerprint(), 44);
+  EXPECT_EQ(response.ordering_checksum(), 44);
 
-  EXPECT_EQ(response.codepoint_remapping().codepoint_ordering().deltas_size(),
-            6);
-  EXPECT_EQ(response.codepoint_remapping().codepoint_ordering().deltas(0), 97);
+  EXPECT_EQ(response.codepoint_ordering().deltas_size(), 6);
+  EXPECT_EQ(response.codepoint_ordering().deltas(0), 97);
   for (int i = 1; i < 6; i++) {
-    EXPECT_EQ(response.codepoint_remapping().codepoint_ordering().deltas(i), 1);
+    EXPECT_EQ(response.codepoint_ordering().deltas(i), 1);
   }
 }
 

@@ -221,10 +221,8 @@ TEST_F(PatchSubsetClientTest, HandlesRebaseResponse_WithCodepointMapping) {
   hb_set_unique_ptr codepoints = make_hb_set(1, 0x61);
 
   PatchResponseProto response = CreateResponse(ResponseType::REBASE);
-  response.mutable_codepoint_remapping()
-      ->mutable_codepoint_ordering()
-      ->add_deltas(13);
-  response.mutable_codepoint_remapping()->set_fingerprint(14);
+  response.mutable_codepoint_ordering()->add_deltas(13);
+  response.set_ordering_checksum(14);
 
   SendResponse(response);
   ExpectChecksum("roboto.patched.ttf", kPatchedFingerprint);

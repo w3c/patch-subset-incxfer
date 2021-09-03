@@ -2,7 +2,6 @@
 #include "patch_subset/brotli_binary_diff.h"
 #include "patch_subset/brotli_binary_patch.h"
 #include "patch_subset/codepoint_mapper.h"
-#include "patch_subset/codepoint_mapping_checksum.h"
 #include "patch_subset/compressed_set.h"
 #include "patch_subset/fast_hasher.h"
 #include "patch_subset/file_font_provider.h"
