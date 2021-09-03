@@ -70,6 +70,7 @@ class PatchSubsetClientTest : public ::testing::Test {
   PatchResponseProto CreateResponse(ResponseType type) {
     PatchResponseProto response;
     response.set_original_font_fingerprint(kOriginalFingerprint);
+    response.set_format(PatchFormat::BROTLI_SHARED_DICT);
     if (type == ResponseType::PATCH) {
       response.set_patch("roboto.patch.ttf");
     } else if (type == ResponseType::REBASE) {
