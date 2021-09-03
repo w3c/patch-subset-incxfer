@@ -150,10 +150,8 @@ StatusCode PatchSubsetServerImpl::ComputeCodepointRemapping(
 }
 
 void PatchSubsetServerImpl::AddCodepointRemapping(
-    const RequestState& state, CodepointRemappingProto* response) const {
-  state.mapping.ToProtoOld(response);
-  response->set_fingerprint(
-      compressed_list_checksum_->Checksum(response->codepoint_ordering()));
+    const RequestState& state, CompressedListProto* ordering) const {
+  state.mapping.ToProto(ordering);
 }
 
 void PatchSubsetServerImpl::AddPredictedCodepoints(RequestState* state) const {
@@ -212,7 +210,9 @@ void PatchSubsetServerImpl::ValidatePatchBase(uint64_t base_fingerprint,
 void PatchSubsetServerImpl::ConstructResponse(
     const RequestState& state, PatchResponseProto* response) const {
   if ((state.IsReindex() || state.IsRebase()) && codepoint_mapper_) {
-    AddCodepointRemapping(state, response->mutable_codepoint_remapping());
+    AddCodepointRemapping(state, response->mutable_codepoint_ordering());
+    response->set_ordering_checksum(
+        compressed_list_checksum_->Checksum(response->codepoint_ordering()));
   }
 
   if (state.IsReindex()) {

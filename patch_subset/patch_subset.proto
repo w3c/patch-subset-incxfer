@@ -37,7 +37,8 @@ message PatchResponseProto {
   bytes replacement = 3;
   uint64 original_font_fingerprint = 4;
   uint64 patched_fingerprint = 5;
-  CodepointRemappingProto codepoint_remapping = 6;
+  CompressedListProto codepoint_ordering = 6;
+  uint64 ordering_checksum = 7;
 }
 
 message CompressedSetProto {
@@ -49,14 +50,6 @@ message CompressedListProto {
   // The value at index, i is deltas[i-1] + deltas[i].
   // deltas[-1] is assumed to be 0.
   repeated sint32 deltas = 2;
-}
-
-message CodepointRemappingProto {
-  CompressedListProto codepoint_ordering = 1;
-  // Key: index into the codepoint_ordering
-  // Value: block size for all codepoints at index greater than the key.
-  map<uint32, uint32> grouping_strategy = 2;
-  uint64 fingerprint = 3;
 }
 
 // Stores the state necessary for a client to make future enrichment

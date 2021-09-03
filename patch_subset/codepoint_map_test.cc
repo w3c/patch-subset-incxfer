@@ -98,21 +98,6 @@ TEST_F(CodepointMapTest, DecodeMissing) {
   EXPECT_EQ(StatusCode::kInvalidArgument, codepoint_map_.Decode(&missing_cp));
 }
 
-TEST_F(CodepointMapTest, FromProtoOld) {
-  CodepointRemappingProto proto;
-  // Encode 9, 5, 8:
-  proto.mutable_codepoint_ordering()->add_deltas(9);
-  proto.mutable_codepoint_ordering()->add_deltas(-4);
-  proto.mutable_codepoint_ordering()->add_deltas(3);
-
-  codepoint_map_.Clear();
-  codepoint_map_.FromProtoOld(proto);
-
-  ExpectEncodes(9, 0);
-  ExpectEncodes(5, 1);
-  ExpectEncodes(8, 2);
-}
-
 TEST_F(CodepointMapTest, FromProto) {
   CompressedListProto proto;
   // Encode 9, 5, 8:
@@ -126,20 +111,6 @@ TEST_F(CodepointMapTest, FromProto) {
   ExpectEncodes(9, 0);
   ExpectEncodes(5, 1);
   ExpectEncodes(8, 2);
-}
-
-TEST_F(CodepointMapTest, ToProtoOld) {
-  CodepointRemappingProto proto;
-
-  EXPECT_EQ(StatusCode::kOk, codepoint_map_.ToProtoOld(&proto));
-
-  EXPECT_EQ(proto.fingerprint(), 0u);
-  EXPECT_TRUE(proto.grouping_strategy().empty());
-
-  EXPECT_EQ(proto.codepoint_ordering().deltas_size(), 3);
-  EXPECT_EQ(proto.codepoint_ordering().deltas(0), 7);
-  EXPECT_EQ(proto.codepoint_ordering().deltas(1), -4);
-  EXPECT_EQ(proto.codepoint_ordering().deltas(2), 1);
 }
 
 TEST_F(CodepointMapTest, ToProto) {

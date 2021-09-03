@@ -146,10 +146,9 @@ StatusCode PatchSubsetClient::AmendState(const PatchResponseProto& response,
   state->set_font_data(patched.data(), patched.size());
   state->set_original_font_fingerprint(response.original_font_fingerprint());
 
-  if (response.has_codepoint_remapping()) {
-    *state->mutable_codepoint_ordering() =
-        response.codepoint_remapping().codepoint_ordering();
-    state->set_ordering_checksum(response.codepoint_remapping().fingerprint());
+  if (response.has_codepoint_ordering()) {
+    *state->mutable_codepoint_ordering() = response.codepoint_ordering();
+    state->set_ordering_checksum(response.ordering_checksum());
   }
 
   return StatusCode::kOk;

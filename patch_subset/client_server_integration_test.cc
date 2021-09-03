@@ -91,7 +91,7 @@ TEST_F(PatchSubsetClientServerIntegrationTest, Session) {
   EXPECT_FALSE(state.has_codepoint_ordering());
 }
 
-TEST_F(PatchSubsetClientServerIntegrationTest, SessionWithCodepointRemapping) {
+TEST_F(PatchSubsetClientServerIntegrationTest, SessionWithCodepointOrdering) {
   hb_set_unique_ptr set_ab = make_hb_set_from_ranges(1, 0x61, 0x62);
   ClientState state;
   state.set_font_id("Roboto-Regular.ttf");

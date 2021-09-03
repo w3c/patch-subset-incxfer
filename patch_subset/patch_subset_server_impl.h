@@ -139,7 +139,7 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
   StatusCode ComputeCodepointRemapping(RequestState* state) const;
 
   void AddCodepointRemapping(const RequestState& state,
-                             CodepointRemappingProto* response) const;
+                             CompressedListProto* response) const;
 
   void AddPredictedCodepoints(RequestState* state) const;
 
