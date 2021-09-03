@@ -26,7 +26,7 @@ class PatchSubsetServerIntegrationTest : public ::testing::Test {
             std::unique_ptr<BinaryDiff>(binary_diff_),
             std::unique_ptr<Hasher>(new FastHasher()),
             std::unique_ptr<CodepointMapper>(nullptr),
-            std::unique_ptr<CodepointMappingChecksum>(nullptr),
+            std::unique_ptr<CompressedListChecksum>(nullptr),
             std::unique_ptr<CodepointPredictor>(new NoopCodepointPredictor())) {
     font_provider_->GetFont("Roboto-Regular.abcd.ttf", &roboto_abcd_);
     font_provider_->GetFont("Roboto-Regular.ab.ttf", &roboto_ab_);

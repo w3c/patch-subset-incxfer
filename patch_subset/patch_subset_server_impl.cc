@@ -125,15 +125,15 @@ StatusCode PatchSubsetServerImpl::ComputeCodepointRemapping(
     return StatusCode::kOk;
   }
 
-  CodepointRemappingProto mapping_proto;
-  if (!Check(state->mapping.ToProto(&mapping_proto),
+  CompressedListProto compressed_list_proto;
+  if (!Check(state->mapping.ToProto(&compressed_list_proto),
              "Invalid codepoint mapping. Unable to convert to proto.")) {
     // This typically shouldn't happen, so bail with internal error.
     return StatusCode::kInternal;
   }
 
   uint64_t expected_checksum =
-      codepoint_mapping_checksum_->Checksum(mapping_proto);
+      compressed_list_checksum_->Checksum(compressed_list_proto);
   if (expected_checksum != state->index_fingerprint) {
     LOG(WARNING) << "Client index finger print (" << state->index_fingerprint
                  << ") does not match expected finger print ("
@@ -151,8 +151,9 @@ StatusCode PatchSubsetServerImpl::ComputeCodepointRemapping(
 
 void PatchSubsetServerImpl::AddCodepointRemapping(
     const RequestState& state, CodepointRemappingProto* response) const {
-  state.mapping.ToProto(response);
-  response->set_fingerprint(codepoint_mapping_checksum_->Checksum(*response));
+  state.mapping.ToProtoOld(response);
+  response->set_fingerprint(
+      compressed_list_checksum_->Checksum(response->codepoint_ordering()));
 }
 
 void PatchSubsetServerImpl::AddPredictedCodepoints(RequestState* state) const {

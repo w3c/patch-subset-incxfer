@@ -13,8 +13,8 @@
 #include "patch_subset/fake_subsetter.h"
 #include "patch_subset/hb_set_unique_ptr.h"
 #include "patch_subset/mock_binary_diff.h"
-#include "patch_subset/mock_codepoint_mapping_checksum.h"
 #include "patch_subset/mock_codepoint_predictor.h"
+#include "patch_subset/mock_compressed_list_checksum.h"
 #include "patch_subset/mock_font_provider.h"
 #include "patch_subset/mock_hasher.h"
 #include "patch_subset/simple_codepoint_mapper.h"
@@ -106,7 +106,7 @@ class PatchSubsetServerImplTest : public PatchSubsetServerImplTestBase {
                 std::unique_ptr<BinaryDiff>(binary_diff_),
                 std::unique_ptr<Hasher>(hasher_),
                 std::unique_ptr<CodepointMapper>(nullptr),
-                std::unique_ptr<CodepointMappingChecksum>(nullptr),
+                std::unique_ptr<CompressedListChecksum>(nullptr),
                 std::unique_ptr<CodepointPredictor>(codepoint_predictor_)) {}
 
   PatchSubsetServerImpl server_;
@@ -116,31 +116,31 @@ class PatchSubsetServerImplWithCodepointRemappingTest
     : public PatchSubsetServerImplTestBase {
  protected:
   PatchSubsetServerImplWithCodepointRemappingTest()
-      : codepoint_mapping_checksum_(new MockCodepointMappingChecksum()),
-        server_(50, std::unique_ptr<FontProvider>(font_provider_),
-                std::unique_ptr<Subsetter>(new FakeSubsetter()),
-                std::unique_ptr<BinaryDiff>(binary_diff_),
-                std::unique_ptr<Hasher>(hasher_),
-                std::unique_ptr<CodepointMapper>(new SimpleCodepointMapper()),
-                std::unique_ptr<CodepointMappingChecksum>(
-                    codepoint_mapping_checksum_),
-                std::unique_ptr<CodepointPredictor>(codepoint_predictor_)),
+      : compressed_list_checksum_(new MockCompressedListChecksum()),
+        server_(
+            50, std::unique_ptr<FontProvider>(font_provider_),
+            std::unique_ptr<Subsetter>(new FakeSubsetter()),
+            std::unique_ptr<BinaryDiff>(binary_diff_),
+            std::unique_ptr<Hasher>(hasher_),
+            std::unique_ptr<CodepointMapper>(new SimpleCodepointMapper()),
+            std::unique_ptr<CompressedListChecksum>(compressed_list_checksum_),
+            std::unique_ptr<CodepointPredictor>(codepoint_predictor_)),
         set_abcd_encoded_(make_hb_set_from_ranges(1, 0, 3)),
         set_ab_encoded_(make_hb_set_from_ranges(1, 0, 1)) {}
 
   void ExpectCodepointMappingChecksum(std::vector<int> mapping_deltas,
                                       uint64_t checksum) {
-    CodepointRemappingProto proto;
-    CompressedListProto* compressed_list = proto.mutable_codepoint_ordering();
+    CompressedListProto compressed_list;
     for (int delta : mapping_deltas) {
-      compressed_list->add_deltas(delta);
+      compressed_list.add_deltas(delta);
     }
 
-    EXPECT_CALL(*codepoint_mapping_checksum_, Checksum(EqualsProto(proto)))
+    EXPECT_CALL(*compressed_list_checksum_,
+                Checksum(EqualsProto(compressed_list)))
         .WillRepeatedly(Return(checksum));
   }
 
-  MockCodepointMappingChecksum* codepoint_mapping_checksum_;
+  MockCompressedListChecksum* compressed_list_checksum_;
   PatchSubsetServerImpl server_;
 
   hb_set_unique_ptr set_abcd_encoded_;

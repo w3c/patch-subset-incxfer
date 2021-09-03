@@ -16,7 +16,7 @@ void CodepointMap::AddMapping(hb_codepoint_t from, hb_codepoint_t to) {
   decode_map[to] = from;
 }
 
-void CodepointMap::FromProto(const CodepointRemappingProto& proto) {
+void CodepointMap::FromProtoOld(const CodepointRemappingProto& proto) {
   Clear();
 
   int index = 0;
@@ -28,7 +28,19 @@ void CodepointMap::FromProto(const CodepointRemappingProto& proto) {
   }
 }
 
-StatusCode CodepointMap::ToProto(CodepointRemappingProto* proto) const {
+void CodepointMap::FromProto(const CompressedListProto& proto) {
+  Clear();
+
+  int index = 0;
+  int last_cp = 0;
+  for (int delta : proto.deltas()) {
+    int cp = last_cp + delta;
+    AddMapping(cp, index++);
+    last_cp = cp;
+  }
+}
+
+StatusCode CodepointMap::ToProtoOld(CodepointRemappingProto* proto) const {
   // A CodepopointRemappingProto encodes a mapping as a list such that:
   //
   // codepoint_ordering[encoded_value] = decoded_value
@@ -51,6 +63,33 @@ StatusCode CodepointMap::ToProto(CodepointRemappingProto* proto) const {
     last_cp = cp_for_index;
 
     codepoint_ordering->add_deltas(delta);
+  }
+
+  return StatusCode::kOk;
+}
+
+StatusCode CodepointMap::ToProto(CompressedListProto* proto) const {
+  // A CodepopointRemappingProto encodes a mapping as a list such that:
+  //
+  // codepoint_ordering[encoded_value] = decoded_value
+  //
+  // Integers in proto bufs are variable length encoded. So to reduce the
+  // number of bytes required to serialize this list, it is written
+  // as a series of deltas between the value at the current index and the
+  // value at the previous index of the list.
+
+  int last_cp = 0;
+  for (unsigned int i = 0; i < encode_map.size(); i++) {
+    hb_codepoint_t cp_for_index = i;
+    StatusCode result = Decode(&cp_for_index);
+    if (result != StatusCode::kOk) {
+      return result;
+    }
+
+    int delta = cp_for_index - last_cp;
+    last_cp = cp_for_index;
+
+    proto->add_deltas(delta);
   }
 
   return StatusCode::kOk;
