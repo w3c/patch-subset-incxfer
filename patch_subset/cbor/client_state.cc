@@ -12,22 +12,26 @@ using std::vector;
 ClientState::ClientState()
     : _font_id(std::nullopt),
       _font_data(std::nullopt),
-      _fingerprint(std::nullopt),
-      _codepoint_remapping(std::nullopt) {}
+      _original_font_checksum(std::nullopt),
+      _codepoint_remapping(std::nullopt),
+      _codepoint_remapping_checksum(std::nullopt) {}
 
 ClientState::ClientState(const string& font_id, const string& font_data,
-                         uint64_t fingerprint,
-                         const vector<int32_t>& codepoint_remapping)
+                         uint64_t original_font_checksum,
+                         const vector<int32_t>& codepoint_remapping,
+                         uint64_t codepoint_remapping_checksum)
     : _font_id(font_id),
       _font_data(font_data),
-      _fingerprint(fingerprint),
-      _codepoint_remapping(codepoint_remapping) {}
+      _original_font_checksum(original_font_checksum),
+      _codepoint_remapping(codepoint_remapping),
+      _codepoint_remapping_checksum(codepoint_remapping_checksum) {}
 
 ClientState::ClientState(ClientState&& other) noexcept
     : _font_id(std::move(other._font_id)),
       _font_data(std::move(other._font_data)),
-      _fingerprint(other._fingerprint),
-      _codepoint_remapping(std::move(other._codepoint_remapping)) {}
+      _original_font_checksum(other._original_font_checksum),
+      _codepoint_remapping(std::move(other._codepoint_remapping)),
+      _codepoint_remapping_checksum(other._codepoint_remapping_checksum) {}
 
 StatusCode ClientState::Decode(const cbor_item_t& cbor_map, ClientState& out) {
   ClientState result;
@@ -44,13 +48,19 @@ StatusCode ClientState::Decode(const cbor_item_t& cbor_map, ClientState& out) {
   if (sc != StatusCode::kOk) {
     return StatusCode::kInvalidArgument;
   }
-  sc = CborUtils::GetUInt64Field(cbor_map, kFingerprintFieldNumber,
-                                 result._fingerprint);
+  sc = CborUtils::GetUInt64Field(cbor_map, kOriginalFontChecksumFieldNumber,
+                                 result._original_font_checksum);
   if (sc != StatusCode::kOk) {
     return StatusCode::kInvalidArgument;
   }
   sc = IntegerList::GetIntegerListField(
       cbor_map, kCodepointRemappingFieldNumber, result._codepoint_remapping);
+  if (sc != StatusCode::kOk) {
+    return StatusCode::kInvalidArgument;
+  }
+  sc = CborUtils::GetUInt64Field(cbor_map,
+                                 kCodepointRemappingChecksumFieldNumber,
+                                 result._codepoint_remapping_checksum);
   if (sc != StatusCode::kOk) {
     return StatusCode::kInvalidArgument;
   }
@@ -61,8 +71,9 @@ StatusCode ClientState::Decode(const cbor_item_t& cbor_map, ClientState& out) {
 StatusCode ClientState::Encode(cbor_item_unique_ptr& out) const {
   int map_size = (_font_id.has_value() ? 1 : 0) +
                  (_font_data.has_value() ? 1 : 0) +
-                 (_fingerprint.has_value() ? 1 : 0) +
-                 (_codepoint_remapping.has_value() ? 1 : 0);
+                 (_original_font_checksum.has_value() ? 1 : 0) +
+                 (_codepoint_remapping.has_value() ? 1 : 0) +
+                 (_codepoint_remapping_checksum.has_value() ? 1 : 0);
   cbor_item_unique_ptr map = make_cbor_map(map_size);
   StatusCode sc = CborUtils::SetStringField(*map, kFontIdFieldNumber, _font_id);
   if (sc != StatusCode::kOk) {
@@ -72,12 +83,18 @@ StatusCode ClientState::Encode(cbor_item_unique_ptr& out) const {
   if (sc != StatusCode::kOk) {
     return sc;
   }
-  sc = CborUtils::SetUInt64Field(*map, kFingerprintFieldNumber, _fingerprint);
+  sc = CborUtils::SetUInt64Field(*map, kOriginalFontChecksumFieldNumber,
+                                 _original_font_checksum);
   if (sc != StatusCode::kOk) {
     return sc;
   }
   sc = IntegerList::SetIntegerListField(*map, kCodepointRemappingFieldNumber,
                                         _codepoint_remapping);
+  if (sc != StatusCode::kOk) {
+    return sc;
+  }
+  sc = CborUtils::SetUInt64Field(*map, kCodepointRemappingChecksumFieldNumber,
+                                 _codepoint_remapping_checksum);
   if (sc != StatusCode::kOk) {
     return sc;
   }
@@ -120,17 +137,20 @@ const string& ClientState::FontData() const {
   }
 }
 
-ClientState& ClientState::SetFingerprint(uint64_t fingerprint) {
-  _fingerprint.emplace(fingerprint);
+ClientState& ClientState::SetOriginalFontChecksum(uint64_t checksum) {
+  _original_font_checksum.emplace(checksum);
   return *this;
 }
-ClientState& ClientState::ResetFingerprint() {
-  _fingerprint.reset();
+ClientState& ClientState::ResetOriginalFontChecksum() {
+  _original_font_checksum.reset();
   return *this;
 }
-bool ClientState::HasFingerprint() const { return _fingerprint.has_value(); }
-uint64_t ClientState::Fingerprint() const {
-  return _fingerprint.has_value() ? _fingerprint.value() : 0;
+bool ClientState::HasOriginalFontChecksum() const {
+  return _original_font_checksum.has_value();
+}
+uint64_t ClientState::OriginalFontChecksum() const {
+  return _original_font_checksum.has_value() ? _original_font_checksum.value()
+                                             : 0;
 }
 
 ClientState& ClientState::SetCodepointRemapping(
@@ -154,18 +174,37 @@ const vector<int32_t>& ClientState::CodepointRemapping() const {
   }
 }
 
+ClientState& ClientState::SetCodepointRemappingChecksum(uint64_t checksum) {
+  _codepoint_remapping_checksum.emplace(checksum);
+  return *this;
+}
+ClientState& ClientState::ResetCodepointRemappingChecksum() {
+  _codepoint_remapping_checksum.reset();
+  return *this;
+}
+bool ClientState::HasCodepointRemappingChecksum() const {
+  return _codepoint_remapping_checksum.has_value();
+}
+uint64_t ClientState::CodepointRemappingChecksum() const {
+  return _codepoint_remapping_checksum.has_value()
+             ? _codepoint_remapping_checksum.value()
+             : 0;
+}
+
 ClientState& ClientState::operator=(ClientState&& other) noexcept {
   _font_id = std::move(other._font_id);
   _font_data = std::move(other._font_data);
-  _fingerprint = other._fingerprint;
+  _original_font_checksum = other._original_font_checksum;
   _codepoint_remapping = std::move(other._codepoint_remapping);
+  _codepoint_remapping_checksum = other._codepoint_remapping_checksum;
   return *this;
 }
 
 bool ClientState::operator==(const ClientState& other) const {
   return _font_id == other._font_id && _font_data == other._font_data &&
-         _fingerprint == other._fingerprint &&
-         _codepoint_remapping == other._codepoint_remapping;
+         _original_font_checksum == other._original_font_checksum &&
+         _codepoint_remapping == other._codepoint_remapping &&
+         _codepoint_remapping_checksum == other._codepoint_remapping_checksum;
 }
 bool ClientState::operator!=(const ClientState& other) const {
   return !(*this == other);

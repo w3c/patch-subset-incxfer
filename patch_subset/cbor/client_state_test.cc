@@ -19,30 +19,35 @@ TEST_F(ClientStateTest, EmptyConstructor) {
 
   EXPECT_EQ(client_state.FontId(), "");
   EXPECT_EQ(client_state.FontData(), "");
-  EXPECT_EQ(client_state.Fingerprint(), 0);
+  EXPECT_EQ(client_state.OriginalFontChecksum(), 0);
   EXPECT_TRUE(client_state.CodepointRemapping().empty());
+  EXPECT_EQ(client_state.CodepointRemappingChecksum(), 0);
 }
 
 TEST_F(ClientStateTest, Constructor) {
   string font_id("test.ttf");
   string font_data{"ABC"};
-  uint64_t fingerprint = 999L;
+  uint64_t font_checksum = 999L;
   vector<int32_t> remapping{1, 5, 10};
+  uint64_t remapping_checksum = 888L;
 
-  ClientState client_state(font_id, font_data, fingerprint, remapping);
+  ClientState client_state(font_id, font_data, font_checksum, remapping,
+                           remapping_checksum);
 
   EXPECT_EQ(client_state.FontId(), font_id);
   EXPECT_EQ(client_state.FontData(), font_data);
-  EXPECT_EQ(client_state.Fingerprint(), fingerprint);
+  EXPECT_EQ(client_state.OriginalFontChecksum(), font_checksum);
   EXPECT_EQ(client_state.CodepointRemapping(), remapping);
 }
 
 TEST_F(ClientStateTest, CopyConstructor) {
   string font_id("test.ttf");
   string font_data{"ABC"};
-  uint64_t fingerprint = 999L;
+  uint64_t font_checksum = 999L;
   vector<int32_t> remapping{1, 5, 10};
-  ClientState other(font_id, font_data, fingerprint, remapping);
+  uint64_t remapping_checksum = 888L;
+  ClientState other(font_id, font_data, font_checksum, remapping,
+                    remapping_checksum);
 
   EXPECT_EQ(ClientState(other), other);
 }
@@ -50,10 +55,12 @@ TEST_F(ClientStateTest, CopyConstructor) {
 TEST_F(ClientStateTest, MoveConstructor) {
   string font_id(4096, 'A');
   string font_data(4096, 'B');
-  uint64_t fingerprint = 999L;
+  uint64_t font_checksum = 999L;
   vector<int32_t> remapping{1, 5, 10};
+  uint64_t remapping_checksum = 888L;
   // Note: This constructor *does* make a copy of the buffers.
-  ClientState other(font_id, font_data, fingerprint, remapping);
+  ClientState other(font_id, font_data, font_checksum, remapping,
+                    remapping_checksum);
   auto other_id_pointer = (uint64_t)other.FontId().data();
   auto other_data_pointer = (uint64_t)other.FontData().data();
 
@@ -64,8 +71,9 @@ TEST_F(ClientStateTest, MoveConstructor) {
   EXPECT_EQ(moved.FontId(), font_id);
   EXPECT_EQ((uint64_t)moved.FontData().data(), other_data_pointer);
   EXPECT_EQ(moved.FontData(), font_data);
-  EXPECT_EQ(moved.Fingerprint(), fingerprint);
+  EXPECT_EQ(moved.OriginalFontChecksum(), font_checksum);
   EXPECT_EQ(moved.CodepointRemapping(), remapping);
+  EXPECT_EQ(moved.CodepointRemappingChecksum(), remapping_checksum);
 
   // Buffers were moved out.
   EXPECT_EQ(other.FontId(), "");
@@ -75,16 +83,20 @@ TEST_F(ClientStateTest, MoveConstructor) {
 TEST_F(ClientStateTest, Decode) {
   string font_id(4096, 'A');
   string font_data(4096, 'B');
-  uint64_t fingerprint = 999L;
+  uint64_t font_checksum = 999L;
   vector<int32_t> remapping{};
-  cbor_item_unique_ptr map = make_cbor_map(4);
+  uint64_t remapping_checksum = 888L;
+  cbor_item_unique_ptr map = make_cbor_map(5);
   CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString(font_id)));
   CborUtils::SetField(*map, 1, cbor_move(CborUtils::EncodeBytes(font_data)));
-  CborUtils::SetField(*map, 2, cbor_move(CborUtils::EncodeUInt64(fingerprint)));
+  CborUtils::SetField(*map, 2,
+                      cbor_move(CborUtils::EncodeUInt64(font_checksum)));
   cbor_item_unique_ptr remapping_field = empty_cbor_ptr();
   StatusCode sc = IntegerList::Encode(remapping, remapping_field);
   ASSERT_EQ(sc, StatusCode::kOk);
   CborUtils::SetField(*map, 3, move_out(remapping_field));
+  CborUtils::SetField(*map, 4,
+                      cbor_move(CborUtils::EncodeUInt64(remapping_checksum)));
   ClientState client_state;
 
   sc = ClientState::Decode(*map, client_state);
@@ -92,8 +104,9 @@ TEST_F(ClientStateTest, Decode) {
   ASSERT_EQ(sc, StatusCode::kOk);
   ASSERT_EQ(client_state.FontId(), font_id);
   ASSERT_EQ(client_state.FontData(), font_data);
-  ASSERT_EQ(client_state.Fingerprint(), fingerprint);
+  ASSERT_EQ(client_state.OriginalFontChecksum(), font_checksum);
   ASSERT_EQ(client_state.CodepointRemapping(), remapping);
+  ASSERT_EQ(client_state.CodepointRemappingChecksum(), remapping_checksum);
 }
 
 TEST_F(ClientStateTest, DecodeNotAMap) {
@@ -119,17 +132,19 @@ TEST_F(ClientStateTest, DecodeFieldsOneAndTwo) {
   ASSERT_EQ(sc, StatusCode::kOk);
   ASSERT_EQ(client_state.FontId(), font_id);
   ASSERT_EQ(client_state.FontData(), data);
-  ASSERT_FALSE(client_state.HasFingerprint());
-  ASSERT_EQ(client_state.Fingerprint(), 0);
+  ASSERT_FALSE(client_state.HasOriginalFontChecksum());
+  ASSERT_EQ(client_state.OriginalFontChecksum(), 0);
   ASSERT_FALSE(client_state.HasCodepointRemapping());
   ASSERT_TRUE(client_state.CodepointRemapping().empty());
+  ASSERT_FALSE(client_state.HasCodepointRemappingChecksum());
 }
 
 TEST_F(ClientStateTest, DecodeFieldsThreeAndFour) {
-  uint64_t fingerprint = 999L;
+  uint64_t font_checksum = 999L;
   vector<int32_t> remapping{};
   cbor_item_unique_ptr map = make_cbor_map(2);
-  CborUtils::SetField(*map, 2, cbor_move(CborUtils::EncodeUInt64(fingerprint)));
+  CborUtils::SetField(*map, 2,
+                      cbor_move(CborUtils::EncodeUInt64(font_checksum)));
   cbor_item_unique_ptr remapping_field = empty_cbor_ptr();
   StatusCode sc = IntegerList::Encode(remapping, remapping_field);
   ASSERT_EQ(sc, StatusCode::kOk);
@@ -144,16 +159,19 @@ TEST_F(ClientStateTest, DecodeFieldsThreeAndFour) {
   ASSERT_EQ(client_state.FontId(), "");
   ASSERT_FALSE(client_state.HasFontData());
   ASSERT_EQ(client_state.FontData(), "");
-  ASSERT_EQ(client_state.Fingerprint(), fingerprint);
+  ASSERT_EQ(client_state.OriginalFontChecksum(), font_checksum);
   ASSERT_EQ(client_state.CodepointRemapping(), remapping);
+  ASSERT_FALSE(client_state.HasCodepointRemappingChecksum());
 }
 
 TEST_F(ClientStateTest, Encode) {
   string font_id("foo.ttf");
   string font_data("font-data");
-  uint64_t fingerprint = 999L;
+  uint64_t font_checksum = 999L;
   vector<int32_t> remapping{5, 10, 15, 20};
-  ClientState client_state(font_id, font_data, fingerprint, remapping);
+  uint64_t remapping_checksum = 888L;
+  ClientState client_state(font_id, font_data, font_checksum, remapping,
+                           remapping_checksum);
   cbor_item_unique_ptr result = empty_cbor_ptr();
 
   StatusCode sc = client_state.Encode(result);
@@ -161,7 +179,7 @@ TEST_F(ClientStateTest, Encode) {
   ASSERT_EQ(sc, StatusCode::kOk);
   ASSERT_NE(result, nullptr);
   ASSERT_TRUE(cbor_isa_map(result.get()));
-  ASSERT_EQ(cbor_map_size(result.get()), 4);
+  ASSERT_EQ(cbor_map_size(result.get()), 5);
 
   cbor_item_unique_ptr field = empty_cbor_ptr();
   sc = CborUtils::GetField(*result, 0, field);
@@ -186,7 +204,7 @@ TEST_F(ClientStateTest, Encode) {
   uint64_t n;
   sc = CborUtils::DecodeUInt64(*field, &n);
   ASSERT_EQ(sc, StatusCode::kOk);
-  ASSERT_EQ(n, fingerprint);
+  ASSERT_EQ(n, font_checksum);
 
   field = nullptr;
   sc = CborUtils::GetField(*result, 3, field);
@@ -196,13 +214,19 @@ TEST_F(ClientStateTest, Encode) {
   sc = IntegerList::Decode(*field, v);
   ASSERT_EQ(sc, StatusCode::kOk);
   ASSERT_EQ(v, remapping);
+
+  sc = CborUtils::GetField(*result, 4, field);
+  ASSERT_EQ(sc, StatusCode::kOk);
+  sc = CborUtils::DecodeUInt64(*field, &n);
+  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(n, remapping_checksum);
 }
 
 TEST_F(ClientStateTest, EncodeFieldsTwoAndThree) {
   string font_data("font-data");
-  uint64_t fingerprint = 999L;
+  uint64_t font_checksum = 999L;
   ClientState client_state;
-  client_state.SetFontData(font_data).SetFingerprint(fingerprint);
+  client_state.SetFontData(font_data).SetOriginalFontChecksum(font_checksum);
   cbor_item_unique_ptr result = empty_cbor_ptr();
 
   StatusCode sc = client_state.Encode(result);
@@ -230,7 +254,7 @@ TEST_F(ClientStateTest, EncodeFieldsTwoAndThree) {
   uint64_t n;
   sc = CborUtils::DecodeUInt64(*field, &n);
   ASSERT_EQ(sc, StatusCode::kOk);
-  ASSERT_EQ(n, fingerprint);
+  ASSERT_EQ(n, font_checksum);
 
   sc = CborUtils::GetField(*result, 3, field);
   ASSERT_EQ(sc, StatusCode::kNotFound);
@@ -281,74 +305,88 @@ TEST_F(ClientStateTest, GettersAndSetters) {
   // Initially empty.
   EXPECT_FALSE(cs.HasFontId());
   EXPECT_FALSE(cs.HasFontData());
-  EXPECT_FALSE(cs.HasFingerprint());
+  EXPECT_FALSE(cs.HasOriginalFontChecksum());
   EXPECT_FALSE(cs.HasCodepointRemapping());
+  EXPECT_FALSE(cs.HasCodepointRemappingChecksum());
 
   // Default values.
   EXPECT_EQ(cs.FontId(), "");
   EXPECT_EQ(cs.FontData(), "");
-  EXPECT_EQ(cs.Fingerprint(), 0);
+  EXPECT_EQ(cs.OriginalFontChecksum(), 0);
   EXPECT_TRUE(cs.CodepointRemapping().empty());
+  EXPECT_EQ(cs.CodepointRemappingChecksum(), 0);
 
   // Now set with default values.
   cs.SetFontId("");
   cs.SetFontData("");
-  cs.SetFingerprint(0);
+  cs.SetOriginalFontChecksum(0);
   cs.SetCodepointRemapping(vector<int32_t>{});
+  cs.SetCodepointRemappingChecksum(0);
 
   // Not empty anymore.
   EXPECT_TRUE(cs.HasFontId());
   EXPECT_TRUE(cs.HasFontData());
-  EXPECT_TRUE(cs.HasFingerprint());
+  EXPECT_TRUE(cs.HasOriginalFontChecksum());
   EXPECT_TRUE(cs.HasCodepointRemapping());
+  EXPECT_TRUE(cs.HasCodepointRemappingChecksum());
 
   // Double check values.
   EXPECT_EQ(cs.FontId(), "");
   EXPECT_EQ(cs.FontData(), "");
-  EXPECT_EQ(cs.Fingerprint(), 0);
+  EXPECT_EQ(cs.OriginalFontChecksum(), 0);
   EXPECT_TRUE(cs.CodepointRemapping().empty());
+  EXPECT_EQ(cs.CodepointRemappingChecksum(), 0);
 
   // Use normal/real values.
   cs.SetFontId("font_id");
   cs.SetFontData("font_data");
-  cs.SetFingerprint(12345);
+  cs.SetOriginalFontChecksum(12345);
   vector<int32_t> remapping{1, 5, 10, 20};
   cs.SetCodepointRemapping(remapping);
+  cs.SetCodepointRemappingChecksum(9876);
 
   // Still not empty.
   EXPECT_TRUE(cs.HasFontId());
   EXPECT_TRUE(cs.HasFontData());
-  EXPECT_TRUE(cs.HasFingerprint());
+  EXPECT_TRUE(cs.HasOriginalFontChecksum());
   EXPECT_TRUE(cs.HasCodepointRemapping());
+  EXPECT_TRUE(cs.HasCodepointRemappingChecksum());
 
   // Double check values.
   EXPECT_EQ(cs.FontId(), "font_id");
   EXPECT_EQ(cs.FontData(), "font_data");
-  EXPECT_EQ(cs.Fingerprint(), 12345);
+  EXPECT_EQ(cs.OriginalFontChecksum(), 12345);
   EXPECT_EQ(cs.CodepointRemapping(), remapping);
+  EXPECT_EQ(cs.CodepointRemappingChecksum(), 9876);
 
   // Reset fields.
-  cs.ResetFontId().ResetFontData().ResetFingerprint().ResetCodepointRemapping();
+  cs.ResetFontId()
+      .ResetFontData()
+      .ResetOriginalFontChecksum()
+      .ResetCodepointRemapping()
+      .ResetCodepointRemappingChecksum();
 
   // Default values.
   EXPECT_EQ(cs.FontId(), "");
   EXPECT_EQ(cs.FontData(), "");
-  EXPECT_EQ(cs.Fingerprint(), 0);
+  EXPECT_EQ(cs.OriginalFontChecksum(), 0);
   EXPECT_TRUE(cs.CodepointRemapping().empty());
+  EXPECT_EQ(cs.CodepointRemappingChecksum(), 0);
 }
 
 TEST_F(ClientStateTest, EqualsAndNotEquals) {
-  ClientState cs("test.ttf", "ABC", 999L, {1, 5, 10});
+  ClientState cs("test.ttf", "ABC", 999L, {1, 5, 10}, 888L);
 
   EXPECT_EQ(cs, ClientState(cs));
   EXPECT_NE(cs, ClientState(cs).SetFontId("foo"));
   EXPECT_NE(cs, ClientState(cs).ResetFontId());
   EXPECT_NE(cs, ClientState(cs).SetFontData("foo"));
   EXPECT_NE(cs, ClientState(cs).ResetFontData());
-  EXPECT_NE(cs, ClientState(cs).SetFingerprint(42));
-  EXPECT_NE(cs, ClientState(cs).ResetFingerprint());
+  EXPECT_NE(cs, ClientState(cs).SetOriginalFontChecksum(42));
+  EXPECT_NE(cs, ClientState(cs).ResetOriginalFontChecksum());
   EXPECT_NE(cs, ClientState(cs).SetCodepointRemapping({4, 5, 6}));
   EXPECT_NE(cs, ClientState(cs).ResetCodepointRemapping());
+  EXPECT_NE(cs, ClientState(cs).ResetCodepointRemappingChecksum());
 }
 
 }  // namespace patch_subset::cbor
