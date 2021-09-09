@@ -224,7 +224,7 @@ static const int32_t MAX_INT8 = (1 << 8) - 1;
 static const int32_t MIN_INT8 = -(1 << 8);
 static const int32_t MAX_INT16 = (1 << 16) - 1;
 static const int32_t MIN_INT16 = -(1 << 16);
-static const int64_t MAX_INT32 = (1L << 32) - 1;
+static const int64_t MAX_INT32 = (1L << 32) - 1L;
 
 // Use the least number of bits required.
 // TODO: INT UTILS
