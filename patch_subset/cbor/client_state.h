@@ -42,7 +42,8 @@ class ClientState {
   static StatusCode Decode(const cbor_item_t& cbor_map, ClientState& out);
   StatusCode Encode(cbor_item_unique_ptr& out) const;
 
-  static StatusCode ParseFromString(const std::string& buffer, ClientState& out);
+  static StatusCode ParseFromString(const std::string& buffer,
+                                    ClientState& out);
   StatusCode SerializeToString(std::string& out);
 
   ClientState& SetFontId(const std::string& font_id);
