@@ -77,7 +77,7 @@ StatusCode IntegerList::Decode(const cbor_item_t& bytestring, bool sorted,
     size_t num_bytes = 0;
     string_view sv((char*)next_byte, size);
     // Read zig-zag encoded unsigned int.
-    StatusCode sc = IntUtils::UintBase128Decode(sv, &udelta, &num_bytes);
+    StatusCode sc = IntUtils::UIntBase128Decode(sv, &udelta, &num_bytes);
     if (sc != StatusCode::kOk) {
       return StatusCode::kInvalidArgument;
     }

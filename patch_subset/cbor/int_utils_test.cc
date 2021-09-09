@@ -106,13 +106,13 @@ TEST_F(IntUtilsTest, UIntBase128EncodeExamples) {
             "10001111 11111111 11111111 11111111 01111111");
 }
 
-TEST_F(IntUtilsTest, UintBase128Decode) {
+TEST_F(IntUtilsTest, UIntBase128Decode) {
   uint8_t buffer[]{0b10000001, 0b00100100, 0, 0};
   string_view buffer_view((char*)buffer, 4);
   uint32_t n = -1;
   size_t num_bytes;
 
-  StatusCode sc = IntUtils::UintBase128Decode(buffer_view, &n, &num_bytes);
+  StatusCode sc = IntUtils::UIntBase128Decode(buffer_view, &n, &num_bytes);
 
   ASSERT_EQ(sc, StatusCode::kOk);
   ASSERT_EQ(n, 164);
@@ -198,26 +198,26 @@ TEST_F(IntUtilsTest, UIntBase128BufferSizes) {
 TEST_F(IntUtilsTest, IntSizes) {
   // 7 or less bits.
   for (int i = 0; i < 128; i++) {
-    ASSERT_EQ(IntUtils::UintBase128EncodedSize(i), 1);
+    ASSERT_EQ(IntUtils::UIntBase128EncodedSize(i), 1);
   }
   // 8 to 14 bits.
   for (int i = 128; i < 16384; i++) {
-    ASSERT_EQ(IntUtils::UintBase128EncodedSize(i), 2);
+    ASSERT_EQ(IntUtils::UIntBase128EncodedSize(i), 2);
   }
   // 15 to 21 bits.
   for (int i = 16384; i < 2097152; i++) {
-    ASSERT_EQ(IntUtils::UintBase128EncodedSize(i), 3);
+    ASSERT_EQ(IntUtils::UIntBase128EncodedSize(i), 3);
   }
   // 22 to 28 bits.
   for (int64_t i = 2097152; i < 268435456; i += 1000) {
-    ASSERT_EQ(IntUtils::UintBase128EncodedSize(i), 4);
+    ASSERT_EQ(IntUtils::UIntBase128EncodedSize(i), 4);
   }
-  ASSERT_EQ(IntUtils::UintBase128EncodedSize(268435455), 4);
+  ASSERT_EQ(IntUtils::UIntBase128EncodedSize(268435455), 4);
   // 28 to 32 bits.
   for (int64_t i = 268435456; i < UINT32_MAX; i += 100000) {
-    ASSERT_EQ(IntUtils::UintBase128EncodedSize(i), 5);
+    ASSERT_EQ(IntUtils::UIntBase128EncodedSize(i), 5);
   }
-  ASSERT_EQ(IntUtils::UintBase128EncodedSize(UINT32_MAX), 5);
+  ASSERT_EQ(IntUtils::UIntBase128EncodedSize(UINT32_MAX), 5);
 }
 
 string bits(uint8_t n) {
@@ -270,7 +270,7 @@ bool encodes_and_decodes(uint32_t n) {
   }
   string_view buffer_view((char*)buffer, size_in_out);
   uint32_t result;
-  sc = IntUtils::UintBase128Decode(buffer_view, &result, &size_in_out);
+  sc = IntUtils::UIntBase128Decode(buffer_view, &result, &size_in_out);
   if (sc != StatusCode::kOk || size_in_out == 0) {
     return false;
   }
@@ -298,7 +298,7 @@ bool encodes_and_decodes_vector(const vector<uint32_t>& ints) {
     uint32_t n;
     size_t num_bytes;
     string_view sv((char*)next_byte, (buffer + final_size) - next_byte);
-    StatusCode sc = IntUtils::UintBase128Decode(sv, &n, &num_bytes);
+    StatusCode sc = IntUtils::UIntBase128Decode(sv, &n, &num_bytes);
     if (sc != StatusCode::kOk) {
       return false;
     }
@@ -329,7 +329,7 @@ bool encode_avoids_buffer_overruns(uint32_t n, size_t req_bytes) {
     }
     uint32_t result;
     string_view sv((char*)buffer.get(), size_in_out);
-    sc = IntUtils::UintBase128Decode(sv, &result, &size_in_out);
+    sc = IntUtils::UIntBase128Decode(sv, &result, &size_in_out);
     if (sc != StatusCode::kOk || result != n || size_in_out != req_bytes) {
       return false;
     }

@@ -102,6 +102,37 @@ StatusCode ClientState::Encode(cbor_item_unique_ptr& out) const {
   return StatusCode::kOk;
 }
 
+StatusCode ClientState::ParseFromString(const std::string& buffer,
+                                        ClientState& out) {
+  cbor_item_unique_ptr item = empty_cbor_ptr();
+  StatusCode sc = CborUtils::DeserializeFromBytes(buffer, item);
+  if (sc != StatusCode::kOk) {
+    return sc;
+  }
+  sc = Decode(*item, out);
+  if (sc != StatusCode::kOk) {
+    return sc;
+  }
+  return StatusCode::kOk;
+}
+
+StatusCode ClientState::SerializeToString(std::string& out) {
+  cbor_item_unique_ptr item = empty_cbor_ptr();
+  StatusCode sc = Encode(item);
+  if (sc != StatusCode::kOk) {
+    return sc;
+  }
+  unsigned char* buffer;
+  size_t buffer_size;
+  size_t written = cbor_serialize_alloc(item.get(), &buffer, &buffer_size);
+  if (written == 0) {
+    return StatusCode::kInternal;
+  }
+  out.assign(std::string((char*) buffer, written));
+  free(buffer);
+  return StatusCode::kOk;
+}
+
 ClientState& ClientState::SetFontId(const string& font_id) {
   _font_id.emplace(font_id);
   return *this;
