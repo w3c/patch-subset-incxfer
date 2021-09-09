@@ -2,7 +2,7 @@
 
 namespace patch_subset::cbor {
 
-using std::string_view;
+using absl::string_view;
 
 uint32_t IntUtils::ZigZagEncode(int32_t signed_int) {
   if (signed_int >= 0) {
@@ -32,7 +32,7 @@ StatusCode IntUtils::UIntBase128Encode(uint32_t value, uint8_t* buffer,
     return StatusCode::kInvalidArgument;
   }
 
-  size_t size = IntUtils::UintBase128EncodedSize(value);
+  size_t size = IntUtils::UIntBase128EncodedSize(value);
   if (*size_in_out < size) {
     return StatusCode::kInvalidArgument;
   }
@@ -48,7 +48,7 @@ StatusCode IntUtils::UIntBase128Encode(uint32_t value, uint8_t* buffer,
   return StatusCode::kOk;
 }
 
-StatusCode IntUtils::UintBase128Decode(string_view bytes, uint32_t* uint_out,
+StatusCode IntUtils::UIntBase128Decode(string_view bytes, uint32_t* uint_out,
                                        size_t* num_bytes_out) {
   if (bytes.data() == nullptr || bytes.empty() || uint_out == nullptr ||
       num_bytes_out == nullptr) {
@@ -83,9 +83,9 @@ StatusCode IntUtils::UintBase128Decode(string_view bytes, uint32_t* uint_out,
   return StatusCode::kInvalidArgument;
 }
 
-int IntUtils::UintBase128EncodedSize(uint32_t value) {
+int IntUtils::UIntBase128EncodedSize(uint32_t unsigned_int) {
   int size = 1;
-  for (; value >= 128; value >>= 7) {
+  for (; unsigned_int >= 128; unsigned_int >>= 7) {
     ++size;
   }
   return size;

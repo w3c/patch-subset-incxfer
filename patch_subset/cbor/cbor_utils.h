@@ -70,6 +70,8 @@ class CborUtils {
   static StatusCode SerializeToBytes(const cbor_item_t& item,
                                      absl::string_view buffer,
                                      size_t* bytes_written);
+  static StatusCode DeserializeFromBytes(absl::string_view buffer,
+                                         cbor_item_unique_ptr& out);
 };
 
 }  // namespace patch_subset::cbor

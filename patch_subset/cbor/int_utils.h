@@ -24,12 +24,12 @@ class IntUtils {
   // Reads 1..5 bytes and decodes to an unsigned 32 bit int. num_bytes_out is
   // set to the number of bytes read, or zero if the data is invalid, or the end
   // of the buffer was reached while decoding.
-  static StatusCode UintBase128Decode(absl::string_view bytes,
+  static StatusCode UIntBase128Decode(absl::string_view bytes,
                                       uint32_t* uint_out,
                                       size_t* num_bytes_out);
 
   //  The number of bytes required to encode the unsigned 32 bit value.
-  static int UintBase128EncodedSize(uint32_t uint);
+  static int UIntBase128EncodedSize(uint32_t unsigned_int);
 };
 
 }  // namespace patch_subset::cbor

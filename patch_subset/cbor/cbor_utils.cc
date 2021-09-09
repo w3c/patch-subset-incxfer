@@ -224,7 +224,7 @@ static const int32_t MAX_INT8 = (1 << 8) - 1;
 static const int32_t MIN_INT8 = -(1 << 8);
 static const int32_t MAX_INT16 = (1 << 16) - 1;
 static const int32_t MIN_INT16 = -(1 << 16);
-static const int64_t MAX_INT32 = (1L << 32) - 1L;
+static const int64_t MAX_INT32 = 4294967295L;  // (1 << 32) - 1;
 
 // Use the least number of bits required.
 // TODO: INT UTILS
@@ -358,6 +358,19 @@ StatusCode CborUtils::SerializeToBytes(const cbor_item_t& item,
   } else {
     return StatusCode::kInvalidArgument;
   }
+}
+
+StatusCode CborUtils::DeserializeFromBytes(absl::string_view buffer,
+                                           cbor_item_unique_ptr& out) {
+  cbor_load_result result;
+  cbor_item_t* item =
+      cbor_load((unsigned char*)buffer.data(), buffer.size(), &result);
+  if (item == nullptr) {
+    return StatusCode::kInvalidArgument;
+  }
+  cbor_item_unique_ptr wrapped = wrap_cbor_item(item);
+  out.swap(wrapped);
+  return StatusCode::kOk;
 }
 
 }  // namespace patch_subset::cbor
