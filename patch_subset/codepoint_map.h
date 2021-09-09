@@ -44,7 +44,7 @@ class CodepointMap {
   StatusCode ToProto(CompressedListProto* proto /* OUT */) const;
 
   // Serialize this mapping to a vector of ints.
-  StatusCode ToVector(vector<int32_t>* ints);
+  StatusCode ToVector(vector<int32_t>* ints) const;
 
   // Apply the mapping transformation to all codepoints in the provided set.
   // All values in the 'codepoints' set are replaced with the transformed

@@ -63,7 +63,7 @@ StatusCode CodepointMap::ToProto(CompressedListProto* proto) const {
   return StatusCode::kOk;
 }
 
-StatusCode CodepointMap::ToVector(vector<int32_t>* ints) {
+StatusCode CodepointMap::ToVector(vector<int32_t>* ints) const {
   ints->resize(encode_map.size());
   ints->clear();
   for (unsigned int i = 0; i < encode_map.size(); i++) {
