@@ -16,7 +16,7 @@ namespace patch_subset {
  * Stores a reversible mapping for codepoints values.
  *
  * A mapping can be used to transform codepoint values into a
- * new space (for example {0x41, 0x45, 0x61} --> {0, 1, 2}).
+ * new space (for example {0x41, 0x45, 0x61} -> {0, 1, 2}).
  *
  * Encode is used to transform original codepoint values into
  * their new values. While Decode undoes this transformation.
