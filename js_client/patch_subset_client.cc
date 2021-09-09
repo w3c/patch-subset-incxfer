@@ -13,12 +13,12 @@
 #include "common/logging.h"
 #include "hb.h"
 #include "patch_subset/brotli_binary_patch.h"
+#include "patch_subset/cbor/client_state.h"
 #include "patch_subset/compressed_set.h"
 #include "patch_subset/fast_hasher.h"
 #include "patch_subset/hb_set_unique_ptr.h"
 #include "patch_subset/null_request_logger.h"
 #include "patch_subset/patch_subset.pb.h"
-#include "patch_subset/cbor/client_state.h"
 
 using namespace emscripten;
 using ::google::protobuf::io::ArrayInputStream;

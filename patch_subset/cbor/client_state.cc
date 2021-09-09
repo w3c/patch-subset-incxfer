@@ -128,7 +128,7 @@ StatusCode ClientState::SerializeToString(std::string& out) {
   if (written == 0) {
     return StatusCode::kInternal;
   }
-  out.assign(std::string((char*) buffer, written));
+  out.assign(std::string((char*)buffer, written));
   free(buffer);
   return StatusCode::kOk;
 }
