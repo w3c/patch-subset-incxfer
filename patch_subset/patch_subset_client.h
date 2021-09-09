@@ -4,11 +4,14 @@
 #include "common/status.h"
 #include "hb.h"
 #include "patch_subset/binary_patch.h"
+#include "patch_subset/cbor/client_state.h"
 #include "patch_subset/font_data.h"
 #include "patch_subset/hasher.h"
 #include "patch_subset/patch_subset.pb.h"
 #include "patch_subset/patch_subset_server.h"
 #include "patch_subset/request_logger.h"
+
+using patch_subset::cbor::ClientState;
 
 namespace patch_subset {
 

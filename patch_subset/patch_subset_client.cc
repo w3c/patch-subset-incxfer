@@ -24,7 +24,7 @@ StatusCode PatchSubsetClient::CreateRequest(
     const hb_set_t& additional_codepoints, const ClientState& state,
     PatchRequestProto* request) {
   hb_set_unique_ptr existing_codepoints = make_hb_set();
-  CodepointsInFont(state.font_data(), existing_codepoints.get());
+  CodepointsInFont(state.FontData(), existing_codepoints.get());
 
   hb_set_unique_ptr new_codepoints = make_hb_set();
   hb_set_union(new_codepoints.get(), &additional_codepoints);
@@ -55,7 +55,7 @@ StatusCode PatchSubsetClient::Extend(const hb_set_t& additional_codepoints,
   }
 
   PatchResponseProto response;
-  result = server_->Handle(state->font_id(), request, &response);
+  result = server_->Handle(state->FontId(), request, &response);
   if (result != StatusCode::kOk) {
     LOG(WARNING) << "Got a failure from the patch subset server (code = "
                  << result << ").";
@@ -74,12 +74,12 @@ StatusCode PatchSubsetClient::Extend(const hb_set_t& additional_codepoints,
 StatusCode PatchSubsetClient::EncodeCodepoints(const ClientState& state,
                                                hb_set_t* codepoints_have,
                                                hb_set_t* codepoints_needed) {
-  if (!state.has_codepoint_ordering()) {
+  if (state.CodepointRemapping().empty()) {
     return StatusCode::kOk;
   }
 
   CodepointMap map;
-  map.FromProto(state.codepoint_ordering());
+  map.FromVector(state.CodepointRemapping());
 
   StatusCode result;
   map.IntersectWithMappedCodepoints(codepoints_have);
@@ -108,7 +108,7 @@ StatusCode PatchSubsetClient::ComputePatched(const PatchResponseProto& response,
 
   FontData base;
   if (!response.patch().empty()) {
-    base.copy(state.font_data());
+    base.copy(state.FontData());
   }
 
   if (response.format() != PatchFormat::BROTLI_SHARED_DICT) {
@@ -143,12 +143,20 @@ StatusCode PatchSubsetClient::AmendState(const PatchResponseProto& response,
     return result;
   }
 
-  state->set_font_data(patched.data(), patched.size());
-  state->set_original_font_fingerprint(response.original_font_fingerprint());
+  state->SetFontData(patched.string());
+  state->SetOriginalFontChecksum(response.original_font_fingerprint());
 
   if (response.has_codepoint_ordering()) {
-    *state->mutable_codepoint_ordering() = response.codepoint_ordering();
-    state->set_ordering_checksum(response.ordering_checksum());
+    // Temporary, will be converted.
+    CodepointMap map;
+    map.FromProto(response.codepoint_ordering());
+    vector<int32_t> remapping;
+    StatusCode sc = map.ToVector(&remapping);
+    if (sc != StatusCode::kOk) {
+      return sc;
+    }
+    state->SetCodepointRemapping(remapping);
+    state->SetCodepointRemappingChecksum(response.ordering_checksum());
   }
 
   return StatusCode::kOk;
@@ -159,8 +167,8 @@ void PatchSubsetClient::CreateRequest(const hb_set_t& codepoints_have,
                                       const ClientState& state,
                                       PatchRequestProto* request) {
   if (hb_set_get_population(&codepoints_have)) {
-    request->set_original_font_fingerprint(state.original_font_fingerprint());
-    request->set_base_fingerprint(hasher_->Checksum(state.font_data()));
+    request->set_original_font_fingerprint(state.OriginalFontChecksum());
+    request->set_base_fingerprint(hasher_->Checksum(state.FontData()));
   }
   request->add_accept_format(PatchFormat::BROTLI_SHARED_DICT);
 
@@ -172,8 +180,8 @@ void PatchSubsetClient::CreateRequest(const hb_set_t& codepoints_have,
   CompressedSet::Encode(codepoints_needed, &codepoints_needed_encoded);
   *request->mutable_codepoints_needed() = codepoints_needed_encoded;
 
-  if (state.has_codepoint_ordering()) {
-    request->set_index_fingerprint(state.ordering_checksum());
+  if (!state.CodepointRemapping().empty()) {
+    request->set_index_fingerprint(state.CodepointRemappingChecksum());
   }
 }
 
