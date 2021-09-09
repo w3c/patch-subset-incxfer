@@ -54,6 +54,8 @@ class FontData {
     return ::absl::string_view(data() + start, size() - start);
   }
 
+  std::string string() const { return std::string(str()); }
+
   void set(hb_blob_t* blob) {
     reset();
     buffer_ = hb_blob_reference(blob);

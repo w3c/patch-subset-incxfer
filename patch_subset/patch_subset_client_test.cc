@@ -121,7 +121,7 @@ TEST_F(PatchSubsetClientTest, SendsNewRequest) {
   ExpectRequest(expected_request);
 
   ClientState state;
-  state.set_font_id("roboto");
+  state.SetFontId("roboto");
   client_->Extend(*codepoints, &state);
 }
 
@@ -134,9 +134,9 @@ TEST_F(PatchSubsetClientTest, SendPatchRequest) {
   ExpectChecksum(roboto_ab_.str(), kBaseFingerprint);
 
   ClientState state;
-  state.set_font_id("roboto");
-  state.set_font_data(roboto_ab_.data(), roboto_ab_.size());
-  state.set_original_font_fingerprint(kOriginalFingerprint);
+  state.SetFontId("roboto");
+  state.SetFontData(roboto_ab_.string());
+  state.SetOriginalFontChecksum(kOriginalFingerprint);
   client_->Extend(*codepoints_needed, &state);
 }
 
@@ -161,11 +161,13 @@ TEST_F(PatchSubsetClientTest, SendPatchRequest_WithCodepointMapping) {
   map.AddMapping(0x64, 3);
 
   ClientState state;
-  state.set_font_id("roboto");
-  state.set_font_data(roboto_ab_.data(), roboto_ab_.size());
-  state.set_original_font_fingerprint(kOriginalFingerprint);
-  map.ToProto(state.mutable_codepoint_ordering());
-  state.set_ordering_checksum(13);
+  state.SetFontId("roboto");
+  state.SetFontData(roboto_ab_.string());
+  state.SetOriginalFontChecksum(kOriginalFingerprint);
+  vector<int32_t> remapping;
+  map.ToVector(&remapping);
+  state.SetCodepointRemapping(remapping);
+  state.SetCodepointRemappingChecksum(13);
 
   client_->Extend(*codepoints_needed, &state);
 }
@@ -180,9 +182,9 @@ TEST_F(PatchSubsetClientTest, SendPatchRequest_RemovesExistingCodepoints) {
 
   hb_set_union(codepoints_needed.get(), codepoints_have.get());
   ClientState state;
-  state.set_font_id("roboto");
-  state.set_font_data(roboto_ab_.data(), roboto_ab_.size());
-  state.set_original_font_fingerprint(kOriginalFingerprint);
+  state.SetFontId("roboto");
+  state.SetFontData(roboto_ab_.string());
+  state.SetOriginalFontChecksum(kOriginalFingerprint);
   client_->Extend(*codepoints_needed, &state);
 }
 
@@ -192,9 +194,9 @@ TEST_F(PatchSubsetClientTest, DoesntSendPatchRequest_NoNewCodepoints) {
   EXPECT_CALL(server_, Handle(_, _, _)).Times(0);
 
   ClientState state;
-  state.set_font_id("roboto");
-  state.set_font_data(roboto_ab_.data(), roboto_ab_.size());
-  state.set_original_font_fingerprint(kOriginalFingerprint);
+  state.SetFontId("roboto");
+  state.SetFontData(roboto_ab_.string());
+  state.SetOriginalFontChecksum(kOriginalFingerprint);
   EXPECT_EQ(client_->Extend(*codepoints_needed, &state), StatusCode::kOk);
 }
 
@@ -210,11 +212,11 @@ TEST_F(PatchSubsetClientTest, HandlesRebaseResponse) {
   ExpectPatch(base, patch, "roboto.patched.ttf");
 
   ClientState state;
-  state.set_font_data("roboto.base.ttf");
+  state.SetFontData("roboto.base.ttf");
   EXPECT_EQ(client_->Extend(*codepoints, &state), StatusCode::kOk);
 
-  EXPECT_EQ(state.font_data(), "roboto.patched.ttf");
-  EXPECT_EQ(state.original_font_fingerprint(), kOriginalFingerprint);
+  EXPECT_EQ(state.FontData(), "roboto.patched.ttf");
+  EXPECT_EQ(state.OriginalFontChecksum(), kOriginalFingerprint);
 }
 
 TEST_F(PatchSubsetClientTest, HandlesRebaseResponse_WithCodepointMapping) {
@@ -232,15 +234,15 @@ TEST_F(PatchSubsetClientTest, HandlesRebaseResponse_WithCodepointMapping) {
   ExpectPatch(base, patch, "roboto.patched.ttf");
 
   ClientState state;
-  state.set_font_data("roboto.base.ttf");
+  state.SetFontId("roboto.base.ttf");
   EXPECT_EQ(client_->Extend(*codepoints, &state), StatusCode::kOk);
 
-  EXPECT_EQ(state.font_data(), "roboto.patched.ttf");
-  EXPECT_EQ(state.original_font_fingerprint(), kOriginalFingerprint);
+  EXPECT_EQ(state.FontData(), "roboto.patched.ttf");
+  EXPECT_EQ(state.OriginalFontChecksum(), kOriginalFingerprint);
 
-  EXPECT_EQ(state.codepoint_ordering().deltas_size(), 1);
-  EXPECT_EQ(state.codepoint_ordering().deltas(0), 13);
-  EXPECT_EQ(state.ordering_checksum(), 14);
+  EXPECT_EQ(state.CodepointRemapping().size(), 1);
+  EXPECT_EQ(state.CodepointRemapping()[0], 13);
+  EXPECT_EQ(state.CodepointRemappingChecksum(), 14);
 }
 
 TEST_F(PatchSubsetClientTest, HandlesPatchResponse) {
@@ -256,11 +258,11 @@ TEST_F(PatchSubsetClientTest, HandlesPatchResponse) {
   ExpectPatch(base, patch, "roboto.patched.ttf");
 
   ClientState state;
-  state.set_font_data("roboto.base.ttf");
+  state.SetFontData("roboto.base.ttf");
   EXPECT_EQ(client_->Extend(*codepoints, &state), StatusCode::kOk);
 
-  EXPECT_EQ(state.font_data(), "roboto.patched.ttf");
-  EXPECT_EQ(state.original_font_fingerprint(), kOriginalFingerprint);
+  EXPECT_EQ(state.FontData(), "roboto.patched.ttf");
+  EXPECT_EQ(state.OriginalFontChecksum(), kOriginalFingerprint);
 }
 
 // TODO(garretrieger): add more response handling tests:
