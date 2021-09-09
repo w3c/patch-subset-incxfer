@@ -18,10 +18,10 @@
 #include "patch_subset/hb_set_unique_ptr.h"
 #include "patch_subset/null_request_logger.h"
 #include "patch_subset/patch_subset.pb.h"
+#include "patch_subset/cbor/client_state.h"
 
 using namespace emscripten;
 using ::google::protobuf::io::ArrayInputStream;
-using ::patch_subset::ClientState;
 using ::patch_subset::CompressedSet;
 using ::patch_subset::hb_set_unique_ptr;
 using ::patch_subset::make_hb_set;
@@ -30,6 +30,7 @@ using ::patch_subset::PatchRequestProto;
 using ::patch_subset::PatchResponseProto;
 using ::patch_subset::PatchSubsetClient;
 using ::patch_subset::StatusCode;
+using patch_subset::cbor::ClientState;
 
 struct RequestContext {
   RequestContext(val& _callback, std::unique_ptr<std::string> _payload)
@@ -78,14 +79,16 @@ class State {
                     new patch_subset::BrotliBinaryPatch()),
                 std::unique_ptr<patch_subset::Hasher>(
                     new patch_subset::FastHasher())) {
-    _state.set_font_id(font_id);
+    _state.SetFontId(font_id);
   }
 
-  void init_from(std::string buffer) { _state.ParseFromString(buffer); }
+  void init_from(std::string buffer) {
+    ClientState::ParseFromString(buffer, _state);
+  }
 
   val font_data() {
-    return val(typed_memory_view(_state.font_data().length(),
-                                 _state.font_data().data()));
+    return val(typed_memory_view(_state.FontData().length(),
+                                 _state.FontData().data()));
   }
 
   void extend(val codepoints_js, val callback) {
@@ -133,7 +136,7 @@ class State {
     attr.onerror = RequestFailed;
 
     std::string url = "https://fonts.gstatic.com/experimental/patch_subset/" +
-                      _state.font_id();
+                      _state.FontId();
     emscripten_fetch(&attr, url.c_str());
   }
 

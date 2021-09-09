@@ -29,6 +29,7 @@ cc_library(
         "range_list.h",
     ],
     visibility = [
+        "//js_client:__pkg__",
         "//patch_subset:__pkg__",
     ],
     deps = [

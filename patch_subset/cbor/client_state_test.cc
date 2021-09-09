@@ -389,4 +389,17 @@ TEST_F(ClientStateTest, EqualsAndNotEquals) {
   EXPECT_NE(cs, ClientState(cs).ResetCodepointRemappingChecksum());
 }
 
+TEST_F(ClientStateTest, Serialization) {
+  ClientState input("font id", "font bytes go here", 123456,
+                    vector<int32_t>{1, 2, 3}, 98765);
+  string serialized_bytes;
+  ClientState result;
+
+  EXPECT_EQ(input.SerializeToString(serialized_bytes), StatusCode::kOk);
+  EXPECT_EQ(ClientState::ParseFromString(serialized_bytes, result),
+            StatusCode::kOk);
+
+  EXPECT_EQ(input, result);
+}
+
 }  // namespace patch_subset::cbor

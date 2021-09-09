@@ -716,6 +716,27 @@ TEST_F(CborUtilsTest, SerializeToBytesExamples) {
   ASSERT_EQ(bytes(*map), "a2 01 63 41 42 43 02 45 00 7f ff 7f 00");
 }
 
+TEST_F(CborUtilsTest, DeserializeFromBytes) {
+  cbor_item_unique_ptr map = make_cbor_map(1);
+  CborUtils::SetField(*map, 1, cbor_move(CborUtils::EncodeString("foo")));
+  const size_t len = 16;
+  char buffer[len];
+  string_view sv(buffer, len);
+  size_t num_bytes;
+  StatusCode sc = CborUtils::SerializeToBytes(*map, sv, &num_bytes);
+  ASSERT_EQ(sc, StatusCode::kOk);
+  string_view serialized_bytes = string_view(buffer, num_bytes);
+  cbor_item_unique_ptr result = empty_cbor_ptr();
+
+  sc = CborUtils::DeserializeFromBytes(serialized_bytes, result);
+
+  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(CborUtils::MapKeys(*result), set<uint64_t>{1});
+  optional<string> field;
+  ASSERT_EQ(CborUtils::GetStringField(*result, 1, field), StatusCode::kOk);
+  ASSERT_EQ(field, "foo");
+}
+
 size_t serialized_size(int n) {
   const size_t buffer_size = 8;
   unsigned char buffer[buffer_size];
