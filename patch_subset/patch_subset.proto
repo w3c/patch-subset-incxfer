@@ -52,13 +52,3 @@ message CompressedListProto {
   repeated sint32 deltas = 2;
 }
 
-// Stores the state necessary for a client to make future enrichment
-// requests for a specific font. Stored in a proto so it can be easily
-// serialized into persistent storage.
-message ClientState {
-  string font_id = 1;
-  bytes font_data = 2;
-  uint64 original_font_fingerprint = 3;
-  CompressedListProto codepoint_ordering = 4;
-  uint64 ordering_checksum = 5;
-}

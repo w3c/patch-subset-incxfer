@@ -8,6 +8,8 @@
 #include "hb.h"
 #include "patch_subset/patch_subset.pb.h"
 
+using std::vector;
+
 namespace patch_subset {
 
 /*
@@ -34,8 +36,15 @@ class CodepointMap {
   // any existing mappings currently in this object.
   void FromProto(const CompressedListProto& proto);
 
+  // Load the codepoint remapping specified in vector of ints. Replaces
+  // any existing mappings currently in this object.
+  void FromVector(const vector<int32_t>& ints);
+
   // Serialize this mapping to a CompressedListProto.
   StatusCode ToProto(CompressedListProto* proto /* OUT */) const;
+
+  // Serialize this mapping to a vector of ints.
+  StatusCode ToVector(vector<int32_t>* ints);
 
   // Apply the mapping transformation to all codepoints in the provided set.
   // All values in the 'codepoints' set are replaced with the transformed

@@ -75,42 +75,42 @@ class PatchSubsetClientServerIntegrationTest : public ::testing::Test {
 TEST_F(PatchSubsetClientServerIntegrationTest, Session) {
   hb_set_unique_ptr set_ab = make_hb_set_from_ranges(1, 0x61, 0x62);
   ClientState state;
-  state.set_font_id("Roboto-Regular.ttf");
+  state.SetFontId("Roboto-Regular.ttf");
   EXPECT_EQ(client_.Extend(*set_ab, &state), StatusCode::kOk);
 
-  EXPECT_EQ(state.font_id(), "Roboto-Regular.ttf");
-  EXPECT_EQ(state.original_font_fingerprint(), 0xC722EE0E33D3B460);
-  EXPECT_EQ(state.font_data(), roboto_ab_.str());
+  EXPECT_EQ(state.FontId(), "Roboto-Regular.ttf");
+  EXPECT_EQ(state.OriginalFontChecksum(), 0xC722EE0E33D3B460);
+  EXPECT_EQ(state.FontData(), roboto_ab_.str());
 
   hb_set_unique_ptr set_abcd = make_hb_set_from_ranges(1, 0x61, 0x64);
   EXPECT_EQ(client_.Extend(*set_abcd, &state), StatusCode::kOk);
 
-  EXPECT_EQ(state.font_id(), "Roboto-Regular.ttf");
-  EXPECT_EQ(state.original_font_fingerprint(), 0xC722EE0E33D3B460);
-  EXPECT_EQ(state.font_data(), roboto_abcd_.str());
-  EXPECT_FALSE(state.has_codepoint_ordering());
+  EXPECT_EQ(state.FontId(), "Roboto-Regular.ttf");
+  EXPECT_EQ(state.OriginalFontChecksum(), 0xC722EE0E33D3B460);
+  EXPECT_EQ(state.FontData(), roboto_abcd_.string());
+  EXPECT_TRUE(state.CodepointRemapping().empty());
 }
 
 TEST_F(PatchSubsetClientServerIntegrationTest, SessionWithCodepointOrdering) {
   hb_set_unique_ptr set_ab = make_hb_set_from_ranges(1, 0x61, 0x62);
   ClientState state;
-  state.set_font_id("Roboto-Regular.ttf");
+  state.SetFontId("Roboto-Regular.ttf");
   EXPECT_EQ(client_with_mapping_.Extend(*set_ab, &state), StatusCode::kOk);
 
-  EXPECT_EQ(state.font_id(), "Roboto-Regular.ttf");
-  EXPECT_EQ(state.original_font_fingerprint(), 0xC722EE0E33D3B460);
-  EXPECT_EQ(state.font_data(), roboto_ab_.str());
-  EXPECT_TRUE(state.has_codepoint_ordering());
-  EXPECT_EQ(state.ordering_checksum(), 0xD5BD080511DD60DD);
+  EXPECT_EQ(state.FontId(), "Roboto-Regular.ttf");
+  EXPECT_EQ(state.OriginalFontChecksum(), 0xC722EE0E33D3B460);
+  EXPECT_EQ(state.FontData(), roboto_ab_.string());
+  EXPECT_FALSE(state.CodepointRemapping().empty());
+  EXPECT_EQ(state.CodepointRemappingChecksum(), 0xD5BD080511DD60DD);
 
   hb_set_unique_ptr set_abcd = make_hb_set_from_ranges(1, 0x61, 0x64);
   EXPECT_EQ(client_with_mapping_.Extend(*set_abcd, &state), StatusCode::kOk);
 
-  EXPECT_EQ(state.font_id(), "Roboto-Regular.ttf");
-  EXPECT_EQ(state.original_font_fingerprint(), 0xC722EE0E33D3B460);
-  EXPECT_EQ(state.font_data(), roboto_abcd_.str());
-  EXPECT_TRUE(state.has_codepoint_ordering());
-  EXPECT_EQ(state.ordering_checksum(), 0xD5BD080511DD60DD);
+  EXPECT_EQ(state.FontId(), "Roboto-Regular.ttf");
+  EXPECT_EQ(state.OriginalFontChecksum(), 0xC722EE0E33D3B460);
+  EXPECT_EQ(state.FontData(), roboto_abcd_.string());
+  EXPECT_FALSE(state.CodepointRemapping().empty());
+  EXPECT_EQ(state.CodepointRemappingChecksum(), 0xD5BD080511DD60DD);
 }
 
 }  // namespace patch_subset

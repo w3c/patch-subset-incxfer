@@ -28,6 +28,14 @@ void CodepointMap::FromProto(const CompressedListProto& proto) {
   }
 }
 
+void CodepointMap::FromVector(const vector<int32_t>& ints) {
+  Clear();
+  int index = 0;
+  for (int32_t cp : ints) {
+    AddMapping(cp, index++);
+  }
+}
+
 StatusCode CodepointMap::ToProto(CompressedListProto* proto) const {
   // A CodepopointRemappingProto encodes a mapping as a list such that:
   //
@@ -52,6 +60,20 @@ StatusCode CodepointMap::ToProto(CompressedListProto* proto) const {
     proto->add_deltas(delta);
   }
 
+  return StatusCode::kOk;
+}
+
+StatusCode CodepointMap::ToVector(vector<int32_t>* ints) {
+  ints->resize(encode_map.size());
+  ints->clear();
+  for (unsigned int i = 0; i < encode_map.size(); i++) {
+    hb_codepoint_t cp_for_index = i;
+    StatusCode result = Decode(&cp_for_index);
+    if (result != StatusCode::kOk) {
+      return result;
+    }
+    ints->push_back(cp_for_index);
+  }
   return StatusCode::kOk;
 }
 
