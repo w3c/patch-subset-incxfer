@@ -58,8 +58,9 @@ StatusCode IntUtils::UIntBase128Decode(string_view bytes, uint32_t* uint_out,
   uint32_t result = 0;
   unsigned i = 0;
   for (const auto c : absl::ClippedSubstr(bytes, 0, 5)) {
+    unsigned char uc = (unsigned char)c;
     // No leading 0’s
-    if (i == 0 && c == 0x80) {
+    if (i == 0 && uc == 0x80) {
       return StatusCode::kInvalidArgument;
     }
 
@@ -68,10 +69,10 @@ StatusCode IntUtils::UIntBase128Decode(string_view bytes, uint32_t* uint_out,
       return StatusCode::kInvalidArgument;
     }
 
-    result = (result << 7) | (c & 0x7f);
+    result = (result << 7) | (uc & 0x7f);
 
     // Spin until most significant bit of data byte is false
-    if ((c & 0x80) == 0) {
+    if ((uc & 0x80) == 0) {
       *uint_out = result;
       *num_bytes_out = i + 1;
       return StatusCode::kOk;
