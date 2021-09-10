@@ -95,18 +95,6 @@ npm_install(
     package_lock_json = "@emscripten//:emscripten/package-lock.json",
 )
 
-# libcbor needs cmake and make
-http_archive(
-   name = "rules_foreign_cc",
-   sha256 = "f294fe98f8b9df1264dfb2b6f73225ce68de3246041e86ccf35d19303eed99d6",
-   strip_prefix = "rules_foreign_cc-0.4.0",
-   url = "https://github.com/bazelbuild/rules_foreign_cc/archive/0.4.0.zip",
-)
-
-load("@rules_foreign_cc//foreign_cc:repositories.bzl", "rules_foreign_cc_dependencies")
-
-rules_foreign_cc_dependencies()
-
 # libcbor
 http_archive(
     name = "libcbor",
