@@ -133,7 +133,7 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
   void LoadInputCodepoints(const PatchRequestProto& request,
                            RequestState* state) const;
 
-  void CheckOriginalFingerprint(uint64_t original_fingerprint,
+  void CheckOriginalFingerprint(uint64_t original_checksum,
                                 RequestState* state) const;
 
   StatusCode ComputeCodepointRemapping(RequestState* state) const;
@@ -146,13 +146,12 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
   StatusCode ComputeSubsets(const std::string& font_id,
                             RequestState* state) const;
 
-  void ValidatePatchBase(uint64_t base_fingerprint, RequestState* state) const;
+  void ValidatePatchBase(uint64_t base_checksum, RequestState* state) const;
 
   void ConstructResponse(const RequestState& state,
                          PatchResponseProto* response) const;
 
-  StatusCode ValidateFingerPrint(uint64_t fingerprint,
-                                 const FontData& data) const;
+  StatusCode ValidateFingerPrint(uint64_t checksum, const FontData& data) const;
 
   void AddFingerprints(const FontData& font_data, const FontData& target_subset,
                        PatchResponseProto* response) const;
