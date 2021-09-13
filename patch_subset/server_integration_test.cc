@@ -107,7 +107,7 @@ TEST_F(PatchSubsetServerIntegrationTest, PatchRequest) {
   CheckPatch(roboto_ab_, roboto_abcd_, response.patch());
 }
 
-TEST_F(PatchSubsetServerIntegrationTest, BadOriginalFingerprint) {
+TEST_F(PatchSubsetServerIntegrationTest, BadOriginalChecksum) {
   hb_set_unique_ptr set_ab = make_hb_set_from_ranges(1, 0x61, 0x62);
   hb_set_unique_ptr set_abcd = make_hb_set_from_ranges(1, 0x61, 0x64);
 
@@ -128,7 +128,7 @@ TEST_F(PatchSubsetServerIntegrationTest, BadOriginalFingerprint) {
   CheckPatch(empty_, roboto_abcd_, response.replacement());
 }
 
-TEST_F(PatchSubsetServerIntegrationTest, BadBaseFingerprint) {
+TEST_F(PatchSubsetServerIntegrationTest, BadBaseChecksum) {
   hb_set_unique_ptr set_ab = make_hb_set_from_ranges(1, 0x61, 0x62);
   hb_set_unique_ptr set_abcd = make_hb_set_from_ranges(1, 0x61, 0x64);
 

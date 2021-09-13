@@ -14,7 +14,7 @@ using ::patch_subset::StatusCode;
 int main(int argc, char** argv) {
   FileFontProvider font_provider("");
   if (argc != 2) {
-    std::cout << "Usage: fingerprint <file>" << std::endl;
+    std::cout << "Usage: checksum <file>" << std::endl;
   }
 
   std::string file_path(argv[1]);
