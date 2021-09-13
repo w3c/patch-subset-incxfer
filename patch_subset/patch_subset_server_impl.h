@@ -134,7 +134,7 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
                            RequestState* state) const;
 
   void CheckOriginalChecksum(uint64_t original_checksum,
-                                RequestState* state) const;
+                             RequestState* state) const;
 
   StatusCode ComputeCodepointRemapping(RequestState* state) const;
 
@@ -154,10 +154,10 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
   StatusCode ValidateChecksum(uint64_t checksum, const FontData& data) const;
 
   void AddChecksums(const FontData& font_data, const FontData& target_subset,
-                       PatchResponseProto* response) const;
+                    PatchResponseProto* response) const;
 
   void AddChecksums(const FontData& font_data,
-                       PatchResponseProto* response) const;
+                    PatchResponseProto* response) const;
 
   bool Check(StatusCode result) const;
   bool Check(StatusCode result, const std::string& message) const;
