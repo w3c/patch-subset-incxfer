@@ -162,10 +162,10 @@ TEST_F(PatchSubsetServerImplTest, NewRequest) {
 
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, &response),
             StatusCode::kOk);
-  EXPECT_EQ(response.original_font_fingerprint(), 42);
+  EXPECT_EQ(response.original_font_checksum(), 42);
   EXPECT_TRUE(response.patch().empty());
   EXPECT_EQ(response.replacement(), "Roboto-Regular.ttf:abcd");
-  EXPECT_EQ(response.patched_fingerprint(), 43);
+  EXPECT_EQ(response.patched_checksum(), 43);
   EXPECT_EQ(response.format(), PatchFormat::BROTLI_SHARED_DICT);
 
   EXPECT_FALSE(response.has_codepoint_ordering());
@@ -209,15 +209,15 @@ TEST_F(PatchSubsetServerImplTest, PatchRequest) {
   PatchResponseProto response;
   CompressedSet::Encode(*set_ab_, request.mutable_codepoints_have());
   CompressedSet::Encode(*set_abcd_, request.mutable_codepoints_needed());
-  request.set_original_font_fingerprint(42);
-  request.set_base_fingerprint(43);
+  request.set_original_font_checksum(42);
+  request.set_base_checksum(43);
 
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, &response),
             StatusCode::kOk);
-  EXPECT_EQ(response.original_font_fingerprint(), 42);
+  EXPECT_EQ(response.original_font_checksum(), 42);
   EXPECT_EQ(response.patch(),
             "Roboto-Regular.ttf:abcd - Roboto-Regular.ttf:ab");
-  EXPECT_EQ(response.patched_fingerprint(), 44);
+  EXPECT_EQ(response.patched_checksum(), 44);
   EXPECT_EQ(response.format(), PatchFormat::BROTLI_SHARED_DICT);
 
   EXPECT_FALSE(response.has_codepoint_ordering());
@@ -241,15 +241,15 @@ TEST_F(PatchSubsetServerImplTest, PatchRequestWithCodepointPrediction) {
   PatchResponseProto response;
   CompressedSet::Encode(*set_ab_, request.mutable_codepoints_have());
   CompressedSet::Encode(*set_abcd_, request.mutable_codepoints_needed());
-  request.set_original_font_fingerprint(42);
-  request.set_base_fingerprint(43);
+  request.set_original_font_checksum(42);
+  request.set_base_checksum(43);
 
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, &response),
             StatusCode::kOk);
-  EXPECT_EQ(response.original_font_fingerprint(), 42);
+  EXPECT_EQ(response.original_font_checksum(), 42);
   EXPECT_EQ(response.patch(),
             "Roboto-Regular.ttf:abcde - Roboto-Regular.ttf:ab");
-  EXPECT_EQ(response.patched_fingerprint(), 44);
+  EXPECT_EQ(response.patched_checksum(), 44);
   EXPECT_EQ(response.format(), PatchFormat::BROTLI_SHARED_DICT);
 
   EXPECT_FALSE(response.has_codepoint_ordering());
@@ -269,16 +269,16 @@ TEST_F(PatchSubsetServerImplWithCodepointRemappingTest,
   CompressedSet::Encode(*set_ab_encoded_, request.mutable_codepoints_have());
   CompressedSet::Encode(*set_abcd_encoded_,
                         request.mutable_codepoints_needed());
-  request.set_original_font_fingerprint(42);
-  request.set_base_fingerprint(43);
-  request.set_index_fingerprint(44);
+  request.set_original_font_checksum(42);
+  request.set_base_checksum(43);
+  request.set_ordering_checksum(44);
 
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, &response),
             StatusCode::kOk);
-  EXPECT_EQ(response.original_font_fingerprint(), 42);
+  EXPECT_EQ(response.original_font_checksum(), 42);
   EXPECT_EQ(response.patch(),
             "Roboto-Regular.ttf:abcd - Roboto-Regular.ttf:ab");
-  EXPECT_EQ(response.patched_fingerprint(), 44);
+  EXPECT_EQ(response.patched_checksum(), 44);
   EXPECT_EQ(response.format(), PatchFormat::BROTLI_SHARED_DICT);
 
   // Patch request should not send back a codepoint remapping.
@@ -294,9 +294,9 @@ TEST_F(PatchSubsetServerImplWithCodepointRemappingTest, BadIndexChecksum) {
   PatchResponseProto response;
   CompressedSet::Encode(*set_ab_, request.mutable_codepoints_have());
   CompressedSet::Encode(*set_abcd_, request.mutable_codepoints_needed());
-  request.set_original_font_fingerprint(42);
-  request.set_base_fingerprint(43);
-  request.set_index_fingerprint(123);
+  request.set_original_font_checksum(42);
+  request.set_base_checksum(43);
+  request.set_ordering_checksum(123);
 
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, &response),
             StatusCode::kOk);
@@ -323,14 +323,14 @@ TEST_F(PatchSubsetServerImplTest, BadOriginalFontChecksum) {
   PatchResponseProto response;
   CompressedSet::Encode(*set_ab_, request.mutable_codepoints_have());
   CompressedSet::Encode(*set_abcd_, request.mutable_codepoints_needed());
-  request.set_original_font_fingerprint(100);
-  request.set_base_fingerprint(43);
+  request.set_original_font_checksum(100);
+  request.set_base_checksum(43);
 
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, &response),
             StatusCode::kOk);
-  EXPECT_EQ(response.original_font_fingerprint(), 42);
+  EXPECT_EQ(response.original_font_checksum(), 42);
   EXPECT_EQ(response.replacement(), "Roboto-Regular.ttf:abcd");
-  EXPECT_EQ(response.patched_fingerprint(), 44);
+  EXPECT_EQ(response.patched_checksum(), 44);
   EXPECT_EQ(response.format(), PatchFormat::BROTLI_SHARED_DICT);
 }
 
@@ -345,14 +345,14 @@ TEST_F(PatchSubsetServerImplTest, BadBaseChecksum) {
   PatchResponseProto response;
   CompressedSet::Encode(*set_ab_, request.mutable_codepoints_have());
   CompressedSet::Encode(*set_abcd_, request.mutable_codepoints_needed());
-  request.set_original_font_fingerprint(42);
-  request.set_base_fingerprint(100);
+  request.set_original_font_checksum(42);
+  request.set_base_checksum(100);
 
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, &response),
             StatusCode::kOk);
-  EXPECT_EQ(response.original_font_fingerprint(), 42);
+  EXPECT_EQ(response.original_font_checksum(), 42);
   EXPECT_EQ(response.replacement(), "Roboto-Regular.ttf:abcd");
-  EXPECT_EQ(response.patched_fingerprint(), 44);
+  EXPECT_EQ(response.patched_checksum(), 44);
   EXPECT_EQ(response.format(), PatchFormat::BROTLI_SHARED_DICT);
 }
 

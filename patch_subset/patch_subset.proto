@@ -19,14 +19,14 @@ enum ResponseType {
 }
 
 message PatchRequestProto {
-  uint64 original_font_fingerprint = 1;
-  uint64 base_fingerprint = 2;
+  uint64 original_font_checksum = 1;
+  uint64 base_checksum = 2;
   repeated PatchFormat accept_format = 3;
 
   CompressedSetProto codepoints_have = 4;
   CompressedSetProto codepoints_needed = 5;
 
-  uint64 index_fingerprint = 6;
+  uint64 ordering_checksum = 6;
   CompressedSetProto indices_have = 7;
   CompressedSetProto indices_needed = 8;
 }
@@ -35,8 +35,8 @@ message PatchResponseProto {
   PatchFormat format = 1;
   bytes patch = 2;
   bytes replacement = 3;
-  uint64 original_font_fingerprint = 4;
-  uint64 patched_fingerprint = 5;
+  uint64 original_font_checksum = 4;
+  uint64 patched_checksum = 5;
   CompressedListProto codepoint_ordering = 6;
   uint64 ordering_checksum = 7;
 }

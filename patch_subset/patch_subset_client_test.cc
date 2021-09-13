@@ -26,9 +26,9 @@ using ::testing::Return;
 
 namespace patch_subset {
 
-static uint64_t kOriginalFingerprint = 1;
-static uint64_t kBaseFingerprint = 2;
-static uint64_t kPatchedFingerprint = 3;
+static uint64_t kOriginalChecksum = 1;
+static uint64_t kBaseChecksum = 2;
+static uint64_t kPatchedChecksum = 3;
 
 MATCHER_P(EqualsProto, other, "") {
   return MessageDifferencer::Equals(arg, other);
@@ -62,21 +62,21 @@ class PatchSubsetClientTest : public ::testing::Test {
     CompressedSet::Encode(codepoints_needed,
                           request.mutable_codepoints_needed());
     request.add_accept_format(PatchFormat::BROTLI_SHARED_DICT);
-    request.set_original_font_fingerprint(kOriginalFingerprint);
-    request.set_base_fingerprint(kBaseFingerprint);
+    request.set_original_font_checksum(kOriginalChecksum);
+    request.set_base_checksum(kBaseChecksum);
     return request;
   }
 
   PatchResponseProto CreateResponse(ResponseType type) {
     PatchResponseProto response;
-    response.set_original_font_fingerprint(kOriginalFingerprint);
+    response.set_original_font_checksum(kOriginalChecksum);
     response.set_format(PatchFormat::BROTLI_SHARED_DICT);
     if (type == ResponseType::PATCH) {
       response.set_patch("roboto.patch.ttf");
     } else if (type == ResponseType::REBASE) {
       response.set_replacement("roboto.patch.ttf");
     }
-    response.set_patched_fingerprint(kPatchedFingerprint);
+    response.set_patched_checksum(kPatchedChecksum);
     return response;
   }
 
@@ -131,12 +131,12 @@ TEST_F(PatchSubsetClientTest, SendPatchRequest) {
   PatchRequestProto expected_request =
       CreateRequest(*codepoints_have, *codepoints_needed);
   ExpectRequest(expected_request);
-  ExpectChecksum(roboto_ab_.str(), kBaseFingerprint);
+  ExpectChecksum(roboto_ab_.str(), kBaseChecksum);
 
   ClientState state;
   state.SetFontId("roboto");
   state.SetFontData(roboto_ab_.string());
-  state.SetOriginalFontChecksum(kOriginalFingerprint);
+  state.SetOriginalFontChecksum(kOriginalChecksum);
   client_->Extend(*codepoints_needed, &state);
 }
 
@@ -149,10 +149,10 @@ TEST_F(PatchSubsetClientTest, SendPatchRequest_WithCodepointMapping) {
 
   PatchRequestProto expected_request =
       CreateRequest(*codepoints_have_encoded, *codepoints_needed_encoded);
-  expected_request.set_index_fingerprint(13);
+  expected_request.set_ordering_checksum(13);
 
   ExpectRequest(expected_request);
-  ExpectChecksum(roboto_ab_.str(), kBaseFingerprint);
+  ExpectChecksum(roboto_ab_.str(), kBaseChecksum);
 
   CodepointMap map;
   map.AddMapping(0x61, 0);
@@ -163,7 +163,7 @@ TEST_F(PatchSubsetClientTest, SendPatchRequest_WithCodepointMapping) {
   ClientState state;
   state.SetFontId("roboto");
   state.SetFontData(roboto_ab_.string());
-  state.SetOriginalFontChecksum(kOriginalFingerprint);
+  state.SetOriginalFontChecksum(kOriginalChecksum);
   vector<int32_t> remapping;
   map.ToVector(&remapping);
   state.SetCodepointRemapping(remapping);
@@ -178,13 +178,13 @@ TEST_F(PatchSubsetClientTest, SendPatchRequest_RemovesExistingCodepoints) {
   PatchRequestProto expected_request =
       CreateRequest(*codepoints_have, *codepoints_needed);
   ExpectRequest(expected_request);
-  ExpectChecksum(roboto_ab_.str(), kBaseFingerprint);
+  ExpectChecksum(roboto_ab_.str(), kBaseChecksum);
 
   hb_set_union(codepoints_needed.get(), codepoints_have.get());
   ClientState state;
   state.SetFontId("roboto");
   state.SetFontData(roboto_ab_.string());
-  state.SetOriginalFontChecksum(kOriginalFingerprint);
+  state.SetOriginalFontChecksum(kOriginalChecksum);
   client_->Extend(*codepoints_needed, &state);
 }
 
@@ -196,7 +196,7 @@ TEST_F(PatchSubsetClientTest, DoesntSendPatchRequest_NoNewCodepoints) {
   ClientState state;
   state.SetFontId("roboto");
   state.SetFontData(roboto_ab_.string());
-  state.SetOriginalFontChecksum(kOriginalFingerprint);
+  state.SetOriginalFontChecksum(kOriginalChecksum);
   EXPECT_EQ(client_->Extend(*codepoints_needed, &state), StatusCode::kOk);
 }
 
@@ -205,7 +205,7 @@ TEST_F(PatchSubsetClientTest, HandlesRebaseResponse) {
 
   PatchResponseProto response = CreateResponse(ResponseType::REBASE);
   SendResponse(response);
-  ExpectChecksum("roboto.patched.ttf", kPatchedFingerprint);
+  ExpectChecksum("roboto.patched.ttf", kPatchedChecksum);
 
   FontData base("");
   FontData patch("roboto.patch.ttf");
@@ -216,7 +216,7 @@ TEST_F(PatchSubsetClientTest, HandlesRebaseResponse) {
   EXPECT_EQ(client_->Extend(*codepoints, &state), StatusCode::kOk);
 
   EXPECT_EQ(state.FontData(), "roboto.patched.ttf");
-  EXPECT_EQ(state.OriginalFontChecksum(), kOriginalFingerprint);
+  EXPECT_EQ(state.OriginalFontChecksum(), kOriginalChecksum);
 }
 
 TEST_F(PatchSubsetClientTest, HandlesRebaseResponse_WithCodepointMapping) {
@@ -227,7 +227,7 @@ TEST_F(PatchSubsetClientTest, HandlesRebaseResponse_WithCodepointMapping) {
   response.set_ordering_checksum(14);
 
   SendResponse(response);
-  ExpectChecksum("roboto.patched.ttf", kPatchedFingerprint);
+  ExpectChecksum("roboto.patched.ttf", kPatchedChecksum);
 
   FontData base("");
   FontData patch("roboto.patch.ttf");
@@ -238,7 +238,7 @@ TEST_F(PatchSubsetClientTest, HandlesRebaseResponse_WithCodepointMapping) {
   EXPECT_EQ(client_->Extend(*codepoints, &state), StatusCode::kOk);
 
   EXPECT_EQ(state.FontData(), "roboto.patched.ttf");
-  EXPECT_EQ(state.OriginalFontChecksum(), kOriginalFingerprint);
+  EXPECT_EQ(state.OriginalFontChecksum(), kOriginalChecksum);
 
   EXPECT_EQ(state.CodepointRemapping().size(), 1);
   EXPECT_EQ(state.CodepointRemapping()[0], 13);
@@ -251,7 +251,7 @@ TEST_F(PatchSubsetClientTest, HandlesPatchResponse) {
   PatchResponseProto response = CreateResponse(ResponseType::PATCH);
 
   SendResponse(response);
-  ExpectChecksum("roboto.patched.ttf", kPatchedFingerprint);
+  ExpectChecksum("roboto.patched.ttf", kPatchedChecksum);
 
   FontData base("roboto.base.ttf");
   FontData patch("roboto.patch.ttf");
@@ -262,7 +262,7 @@ TEST_F(PatchSubsetClientTest, HandlesPatchResponse) {
   EXPECT_EQ(client_->Extend(*codepoints, &state), StatusCode::kOk);
 
   EXPECT_EQ(state.FontData(), "roboto.patched.ttf");
-  EXPECT_EQ(state.OriginalFontChecksum(), kOriginalFingerprint);
+  EXPECT_EQ(state.OriginalFontChecksum(), kOriginalChecksum);
 }
 
 // TODO(garretrieger): add more response handling tests:

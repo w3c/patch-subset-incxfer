@@ -127,7 +127,7 @@ StatusCode PatchSubsetClient::ComputePatched(const PatchResponseProto& response,
 
   binary_patch_->Patch(base, patch_data, patched);
 
-  if (hasher_->Checksum(patched->str()) != response.patched_fingerprint()) {
+  if (hasher_->Checksum(patched->str()) != response.patched_checksum()) {
     LOG(WARNING) << "Patched checksum mismatch.";
     return StatusCode::kFailedPrecondition;
   }
@@ -144,7 +144,7 @@ StatusCode PatchSubsetClient::AmendState(const PatchResponseProto& response,
   }
 
   state->SetFontData(patched.string());
-  state->SetOriginalFontChecksum(response.original_font_fingerprint());
+  state->SetOriginalFontChecksum(response.original_font_checksum());
 
   if (response.has_codepoint_ordering()) {
     // Temporary, will be converted.
@@ -167,8 +167,8 @@ void PatchSubsetClient::CreateRequest(const hb_set_t& codepoints_have,
                                       const ClientState& state,
                                       PatchRequestProto* request) {
   if (hb_set_get_population(&codepoints_have)) {
-    request->set_original_font_fingerprint(state.OriginalFontChecksum());
-    request->set_base_fingerprint(hasher_->Checksum(state.FontData()));
+    request->set_original_font_checksum(state.OriginalFontChecksum());
+    request->set_base_checksum(hasher_->Checksum(state.FontData()));
   }
   request->add_accept_format(PatchFormat::BROTLI_SHARED_DICT);
 
@@ -181,7 +181,7 @@ void PatchSubsetClient::CreateRequest(const hb_set_t& codepoints_have,
   *request->mutable_codepoints_needed() = codepoints_needed_encoded;
 
   if (!state.CodepointRemapping().empty()) {
-    request->set_index_fingerprint(state.CodepointRemappingChecksum());
+    request->set_ordering_checksum(state.CodepointRemappingChecksum());
   }
 }
 

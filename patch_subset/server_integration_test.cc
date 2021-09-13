@@ -34,9 +34,9 @@ class PatchSubsetServerIntegrationTest : public ::testing::Test {
     font_provider_->GetFont("Roboto-Regular.ttf", &roboto_regular);
 
     FastHasher hasher;
-    original_font_fingerprint_ = hasher.Checksum(roboto_regular.str());
-    subset_ab_fingerprint_ = hasher.Checksum(roboto_ab_.str());
-    subset_abcd_fingerprint_ = hasher.Checksum(roboto_abcd_.str());
+    original_font_checksum = hasher.Checksum(roboto_regular.str());
+    subset_ab_checksum = hasher.Checksum(roboto_ab_.str());
+    subset_abcd_checksum = hasher.Checksum(roboto_abcd_.str());
   }
 
   void CheckPatch(const FontData& base, const FontData& target,
@@ -64,9 +64,9 @@ class PatchSubsetServerIntegrationTest : public ::testing::Test {
   FontData roboto_abcd_;
   FontData roboto_ab_;
 
-  uint64_t original_font_fingerprint_;
-  uint64_t subset_ab_fingerprint_;
-  uint64_t subset_abcd_fingerprint_;
+  uint64_t original_font_checksum;
+  uint64_t subset_ab_checksum;
+  uint64_t subset_abcd_checksum;
 };
 
 TEST_F(PatchSubsetServerIntegrationTest, NewRequest) {
@@ -79,8 +79,8 @@ TEST_F(PatchSubsetServerIntegrationTest, NewRequest) {
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, &response),
             StatusCode::kOk);
 
-  EXPECT_EQ(response.original_font_fingerprint(), original_font_fingerprint_);
-  EXPECT_EQ(response.patched_fingerprint(), subset_abcd_fingerprint_);
+  EXPECT_EQ(response.original_font_checksum(), original_font_checksum);
+  EXPECT_EQ(response.patched_checksum(), subset_abcd_checksum);
   EXPECT_EQ(response.format(), PatchFormat::BROTLI_SHARED_DICT);
 
   CheckPatch(empty_, roboto_abcd_, response.replacement());
@@ -93,15 +93,15 @@ TEST_F(PatchSubsetServerIntegrationTest, PatchRequest) {
   PatchRequestProto request;
   CompressedSet::Encode(*set_ab, request.mutable_codepoints_have());
   CompressedSet::Encode(*set_abcd, request.mutable_codepoints_needed());
-  request.set_original_font_fingerprint(original_font_fingerprint_);
-  request.set_base_fingerprint(subset_ab_fingerprint_);
+  request.set_original_font_checksum(original_font_checksum);
+  request.set_base_checksum(subset_ab_checksum);
 
   PatchResponseProto response;
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, &response),
             StatusCode::kOk);
 
-  EXPECT_EQ(response.original_font_fingerprint(), original_font_fingerprint_);
-  EXPECT_EQ(response.patched_fingerprint(), subset_abcd_fingerprint_);
+  EXPECT_EQ(response.original_font_checksum(), original_font_checksum);
+  EXPECT_EQ(response.patched_checksum(), subset_abcd_checksum);
   EXPECT_EQ(response.format(), PatchFormat::BROTLI_SHARED_DICT);
 
   CheckPatch(roboto_ab_, roboto_abcd_, response.patch());
@@ -114,15 +114,15 @@ TEST_F(PatchSubsetServerIntegrationTest, BadOriginalFingerprint) {
   PatchRequestProto request;
   CompressedSet::Encode(*set_ab, request.mutable_codepoints_have());
   CompressedSet::Encode(*set_abcd, request.mutable_codepoints_needed());
-  request.set_original_font_fingerprint(0);
-  request.set_base_fingerprint(subset_ab_fingerprint_);
+  request.set_original_font_checksum(0);
+  request.set_base_checksum(subset_ab_checksum);
 
   PatchResponseProto response;
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, &response),
             StatusCode::kOk);
 
-  EXPECT_EQ(response.original_font_fingerprint(), original_font_fingerprint_);
-  EXPECT_EQ(response.patched_fingerprint(), subset_abcd_fingerprint_);
+  EXPECT_EQ(response.original_font_checksum(), original_font_checksum);
+  EXPECT_EQ(response.patched_checksum(), subset_abcd_checksum);
   EXPECT_EQ(response.format(), PatchFormat::BROTLI_SHARED_DICT);
 
   CheckPatch(empty_, roboto_abcd_, response.replacement());
@@ -135,15 +135,15 @@ TEST_F(PatchSubsetServerIntegrationTest, BadBaseFingerprint) {
   PatchRequestProto request;
   CompressedSet::Encode(*set_ab, request.mutable_codepoints_have());
   CompressedSet::Encode(*set_abcd, request.mutable_codepoints_needed());
-  request.set_original_font_fingerprint(original_font_fingerprint_);
-  request.set_base_fingerprint(0);
+  request.set_original_font_checksum(original_font_checksum);
+  request.set_base_checksum(0);
 
   PatchResponseProto response;
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, &response),
             StatusCode::kOk);
 
-  EXPECT_EQ(response.original_font_fingerprint(), original_font_fingerprint_);
-  EXPECT_EQ(response.patched_fingerprint(), subset_abcd_fingerprint_);
+  EXPECT_EQ(response.original_font_checksum(), original_font_checksum);
+  EXPECT_EQ(response.patched_checksum(), subset_abcd_checksum);
   EXPECT_EQ(response.format(), PatchFormat::BROTLI_SHARED_DICT);
 
   CheckPatch(empty_, roboto_abcd_, response.replacement());
