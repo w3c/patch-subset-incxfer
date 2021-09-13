@@ -57,7 +57,7 @@ StatusCode PatchSubsetServerImpl::Handle(const std::string& font_id,
     return result;
   }
 
-  CheckOriginalFingerprint(request.original_font_checksum(), &state);
+  CheckOriginalChecksum(request.original_font_checksum(), &state);
 
   if (codepoint_mapper_) {
     if (!Check(result = ComputeCodepointRemapping(&state))) {
@@ -103,10 +103,10 @@ void PatchSubsetServerImpl::LoadInputCodepoints(
   state->ordering_checksum = request.ordering_checksum();
 }
 
-void PatchSubsetServerImpl::CheckOriginalFingerprint(
+void PatchSubsetServerImpl::CheckOriginalChecksum(
     uint64_t original_checksum, RequestState* state) const {
   if (state->IsPatch() &&
-      !Check(ValidateFingerPrint(original_checksum, state->font_data),
+      !Check(ValidateChecksum(original_checksum, state->font_data),
              "Client's original checksum does not match. Switching to "
              "REBASE.")) {
     hb_set_clear(state->codepoints_have.get());
@@ -198,7 +198,7 @@ StatusCode PatchSubsetServerImpl::ComputeSubsets(const std::string& font_id,
 void PatchSubsetServerImpl::ValidatePatchBase(uint64_t base_checksum,
                                               RequestState* state) const {
   if (state->IsPatch() &&
-      !Check(ValidateFingerPrint(base_checksum, state->client_subset),
+      !Check(ValidateChecksum(base_checksum, state->client_subset),
              "Client's base does not match. Switching to REBASE.")) {
     // Clear the client_subset since it doesn't match. The diff will then diff
     // in rebase mode.
@@ -216,7 +216,7 @@ void PatchSubsetServerImpl::ConstructResponse(
   }
 
   if (state.IsReindex()) {
-    AddFingerprints(state.font_data, response);
+    AddChecksums(state.font_data, response);
     // Early return, no patch is needed for a re-index.
     return;
   }
@@ -228,10 +228,10 @@ void PatchSubsetServerImpl::ConstructResponse(
     response->set_replacement(state.patch.data(), state.patch.size());
   }
 
-  AddFingerprints(state.font_data, state.client_target_subset, response);
+  AddChecksums(state.font_data, state.client_target_subset, response);
 }
 
-StatusCode PatchSubsetServerImpl::ValidateFingerPrint(
+StatusCode PatchSubsetServerImpl::ValidateChecksum(
     uint64_t checksum, const FontData& data) const {
   uint64_t actual_checksum = hasher_->Checksum(data.str());
   if (actual_checksum != checksum) {
@@ -243,7 +243,7 @@ StatusCode PatchSubsetServerImpl::ValidateFingerPrint(
   return StatusCode::kOk;
 }
 
-void PatchSubsetServerImpl::AddFingerprints(
+void PatchSubsetServerImpl::AddChecksums(
     const FontData& font_data, const FontData& target_subset,
     PatchResponseProto* response) const {
   response->set_original_font_checksum(
@@ -252,7 +252,7 @@ void PatchSubsetServerImpl::AddFingerprints(
       hasher_->Checksum(string_view(target_subset.str())));
 }
 
-void PatchSubsetServerImpl::AddFingerprints(
+void PatchSubsetServerImpl::AddChecksums(
     const FontData& font_data, PatchResponseProto* response) const {
   response->set_original_font_checksum(
       hasher_->Checksum(string_view(font_data.str())));
