@@ -103,8 +103,8 @@ void PatchSubsetServerImpl::LoadInputCodepoints(
   state->ordering_checksum = request.ordering_checksum();
 }
 
-void PatchSubsetServerImpl::CheckOriginalChecksum(
-    uint64_t original_checksum, RequestState* state) const {
+void PatchSubsetServerImpl::CheckOriginalChecksum(uint64_t original_checksum,
+                                                  RequestState* state) const {
   if (state->IsPatch() &&
       !Check(ValidateChecksum(original_checksum, state->font_data),
              "Client's original checksum does not match. Switching to "
@@ -231,8 +231,8 @@ void PatchSubsetServerImpl::ConstructResponse(
   AddChecksums(state.font_data, state.client_target_subset, response);
 }
 
-StatusCode PatchSubsetServerImpl::ValidateChecksum(
-    uint64_t checksum, const FontData& data) const {
+StatusCode PatchSubsetServerImpl::ValidateChecksum(uint64_t checksum,
+                                                   const FontData& data) const {
   uint64_t actual_checksum = hasher_->Checksum(data.str());
   if (actual_checksum != checksum) {
     LOG(WARNING) << "Checksum mismatch. "
@@ -243,17 +243,17 @@ StatusCode PatchSubsetServerImpl::ValidateChecksum(
   return StatusCode::kOk;
 }
 
-void PatchSubsetServerImpl::AddChecksums(
-    const FontData& font_data, const FontData& target_subset,
-    PatchResponseProto* response) const {
+void PatchSubsetServerImpl::AddChecksums(const FontData& font_data,
+                                         const FontData& target_subset,
+                                         PatchResponseProto* response) const {
   response->set_original_font_checksum(
       hasher_->Checksum(string_view(font_data.str())));
   response->set_patched_checksum(
       hasher_->Checksum(string_view(target_subset.str())));
 }
 
-void PatchSubsetServerImpl::AddChecksums(
-    const FontData& font_data, PatchResponseProto* response) const {
+void PatchSubsetServerImpl::AddChecksums(const FontData& font_data,
+                                         PatchResponseProto* response) const {
   response->set_original_font_checksum(
       hasher_->Checksum(string_view(font_data.str())));
 }
