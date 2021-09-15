@@ -14,6 +14,7 @@
 #include "hb.h"
 #include "patch_subset/brotli_binary_patch.h"
 #include "patch_subset/cbor/client_state.h"
+#include "patch_subset/cbor/patch_request.h"
 #include "patch_subset/compressed_set.h"
 #include "patch_subset/fast_hasher.h"
 #include "patch_subset/hb_set_unique_ptr.h"
@@ -26,11 +27,11 @@ using ::patch_subset::CompressedSet;
 using ::patch_subset::hb_set_unique_ptr;
 using ::patch_subset::make_hb_set;
 using ::patch_subset::NullRequestLogger;
-using ::patch_subset::PatchRequestProto;
 using ::patch_subset::PatchResponseProto;
 using ::patch_subset::PatchSubsetClient;
 using ::patch_subset::StatusCode;
 using patch_subset::cbor::ClientState;
+using patch_subset::cbor::PatchRequest;
 
 struct RequestContext {
   RequestContext(val& _callback, std::unique_ptr<std::string> _payload)
@@ -99,11 +100,10 @@ class State {
       hb_set_add(additional_codepoints.get(), cp);
     }
 
-    PatchRequestProto request;
+    PatchRequest request;
     StatusCode result =
         _client.CreateRequest(*additional_codepoints, _state, &request);
-    if (result != StatusCode::kOk ||
-        CompressedSet::IsEmpty(request.codepoints_needed())) {
+    if (result != StatusCode::kOk || request.CodepointsNeeded().empty()) {
       callback(result == StatusCode::kOk);
       return;
     }
@@ -112,9 +112,10 @@ class State {
   }
 
  private:
-  void DoRequest(const PatchRequestProto& request, val& callback) {
+  void DoRequest(const PatchRequest& request, val& callback) {
     std::unique_ptr<std::string> payload(new std::string());
-    if (!request.SerializeToString(payload.get())) {
+    StatusCode rc = request.SerializeToString(*payload);
+    if (rc != StatusCode::kOk) {
       LOG(WARNING) << "Failed to serialize request.";
       callback(false);
       return;

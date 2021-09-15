@@ -298,4 +298,32 @@ TEST_F(CompressedSetTest, GetCompressedSetFieldInvalid) {
   ASSERT_EQ(sc, StatusCode::kInvalidArgument);
 }
 
+TEST_F(CompressedSetTest, AddRanges) {
+  CompressedSet cs;
+  ASSERT_FALSE(cs.HasRanges());
+  ASSERT_TRUE(cs.Ranges().empty());
+  cs.AddRange(range{5, 10});
+  ASSERT_TRUE(cs.HasRanges());
+  range_vector expected1{{5, 10}};
+  ASSERT_EQ(cs.Ranges(), expected1);
+  cs.AddRange(range{20, 100});
+  range_vector expected2{{5, 10}, {20, 100}};
+  ASSERT_EQ(cs.Ranges(), expected2);
+  cs.AddRange(range{1000, 2000});
+  ASSERT_TRUE(cs.HasRanges());
+  range_vector expected3{{5, 10}, {20, 100}, {1000, 2000}};
+  ASSERT_EQ(cs.Ranges(), expected3);
+}
+
+TEST_F(CompressedSetTest, ToString) {
+  CompressedSet cs;
+  ASSERT_EQ(cs.ToString(), "{}");
+  cs.AddRange(range{1, 2});
+  ASSERT_EQ(cs.ToString(), "{[1-2]}");
+  cs.AddRange(range{3, 4});
+  ASSERT_EQ(cs.ToString(), "{[1-2],[3-4]}");
+  cs.SetSparseBitSetBytes("foo");
+  ASSERT_EQ(cs.ToString(), "{[1-2],[3-4](w/bitset)}");
+}
+
 }  // namespace patch_subset::cbor

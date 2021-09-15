@@ -55,8 +55,11 @@ class PatchRequest {
                uint64_t base_checksum, ConnectionSpeed connection_speed);
 
   static StatusCode Decode(const cbor_item_t& cbor_map, PatchRequest& out);
-
   StatusCode Encode(cbor_item_unique_ptr& map_out) const;
+
+  static StatusCode ParseFromString(const std::string& buffer,
+                                    PatchRequest& out);
+  StatusCode SerializeToString(std::string& out) const;
 
   bool HasProtocolVersion() const;
   ProtocolVersion GetProtocolVersion() const;
@@ -67,6 +70,7 @@ class PatchRequest {
   const std::vector<patch_subset::PatchFormat>& AcceptFormats() const;
   PatchRequest& SetAcceptFormats(
       const std::vector<patch_subset::PatchFormat>& formats);
+  PatchRequest& AddAcceptFormat(patch_subset::PatchFormat);
   PatchRequest& ResetAcceptFormats();
 
   bool HasCodepointsHave() const;
@@ -108,6 +112,9 @@ class PatchRequest {
   ConnectionSpeed GetConnectionSpeed() const;
   PatchRequest& SetConnectionSpeed(ConnectionSpeed connection_speed);
   PatchRequest& ResetConnectionSpeed();
+
+  // Returns a human readable version of this PatchRequest.
+  std::string ToString() const;
 
   PatchRequest& operator=(PatchRequest&& other) noexcept;
   bool operator==(const PatchRequest& other) const;

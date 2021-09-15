@@ -402,4 +402,11 @@ TEST_F(ClientStateTest, Serialization) {
   EXPECT_EQ(input, result);
 }
 
+TEST_F(ClientStateTest, ToString) {
+  ClientState input("font id", "font bytes go here", 123456,
+                    vector<int32_t>{1, 2, 3}, 98765);
+  EXPECT_EQ(input.ToString(),
+            "{id=font id,18 bytes,orig_cs=123456,cp_rm=[1,2,3],cprm_cs=98765}");
+}
+
 }  // namespace patch_subset::cbor

@@ -30,10 +30,6 @@ static uint64_t kOriginalChecksum = 1;
 static uint64_t kBaseChecksum = 2;
 static uint64_t kPatchedChecksum = 3;
 
-MATCHER_P(EqualsProto, other, "") {
-  return MessageDifferencer::Equals(arg, other);
-}
-
 class PatchSubsetClientTest : public ::testing::Test {
  protected:
   PatchSubsetClientTest()
@@ -47,41 +43,46 @@ class PatchSubsetClientTest : public ::testing::Test {
     font_provider_->GetFont("Roboto-Regular.ab.ttf", &roboto_ab_);
   }
 
-  PatchRequestProto CreateRequest(const hb_set_t& codepoints) {
-    PatchRequestProto request;
-    request.mutable_codepoints_have();
-    CompressedSet::Encode(codepoints, request.mutable_codepoints_needed());
-    request.add_accept_format(PatchFormat::BROTLI_SHARED_DICT);
+  PatchRequest CreateRequest(const hb_set_t& codepoints) {
+    PatchRequest request;
+    patch_subset::cbor::CompressedSet codepoints_needed;
+    CompressedSet::Encode(codepoints, codepoints_needed);
+    request.SetCodepointsNeeded(codepoints_needed);
+    request.AddAcceptFormat(PatchFormat::BROTLI_SHARED_DICT);
     return request;
   }
 
-  PatchRequestProto CreateRequest(const hb_set_t& codepoints_have,
-                                  const hb_set_t& codepoints_needed) {
-    PatchRequestProto request;
-    CompressedSet::Encode(codepoints_have, request.mutable_codepoints_have());
-    CompressedSet::Encode(codepoints_needed,
-                          request.mutable_codepoints_needed());
-    request.add_accept_format(PatchFormat::BROTLI_SHARED_DICT);
-    request.set_original_font_checksum(kOriginalChecksum);
-    request.set_base_checksum(kBaseChecksum);
+  PatchRequest CreateRequest(const hb_set_t& codepoints_have,
+                             const hb_set_t& codepoints_needed) {
+    PatchRequest request;
+    patch_subset::cbor::CompressedSet codepoints_have2;
+    CompressedSet::Encode(codepoints_have, codepoints_have2);
+    request.SetCodepointsHave(codepoints_have2);
+    patch_subset::cbor::CompressedSet codepoints_needed2;
+    CompressedSet::Encode(codepoints_needed, codepoints_needed2);
+    request.SetCodepointsNeeded(codepoints_needed2);
+
+    request.AddAcceptFormat(PatchFormat::BROTLI_SHARED_DICT);
+    request.SetOriginalFontChecksum(kOriginalChecksum);
+    request.SetBaseChecksum(kBaseChecksum);
     return request;
   }
 
-  PatchResponseProto CreateResponse(ResponseType type) {
+  PatchResponseProto CreateResponse(bool patch) {
     PatchResponseProto response;
     response.set_original_font_checksum(kOriginalChecksum);
     response.set_format(PatchFormat::BROTLI_SHARED_DICT);
-    if (type == ResponseType::PATCH) {
+    if (patch) {
       response.set_patch("roboto.patch.ttf");
-    } else if (type == ResponseType::REBASE) {
+    } else {
       response.set_replacement("roboto.patch.ttf");
     }
     response.set_patched_checksum(kPatchedChecksum);
     return response;
   }
 
-  void ExpectRequest(const PatchRequestProto& expected_request) {
-    EXPECT_CALL(server_, Handle("roboto", EqualsProto(expected_request), _))
+  void ExpectRequest(const PatchRequest& expected_request) {
+    EXPECT_CALL(server_, Handle("roboto", Eq(expected_request), _))
         .Times(1)
         // Short circuit the response handling code.
         .WillOnce(Return(StatusCode::kInternal));
@@ -117,7 +118,7 @@ class PatchSubsetClientTest : public ::testing::Test {
 
 TEST_F(PatchSubsetClientTest, SendsNewRequest) {
   hb_set_unique_ptr codepoints = make_hb_set_from_ranges(1, 0x61, 0x64);
-  PatchRequestProto expected_request = CreateRequest(*codepoints);
+  PatchRequest expected_request = CreateRequest(*codepoints);
   ExpectRequest(expected_request);
 
   ClientState state;
@@ -128,7 +129,7 @@ TEST_F(PatchSubsetClientTest, SendsNewRequest) {
 TEST_F(PatchSubsetClientTest, SendPatchRequest) {
   hb_set_unique_ptr codepoints_have = make_hb_set_from_ranges(1, 0x61, 0x62);
   hb_set_unique_ptr codepoints_needed = make_hb_set_from_ranges(1, 0x63, 0x64);
-  PatchRequestProto expected_request =
+  PatchRequest expected_request =
       CreateRequest(*codepoints_have, *codepoints_needed);
   ExpectRequest(expected_request);
   ExpectChecksum(roboto_ab_.str(), kBaseChecksum);
@@ -147,9 +148,9 @@ TEST_F(PatchSubsetClientTest, SendPatchRequest_WithCodepointMapping) {
   hb_set_unique_ptr codepoints_needed_encoded =
       make_hb_set_from_ranges(1, 2, 3);
 
-  PatchRequestProto expected_request =
+  PatchRequest expected_request =
       CreateRequest(*codepoints_have_encoded, *codepoints_needed_encoded);
-  expected_request.set_ordering_checksum(13);
+  expected_request.SetOrderingChecksum(13);
 
   ExpectRequest(expected_request);
   ExpectChecksum(roboto_ab_.str(), kBaseChecksum);
@@ -175,7 +176,7 @@ TEST_F(PatchSubsetClientTest, SendPatchRequest_WithCodepointMapping) {
 TEST_F(PatchSubsetClientTest, SendPatchRequest_RemovesExistingCodepoints) {
   hb_set_unique_ptr codepoints_have = make_hb_set_from_ranges(1, 0x61, 0x62);
   hb_set_unique_ptr codepoints_needed = make_hb_set_from_ranges(1, 0x63, 0x64);
-  PatchRequestProto expected_request =
+  PatchRequest expected_request =
       CreateRequest(*codepoints_have, *codepoints_needed);
   ExpectRequest(expected_request);
   ExpectChecksum(roboto_ab_.str(), kBaseChecksum);
@@ -203,7 +204,7 @@ TEST_F(PatchSubsetClientTest, DoesntSendPatchRequest_NoNewCodepoints) {
 TEST_F(PatchSubsetClientTest, HandlesRebaseResponse) {
   hb_set_unique_ptr codepoints = make_hb_set(1, 0x61);
 
-  PatchResponseProto response = CreateResponse(ResponseType::REBASE);
+  PatchResponseProto response = CreateResponse(false);  // Rebase.
   SendResponse(response);
   ExpectChecksum("roboto.patched.ttf", kPatchedChecksum);
 
@@ -222,7 +223,7 @@ TEST_F(PatchSubsetClientTest, HandlesRebaseResponse) {
 TEST_F(PatchSubsetClientTest, HandlesRebaseResponse_WithCodepointMapping) {
   hb_set_unique_ptr codepoints = make_hb_set(1, 0x61);
 
-  PatchResponseProto response = CreateResponse(ResponseType::REBASE);
+  PatchResponseProto response = CreateResponse(false);  // Rebase.
   response.mutable_codepoint_ordering()->add_deltas(13);
   response.set_ordering_checksum(14);
 
@@ -248,7 +249,7 @@ TEST_F(PatchSubsetClientTest, HandlesRebaseResponse_WithCodepointMapping) {
 TEST_F(PatchSubsetClientTest, HandlesPatchResponse) {
   hb_set_unique_ptr codepoints = make_hb_set(1, 0x61);
 
-  PatchResponseProto response = CreateResponse(ResponseType::PATCH);
+  PatchResponseProto response = CreateResponse(true);  // Patch.
 
   SendResponse(response);
   ExpectChecksum("roboto.patched.ttf", kPatchedChecksum);

@@ -45,7 +45,7 @@ struct RequestState {
 };
 
 StatusCode PatchSubsetServerImpl::Handle(const std::string& font_id,
-                                         const PatchRequestProto& request,
+                                         const PatchRequest& request,
                                          PatchResponseProto* response) {
   RequestState state;
 
@@ -57,7 +57,7 @@ StatusCode PatchSubsetServerImpl::Handle(const std::string& font_id,
     return result;
   }
 
-  CheckOriginalChecksum(request.original_font_checksum(), &state);
+  CheckOriginalChecksum(request.OriginalFontChecksum(), &state);
 
   if (codepoint_mapper_) {
     if (!Check(result = ComputeCodepointRemapping(&state))) {
@@ -76,7 +76,7 @@ StatusCode PatchSubsetServerImpl::Handle(const std::string& font_id,
     return result;
   }
 
-  ValidatePatchBase(request.base_checksum(), &state);
+  ValidatePatchBase(request.BaseChecksum(), &state);
 
   if (!Check(result = binary_diff_->Diff(
                  state.client_subset, state.client_target_subset, &state.patch),
@@ -93,14 +93,13 @@ StatusCode PatchSubsetServerImpl::Handle(const std::string& font_id,
   return StatusCode::kOk;
 }
 
-void PatchSubsetServerImpl::LoadInputCodepoints(
-    const PatchRequestProto& request, RequestState* state) const {
-  CompressedSet::Decode(request.codepoints_have(),
-                        state->codepoints_have.get());
-  CompressedSet::Decode(request.codepoints_needed(),
+void PatchSubsetServerImpl::LoadInputCodepoints(const PatchRequest& request,
+                                                RequestState* state) const {
+  CompressedSet::Decode(request.CodepointsHave(), state->codepoints_have.get());
+  CompressedSet::Decode(request.CodepointsNeeded(),
                         state->codepoints_needed.get());
   hb_set_union(state->codepoints_needed.get(), state->codepoints_have.get());
-  state->ordering_checksum = request.ordering_checksum();
+  state->ordering_checksum = request.OrderingChecksum();
 }
 
 void PatchSubsetServerImpl::CheckOriginalChecksum(uint64_t original_checksum,

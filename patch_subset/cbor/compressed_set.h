@@ -47,6 +47,7 @@ class CompressedSet {
 
   bool HasRanges() const;
   CompressedSet& SetRanges(const range_vector& ranges);
+  CompressedSet& AddRange(const range range);
   CompressedSet& ResetRanges();
   const range_vector& Ranges() const;
 
@@ -56,6 +57,9 @@ class CompressedSet {
   static StatusCode GetCompressedSetField(const cbor_item_t& map,
                                           int field_number,
                                           std::optional<CompressedSet>& out);
+
+  // Returns a human readable version of this CompressedSet.
+  std::string ToString() const;
 
   CompressedSet& operator=(CompressedSet&& other) noexcept;
   bool operator==(const CompressedSet& other) const;

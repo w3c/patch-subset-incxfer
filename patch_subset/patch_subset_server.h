@@ -2,9 +2,12 @@
 #define PATCH_SUBSET_PATCH_SUBSET_SERVER_H_
 
 #include "common/status.h"
+#include "patch_subset/cbor/patch_request.h"
 #include "patch_subset/patch_subset.pb.h"
 
 namespace patch_subset {
+
+using patch_subset::cbor::PatchRequest;
 
 // Interface for a PatchSubsetServer. This server processes
 // PatchRequestProto's which request the generation of a patch
@@ -16,7 +19,7 @@ class PatchSubsetServer {
   // Handle a patch request from a client. Writes the resulting response
   // into response.
   virtual StatusCode Handle(const std::string& font_id,
-                            const PatchRequestProto& request,
+                            const PatchRequest& request,
                             PatchResponseProto* response /* OUT */) = 0;
 };
 

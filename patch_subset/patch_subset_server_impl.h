@@ -125,12 +125,11 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
 
   // Handle a patch request from a client. Writes the resulting response
   // into response.
-  StatusCode Handle(const std::string& font_id,
-                    const PatchRequestProto& request,
+  StatusCode Handle(const std::string& font_id, const PatchRequest& request,
                     PatchResponseProto* response /* OUT */) override;
 
  private:
-  void LoadInputCodepoints(const PatchRequestProto& request,
+  void LoadInputCodepoints(const PatchRequest& request,
                            RequestState* state) const;
 
   void CheckOriginalChecksum(uint64_t original_checksum,

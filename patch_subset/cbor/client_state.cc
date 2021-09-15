@@ -116,7 +116,7 @@ StatusCode ClientState::ParseFromString(const std::string& buffer,
   return StatusCode::kOk;
 }
 
-StatusCode ClientState::SerializeToString(std::string& out) {
+StatusCode ClientState::SerializeToString(std::string& out) const {
   cbor_item_unique_ptr item = empty_cbor_ptr();
   StatusCode sc = Encode(item);
   if (sc != StatusCode::kOk) {
@@ -220,6 +220,47 @@ uint64_t ClientState::CodepointRemappingChecksum() const {
   return _codepoint_remapping_checksum.has_value()
              ? _codepoint_remapping_checksum.value()
              : 0;
+}
+
+string ClientState::ToString() const {
+  string s;
+  if (HasFontId()) {
+    s += "id=" + FontId();
+  }
+  if (HasFontData()) {
+    if (!s.empty()) {
+      s += ",";
+    }
+    s += std::to_string(FontData().size()) + " bytes";
+  }
+  if (HasOriginalFontChecksum()) {
+    if (!s.empty()) {
+      s += ",";
+    }
+    s += "orig_cs=" + std::to_string(OriginalFontChecksum());
+  }
+  if (HasCodepointRemapping()) {
+    if (!s.empty()) {
+      s += ",";
+    }
+    s += "cp_rm=[";
+    int i = 0;
+    for (int32_t n : CodepointRemapping()) {
+      if (i > 0) {
+        s += ",";
+      }
+      s += std::to_string(n);
+      i++;
+    }
+    s += "]";
+  }
+  if (HasCodepointRemappingChecksum()) {
+    if (!s.empty()) {
+      s += ",";
+    }
+    s += "cprm_cs=" + std::to_string(CodepointRemappingChecksum());
+  }
+  return "{" + s + "}";
 }
 
 ClientState& ClientState::operator=(ClientState&& other) noexcept {

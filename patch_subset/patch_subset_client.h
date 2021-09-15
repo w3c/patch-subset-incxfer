@@ -5,6 +5,7 @@
 #include "hb.h"
 #include "patch_subset/binary_patch.h"
 #include "patch_subset/cbor/client_state.h"
+#include "patch_subset/cbor/patch_request.h"
 #include "patch_subset/font_data.h"
 #include "patch_subset/hasher.h"
 #include "patch_subset/patch_subset.pb.h"
@@ -12,6 +13,7 @@
 #include "patch_subset/request_logger.h"
 
 using patch_subset::cbor::ClientState;
+using patch_subset::cbor::PatchRequest;
 
 namespace patch_subset {
 
@@ -35,8 +37,7 @@ class PatchSubsetClient {
   StatusCode Extend(const hb_set_t& additional_codepoints, ClientState* state);
 
   StatusCode CreateRequest(const hb_set_t& additional_codepoints,
-                           const ClientState& state,
-                           PatchRequestProto* request);
+                           const ClientState& state, PatchRequest* request);
 
   StatusCode AmendState(const PatchResponseProto& response, ClientState* state);
 
@@ -47,9 +48,9 @@ class PatchSubsetClient {
 
   void CreateRequest(const hb_set_t& codepoints_have,
                      const hb_set_t& codepoints_needed,
-                     const ClientState& state, PatchRequestProto* request);
+                     const ClientState& state, PatchRequest* request);
 
-  void LogRequest(const PatchRequestProto& request,
+  void LogRequest(const PatchRequest& request,
                   const PatchResponseProto& response);
 
   StatusCode ComputePatched(const PatchResponseProto& response,
