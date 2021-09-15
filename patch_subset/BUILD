@@ -129,6 +129,7 @@ cc_library(
     deps = [
         ":patch_subset_cc_proto",
         "//common",
+        "//patch_subset/cbor",
         "@brotli//:brotlienc",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:optional",

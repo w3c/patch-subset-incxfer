@@ -19,29 +19,15 @@ namespace patch_subset {
 
 static const int kBitsPerByte = 8;
 
-bool CompressedSet::IsEmpty(const CompressedSetProto& set) {
-  return !set.sparse_bit_set().size() && !set.range_deltas_size();
-}
-
-StatusCode CompressedSet::Decode(const CompressedSetProto& set, hb_set_t* out) {
-  if (set.range_deltas_size() % 2 != 0) {
-    LOG(WARNING) << "Invalid compressed set proto. Wrong number of deltas.";
-    return StatusCode::kInvalidArgument;
-  }
-
-  StatusCode result = SparseBitSet::Decode(set.sparse_bit_set(), out);
+StatusCode CompressedSet::Decode(const patch_subset::cbor::CompressedSet& set,
+                                 hb_set_t* out) {
+  StatusCode result = SparseBitSet::Decode(set.SparseBitSetBytes(), out);
   if (result != StatusCode::kOk) {
     return result;
   }
 
-  hb_codepoint_t last = 0;
-  for (int i = 0; i < set.range_deltas_size(); i += 2) {
-    hb_codepoint_t to_start = set.range_deltas(i);
-    hb_codepoint_t to_end = set.range_deltas(i + 1);
-    hb_codepoint_t range_start = last + to_start;
-    hb_codepoint_t range_end = range_start + to_end;
-    hb_set_add_range(out, range_start, range_end);
-    last = range_end;
+  for (patch_subset::cbor::range range : set.Ranges()) {
+    hb_set_add_range(out, range.first, range.second);
   }
   return StatusCode::kOk;
 }
@@ -152,7 +138,8 @@ void EncodingStrategy(const hb_set_t& set, hb_set_t* sparse_set, /* OUT */
   }
 }
 
-void CompressedSet::Encode(const hb_set_t& set, CompressedSetProto* out) {
+void CompressedSet::Encode(const hb_set_t& set,
+                           patch_subset::cbor::CompressedSet& out) {
   // TODO(garretrieger): implement further compression of the sparse bit set, by
   // removing
   //                the numeric space used for any encoded ranges. See java
@@ -162,14 +149,11 @@ void CompressedSet::Encode(const hb_set_t& set, CompressedSetProto* out) {
   EncodingStrategy(set, sparse_set.get(), &ranges);
 
   // Encode sparse bit set.
-  out->set_sparse_bit_set(SparseBitSet::Encode(*sparse_set));
+  out.SetSparseBitSetBytes(SparseBitSet::Encode(*sparse_set));
 
-  // Encode range deltas.
-  int last = 0;
+  // Just copy over ranges; the CBOR RangeList class will delta encode them.
   for (const auto& range : ranges) {
-    out->add_range_deltas(range.first - last);
-    out->add_range_deltas(range.second - range.first);
-    last = range.second;
+    out.AddRange(patch_subset::cbor::range{range.first, range.second});
   }
 }
 

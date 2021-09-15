@@ -120,6 +120,14 @@ CompressedSet& CompressedSet::SetRanges(const range_vector& ranges) {
   _ranges.emplace(ranges);
   return *this;
 }
+CompressedSet& CompressedSet::AddRange(const range range) {
+  if (_ranges.has_value()) {
+    _ranges->push_back(range);
+  } else {
+    _ranges = range_vector{range};
+  }
+  return *this;
+}
 CompressedSet& CompressedSet::ResetRanges() {
   _ranges.reset();
   return *this;
@@ -131,6 +139,23 @@ const range_vector& CompressedSet::Ranges() const {
   } else {
     return kEmptyRanges;
   }
+}
+
+string CompressedSet::ToString() const {
+  string s = "{";
+  int i = 0;
+  for (range range : Ranges()) {
+    if (i > 0) {
+      s += ",";
+    }
+    s += "[" + std::to_string(range.first) + "-" +
+         std::to_string(range.second) + "]";
+    i++;
+  }
+  if (!SparseBitSetBytes().empty()) {
+    s += "(w/bitset)";
+  }
+  return s + "}";
 }
 
 CompressedSet& CompressedSet::operator=(CompressedSet&& other) noexcept {

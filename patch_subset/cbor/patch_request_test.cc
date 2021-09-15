@@ -378,4 +378,51 @@ TEST_F(PatchRequestTest, EqualsAndNotEquals) {
   ASSERT_NE(request, PatchRequest(request).ResetConnectionSpeed());
 }
 
+TEST_F(PatchRequestTest, AddAcceptFormat) {
+  PatchRequest request;
+  vector<PatchFormat> expected;
+  ASSERT_EQ(request.AcceptFormats(), expected);
+  request.AddAcceptFormat(PatchFormat::VCDIFF);
+  expected.push_back(PatchFormat::VCDIFF);
+  ASSERT_EQ(request.AcceptFormats(), expected);
+  request.AddAcceptFormat(PatchFormat::BROTLI_SHARED_DICT);
+  expected.push_back(PatchFormat::BROTLI_SHARED_DICT);
+  ASSERT_EQ(request.AcceptFormats(), expected);
+}
+
+TEST_F(PatchRequestTest, Serialization) {
+  PatchRequest input(
+      ProtocolVersion::ONE,
+      std::vector<patch_subset::PatchFormat>{PatchFormat::VCDIFF},
+      CompressedSet{"bit-set-bytes1", range_vector{{1, 10}}},
+      CompressedSet{"bit-set-bytes2", range_vector{{11, 12}}},
+      CompressedSet{"bit-set-bytes3", range_vector{{5, 6}}},
+      CompressedSet{"bit-set-bytes4", range_vector{{7, 8}}}, 12345L, 23456L,
+      34567L, ConnectionSpeed::AVERAGE);
+  string serialized_bytes;
+  PatchRequest result;
+
+  EXPECT_EQ(input.SerializeToString(serialized_bytes), StatusCode::kOk);
+  EXPECT_EQ(PatchRequest::ParseFromString(serialized_bytes, result),
+            StatusCode::kOk);
+
+  EXPECT_EQ(input, result);
+}
+
+TEST_F(PatchRequestTest, ToString) {
+  PatchRequest input(
+      ProtocolVersion::ONE,
+      std::vector<patch_subset::PatchFormat>{PatchFormat::VCDIFF},
+      CompressedSet{"bit-set-bytes1", range_vector{{1, 10}}},
+      CompressedSet{"", range_vector{{11, 12}}},
+      CompressedSet{"", range_vector{{5, 6}}},
+      CompressedSet{"", range_vector{{7, 8}}}, 12345L, 23456L, 34567L,
+      ConnectionSpeed::AVERAGE);
+  ASSERT_EQ(input.ToString(),
+            "{accept=[0],cp_have={[1-10](w/bitset)},"
+            "cp_need={[11-12]},i_have={[5-6]},"
+            "i_need={[7-8]},orig_cs=23456,ord_cs=12345,"
+            "base_cs=34567,speed=0}");
+}
+
 }  // namespace patch_subset::cbor

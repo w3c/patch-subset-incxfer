@@ -22,7 +22,7 @@ void CodepointsInFont(const std::string& font_data, hb_set_t* codepoints) {
 
 StatusCode PatchSubsetClient::CreateRequest(
     const hb_set_t& additional_codepoints, const ClientState& state,
-    PatchRequestProto* request) {
+    PatchRequest* request) {
   hb_set_unique_ptr existing_codepoints = make_hb_set();
   CodepointsInFont(state.FontData(), existing_codepoints.get());
 
@@ -47,10 +47,9 @@ StatusCode PatchSubsetClient::CreateRequest(
 
 StatusCode PatchSubsetClient::Extend(const hb_set_t& additional_codepoints,
                                      ClientState* state) {
-  PatchRequestProto request;
+  PatchRequest request;
   StatusCode result = CreateRequest(additional_codepoints, *state, &request);
-  if (result != StatusCode::kOk ||
-      CompressedSet::IsEmpty(request.codepoints_needed())) {
+  if (result != StatusCode::kOk || request.CodepointsNeeded().empty()) {
     return result;
   }
 
@@ -165,30 +164,34 @@ StatusCode PatchSubsetClient::AmendState(const PatchResponseProto& response,
 void PatchSubsetClient::CreateRequest(const hb_set_t& codepoints_have,
                                       const hb_set_t& codepoints_needed,
                                       const ClientState& state,
-                                      PatchRequestProto* request) {
+                                      PatchRequest* request) {
   if (hb_set_get_population(&codepoints_have)) {
-    request->set_original_font_checksum(state.OriginalFontChecksum());
-    request->set_base_checksum(hasher_->Checksum(state.FontData()));
+    request->SetOriginalFontChecksum(state.OriginalFontChecksum());
+    request->SetBaseChecksum(hasher_->Checksum(state.FontData()));
   }
-  request->add_accept_format(PatchFormat::BROTLI_SHARED_DICT);
+  request->AddAcceptFormat(PatchFormat::BROTLI_SHARED_DICT);
 
-  CompressedSetProto codepoints_have_encoded;
-  CompressedSet::Encode(codepoints_have, &codepoints_have_encoded);
-  *request->mutable_codepoints_have() = codepoints_have_encoded;
+  patch_subset::cbor::CompressedSet codepoints_have_encoded;
+  CompressedSet::Encode(codepoints_have, codepoints_have_encoded);
+  if (!codepoints_have_encoded.empty()) {
+    request->SetCodepointsHave(codepoints_have_encoded);
+  }
 
-  CompressedSetProto codepoints_needed_encoded;
-  CompressedSet::Encode(codepoints_needed, &codepoints_needed_encoded);
-  *request->mutable_codepoints_needed() = codepoints_needed_encoded;
+  patch_subset::cbor::CompressedSet codepoints_needed_encoded;
+  CompressedSet::Encode(codepoints_needed, codepoints_needed_encoded);
+  if (!codepoints_needed_encoded.empty()) {
+    request->SetCodepointsNeeded(codepoints_needed_encoded);
+  }
 
   if (!state.CodepointRemapping().empty()) {
-    request->set_ordering_checksum(state.CodepointRemappingChecksum());
+    request->SetOrderingChecksum(state.CodepointRemappingChecksum());
   }
 }
 
-void PatchSubsetClient::LogRequest(const PatchRequestProto& request,
+void PatchSubsetClient::LogRequest(const PatchRequest& request,
                                    const PatchResponseProto& response) {
   std::string request_bytes;
-  request.SerializeToString(&request_bytes);
+  request.SerializeToString(request_bytes);
   std::string response_bytes;
   response.SerializeToString(&response_bytes);
   request_logger_->LogRequest(request_bytes, response_bytes);

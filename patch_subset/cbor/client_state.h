@@ -44,7 +44,7 @@ class ClientState {
 
   static StatusCode ParseFromString(const std::string& buffer,
                                     ClientState& out);
-  StatusCode SerializeToString(std::string& out);
+  StatusCode SerializeToString(std::string& out) const;
 
   ClientState& SetFontId(const std::string& font_id);
   ClientState& ResetFontId();
@@ -71,6 +71,9 @@ class ClientState {
   ClientState& ResetCodepointRemappingChecksum();
   [[nodiscard]] bool HasCodepointRemappingChecksum() const;
   [[nodiscard]] uint64_t CodepointRemappingChecksum() const;
+
+  // Returns a human readable version of this ClientState.
+  std::string ToString() const;
 
   ClientState& operator=(ClientState&& other) noexcept;
   bool operator==(const ClientState& other) const;

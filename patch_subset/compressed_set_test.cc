@@ -8,6 +8,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "hb.h"
+#include "patch_subset/cbor/compressed_set.h"
 #include "patch_subset/hb_set_unique_ptr.h"
 #include "patch_subset/sparse_bit_set.h"
 
@@ -27,8 +28,8 @@ class CompressedSetTest : public ::testing::Test {
   void SetUp() override {}
 
   void Encode(hb_set_unique_ptr input) {
-    encoded_ = std::make_unique<CompressedSetProto>();
-    CompressedSet::Encode(*input, encoded_.get());
+    encoded_ = std::make_unique<patch_subset::cbor::CompressedSet>();
+    CompressedSet::Encode(*input, *encoded_);
 
     hb_set_unique_ptr decoded = make_hb_set();
     EXPECT_EQ(CompressedSet::Decode(*encoded_, decoded.get()), StatusCode::kOk);
@@ -37,14 +38,14 @@ class CompressedSetTest : public ::testing::Test {
 
   void CheckSparseSet(hb_set_unique_ptr set) {
     std::string expected = SparseBitSet::Encode(*set);
-    EXPECT_THAT(encoded_->sparse_bit_set(), Pointwise(Eq(), expected));
+    EXPECT_THAT(encoded_->SparseBitSetBytes(), Pointwise(Eq(), expected));
   }
 
-  void CheckDeltaList(Span<const int> deltas) {
-    EXPECT_THAT(encoded_->range_deltas(), Pointwise(Eq(), deltas));
+  void CheckDeltaList(patch_subset::cbor::range_vector deltas) {
+    EXPECT_EQ(encoded_->Ranges(), deltas);
   }
 
-  std::unique_ptr<CompressedSetProto> encoded_;
+  std::unique_ptr<patch_subset::cbor::CompressedSet> encoded_;
 };
 
 // TODO(garretrieger): null test
@@ -53,43 +54,43 @@ class CompressedSetTest : public ::testing::Test {
 TEST_F(CompressedSetTest, EncodeEmpty) {
   Encode(make_hb_set(0));
   CheckSparseSet(make_hb_set(0));
-  CheckDeltaList(std::vector<int>());
+  CheckDeltaList(patch_subset::cbor::range_vector());
 }
 
 TEST_F(CompressedSetTest, EncodeAllSparse) {
   Encode(make_hb_set(3, 1, 5, 13));
   CheckSparseSet(make_hb_set(3, 1, 5, 13));
-  CheckDeltaList(std::vector<int>());
+  CheckDeltaList(patch_subset::cbor::range_vector());
 
   Encode(make_hb_set(1, 40000));
   CheckSparseSet(make_hb_set(1, 40000));
-  CheckDeltaList(std::vector<int>());
+  CheckDeltaList(patch_subset::cbor::range_vector());
 
   Encode(make_hb_set(2, 128, 143));
   CheckSparseSet(make_hb_set(2, 128, 143));
-  CheckDeltaList(std::vector<int>());
+  CheckDeltaList(patch_subset::cbor::range_vector());
 }
 
 TEST_F(CompressedSetTest, EncodeAllRanges) {
   Encode(make_hb_set_from_ranges(1, 5, 50));
   CheckSparseSet(make_hb_set(0));
-  CheckDeltaList(std::vector<int>{5, 45});
+  CheckDeltaList(patch_subset::cbor::range_vector{{5, 50}});
 
   Encode(make_hb_set_from_ranges(2, 5, 50, 53, 100));
   CheckSparseSet(make_hb_set(0));
-  CheckDeltaList(std::vector<int>{5, 45, 3, 47});
+  CheckDeltaList(patch_subset::cbor::range_vector{{5, 50}, {53, 100}});
 }
 
 TEST_F(CompressedSetTest, EncodeSparseVsRange) {
   // 2 + 1 bytes as a range vs 3 bytes as a sparse -> Range
   Encode(make_hb_set_from_ranges(1, 1000, 1023));
   CheckSparseSet(make_hb_set(0));
-  CheckDeltaList(std::vector<int>{1000, 23});
+  CheckDeltaList(patch_subset::cbor::range_vector{{1000, 1023}});
 
   // 2 + 1 bytes as a range vs 2 bytes as a sparse -> Sparse
   Encode(make_hb_set_from_ranges(1, 1000, 1015));
   CheckSparseSet(make_hb_set_from_ranges(1, 1000, 1015));
-  CheckDeltaList(std::vector<int>());
+  CheckDeltaList(patch_subset::cbor::range_vector());
 }
 
 TEST_F(CompressedSetTest, EncodeMixed) {
@@ -98,7 +99,7 @@ TEST_F(CompressedSetTest, EncodeMixed) {
   hb_set_add(set.get(), 1025);
   Encode(std::move(set));
   CheckSparseSet(make_hb_set(2, 990, 1025));
-  CheckDeltaList(std::vector<int>{1000, 23});
+  CheckDeltaList(patch_subset::cbor::range_vector{{1000, 1023}});
 
   set = make_hb_set();
   hb_set_add_range(set.get(), 1, 100);  // 100
@@ -110,12 +111,8 @@ TEST_F(CompressedSetTest, EncodeMixed) {
   hb_set_add_range(set.get(), 401, 500);  // 100
   Encode(std::move(set));
   CheckSparseSet(make_hb_set(3, 113, 115, 315));
-  CheckDeltaList(std::vector<int>{
-      1, 99,    // 1 - 100
-      101, 49,  // 201 - 250
-      2, 49,    // 252 - 301
-      100, 99   // 401 - 500
-  });
+  CheckDeltaList(patch_subset::cbor::range_vector{
+      {1, 100}, {201, 250}, {252, 301}, {401, 500}});
 
   set = make_hb_set();
   hb_set_add(set.get(), 113);
@@ -126,17 +123,14 @@ TEST_F(CompressedSetTest, EncodeMixed) {
 
   Encode(std::move(set));
   CheckSparseSet(make_hb_set(3, 113, 115, 315));
-  CheckDeltaList(std::vector<int>{
-      201, 49,  // 201 - 250
-      2, 49     // 252 - 301
-  });
+  CheckDeltaList(patch_subset::cbor::range_vector{{201, 250}, {252, 301}});
 }
 
 TEST_F(CompressedSetTest, EncodeAdjacentRanges) {
   // range: 2 bytes + 1 bytes <= hybrid: 3 bytes
   Encode(make_hb_set_from_ranges(1, 132, 155));
   CheckSparseSet(make_hb_set(0));
-  CheckDeltaList(std::vector<int>{132, 23});
+  CheckDeltaList(patch_subset::cbor::range_vector{{132, 155}});
 
   // range: 2 bytes + 1 bytes > hybrid: 2 bytes
   hb_set_unique_ptr set = make_hb_set_from_ranges(1, 128, 129);
@@ -146,7 +140,7 @@ TEST_F(CompressedSetTest, EncodeAdjacentRanges) {
   set = make_hb_set_from_ranges(1, 128, 129);
   hb_set_add_range(set.get(), 132, 155);
   CheckSparseSet(std::move(set));
-  CheckDeltaList(std::vector<int>());
+  CheckDeltaList(patch_subset::cbor::range_vector());
 
   // range: 2 bytes + 1 bytes > hybrid: 2 bytes
   set = make_hb_set_from_ranges(1, 132, 155);
@@ -156,7 +150,7 @@ TEST_F(CompressedSetTest, EncodeAdjacentRanges) {
   set = make_hb_set_from_ranges(1, 132, 155);
   hb_set_add_range(set.get(), 157, 160);
   CheckSparseSet(std::move(set));
-  CheckDeltaList(std::vector<int>());
+  CheckDeltaList(patch_subset::cbor::range_vector());
 }
 
 }  // namespace patch_subset

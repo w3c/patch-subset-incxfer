@@ -7,43 +7,14 @@ syntax = "proto3";
 
 package patch_subset;
 
-enum PatchFormat {
-  BROTLI_SHARED_DICT = 0;
-  VCDIFF = 1;
-}
-
-enum ResponseType {
-  PATCH = 0;
-  REBASE = 1;
-  REINDEX = 2;
-}
-
-message PatchRequestProto {
-  uint64 original_font_checksum = 1;
-  uint64 base_checksum = 2;
-  repeated PatchFormat accept_format = 3;
-
-  CompressedSetProto codepoints_have = 4;
-  CompressedSetProto codepoints_needed = 5;
-
-  uint64 ordering_checksum = 6;
-  CompressedSetProto indices_have = 7;
-  CompressedSetProto indices_needed = 8;
-}
-
 message PatchResponseProto {
-  PatchFormat format = 1;
+  int32 format = 1;
   bytes patch = 2;
   bytes replacement = 3;
   uint64 original_font_checksum = 4;
   uint64 patched_checksum = 5;
   CompressedListProto codepoint_ordering = 6;
   uint64 ordering_checksum = 7;
-}
-
-message CompressedSetProto {
-  bytes sparse_bit_set = 1;
-  repeated uint32 range_deltas = 2;
 }
 
 message CompressedListProto {

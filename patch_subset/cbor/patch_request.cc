@@ -8,6 +8,7 @@
 namespace patch_subset::cbor {
 
 using patch_subset::PatchFormat;
+using std::string;
 using std::vector;
 
 PatchRequest::PatchRequest()
@@ -177,6 +178,37 @@ StatusCode PatchRequest::Encode(cbor_item_unique_ptr& map_out) const {
   return StatusCode::kOk;
 }
 
+StatusCode PatchRequest::ParseFromString(const std::string& buffer,
+                                         PatchRequest& out) {
+  cbor_item_unique_ptr item = empty_cbor_ptr();
+  StatusCode sc = CborUtils::DeserializeFromBytes(buffer, item);
+  if (sc != StatusCode::kOk) {
+    return sc;
+  }
+  sc = Decode(*item, out);
+  if (sc != StatusCode::kOk) {
+    return sc;
+  }
+  return StatusCode::kOk;
+}
+
+StatusCode PatchRequest::SerializeToString(std::string& out) const {
+  cbor_item_unique_ptr item = empty_cbor_ptr();
+  StatusCode sc = Encode(item);
+  if (sc != StatusCode::kOk) {
+    return sc;
+  }
+  unsigned char* buffer;
+  size_t buffer_size;
+  size_t written = cbor_serialize_alloc(item.get(), &buffer, &buffer_size);
+  if (written == 0) {
+    return StatusCode::kInternal;
+  }
+  out.assign(std::string((char*)buffer, written));
+  free(buffer);
+  return StatusCode::kOk;
+}
+
 bool PatchRequest::HasProtocolVersion() const {
   return _protocol_version.has_value();
 }
@@ -206,6 +238,14 @@ const vector<PatchFormat>& PatchRequest::AcceptFormats() const {
 PatchRequest& PatchRequest::SetAcceptFormats(
     const vector<PatchFormat>& formats) {
   _accept_formats.emplace(formats);
+  return *this;
+}
+PatchRequest& PatchRequest::AddAcceptFormat(patch_subset::PatchFormat format) {
+  if (_accept_formats.has_value()) {
+    _accept_formats->push_back(format);
+  } else {
+    _accept_formats.emplace(vector<PatchFormat>{format});
+  }
   return *this;
 }
 PatchRequest& PatchRequest::ResetAcceptFormats() {
@@ -351,6 +391,77 @@ PatchRequest& PatchRequest::SetIndicesNeeded(const CompressedSet& indices) {
 PatchRequest& PatchRequest::ResetIndicesNeeded() {
   _indices_needed.reset();
   return *this;
+}
+
+string PatchRequest::ToString() const {
+  string s = "";
+  if (GetProtocolVersion() != ProtocolVersion::ONE) {
+    s += "v" + std::to_string(GetProtocolVersion());
+  }
+  if (!AcceptFormats().empty()) {
+    if (!s.empty()) {
+      s += ",";
+    }
+    s += "accept=[";
+    int i = 0;
+    for (PatchFormat format : AcceptFormats()) {
+      if (i > 0) {
+        s += ",";
+      }
+      s += std::to_string(format);
+      i++;
+    }
+    s += "]";
+  }
+  if (HasCodepointsHave()) {
+    if (!s.empty()) {
+      s += ",";
+    }
+    s += "cp_have=" + CodepointsHave().ToString();
+  }
+  if (HasCodepointsNeeded()) {
+    if (!s.empty()) {
+      s += ",";
+    }
+    s += "cp_need=" + CodepointsNeeded().ToString();
+  }
+  if (HasIndicesHave()) {
+    if (!s.empty()) {
+      s += ",";
+    }
+    s += "i_have=" + IndicesHave().ToString();
+  }
+  if (HasIndicesNeeded()) {
+    if (!s.empty()) {
+      s += ",";
+    }
+    s += "i_need=" + IndicesNeeded().ToString();
+  }
+  if (HasOriginalFontChecksum()) {
+    if (!s.empty()) {
+      s += ",";
+    }
+    s += "orig_cs=" + std::to_string(OriginalFontChecksum());
+  }
+  if (HasOrderingChecksum()) {
+    if (!s.empty()) {
+      s += ",";
+    }
+    s += "ord_cs=" + std::to_string(OrderingChecksum());
+  }
+  if (HasBaseChecksum()) {
+    if (!s.empty()) {
+      s += ",";
+    }
+    s += "base_cs=" + std::to_string(BaseChecksum());
+  }
+  if (HasConnectionSpeed()) {
+    if (!s.empty()) {
+      s += ",";
+    }
+    s += "speed=" + std::to_string(ConnectionSpeed());
+  }
+  return "{" + s + "}";
 }
 
 PatchRequest& PatchRequest::operator=(PatchRequest&& other) noexcept {

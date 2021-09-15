@@ -6,6 +6,7 @@
 
 #include "common/status.h"
 #include "hb.h"
+#include "patch_subset/cbor/patch_request.h"
 #include "patch_subset/patch_subset.pb.h"
 
 using std::vector;

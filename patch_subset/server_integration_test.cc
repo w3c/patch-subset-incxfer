@@ -72,8 +72,10 @@ class PatchSubsetServerIntegrationTest : public ::testing::Test {
 TEST_F(PatchSubsetServerIntegrationTest, NewRequest) {
   hb_set_unique_ptr set_abcd = make_hb_set_from_ranges(1, 0x61, 0x64);
 
-  PatchRequestProto request;
-  CompressedSet::Encode(*set_abcd, request.mutable_codepoints_needed());
+  PatchRequest request;
+  patch_subset::cbor::CompressedSet codepoints_needed;
+  CompressedSet::Encode(*set_abcd, codepoints_needed);
+  request.SetCodepointsNeeded(codepoints_needed);
 
   PatchResponseProto response;
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, &response),
@@ -90,11 +92,17 @@ TEST_F(PatchSubsetServerIntegrationTest, PatchRequest) {
   hb_set_unique_ptr set_ab = make_hb_set_from_ranges(1, 0x61, 0x62);
   hb_set_unique_ptr set_abcd = make_hb_set_from_ranges(1, 0x61, 0x64);
 
-  PatchRequestProto request;
-  CompressedSet::Encode(*set_ab, request.mutable_codepoints_have());
-  CompressedSet::Encode(*set_abcd, request.mutable_codepoints_needed());
-  request.set_original_font_checksum(original_font_checksum);
-  request.set_base_checksum(subset_ab_checksum);
+  PatchRequest request;
+  patch_subset::cbor::CompressedSet codepoints_have;
+  CompressedSet::Encode(*set_ab, codepoints_have);
+  request.SetCodepointsHave(codepoints_have);
+
+  patch_subset::cbor::CompressedSet codepoints_needed;
+  CompressedSet::Encode(*set_abcd, codepoints_needed);
+  request.SetCodepointsNeeded(codepoints_needed);
+
+  request.SetOriginalFontChecksum(original_font_checksum);
+  request.SetBaseChecksum(subset_ab_checksum);
 
   PatchResponseProto response;
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, &response),
@@ -111,11 +119,18 @@ TEST_F(PatchSubsetServerIntegrationTest, BadOriginalChecksum) {
   hb_set_unique_ptr set_ab = make_hb_set_from_ranges(1, 0x61, 0x62);
   hb_set_unique_ptr set_abcd = make_hb_set_from_ranges(1, 0x61, 0x64);
 
-  PatchRequestProto request;
-  CompressedSet::Encode(*set_ab, request.mutable_codepoints_have());
-  CompressedSet::Encode(*set_abcd, request.mutable_codepoints_needed());
-  request.set_original_font_checksum(0);
-  request.set_base_checksum(subset_ab_checksum);
+  PatchRequest request;
+
+  patch_subset::cbor::CompressedSet codepoints_have;
+  CompressedSet::Encode(*set_ab, codepoints_have);
+  request.SetCodepointsHave(codepoints_have);
+
+  patch_subset::cbor::CompressedSet codepoints_needed;
+  CompressedSet::Encode(*set_abcd, codepoints_needed);
+  request.SetCodepointsNeeded(codepoints_needed);
+
+  request.SetOriginalFontChecksum(0);
+  request.SetBaseChecksum(subset_ab_checksum);
 
   PatchResponseProto response;
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, &response),
@@ -132,11 +147,15 @@ TEST_F(PatchSubsetServerIntegrationTest, BadBaseChecksum) {
   hb_set_unique_ptr set_ab = make_hb_set_from_ranges(1, 0x61, 0x62);
   hb_set_unique_ptr set_abcd = make_hb_set_from_ranges(1, 0x61, 0x64);
 
-  PatchRequestProto request;
-  CompressedSet::Encode(*set_ab, request.mutable_codepoints_have());
-  CompressedSet::Encode(*set_abcd, request.mutable_codepoints_needed());
-  request.set_original_font_checksum(original_font_checksum);
-  request.set_base_checksum(0);
+  PatchRequest request;
+  patch_subset::cbor::CompressedSet codepoints_have;
+  CompressedSet::Encode(*set_ab, codepoints_have);
+  request.SetCodepointsHave(codepoints_have);
+  patch_subset::cbor::CompressedSet codepoints_needed;
+  CompressedSet::Encode(*set_abcd, codepoints_needed);
+  request.SetCodepointsNeeded(codepoints_needed);
+  request.SetOriginalFontChecksum(original_font_checksum);
+  request.SetBaseChecksum(0);
 
   PatchResponseProto response;
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, &response),
