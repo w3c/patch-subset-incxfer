@@ -14,8 +14,6 @@ namespace patch_subset {
 
 class CompressedSet {
  public:
-  static bool IsEmpty(const patch_subset::cbor::CompressedSet& set);
-
   // Decode a CompressedSet proto into an actual set.
   static StatusCode Decode(const patch_subset::cbor::CompressedSet& set,
                            hb_set_t* out);
