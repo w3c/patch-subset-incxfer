@@ -6,8 +6,6 @@
 
 #include "common/status.h"
 #include "hb.h"
-#include "patch_subset/cbor/patch_request.h"
-#include "patch_subset/patch_subset.pb.h"
 
 using std::vector;
 
@@ -22,8 +20,8 @@ namespace patch_subset {
  * Encode is used to transform original codepoint values into
  * their new values. While Decode undoes this transformation.
  *
- * Can serialize the mapping into a proto representation and
- * load a mapping from a previously serialized proto.
+ * Can serialize the mapping into a CBOR representation and
+ * load a mapping from a previously serialized mapping.
  */
 class CodepointMap {
  public:
@@ -33,16 +31,9 @@ class CodepointMap {
   // the value 'to'.
   void AddMapping(hb_codepoint_t from, hb_codepoint_t to);
 
-  // Load the codepoint remapping specified in 'proto'. Replaces
-  // any existing mappings currently in this object.
-  void FromProto(const CompressedListProto& proto);
-
   // Load the codepoint remapping specified in vector of ints. Replaces
   // any existing mappings currently in this object.
   void FromVector(const vector<int32_t>& ints);
-
-  // Serialize this mapping to a CompressedListProto.
-  StatusCode ToProto(CompressedListProto* proto /* OUT */) const;
 
   // Serialize this mapping to a vector of ints.
   StatusCode ToVector(vector<int32_t>* ints) const;

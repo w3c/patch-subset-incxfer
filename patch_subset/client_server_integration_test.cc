@@ -2,21 +2,21 @@
 #include "patch_subset/brotli_binary_diff.h"
 #include "patch_subset/brotli_binary_patch.h"
 #include "patch_subset/codepoint_mapper.h"
-#include "patch_subset/compressed_list_checksum.h"
-#include "patch_subset/compressed_list_checksum_impl.h"
 #include "patch_subset/compressed_set.h"
 #include "patch_subset/fast_hasher.h"
 #include "patch_subset/file_font_provider.h"
 #include "patch_subset/harfbuzz_subsetter.h"
 #include "patch_subset/hb_set_unique_ptr.h"
+#include "patch_subset/integer_list_checksum.h"
+#include "patch_subset/integer_list_checksum_impl.h"
 #include "patch_subset/noop_codepoint_predictor.h"
 #include "patch_subset/null_request_logger.h"
-#include "patch_subset/patch_subset.pb.h"
 #include "patch_subset/patch_subset_client.h"
 #include "patch_subset/patch_subset_server_impl.h"
 #include "patch_subset/simple_codepoint_mapper.h"
 
 using ::absl::string_view;
+using patch_subset::cbor::ClientState;
 
 namespace patch_subset {
 
@@ -34,7 +34,7 @@ class PatchSubsetClientServerIntegrationTest : public ::testing::Test {
             std::unique_ptr<BinaryDiff>(new BrotliBinaryDiff()),
             std::unique_ptr<Hasher>(new FastHasher()),
             std::unique_ptr<CodepointMapper>(nullptr),
-            std::unique_ptr<CompressedListChecksum>(nullptr),
+            std::unique_ptr<IntegerListChecksum>(nullptr),
             std::unique_ptr<CodepointPredictor>(new NoopCodepointPredictor())),
         client_(&server_, &request_logger_,
                 std::unique_ptr<BinaryPatch>(new BrotliBinaryPatch()),
@@ -47,8 +47,8 @@ class PatchSubsetClientServerIntegrationTest : public ::testing::Test {
             std::unique_ptr<BinaryDiff>(new BrotliBinaryDiff()),
             std::unique_ptr<Hasher>(new FastHasher()),
             std::unique_ptr<CodepointMapper>(new SimpleCodepointMapper()),
-            std::unique_ptr<CompressedListChecksum>(
-                new CompressedListChecksumImpl(hasher_.get())),
+            std::unique_ptr<IntegerListChecksum>(
+                new IntegerListChecksumImpl(hasher_.get())),
             std::unique_ptr<CodepointPredictor>(new NoopCodepointPredictor())),
         client_with_mapping_(
             &server_with_mapping_, &request_logger_,
@@ -76,14 +76,14 @@ TEST_F(PatchSubsetClientServerIntegrationTest, Session) {
   hb_set_unique_ptr set_ab = make_hb_set_from_ranges(1, 0x61, 0x62);
   ClientState state;
   state.SetFontId("Roboto-Regular.ttf");
-  EXPECT_EQ(client_.Extend(*set_ab, &state), StatusCode::kOk);
+  EXPECT_EQ(client_.Extend(*set_ab, state), StatusCode::kOk);
 
   EXPECT_EQ(state.FontId(), "Roboto-Regular.ttf");
   EXPECT_EQ(state.OriginalFontChecksum(), 0xC722EE0E33D3B460);
   EXPECT_EQ(state.FontData(), roboto_ab_.str());
 
   hb_set_unique_ptr set_abcd = make_hb_set_from_ranges(1, 0x61, 0x64);
-  EXPECT_EQ(client_.Extend(*set_abcd, &state), StatusCode::kOk);
+  EXPECT_EQ(client_.Extend(*set_abcd, state), StatusCode::kOk);
 
   EXPECT_EQ(state.FontId(), "Roboto-Regular.ttf");
   EXPECT_EQ(state.OriginalFontChecksum(), 0xC722EE0E33D3B460);
@@ -95,7 +95,7 @@ TEST_F(PatchSubsetClientServerIntegrationTest, SessionWithCodepointOrdering) {
   hb_set_unique_ptr set_ab = make_hb_set_from_ranges(1, 0x61, 0x62);
   ClientState state;
   state.SetFontId("Roboto-Regular.ttf");
-  EXPECT_EQ(client_with_mapping_.Extend(*set_ab, &state), StatusCode::kOk);
+  EXPECT_EQ(client_with_mapping_.Extend(*set_ab, state), StatusCode::kOk);
 
   EXPECT_EQ(state.FontId(), "Roboto-Regular.ttf");
   EXPECT_EQ(state.OriginalFontChecksum(), 0xC722EE0E33D3B460);
@@ -104,7 +104,7 @@ TEST_F(PatchSubsetClientServerIntegrationTest, SessionWithCodepointOrdering) {
   EXPECT_EQ(state.CodepointRemappingChecksum(), 0xD5BD080511DD60DD);
 
   hb_set_unique_ptr set_abcd = make_hb_set_from_ranges(1, 0x61, 0x64);
-  EXPECT_EQ(client_with_mapping_.Extend(*set_abcd, &state), StatusCode::kOk);
+  EXPECT_EQ(client_with_mapping_.Extend(*set_abcd, state), StatusCode::kOk);
 
   EXPECT_EQ(state.FontId(), "Roboto-Regular.ttf");
   EXPECT_EQ(state.OriginalFontChecksum(), 0xC722EE0E33D3B460);

@@ -7,7 +7,6 @@
 #include "common/status.h"
 #include "hb.h"
 #include "patch_subset/hb_set_unique_ptr.h"
-#include "patch_subset/patch_subset.pb.h"
 #include "patch_subset/sparse_bit_set.h"
 
 typedef std::pair<hb_codepoint_t, hb_codepoint_t> range;

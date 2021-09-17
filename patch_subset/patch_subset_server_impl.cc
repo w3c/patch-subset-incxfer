@@ -10,9 +10,11 @@
 #include "patch_subset/codepoint_mapper.h"
 #include "patch_subset/compressed_set.h"
 #include "patch_subset/hb_set_unique_ptr.h"
-#include "patch_subset/patch_subset.pb.h"
 
 using ::absl::string_view;
+using patch_subset::cbor::PatchRequest;
+using patch_subset::cbor::PatchResponse;
+using std::vector;
 
 namespace patch_subset {
 
@@ -46,7 +48,7 @@ struct RequestState {
 
 StatusCode PatchSubsetServerImpl::Handle(const std::string& font_id,
                                          const PatchRequest& request,
-                                         PatchResponseProto* response) {
+                                         PatchResponse& response) {
   RequestState state;
 
   LoadInputCodepoints(request, &state);
@@ -84,7 +86,6 @@ StatusCode PatchSubsetServerImpl::Handle(const std::string& font_id,
     return result;
   }
 
-  // TODO(garretrieger): rename the proto package.
   // TODO(garretrieger): check which diffs the client supports.
   // TODO(garretrieger): handle exceptional cases (see design doc).
 
@@ -124,15 +125,14 @@ StatusCode PatchSubsetServerImpl::ComputeCodepointRemapping(
     return StatusCode::kOk;
   }
 
-  CompressedListProto compressed_list_proto;
-  if (!Check(state->mapping.ToProto(&compressed_list_proto),
-             "Invalid codepoint mapping. Unable to convert to proto.")) {
+  vector<int32_t> mapping_ints;
+  if (!Check(state->mapping.ToVector(&mapping_ints),
+             "Invalid codepoint mapping. Unable to convert to vector.")) {
     // This typically shouldn't happen, so bail with internal error.
     return StatusCode::kInternal;
   }
 
-  uint64_t expected_checksum =
-      compressed_list_checksum_->Checksum(compressed_list_proto);
+  uint64_t expected_checksum = integer_list_checksum_->Checksum(mapping_ints);
   if (expected_checksum != state->ordering_checksum) {
     LOG(WARNING) << "Client ordering checksum (" << state->ordering_checksum
                  << ") does not match expected checksum (" << expected_checksum
@@ -146,11 +146,6 @@ StatusCode PatchSubsetServerImpl::ComputeCodepointRemapping(
   state->mapping.Decode(state->codepoints_have.get());
   state->mapping.Decode(state->codepoints_needed.get());
   return StatusCode::kOk;
-}
-
-void PatchSubsetServerImpl::AddCodepointRemapping(
-    const RequestState& state, CompressedListProto* ordering) const {
-  state.mapping.ToProto(ordering);
 }
 
 void PatchSubsetServerImpl::AddPredictedCodepoints(RequestState* state) const {
@@ -206,12 +201,13 @@ void PatchSubsetServerImpl::ValidatePatchBase(uint64_t base_checksum,
   }
 }
 
-void PatchSubsetServerImpl::ConstructResponse(
-    const RequestState& state, PatchResponseProto* response) const {
+void PatchSubsetServerImpl::ConstructResponse(const RequestState& state,
+                                              PatchResponse& response) const {
   if ((state.IsReindex() || state.IsRebase()) && codepoint_mapper_) {
-    AddCodepointRemapping(state, response->mutable_codepoint_ordering());
-    response->set_ordering_checksum(
-        compressed_list_checksum_->Checksum(response->codepoint_ordering()));
+    vector<int32_t> ordering;
+    state.mapping.ToVector(&ordering);
+    response.SetCodepointOrdering(ordering);
+    response.SetOrderingChecksum(integer_list_checksum_->Checksum(ordering));
   }
 
   if (state.IsReindex()) {
@@ -220,11 +216,11 @@ void PatchSubsetServerImpl::ConstructResponse(
     return;
   }
 
-  response->set_format(PatchFormat::BROTLI_SHARED_DICT);
+  response.SetPatchFormat(PatchFormat::BROTLI_SHARED_DICT);
   if (state.IsPatch()) {
-    response->set_patch(state.patch.data(), state.patch.size());
+    response.SetPatch(state.patch.string());
   } else if (state.IsRebase()) {
-    response->set_replacement(state.patch.data(), state.patch.size());
+    response.SetReplacement(state.patch.string());
   }
 
   AddChecksums(state.font_data, state.client_target_subset, response);
@@ -244,16 +240,16 @@ StatusCode PatchSubsetServerImpl::ValidateChecksum(uint64_t checksum,
 
 void PatchSubsetServerImpl::AddChecksums(const FontData& font_data,
                                          const FontData& target_subset,
-                                         PatchResponseProto* response) const {
-  response->set_original_font_checksum(
+                                         PatchResponse& response) const {
+  response.SetOriginalFontChecksum(
       hasher_->Checksum(string_view(font_data.str())));
-  response->set_patched_checksum(
+  response.SetPatchedChecksum(
       hasher_->Checksum(string_view(target_subset.str())));
 }
 
 void PatchSubsetServerImpl::AddChecksums(const FontData& font_data,
-                                         PatchResponseProto* response) const {
-  response->set_original_font_checksum(
+                                         PatchResponse& response) const {
+  response.SetOriginalFontChecksum(
       hasher_->Checksum(string_view(font_data.str())));
 }
 

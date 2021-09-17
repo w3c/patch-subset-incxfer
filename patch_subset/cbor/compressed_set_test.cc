@@ -323,7 +323,7 @@ TEST_F(CompressedSetTest, ToString) {
   cs.AddRange(range{3, 4});
   ASSERT_EQ(cs.ToString(), "{[1-2],[3-4]}");
   cs.SetSparseBitSetBytes("foo");
-  ASSERT_EQ(cs.ToString(), "{[1-2],[3-4](w/bitset)}");
+  ASSERT_EQ(cs.ToString(), "{[1-2],[3-4],bitset=3b}");
 }
 
 }  // namespace patch_subset::cbor

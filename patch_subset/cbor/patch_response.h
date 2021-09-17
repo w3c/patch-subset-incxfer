@@ -46,8 +46,13 @@ class PatchResponse {
                 uint64_t ordering_checksum);
 
   static StatusCode Decode(const cbor_item_t& cbor_map, PatchResponse& out);
-
   StatusCode Encode(cbor_item_unique_ptr& map_out) const;
+
+  static StatusCode ParseFromString(const std::string& buffer,
+                                    PatchResponse& out);
+  StatusCode SerializeToString(std::string& out) const;
+
+  void CopyTo(PatchResponse& target) const;
 
   bool HasProtocolVersion() const;
   ProtocolVersion GetProtocolVersion() const;
@@ -89,6 +94,9 @@ class PatchResponse {
   uint64_t OrderingChecksum() const;
   PatchResponse& SetOrderingChecksum(uint64_t checksum);
   PatchResponse& ResetOrderingChecksum();
+
+  // Returns a human readable version of this PatchResponse.
+  std::string ToString() const;
 
   PatchResponse& operator=(PatchResponse&& other) noexcept;
   bool operator==(const PatchResponse& other) const;

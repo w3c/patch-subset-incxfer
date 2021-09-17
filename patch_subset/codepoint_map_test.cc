@@ -98,32 +98,6 @@ TEST_F(CodepointMapTest, DecodeMissing) {
   EXPECT_EQ(StatusCode::kInvalidArgument, codepoint_map_.Decode(&missing_cp));
 }
 
-TEST_F(CodepointMapTest, FromProto) {
-  CompressedListProto proto;
-  // Encode 9, 5, 8:
-  proto.add_deltas(9);
-  proto.add_deltas(-4);
-  proto.add_deltas(3);
-
-  codepoint_map_.Clear();
-  codepoint_map_.FromProto(proto);
-
-  ExpectEncodes(9, 0);
-  ExpectEncodes(5, 1);
-  ExpectEncodes(8, 2);
-}
-
-TEST_F(CodepointMapTest, ToProto) {
-  CompressedListProto proto;
-
-  EXPECT_EQ(StatusCode::kOk, codepoint_map_.ToProto(&proto));
-
-  EXPECT_EQ(proto.deltas_size(), 3);
-  EXPECT_EQ(proto.deltas(0), 7);
-  EXPECT_EQ(proto.deltas(1), -4);
-  EXPECT_EQ(proto.deltas(2), 1);
-}
-
 TEST_F(CodepointMapTest, IntersectWithMappedCodepoints) {
   hb_set_unique_ptr codepoints = make_hb_set(2, 4, 7, 9);
   codepoint_map_.IntersectWithMappedCodepoints(codepoints.get());

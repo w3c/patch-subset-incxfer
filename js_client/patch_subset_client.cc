@@ -3,7 +3,6 @@
 #include <emscripten/bind.h>
 #include <emscripten/fetch.h>
 #include <emscripten/val.h>
-#include <google/protobuf/io/zero_copy_stream_impl_lite.h>
 #include <stdio.h>
 
 #include <iostream>
@@ -19,19 +18,17 @@
 #include "patch_subset/fast_hasher.h"
 #include "patch_subset/hb_set_unique_ptr.h"
 #include "patch_subset/null_request_logger.h"
-#include "patch_subset/patch_subset.pb.h"
 
 using namespace emscripten;
-using ::google::protobuf::io::ArrayInputStream;
 using ::patch_subset::CompressedSet;
 using ::patch_subset::hb_set_unique_ptr;
 using ::patch_subset::make_hb_set;
 using ::patch_subset::NullRequestLogger;
-using ::patch_subset::PatchResponseProto;
 using ::patch_subset::PatchSubsetClient;
 using ::patch_subset::StatusCode;
 using patch_subset::cbor::ClientState;
 using patch_subset::cbor::PatchRequest;
+using patch_subset::cbor::PatchResponse;
 
 struct RequestContext {
   RequestContext(val& _callback, std::unique_ptr<std::string> _payload)
@@ -45,15 +42,15 @@ struct RequestContext {
 void RequestSucceeded(emscripten_fetch_t* fetch) {
   RequestContext* context = reinterpret_cast<RequestContext*>(fetch->userData);
   if (fetch->status == 200) {
-    ArrayInputStream response_data(fetch->data, fetch->numBytes);
-    PatchResponseProto response;
-    if (response.ParseFromZeroCopyStream(&response_data)) {
-      context->callback(context->client->AmendState(response, context->state) ==
-                        StatusCode::kOk);
-    } else {
+    PatchResponse response;
+    StatusCode sc = PatchResponse::ParseFromString(
+        std::string(fetch->data, fetch->numBytes), response);
+    if (sc != StatusCode::kOk) {
       LOG(WARNING) << "Failed to decode server response.";
       context->callback(false);
     }
+    context->callback(context->client->AmendState(response, context->state) ==
+                      StatusCode::kOk);
   } else {
     LOG(WARNING) << "Extend http request failed with code " << fetch->status;
     context->callback(false);

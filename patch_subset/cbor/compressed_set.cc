@@ -153,7 +153,10 @@ string CompressedSet::ToString() const {
     i++;
   }
   if (!SparseBitSetBytes().empty()) {
-    s += "(w/bitset)";
+    if (!Ranges().empty()) {
+      s += ",";
+    }
+    s += "bitset=" + std::to_string(SparseBitSetBytes().size()) + "b";
   }
   return s + "}";
 }

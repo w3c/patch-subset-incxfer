@@ -4,34 +4,33 @@
 #include "common/status.h"
 #include "gtest/gtest.h"
 #include "patch_subset/cbor/patch_request.h"
-#include "patch_subset/patch_subset.pb.h"
 #include "patch_subset/patch_subset_server.h"
-
-using patch_subset::cbor::PatchRequest;
 
 namespace patch_subset {
 
 class MockPatchSubsetServer : public PatchSubsetServer {
  public:
   MOCK_METHOD(StatusCode, Handle,
-              (const std::string& font_id, const PatchRequest& request,
-               PatchResponseProto* response /* OUT */),
+              (const std::string& font_id,
+               const patch_subset::cbor::PatchRequest& request,
+               patch_subset::cbor::PatchResponse& response /* OUT */),
               (override));
 };
 
 class ReturnResponse {
  public:
-  explicit ReturnResponse(const PatchResponseProto& response)
+  explicit ReturnResponse(const patch_subset::cbor::PatchResponse& response)
       : response_(response) {}
 
-  StatusCode operator()(const std::string& font_id, const PatchRequest& request,
-                        PatchResponseProto* response /* OUT */) {
-    *response = response_;
+  StatusCode operator()(const std::string& font_id,
+                        const patch_subset::cbor::PatchRequest& request,
+                        patch_subset::cbor::PatchResponse& response /* OUT */) {
+    response_.CopyTo(response);
     return StatusCode::kOk;
   }
 
  private:
-  const PatchResponseProto& response_;
+  const patch_subset::cbor::PatchResponse response_;
 };
 
 }  // namespace patch_subset
