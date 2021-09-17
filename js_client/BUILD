@@ -20,7 +20,6 @@ cc_binary(
         "//common",
         "//patch_subset:client",
         "//patch_subset:common",
-        "//patch_subset:patch_subset_cc_proto",
         "@com_google_absl//absl/strings",
         "@harfbuzz",
     ],

@@ -8,18 +8,19 @@
 #include "hb.h"
 #include "patch_subset/binary_diff.h"
 #include "patch_subset/brotli_binary_diff.h"
+#include "patch_subset/cbor/patch_request.h"
+#include "patch_subset/cbor/patch_response.h"
 #include "patch_subset/codepoint_mapper.h"
 #include "patch_subset/codepoint_predictor.h"
-#include "patch_subset/compressed_list_checksum.h"
-#include "patch_subset/compressed_list_checksum_impl.h"
 #include "patch_subset/fast_hasher.h"
 #include "patch_subset/file_font_provider.h"
 #include "patch_subset/font_provider.h"
 #include "patch_subset/frequency_codepoint_predictor.h"
 #include "patch_subset/harfbuzz_subsetter.h"
 #include "patch_subset/hasher.h"
+#include "patch_subset/integer_list_checksum.h"
+#include "patch_subset/integer_list_checksum_impl.h"
 #include "patch_subset/noop_codepoint_predictor.h"
-#include "patch_subset/patch_subset.pb.h"
 #include "patch_subset/patch_subset_server.h"
 #include "patch_subset/simple_codepoint_mapper.h"
 #include "patch_subset/subsetter.h"
@@ -54,9 +55,9 @@ class ServerConfig {
     return nullptr;
   }
 
-  CompressedListChecksum* CreateMappingChecksum(Hasher* hasher) const {
+  IntegerListChecksum* CreateMappingChecksum(Hasher* hasher) const {
     if (remap_codepoints) {
-      return new CompressedListChecksumImpl(hasher);
+      return new IntegerListChecksumImpl(hasher);
     }
     return nullptr;
   }
@@ -100,7 +101,7 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
         std::unique_ptr<BinaryDiff>(new BrotliBinaryDiff()),
         std::unique_ptr<Hasher>(hasher),
         std::unique_ptr<CodepointMapper>(config.CreateCodepointMapper()),
-        std::unique_ptr<CompressedListChecksum>(
+        std::unique_ptr<IntegerListChecksum>(
             config.CreateMappingChecksum(hasher)),
         std::unique_ptr<CodepointPredictor>(
             config.CreateCodepointPredictor())));
@@ -112,7 +113,7 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
       std::unique_ptr<Subsetter> subsetter,
       std::unique_ptr<BinaryDiff> binary_diff, std::unique_ptr<Hasher> hasher,
       std::unique_ptr<CodepointMapper> codepoint_mapper,
-      std::unique_ptr<CompressedListChecksum> compressed_list_checksum,
+      std::unique_ptr<IntegerListChecksum> integer_list_checksum,
       std::unique_ptr<CodepointPredictor> codepoint_predictor)
       : max_predicted_codepoints_(max_predicted_codepoints),
         font_provider_(std::move(font_provider)),
@@ -120,25 +121,24 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
         binary_diff_(std::move(binary_diff)),
         hasher_(std::move(hasher)),
         codepoint_mapper_(std::move(codepoint_mapper)),
-        compressed_list_checksum_(std::move(compressed_list_checksum)),
+        integer_list_checksum_(std::move(integer_list_checksum)),
         codepoint_predictor_(std::move(codepoint_predictor)) {}
 
   // Handle a patch request from a client. Writes the resulting response
   // into response.
-  StatusCode Handle(const std::string& font_id, const PatchRequest& request,
-                    PatchResponseProto* response /* OUT */) override;
+  StatusCode Handle(
+      const std::string& font_id,
+      const patch_subset::cbor::PatchRequest& request,
+      patch_subset::cbor::PatchResponse& response /* OUT */) override;
 
  private:
-  void LoadInputCodepoints(const PatchRequest& request,
+  void LoadInputCodepoints(const patch_subset::cbor::PatchRequest& request,
                            RequestState* state) const;
 
   void CheckOriginalChecksum(uint64_t original_checksum,
                              RequestState* state) const;
 
   StatusCode ComputeCodepointRemapping(RequestState* state) const;
-
-  void AddCodepointRemapping(const RequestState& state,
-                             CompressedListProto* response) const;
 
   void AddPredictedCodepoints(RequestState* state) const;
 
@@ -148,15 +148,15 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
   void ValidatePatchBase(uint64_t base_checksum, RequestState* state) const;
 
   void ConstructResponse(const RequestState& state,
-                         PatchResponseProto* response) const;
+                         patch_subset::cbor::PatchResponse& response) const;
 
   StatusCode ValidateChecksum(uint64_t checksum, const FontData& data) const;
 
   void AddChecksums(const FontData& font_data, const FontData& target_subset,
-                    PatchResponseProto* response) const;
+                    patch_subset::cbor::PatchResponse& response) const;
 
   void AddChecksums(const FontData& font_data,
-                    PatchResponseProto* response) const;
+                    patch_subset::cbor::PatchResponse& response) const;
 
   bool Check(StatusCode result) const;
   bool Check(StatusCode result, const std::string& message) const;
@@ -167,7 +167,7 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
   std::unique_ptr<BinaryDiff> binary_diff_;
   std::unique_ptr<Hasher> hasher_;
   std::unique_ptr<CodepointMapper> codepoint_mapper_;
-  std::unique_ptr<CompressedListChecksum> compressed_list_checksum_;
+  std::unique_ptr<IntegerListChecksum> integer_list_checksum_;
   std::unique_ptr<CodepointPredictor> codepoint_predictor_;
 };
 

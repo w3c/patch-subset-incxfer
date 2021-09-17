@@ -1,5 +1,5 @@
-#ifndef PATCH_SUBSET_CBOR_PATCH_RESPONSE_H_
-#define PATCH_SUBSET_CBOR_PATCH_RESPONSE_H_
+#ifndef PATCH_SUBSET_CBOR_PATCH_REQUEST_H_
+#define PATCH_SUBSET_CBOR_PATCH_REQUEST_H_
 
 #include <optional>
 #include <vector>
@@ -123,4 +123,4 @@ class PatchRequest {
 
 }  // namespace patch_subset::cbor
 
-#endif  // PATCH_SUBSET_CBOR_PATCH_RESPONSE_H_
+#endif  // PATCH_SUBSET_CBOR_PATCH_REQUEST_H_

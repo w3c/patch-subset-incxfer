@@ -3,14 +3,12 @@
 
 #include "common/status.h"
 #include "patch_subset/cbor/patch_request.h"
-#include "patch_subset/patch_subset.pb.h"
+#include "patch_subset/cbor/patch_response.h"
 
 namespace patch_subset {
 
-using patch_subset::cbor::PatchRequest;
-
 // Interface for a PatchSubsetServer. This server processes
-// PatchRequestProto's which request the generation of a patch
+// PatchRequests which request the generation of a patch
 // which can extend a font subset.
 class PatchSubsetServer {
  public:
@@ -18,9 +16,10 @@ class PatchSubsetServer {
 
   // Handle a patch request from a client. Writes the resulting response
   // into response.
-  virtual StatusCode Handle(const std::string& font_id,
-                            const PatchRequest& request,
-                            PatchResponseProto* response /* OUT */) = 0;
+  virtual StatusCode Handle(
+      const std::string& font_id,
+      const patch_subset::cbor::PatchRequest& request,
+      patch_subset::cbor::PatchResponse& response /* OUT */) = 0;
 };
 
 }  // namespace patch_subset

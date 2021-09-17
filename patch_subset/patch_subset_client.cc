@@ -6,7 +6,10 @@
 #include "patch_subset/codepoint_map.h"
 #include "patch_subset/compressed_set.h"
 #include "patch_subset/hb_set_unique_ptr.h"
-#include "patch_subset/patch_subset.pb.h"
+
+using patch_subset::cbor::ClientState;
+using patch_subset::cbor::PatchRequest;
+using patch_subset::cbor::PatchResponse;
 
 namespace patch_subset {
 
@@ -46,22 +49,22 @@ StatusCode PatchSubsetClient::CreateRequest(
 }
 
 StatusCode PatchSubsetClient::Extend(const hb_set_t& additional_codepoints,
-                                     ClientState* state) {
+                                     ClientState& state) {
   PatchRequest request;
-  StatusCode result = CreateRequest(additional_codepoints, *state, &request);
+  StatusCode result = CreateRequest(additional_codepoints, state, &request);
   if (result != StatusCode::kOk || request.CodepointsNeeded().empty()) {
     return result;
   }
 
-  PatchResponseProto response;
-  result = server_->Handle(state->FontId(), request, &response);
+  PatchResponse response;
+  result = server_->Handle(state.FontId(), request, response);
   if (result != StatusCode::kOk) {
     LOG(WARNING) << "Got a failure from the patch subset server (code = "
                  << result << ").";
     return result;
   }
 
-  result = AmendState(response, state);
+  result = AmendState(response, &state);
   if (result != StatusCode::kOk) {
     return result;
   }
@@ -96,37 +99,37 @@ StatusCode PatchSubsetClient::EncodeCodepoints(const ClientState& state,
   return StatusCode::kOk;
 }
 
-StatusCode PatchSubsetClient::ComputePatched(const PatchResponseProto& response,
-                                             const ClientState& state,
+StatusCode PatchSubsetClient::ComputePatched(const PatchResponse& response,
+                                             const ClientState* state,
                                              FontData* patched) {
-  if (response.patch().empty() && response.replacement().empty()) {
+  if (response.Patch().empty() && response.Replacement().empty()) {
     // TODO(garretrieger): implement support.
     LOG(WARNING) << "Re-indexing is not yet implemented.";
     return StatusCode::kUnimplemented;
   }
 
   FontData base;
-  if (!response.patch().empty()) {
-    base.copy(state.FontData());
+  if (!response.Patch().empty()) {
+    base.copy(state->FontData());
   }
 
-  if (response.format() != PatchFormat::BROTLI_SHARED_DICT) {
-    LOG(WARNING) << "Unsupported patch format " << response.format();
+  if (response.GetPatchFormat() != PatchFormat::BROTLI_SHARED_DICT) {
+    LOG(WARNING) << "Unsupported patch format " << response.GetPatchFormat();
     return StatusCode::kFailedPrecondition;
   }
 
   FontData patch_data;
-  if (!response.patch().empty() && !response.replacement().empty()) {
+  if (!response.Patch().empty() && !response.Replacement().empty()) {
     return StatusCode::kUnimplemented;
-  } else if (!response.patch().empty()) {
-    patch_data.copy(response.patch());
+  } else if (!response.Patch().empty()) {
+    patch_data.copy(response.Patch());
   } else {
-    patch_data.copy(response.replacement());
+    patch_data.copy(response.Replacement());
   }
 
   binary_patch_->Patch(base, patch_data, patched);
 
-  if (hasher_->Checksum(patched->str()) != response.patched_checksum()) {
+  if (hasher_->Checksum(patched->str()) != response.PatchedChecksum()) {
     LOG(WARNING) << "Patched checksum mismatch.";
     return StatusCode::kFailedPrecondition;
   }
@@ -134,28 +137,20 @@ StatusCode PatchSubsetClient::ComputePatched(const PatchResponseProto& response,
   return StatusCode::kOk;
 }
 
-StatusCode PatchSubsetClient::AmendState(const PatchResponseProto& response,
+StatusCode PatchSubsetClient::AmendState(const PatchResponse& response,
                                          ClientState* state) {
   FontData patched;
-  StatusCode result = ComputePatched(response, *state, &patched);
+  StatusCode result = ComputePatched(response, state, &patched);
   if (result != StatusCode::kOk) {
     return result;
   }
 
   state->SetFontData(patched.string());
-  state->SetOriginalFontChecksum(response.original_font_checksum());
+  state->SetOriginalFontChecksum(response.OriginalFontChecksum());
 
-  if (response.has_codepoint_ordering()) {
-    // Temporary, will be converted.
-    CodepointMap map;
-    map.FromProto(response.codepoint_ordering());
-    vector<int32_t> remapping;
-    StatusCode sc = map.ToVector(&remapping);
-    if (sc != StatusCode::kOk) {
-      return sc;
-    }
-    state->SetCodepointRemapping(remapping);
-    state->SetCodepointRemappingChecksum(response.ordering_checksum());
+  if (response.HasCodepointOrdering()) {
+    state->SetCodepointRemapping(response.CodepointOrdering());
+    state->SetCodepointRemappingChecksum(response.OrderingChecksum());
   }
 
   return StatusCode::kOk;
@@ -189,11 +184,11 @@ void PatchSubsetClient::CreateRequest(const hb_set_t& codepoints_have,
 }
 
 void PatchSubsetClient::LogRequest(const PatchRequest& request,
-                                   const PatchResponseProto& response) {
+                                   const PatchResponse& response) {
   std::string request_bytes;
   request.SerializeToString(request_bytes);
   std::string response_bytes;
-  response.SerializeToString(&response_bytes);
+  response.SerializeToString(response_bytes);
   request_logger_->LogRequest(request_bytes, response_bytes);
 }
 

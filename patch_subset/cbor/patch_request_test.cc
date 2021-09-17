@@ -419,7 +419,7 @@ TEST_F(PatchRequestTest, ToString) {
       CompressedSet{"", range_vector{{7, 8}}}, 12345L, 23456L, 34567L,
       ConnectionSpeed::AVERAGE);
   ASSERT_EQ(input.ToString(),
-            "{accept=[0],cp_have={[1-10](w/bitset)},"
+            "{accept=[0],cp_have={[1-10],bitset=14b},"
             "cp_need={[11-12]},i_have={[5-6]},"
             "i_need={[7-8]},orig_cs=23456,ord_cs=12345,"
             "base_cs=34567,speed=0}");

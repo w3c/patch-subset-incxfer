@@ -1,4 +1,4 @@
-#include "patch_subset/compressed_list_checksum_impl.h"
+#include "patch_subset/integer_list_checksum_impl.h"
 
 #include <vector>
 
@@ -25,20 +25,14 @@ struct LittleEndianInt {
   uint8_t data[8];
 };
 
-uint64_t CompressedListChecksumImpl::Checksum(
-    const CompressedListProto& proto) const {
+uint64_t IntegerListChecksumImpl::Checksum(
+    const std::vector<int32_t>& ints) const {
   // See: https://w3c.github.io/IFT/Overview.html#computing-checksums
   // for details of checksum algorithm.
-  int num_deltas = proto.deltas_size();
-  std::vector<LittleEndianInt> data(num_deltas);
-
-  int32_t previous = 0;
-  for (int i = 0; i < num_deltas; i++) {
-    int32_t next = previous + proto.deltas(i);
-    data[i] = next;
-    previous = next;
+  std::vector<LittleEndianInt> data(ints.size());
+  for (int32_t i = 0; i < ints.size(); i++) {
+    data[i] = ints[i];  // Converts to little endian.
   }
-
   return this->hasher_->Checksum(
       absl::string_view(reinterpret_cast<char*>(data.data()),
                         data.size() * sizeof(LittleEndianInt)));

@@ -146,6 +146,80 @@ StatusCode PatchResponse::Encode(cbor_item_unique_ptr& map_out) const {
   return StatusCode::kOk;
 }
 
+StatusCode PatchResponse::ParseFromString(const std::string& buffer,
+                                          PatchResponse& out) {
+  cbor_item_unique_ptr item = empty_cbor_ptr();
+  StatusCode sc = CborUtils::DeserializeFromBytes(buffer, item);
+  if (sc != StatusCode::kOk) {
+    return sc;
+  }
+  sc = Decode(*item, out);
+  if (sc != StatusCode::kOk) {
+    return sc;
+  }
+  return StatusCode::kOk;
+}
+
+StatusCode PatchResponse::SerializeToString(std::string& out) const {
+  cbor_item_unique_ptr item = empty_cbor_ptr();
+  StatusCode sc = Encode(item);
+  if (sc != StatusCode::kOk) {
+    return sc;
+  }
+  unsigned char* buffer;
+  size_t buffer_size;
+  size_t written = cbor_serialize_alloc(item.get(), &buffer, &buffer_size);
+  if (written == 0) {
+    return StatusCode::kInternal;
+  }
+  out.assign(std::string((char*)buffer, written));
+  free(buffer);
+  return StatusCode::kOk;
+}
+
+void PatchResponse::CopyTo(PatchResponse& target) const {
+  if (HasProtocolVersion()) {
+    target.SetProtocolVersion(ProtocolVersion());
+  } else {
+    target.ResetProtocolVersion();
+  }
+  if (HasPatchFormat()) {
+    target.SetPatchFormat(GetPatchFormat());
+  } else {
+    target.ResetPatchFormat();
+  }
+  if (HasPatch()) {
+    target.SetPatch(Patch());
+  } else {
+    target.ResetPatch();
+  }
+  if (HasReplacement()) {
+    target.SetReplacement(Replacement());
+  } else {
+    target.ResetReplacement();
+  }
+  if (HasOriginalFontChecksum()) {
+    target.SetOriginalFontChecksum(OriginalFontChecksum());
+  } else {
+    target.ResetOriginalFontChecksum();
+  }
+  if (HasPatchedChecksum()) {
+    target.SetPatchedChecksum(PatchedChecksum());
+  } else {
+    target.ResetPatchedChecksum();
+  }
+  if (HasCodepointOrdering()) {
+    target.SetCodepointOrdering(CodepointOrdering());
+  } else {
+    target.ResetCodepointOrdering();
+  }
+  if (HasOrderingChecksum()) {
+    target.SetOrderingChecksum(OrderingChecksum());
+  } else {
+    target.ResetOrderingChecksum();
+  }
+}
+
 bool PatchResponse::HasProtocolVersion() const {
   return _protocol_version.has_value();
 }
@@ -277,6 +351,59 @@ PatchResponse& PatchResponse::SetOrderingChecksum(uint64_t checksum) {
 PatchResponse& PatchResponse::ResetOrderingChecksum() {
   _ordering_checksum.reset();
   return *this;
+}
+
+string PatchResponse::ToString() const {
+  string s = "";
+  if (GetProtocolVersion() != ProtocolVersion::ONE) {
+    s += "v" + std::to_string(GetProtocolVersion());
+  }
+  if (HasPatchFormat()) {
+    if (!s.empty()) {
+      s += ",";
+    }
+    s += "fmt=" + std::to_string(GetPatchFormat());
+  }
+  if (HasPatch()) {
+    if (!s.empty()) {
+      s += ",";
+    }
+    s += "patch=" + std::to_string(Patch().size()) + "b";
+  }
+  if (HasReplacement()) {
+    if (!s.empty()) {
+      s += ",";
+    }
+    s += "patch=" + std::to_string(Replacement().size()) + "b";
+  }
+  if (HasPatchedChecksum()) {
+    if (!s.empty()) {
+      s += ",";
+    }
+    s += "patched_cs=" + std::to_string(PatchedChecksum());
+  }
+  if (HasCodepointOrdering()) {
+    if (!s.empty()) {
+      s += ",";
+    }
+    s += "ord=[";
+    int i = 0;
+    for (int32_t n : CodepointOrdering()) {
+      if (i > 0) {
+        s += ",";
+      }
+      s += std::to_string(n);
+      i++;
+    }
+    s += "]";
+  }
+  if (HasOrderingChecksum()) {
+    if (!s.empty()) {
+      s += ",";
+    }
+    s += "orig_cs=" + std::to_string(OriginalFontChecksum());
+  }
+  return "{" + s + "}";
 }
 
 PatchResponse& PatchResponse::operator=(PatchResponse&& other) noexcept {

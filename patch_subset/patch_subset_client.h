@@ -8,12 +8,8 @@
 #include "patch_subset/cbor/patch_request.h"
 #include "patch_subset/font_data.h"
 #include "patch_subset/hasher.h"
-#include "patch_subset/patch_subset.pb.h"
 #include "patch_subset/patch_subset_server.h"
 #include "patch_subset/request_logger.h"
-
-using patch_subset::cbor::ClientState;
-using patch_subset::cbor::PatchRequest;
 
 namespace patch_subset {
 
@@ -34,27 +30,32 @@ class PatchSubsetClient {
         binary_patch_(std::move(binary_patch)),
         hasher_(std::move(hasher)) {}
 
-  StatusCode Extend(const hb_set_t& additional_codepoints, ClientState* state);
+  StatusCode Extend(const hb_set_t& additional_codepoints,
+                    patch_subset::cbor::ClientState& state);
 
   StatusCode CreateRequest(const hb_set_t& additional_codepoints,
-                           const ClientState& state, PatchRequest* request);
+                           const patch_subset::cbor::ClientState& state,
+                           patch_subset::cbor::PatchRequest* request);
 
-  StatusCode AmendState(const PatchResponseProto& response, ClientState* state);
+  StatusCode AmendState(const patch_subset::cbor::PatchResponse& response,
+                        patch_subset::cbor::ClientState* state);
 
  private:
-  StatusCode EncodeCodepoints(const ClientState& state,
+  StatusCode EncodeCodepoints(const patch_subset::cbor::ClientState& state,
                               hb_set_t* codepoints_have,
                               hb_set_t* codepoints_needed);
 
   void CreateRequest(const hb_set_t& codepoints_have,
                      const hb_set_t& codepoints_needed,
-                     const ClientState& state, PatchRequest* request);
+                     const patch_subset::cbor::ClientState& state,
+                     patch_subset::cbor::PatchRequest* request);
 
-  void LogRequest(const PatchRequest& request,
-                  const PatchResponseProto& response);
+  void LogRequest(const patch_subset::cbor::PatchRequest& request,
+                  const patch_subset::cbor::PatchResponse& response);
 
-  StatusCode ComputePatched(const PatchResponseProto& response,
-                            const ClientState& state, FontData* patched);
+  StatusCode ComputePatched(const patch_subset::cbor::PatchResponse& response,
+                            const patch_subset::cbor::ClientState* state,
+                            FontData* patched);
 
   PatchSubsetServer* server_;
   RequestLogger* request_logger_;
