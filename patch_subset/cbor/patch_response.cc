@@ -67,7 +67,7 @@ StatusCode PatchResponse::Decode(const cbor_item_t& cbor_map,
     return StatusCode::kInvalidArgument;
   }
   sc = CborUtils::GetBytesField(cbor_map, kReplacementFieldNumber,
-                                 result._replacement);
+                                result._replacement);
   if (sc != StatusCode::kOk) {
     return StatusCode::kInvalidArgument;
   }
