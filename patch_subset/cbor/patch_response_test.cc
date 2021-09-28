@@ -126,13 +126,13 @@ TEST_F(PatchResponseTest, Encode) {
   sc = CborUtils::GetField(*map, 2, field);
   ASSERT_EQ(sc, StatusCode::kOk);
   string data;
-  sc = CborUtils::DecodeString(*field, data);
+  sc = CborUtils::DecodeBytes(*field, data);
   ASSERT_EQ(sc, StatusCode::kOk);
   ASSERT_EQ(data, response.Patch());
 
   sc = CborUtils::GetField(*map, 3, field);
   ASSERT_EQ(sc, StatusCode::kOk);
-  sc = CborUtils::DecodeString(*field, data);
+  sc = CborUtils::DecodeBytes(*field, data);
   ASSERT_EQ(sc, StatusCode::kOk);
   ASSERT_EQ(data, response.Replacement());
 
@@ -180,8 +180,8 @@ TEST_F(PatchResponseTest, Decode) {
 
   CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeInt(0)));
   CborUtils::SetField(*map, 1, cbor_move(CborUtils::EncodeInt(patch_format)));
-  CborUtils::SetField(*map, 2, cbor_move(CborUtils::EncodeString(patch)));
-  CborUtils::SetField(*map, 3, cbor_move(CborUtils::EncodeString(replacement)));
+  CborUtils::SetField(*map, 2, cbor_move(CborUtils::EncodeBytes(patch)));
+  CborUtils::SetField(*map, 3, cbor_move(CborUtils::EncodeBytes(replacement)));
   CborUtils::SetField(
       *map, 4, cbor_move(CborUtils::EncodeUInt64(original_font_checksum)));
   CborUtils::SetField(*map, 5,

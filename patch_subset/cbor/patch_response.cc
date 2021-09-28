@@ -62,11 +62,11 @@ StatusCode PatchResponse::Decode(const cbor_item_t& cbor_map,
   if (sc != StatusCode::kOk) {
     return StatusCode::kInvalidArgument;
   }
-  sc = CborUtils::GetStringField(cbor_map, kPatchFieldNumber, result._patch);
+  sc = CborUtils::GetBytesField(cbor_map, kPatchFieldNumber, result._patch);
   if (sc != StatusCode::kOk) {
     return StatusCode::kInvalidArgument;
   }
-  sc = CborUtils::GetStringField(cbor_map, kReplacementFieldNumber,
+  sc = CborUtils::GetBytesField(cbor_map, kReplacementFieldNumber,
                                  result._replacement);
   if (sc != StatusCode::kOk) {
     return StatusCode::kInvalidArgument;
@@ -114,11 +114,11 @@ StatusCode PatchResponse::Encode(cbor_item_unique_ptr& map_out) const {
   if (sc != StatusCode::kOk) {
     return sc;
   }
-  sc = CborUtils::SetStringField(*map, kPatchFieldNumber, _patch);
+  sc = CborUtils::SetBytesField(*map, kPatchFieldNumber, _patch);
   if (sc != StatusCode::kOk) {
     return sc;
   }
-  sc = CborUtils::SetStringField(*map, kReplacementFieldNumber, _replacement);
+  sc = CborUtils::SetBytesField(*map, kReplacementFieldNumber, _replacement);
   if (sc != StatusCode::kOk) {
     return sc;
   }
