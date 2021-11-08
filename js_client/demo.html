@@ -138,19 +138,19 @@
     </div>
     <div class="text_and_metrics">
       <div id="pfe_sample" class="sample_text">
-        <div class="type">Progressive Font Enrichment</div>
-        <h1 id="title_pfe" class="pfe">Progressive Font Enrichment Demo</h1>
+        <div class="type">Incremental Font transfer</div>
+        <h1 id="title_pfe" class="pfe">Incremental Font Transfer Demo</h1>
         <div id="paragraph_pfe" class="pfe">
-          This demonstrates the use of the patch subset progressive font enrichment protocol
+          This demonstrates the use of the patch subset incremental font transfer protocol
           to incrementaly load fonts for a variety of languages.
           <br/><br/>
           Instructions:
           <ul>
             <li>Next/Previous will switch between text samples. Switching to a new sample will use
-            PFE to load any additional font data needed for it.</li>
+            IFT to load any additional font data needed for it.</li>
             <li>If "Also load fonts via unicode range" is selected then fonts will be
               loaded via the Google Fonts API (using unicode range) in parallel to
-              the progressive font enrichment.</li>
+              the incremental font transfer.</li>
             <li><b>Disable caching (via dev console) or force refresh the page (ctrl+shift+r) before
               starting. If caching is enabled the unicode range font loading may be served from
               the cache which will make the bytes transferred incorrect.</b></li>
@@ -172,7 +172,7 @@
       </div>
       <div class="metrics">
         <div class="metrics_inner">
-          <span>Progressive enrichment transferred:</span>
+          <span>Incremental font transferred:</span>
           <div id="pfe_bar" class="bar"></div>
           <div id="ur_byte_counter">
             <span>Unicode range transferred:</span>
