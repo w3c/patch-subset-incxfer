@@ -1,0 +1,96 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Incremental Font Transfer COLRv1 Demo</title>
+    <script src="./patch_subset_wasm.js"></script>
+    <script>
+      const SENTENCES = [
+          ['apache/roboto/Roboto-Thin.ttf', 'Emoji Test'],
+          ['apache/roboto/Roboto-Thin.ttf', 'Emoji Test'],
+          ['apache/roboto/Roboto-Thin.ttf', 'Emoji Test'],
+          ['apache/roboto/Roboto-Thin.ttf', 'Emoji Test'],
+      ];
+
+      const PARAGRAPHS = [
+          ['ofl/notocolremojiglyf/NotoColrEmojiGlyf-Regular.ttf',
+           '🤛🏻🤛🏼'],
+          ['ofl/notocolremojiglyf/NotoColrEmojiGlyf-Regular.ttf',
+           '🤛🏻🤛🏼🤛🏽🤛🏿🧔🏿👨🏻‍🦰👨🏼‍🦰👨🏽‍🦰👨🏾‍🦰'],
+          ['ofl/notocolremojiglyf/NotoColrEmojiGlyf-Regular.ttf',
+           '🤛🏻🤛🏼🤛🏽🤛🏿🧔🏿👨🏻‍🦰👨🏼‍🦰👨🏽‍🦰👨🏾‍🦰🧑🏻‍🦰🧑🏼‍🦰🧑🏽‍🦰🧑🏾‍🦰🧑🏿‍🦰👩🏻‍🦱👩🏼‍🦱👩🏽‍🦱👩🏾‍🦱'],
+          ['ofl/notocolremojiglyf/NotoColrEmojiGlyf-Regular.ttf',
+           '🤛🏻🤛🏼🤛🏽🤛🏿🧔🏿👨🏻‍🦰👨🏼‍🦰👨🏽‍🦰👨🏾‍🦰🧑🏻‍🦰🧑🏼‍🦰🧑🏽‍🦰🧑🏾‍🦰🧑🏿‍🦰👩🏻‍🦱👩🏼‍🦱👩🏽‍🦱👩🏾‍🦱🥬🥦🧄🧅🥜🍞🥐🚔🚖🚙🛻🚛'],
+      ];
+    </script>
+    <script src="demo.js" type="text/javascript"></script>
+    <style>
+      h1.ur {
+          font-family: "Roboto";
+          font-weight: 100;
+      }
+
+      div.ur {
+          font-family: "Noto Colr Emoji Glyf";
+      }
+    </style>
+    <link href="colrv1.css" type="text/css" rel="stylesheet" />
+    <link href="common.css" type="text/css" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="controls">
+      <input type="button" value="Previous" id="prev" disabled="true" />
+      <input type="button" value="Next" id="next"/>
+      <input type="button" value="Show Unicode Range" id="sample_toggle" style="visibility: hidden;" />
+      <br/>
+      <input type="checkbox" id="also_ur" name="also_ur" checked />
+      <label for="also_ur">Also load fonts via unicode range.</label><br/>
+      <input type="checkbox" id="prediction" name="prediction" />
+      <label for="prediction">Use codepoint prediction.</label>
+    </div>
+    <div class="text_and_metrics">
+      <div id="pfe_sample" class="sample_text">
+        <div class="type">Progressive Font Enrichment</div>
+        <h1 id="title_pfe" class="pfe">Progressive Font Enrichment Demo</h1>
+        <div id="paragraph_pfe" class="pfe">
+          This demonstrates the use of the patch subset progressive font enrichment protocol
+          to incrementaly load fonts for a variety of languages.
+          <br/><br/>
+          Instructions:
+          <ul>
+            <li>Next/Previous will switch between text samples. Switching to a new sample will use
+            PFE to load any additional font data needed for it.</li>
+            <li>If "Also load fonts via unicode range" is selected then fonts will be
+              loaded via the Google Fonts API (using unicode range) in parallel to
+              the progressive font enrichment.</li>
+            <li><b>Disable caching (via dev console) or force refresh the page (ctrl+shift+r) before
+              starting. If caching is enabled the unicode range font loading may be served from
+              the cache which will make the bytes transferred incorrect.</b></li>
+            <li>If unicode range loading is enabled you can switch the displayed text
+              sample between the two methods using the "Show unicode range" button.</li>
+          </ul>
+          Interesting things to try:
+          <ul>
+            <li>Switching between the unicode range and pfe text for the cyrillic and vietnamese
+              samples demonstrates how unicode range breaks kerning between characters in different
+              subsets</li>
+          </ul>
+        </div>
+      </div>
+      <div id="ur_sample" class="sample_text hide">
+        <div class="type">Unicode range</div>
+        <h1 id="title_ur" class="ur"></h1>
+        <div id="paragraph_ur" class="ur"></div>
+      </div>
+      <div class="metrics">
+        <div class="metrics_inner">
+          <span>Progressive enrichment transferred:</span>
+          <div id="pfe_bar" class="bar"></div>
+          <div id="ur_byte_counter">
+            <span>Unicode range transferred:</span>
+            <div id="ur_bar" class="bar"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
