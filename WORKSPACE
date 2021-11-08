@@ -31,9 +31,9 @@ http_archive(
 http_archive(
     name = "harfbuzz",
     build_file = "//third_party:harfbuzz.BUILD",
-    sha256 = "35a5ed7fc774644cfd74dc84bbb3e639c3ce2a7a5959d7f138cf8f305c44e97d",
-    strip_prefix = "harfbuzz-c08f1b89037b9a0277b8cef67ff2f38bcf253dfd",
-    urls = ["https://github.com/harfbuzz/harfbuzz/archive/c08f1b89037b9a0277b8cef67ff2f38bcf253dfd.zip"],
+    sha256 = "932b6dd00d91ebdda3882f371a29f56d55b1bdffc0586c3bf4f5fddb06435ad4",
+    strip_prefix = "harfbuzz-3.1.1",
+    urls = ["https://github.com/harfbuzz/harfbuzz/archive/3.1.1.zip"],
 )
 
 # Fast Hash
