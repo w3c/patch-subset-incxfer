@@ -1,0 +1,79 @@
+h1 {
+    font-size: 3em;
+}
+
+div.pfe, div.ur {
+    font-size: 1.5em;
+}
+
+h1.pfe {
+    font-family: "Title Font", serif;
+    font-weight: 100;
+}
+
+div.pfe {
+    font-family: "Paragraph Font", serif;
+}
+
+input, label {
+    font-family: sans-serif;
+    font-size: 1.5em;
+}
+
+.sample_text, .metrics, .controls {
+    padding: 1em;
+    margin: 0.3em;
+}
+
+.sample_text, .metrics {
+    border: 1px solid #AAAAAA;
+    border-radius: 0.3em;
+    height: 100%;
+}
+
+.text_and_metrics {
+    height: 50em;
+}
+
+.sample_text {
+    display: inline-block;
+    width: 45em;
+}
+
+.metrics {
+    display: inline-block;
+    width: 25em;
+    vertical-align: top;
+}
+
+.metrics_inner {
+    font-family: sans-serif;
+    font-size: 1.5em;
+}
+
+.metrics_inner span, .metrics_inner div {
+    margin: 0.3em 0;
+}
+
+.bar {
+    white-space: nowrap;
+    background-color: #1999d4;
+    padding: 0.25em 0 0.25em 0.2em;
+    border-radius: 2px;
+}
+
+.hide {
+    position: absolute;
+    top: 0;
+    left: -10000px;
+}
+
+#ur_byte_counter {
+    visibility: hidden;
+}
+
+.type {
+    font-size: 0.8em;
+    font-color: #BBBBBB;
+    font-family: sans-serif;
+}
