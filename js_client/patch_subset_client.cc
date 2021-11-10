@@ -42,17 +42,27 @@ struct RequestContext {
 void RequestSucceeded(emscripten_fetch_t* fetch) {
   RequestContext* context = reinterpret_cast<RequestContext*>(fetch->userData);
   if (fetch->status == 200) {
+    StatusCode sc;
     PatchResponse response;
-    StatusCode sc = PatchResponse::ParseFromString(
-        std::string(fetch->data, fetch->numBytes), response);
-    if (sc != StatusCode::kOk) {
-      LOG(WARNING) << "Failed to decode server response.";
-      context->callback(false);
+
+    if (fetch->numBytes > 4 && fetch->data[0] == 'I' && fetch->data[1] == 'F' &&
+        fetch->data[2] == 'T' && fetch->data[3] == ' ') {
+      sc = PatchResponse::ParseFromString(
+          std::string(fetch->data + 4, fetch->numBytes - 4), response);
+    } else {
+      LOG(WARNING) << "Response does not have expected magic number." << std::endl;
+      sc = StatusCode::kInvalidArgument;
     }
-    context->callback(context->client->AmendState(response, context->state) ==
-                      StatusCode::kOk);
+
+    if (sc != StatusCode::kOk) {
+      LOG(WARNING) << "Failed to decode server response." << std::endl;
+      context->callback(false);
+    } else {
+      context->callback(context->client->AmendState(response, context->state) ==
+                        StatusCode::kOk);
+    }
   } else {
-    LOG(WARNING) << "Extend http request failed with code " << fetch->status;
+    LOG(WARNING) << "Extend http request failed with code " << fetch->status << std::endl;
     context->callback(false);
   }
 
