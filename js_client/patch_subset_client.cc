@@ -50,7 +50,8 @@ void RequestSucceeded(emscripten_fetch_t* fetch) {
       sc = PatchResponse::ParseFromString(
           std::string(fetch->data + 4, fetch->numBytes - 4), response);
     } else {
-      LOG(WARNING) << "Response does not have expected magic number." << std::endl;
+      LOG(WARNING) << "Response does not have expected magic number."
+                   << std::endl;
       sc = StatusCode::kInvalidArgument;
     }
 
@@ -62,7 +63,8 @@ void RequestSucceeded(emscripten_fetch_t* fetch) {
                         StatusCode::kOk);
     }
   } else {
-    LOG(WARNING) << "Extend http request failed with code " << fetch->status << std::endl;
+    LOG(WARNING) << "Extend http request failed with code " << fetch->status
+                 << std::endl;
     context->callback(false);
   }
 
