@@ -12,6 +12,7 @@
 #include "patch_subset/cbor/patch_response.h"
 #include "patch_subset/codepoint_mapper.h"
 #include "patch_subset/codepoint_predictor.h"
+#include "patch_subset/constants.h"
 #include "patch_subset/fast_hasher.h"
 #include "patch_subset/file_font_provider.h"
 #include "patch_subset/font_provider.h"
@@ -24,6 +25,7 @@
 #include "patch_subset/patch_subset_server.h"
 #include "patch_subset/simple_codepoint_mapper.h"
 #include "patch_subset/subsetter.h"
+#include "patch_subset/vcdiff_binary_diff.h"
 
 namespace patch_subset {
 
@@ -99,6 +101,7 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
             new FileFontProvider(config.font_directory)),
         std::unique_ptr<Subsetter>(new HarfbuzzSubsetter()),
         std::unique_ptr<BinaryDiff>(new BrotliBinaryDiff()),
+        std::unique_ptr<BinaryDiff>(new VCDIFFBinaryDiff()),
         std::unique_ptr<Hasher>(hasher),
         std::unique_ptr<CodepointMapper>(config.CreateCodepointMapper()),
         std::unique_ptr<IntegerListChecksum>(
@@ -111,14 +114,17 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
   PatchSubsetServerImpl(
       int max_predicted_codepoints, std::unique_ptr<FontProvider> font_provider,
       std::unique_ptr<Subsetter> subsetter,
-      std::unique_ptr<BinaryDiff> binary_diff, std::unique_ptr<Hasher> hasher,
+      std::unique_ptr<BinaryDiff> brotli_binary_diff,
+      std::unique_ptr<BinaryDiff> vcdiff_binary_diff,
+      std::unique_ptr<Hasher> hasher,
       std::unique_ptr<CodepointMapper> codepoint_mapper,
       std::unique_ptr<IntegerListChecksum> integer_list_checksum,
       std::unique_ptr<CodepointPredictor> codepoint_predictor)
       : max_predicted_codepoints_(max_predicted_codepoints),
         font_provider_(std::move(font_provider)),
         subsetter_(std::move(subsetter)),
-        binary_diff_(std::move(binary_diff)),
+        brotli_binary_diff_(std::move(brotli_binary_diff)),
+        vcdiff_binary_diff_(std::move(vcdiff_binary_diff)),
         hasher_(std::move(hasher)),
         codepoint_mapper_(std::move(codepoint_mapper)),
         integer_list_checksum_(std::move(integer_list_checksum)),
@@ -161,10 +167,13 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
   bool Check(StatusCode result) const;
   bool Check(StatusCode result, const std::string& message) const;
 
+  const BinaryDiff* DiffFor(const std::vector<PatchFormat>& formats) const;
+
   int max_predicted_codepoints_;
   std::unique_ptr<FontProvider> font_provider_;
   std::unique_ptr<Subsetter> subsetter_;
-  std::unique_ptr<BinaryDiff> binary_diff_;
+  std::unique_ptr<BinaryDiff> brotli_binary_diff_;
+  std::unique_ptr<BinaryDiff> vcdiff_binary_diff_;
   std::unique_ptr<Hasher> hasher_;
   std::unique_ptr<CodepointMapper> codepoint_mapper_;
   std::unique_ptr<IntegerListChecksum> integer_list_checksum_;
