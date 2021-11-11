@@ -47,6 +47,7 @@ cc_library(
         "brotli_request_logger.cc",
         "memory_request_logger.cc",
         "patch_subset_client.cc",
+        "vcdiff_binary_patch.cc",
     ],
     hdrs = [
         "binary_patch.h",
@@ -56,6 +57,7 @@ cc_library(
         "null_request_logger.h",
         "patch_subset_client.h",
         "request_logger.h",
+        "vcdiff_binary_patch.h",
     ],
     visibility = [
         "//visibility:public",
@@ -67,6 +69,7 @@ cc_library(
         "@brotli//:brotlidec",
         "@com_google_absl//absl/strings",
         "@harfbuzz",
+        "@open-vcdiff//:vcddec",
     ],
 )
 
@@ -91,6 +94,7 @@ cc_library(
         "file_font_provider.cc",
         "hb_set_unique_ptr.cc",
         "sparse_bit_set.cc",
+        "vcdiff_binary_diff.cc",
     ],
     hdrs = [
         "binary_diff.h",
@@ -105,6 +109,7 @@ cc_library(
         "hb_set_unique_ptr.h",
         "patch_subset_server.h",
         "sparse_bit_set.h",
+        "vcdiff_binary_diff.h",
     ],
     visibility = [
         "//visibility:public",
@@ -117,6 +122,7 @@ cc_library(
         "@com_google_absl//absl/types:optional",
         "@fasthash",
         "@harfbuzz",
+        "@open-vcdiff//:vcdenc",
     ],
 )
 
@@ -138,14 +144,15 @@ cc_test(
         "mock_binary_patch.h",
         "mock_codepoint_predictor.h",
         "mock_font_provider.h",
-        "mock_integer_list_checksum.h",
         "mock_hasher.h",
+        "mock_integer_list_checksum.h",
         "mock_patch_subset_server.h",
         "patch_subset_client_test.cc",
         "patch_subset_server_impl_test.cc",
         "server_integration_test.cc",
         "simple_codepoint_mapper_test.cc",
         "sparse_bit_set_test.cc",
+        "vcdiff_patching_test.cc",
     ],
     data = [
         ":testdata",

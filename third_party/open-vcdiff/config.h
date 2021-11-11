@@ -50,4 +50,3 @@
 
 /* Use custom compare function instead of memcmp */
 /* #undef VCDIFF_USE_BLOCK_COMPARE_WORDS */
-
