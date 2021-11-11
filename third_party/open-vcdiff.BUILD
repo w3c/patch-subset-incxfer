@@ -41,6 +41,7 @@ cc_library(
         "src/headerparser.h",
     ],
     deps = [":vcdcom"],
+     visibility = ["//visibility:public"],
 )
 
 cc_library(
