@@ -104,3 +104,13 @@ http_archive(
     urls = ["https://github.com/PJK/libcbor/archive/refs/tags/v0.8.0.zip"],
 )
 
+# open-vcdiff
+http_archive(
+    name = "open-vcdiff",
+    build_file = "//third_party:open-vcdiff.BUILD",
+    sha256 = "39ce3a95f72ba7b64e8054d95e741fc3c69abddccf9f83868a7f52f3ae2174c0",
+    strip_prefix = "open-vcdiff-868f459a8d815125c2457f8c74b12493853100f9",
+    urls = ["https://github.com/google/open-vcdiff/archive/868f459a8d815125c2457f8c74b12493853100f9.zip"],
+)
+
+
