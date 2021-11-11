@@ -80,7 +80,13 @@ StatusCode PatchSubsetServerImpl::Handle(const std::string& font_id,
 
   ValidatePatchBase(request.BaseChecksum(), &state);
 
-  if (!Check(result = binary_diff_->Diff(
+  // TODO(garretrieger): add multiple binary diff support, including vcdiff.
+  const BinaryDiff* binary_diff = DiffFor(request.AcceptFormats());
+  if (!binary_diff) {
+    LOG(WARNING) << "No available binary diff algorithms were specified.";
+    return StatusCode::kInvalidArgument;
+  }
+  if (!Check(result = binary_diff->Diff(
                  state.client_subset, state.client_target_subset, &state.patch),
              "Diff computation failed (font_id = " + font_id + ").")) {
     return result;
@@ -264,6 +270,19 @@ bool PatchSubsetServerImpl::Check(StatusCode result,
   }
   LOG(WARNING) << message;
   return false;
+}
+
+const BinaryDiff* PatchSubsetServerImpl::DiffFor(
+    const std::vector<PatchFormat>& formats) const {
+  if (std::find(formats.begin(), formats.end(), BROTLI_SHARED_DICT) !=
+      formats.end()) {
+    return brotli_binary_diff_.get();
+  }
+  if (std::find(formats.begin(), formats.end(), VCDIFF) != formats.end()) {
+    return vcdiff_binary_diff_.get();
+  }
+
+  return nullptr;
 }
 
 }  // namespace patch_subset
