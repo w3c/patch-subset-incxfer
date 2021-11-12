@@ -14,6 +14,7 @@
 #include "patch_subset/patch_subset_client.h"
 #include "patch_subset/patch_subset_server_impl.h"
 #include "patch_subset/simple_codepoint_mapper.h"
+#include "patch_subset/vcdiff_binary_diff.h"
 
 using ::absl::string_view;
 using patch_subset::cbor::ClientState;
@@ -32,6 +33,7 @@ class PatchSubsetClientServerIntegrationTest : public ::testing::Test {
             std::unique_ptr<FontProvider>(new FileFontProvider(kTestDataDir)),
             std::unique_ptr<Subsetter>(new HarfbuzzSubsetter()),
             std::unique_ptr<BinaryDiff>(new BrotliBinaryDiff()),
+            std::unique_ptr<BinaryDiff>(new VCDIFFBinaryDiff()),
             std::unique_ptr<Hasher>(new FastHasher()),
             std::unique_ptr<CodepointMapper>(nullptr),
             std::unique_ptr<IntegerListChecksum>(nullptr),
@@ -45,6 +47,7 @@ class PatchSubsetClientServerIntegrationTest : public ::testing::Test {
             std::unique_ptr<FontProvider>(new FileFontProvider(kTestDataDir)),
             std::unique_ptr<Subsetter>(new HarfbuzzSubsetter()),
             std::unique_ptr<BinaryDiff>(new BrotliBinaryDiff()),
+            std::unique_ptr<BinaryDiff>(new VCDIFFBinaryDiff()),
             std::unique_ptr<Hasher>(new FastHasher()),
             std::unique_ptr<CodepointMapper>(new SimpleCodepointMapper()),
             std::unique_ptr<IntegerListChecksum>(

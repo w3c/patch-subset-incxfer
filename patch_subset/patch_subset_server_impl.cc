@@ -25,7 +25,8 @@ struct RequestState {
       : codepoints_have(make_hb_set()),
         codepoints_needed(make_hb_set()),
         mapping(),
-        codepoint_mapping_invalid(false) {}
+        codepoint_mapping_invalid(false),
+        format(PatchFormat::VCDIFF) {}
 
   bool IsPatch() const {
     return !IsReindex() && !hb_set_is_empty(codepoints_have.get());
@@ -44,6 +45,7 @@ struct RequestState {
   FontData client_target_subset;
   FontData patch;
   bool codepoint_mapping_invalid;
+  PatchFormat format;
 };
 
 StatusCode PatchSubsetServerImpl::Handle(const std::string& font_id,
@@ -81,7 +83,8 @@ StatusCode PatchSubsetServerImpl::Handle(const std::string& font_id,
   ValidatePatchBase(request.BaseChecksum(), &state);
 
   // TODO(garretrieger): add multiple binary diff support, including vcdiff.
-  const BinaryDiff* binary_diff = DiffFor(request.AcceptFormats());
+  const BinaryDiff* binary_diff =
+      DiffFor(request.AcceptFormats(), state.format);
   if (!binary_diff) {
     LOG(WARNING) << "No available binary diff algorithms were specified.";
     return StatusCode::kInvalidArgument;
@@ -222,7 +225,7 @@ void PatchSubsetServerImpl::ConstructResponse(const RequestState& state,
     return;
   }
 
-  response.SetPatchFormat(PatchFormat::BROTLI_SHARED_DICT);
+  response.SetPatchFormat(state.format);
   if (state.IsPatch()) {
     response.SetPatch(state.patch.string());
   } else if (state.IsRebase()) {
@@ -273,12 +276,16 @@ bool PatchSubsetServerImpl::Check(StatusCode result,
 }
 
 const BinaryDiff* PatchSubsetServerImpl::DiffFor(
-    const std::vector<PatchFormat>& formats) const {
+    const std::vector<PatchFormat>& formats,
+    PatchFormat& format /* OUT */) const {
   if (std::find(formats.begin(), formats.end(), BROTLI_SHARED_DICT) !=
       formats.end()) {
+    // Brotli is preferred, so always pick it, if it's accepted by the client.
+    format = BROTLI_SHARED_DICT;
     return brotli_binary_diff_.get();
   }
   if (std::find(formats.begin(), formats.end(), VCDIFF) != formats.end()) {
+    format = VCDIFF;
     return vcdiff_binary_diff_.get();
   }
 
