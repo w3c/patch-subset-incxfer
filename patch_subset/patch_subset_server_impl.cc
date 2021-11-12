@@ -210,6 +210,7 @@ void PatchSubsetServerImpl::ValidatePatchBase(uint64_t base_checksum,
 
 void PatchSubsetServerImpl::ConstructResponse(const RequestState& state,
                                               PatchResponse& response) const {
+  response.SetProtocolVersion(ProtocolVersion::ONE);
   if ((state.IsReindex() || state.IsRebase()) && codepoint_mapper_) {
     vector<int32_t> ordering;
     state.mapping.ToVector(&ordering);
