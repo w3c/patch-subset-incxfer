@@ -167,7 +167,8 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
   bool Check(StatusCode result) const;
   bool Check(StatusCode result, const std::string& message) const;
 
-  const BinaryDiff* DiffFor(const std::vector<PatchFormat>& formats) const;
+  const BinaryDiff* DiffFor(const std::vector<PatchFormat>& formats,
+                            PatchFormat& format /* OUT */) const;
 
   int max_predicted_codepoints_;
   std::unique_ptr<FontProvider> font_provider_;
