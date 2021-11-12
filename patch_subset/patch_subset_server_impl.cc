@@ -82,7 +82,6 @@ StatusCode PatchSubsetServerImpl::Handle(const std::string& font_id,
 
   ValidatePatchBase(request.BaseChecksum(), &state);
 
-  // TODO(garretrieger): add multiple binary diff support, including vcdiff.
   const BinaryDiff* binary_diff =
       DiffFor(request.AcceptFormats(), state.format);
   if (!binary_diff) {
@@ -95,7 +94,6 @@ StatusCode PatchSubsetServerImpl::Handle(const std::string& font_id,
     return result;
   }
 
-  // TODO(garretrieger): check which diffs the client supports.
   // TODO(garretrieger): handle exceptional cases (see design doc).
 
   ConstructResponse(state, response);
