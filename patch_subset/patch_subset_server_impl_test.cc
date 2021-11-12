@@ -175,6 +175,7 @@ TEST_F(PatchSubsetServerImplTest, NewRequest) {
   EXPECT_EQ(response.Replacement(), "Roboto-Regular.ttf:abcd");
   EXPECT_EQ(response.PatchedChecksum(), 43);
   EXPECT_EQ(response.GetPatchFormat(), PatchFormat::BROTLI_SHARED_DICT);
+  EXPECT_EQ(response.GetProtocolVersion(), ProtocolVersion::ONE);
 
   EXPECT_FALSE(response.HasCodepointOrdering());
 }
