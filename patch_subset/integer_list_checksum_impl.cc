@@ -30,7 +30,7 @@ uint64_t IntegerListChecksumImpl::Checksum(
   // See: https://w3c.github.io/IFT/Overview.html#computing-checksums
   // for details of checksum algorithm.
   std::vector<LittleEndianInt> data(ints.size());
-  for (int32_t i = 0; i < ints.size(); i++) {
+  for (uint32_t i = 0; i < ints.size(); i++) {
     data[i] = ints[i];  // Converts to little endian.
   }
   return this->hasher_->Checksum(
