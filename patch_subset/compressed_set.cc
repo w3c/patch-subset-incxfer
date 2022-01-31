@@ -3,7 +3,6 @@
 #include <cmath>
 
 #include "absl/types/optional.h"
-#include "common/logging.h"
 #include "common/status.h"
 #include "hb.h"
 #include "patch_subset/hb_set_unique_ptr.h"
@@ -76,8 +75,8 @@ int VariableIntegerEncodedSize(int value) {
 int RangeEncodedSize(const range& last_range, const range& range) {
   // For begin and end estimate the number of bytes needed to encode them using
   // variable length encoding.
-  return VariableIntegerEncodedSize(range.first - last_range.second) +
-         VariableIntegerEncodedSize(range.second - range.first);
+  return VariableIntegerEncodedSize((int)(range.first - last_range.second)) +
+         VariableIntegerEncodedSize((int)(range.second - range.first));
 }
 
 int BitSetEncodedSize(const range& range,
@@ -148,7 +147,7 @@ void CompressedSet::Encode(const hb_set_t& set,
   EncodingStrategy(set, sparse_set.get(), &ranges);
 
   // Encode sparse bit set.
-  out.SetSparseBitSetBytes(SparseBitSet::Encode(*sparse_set));
+  out.SetSparseBitSetBytes(SparseBitSet::Encode(*sparse_set, BF8));
 
   // Just copy over ranges; the CBOR RangeList class will delta encode them.
   for (const auto& range : ranges) {

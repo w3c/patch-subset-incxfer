@@ -37,11 +37,11 @@ class CompressedSetTest : public ::testing::Test {
   }
 
   void CheckSparseSet(hb_set_unique_ptr set) {
-    std::string expected = SparseBitSet::Encode(*set);
+    std::string expected = SparseBitSet::Encode(*set, BF8);
     EXPECT_THAT(encoded_->SparseBitSetBytes(), Pointwise(Eq(), expected));
   }
 
-  void CheckDeltaList(patch_subset::cbor::range_vector deltas) {
+  void CheckDeltaList(const patch_subset::cbor::range_vector &deltas) {
     EXPECT_EQ(encoded_->Ranges(), deltas);
   }
 
