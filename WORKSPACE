@@ -13,6 +13,7 @@ http_archive(
 # Brotli Encoder/Decoder
 http_archive(
     name = "brotli",
+    build_file = "//third_party:brotli.BUILD",
     sha256 = "e96f58fd91ac7691e1d8299cf0c4ca734acbdc8e31b915e1697ff3d303d64e9b",
     strip_prefix = "brotli-19d86fb9a60aa7034d4981b69a5b656f5b90017e",
     url = "https://github.com/google/brotli/archive/19d86fb9a60aa7034d4981b69a5b656f5b90017e.zip",
