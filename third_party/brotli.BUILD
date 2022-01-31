@@ -1,3 +1,24 @@
+#
+# This is a modified version of Brotli's BUILD file.
+# The only change is adding -Wno-vla-parameter to STRICT_C_OPTIONS.
+# This was needed because Brotli's build was broken, with this error:
+#
+# ------------------------------------------------------------------
+# c/common/shared_dictionary.c:463:38: warning: argument 4 of type 'const uint8_t *' {aka 'const unsigned char *'} declared as a pointer [-Wvla-parameter]
+#   463 |     size_t data_size, const uint8_t* data) {
+#       |                       ~~~~~~~~~~~~~~~^~~~
+# In file included from c/common/shared_dictionary.c:9:
+# bazel-out/k8-fastbuild/bin/_virtual_includes/brotli_inc/brotli/shared_dictionary.h:91:37: note: previously declared as a variable length array 'const uint8_t[data_size]' {aka 'const unsigned char[data_size]'}
+#    91 |     size_t data_size, const uint8_t data[BROTLI_ARRAY_PARAM(data_size)]);
+#       |                       ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ------------------------------------------------------------------
+#
+# To vefify if this is still an issue, download the zip file (see WORKSPACE),
+# and run "bazel build bazel build :brotlicommon". If this builds, then you can
+# remove this file, and remove the build_file line in the brotli section in WORKSPACE.
+#
+
+
 # Description:
 #   Brotli is a generic-purpose lossless compression algorithm.
 
