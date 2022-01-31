@@ -5,8 +5,8 @@
 
 #include "absl/strings/string_view.h"
 #include "common/status.h"
-#include "patch_subset/branch_factor.h"
 #include "hb.h"
+#include "patch_subset/branch_factor.h"
 
 namespace patch_subset {
 

@@ -4,8 +4,8 @@
 
 #include "absl/strings/string_view.h"
 #include "common/status.h"
-#include "patch_subset/bit_output_buffer.h"
 #include "hb.h"
+#include "patch_subset/bit_output_buffer.h"
 
 using ::absl::string_view;
 using std::string;
