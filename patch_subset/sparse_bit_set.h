@@ -5,12 +5,13 @@
 
 #include "absl/strings/string_view.h"
 #include "common/status.h"
+#include "patch_subset/branch_factor.h"
 #include "hb.h"
 
 namespace patch_subset {
 
 /*
- * A read only data structure which represents a set of non negative integers
+ * A read only data structure which represents a set of non-negative integers
  * using a bit set tree. This gives the compactness of a bit set, but needs far
  * less bytes when dealing with a set that has large gaps between members.
  *
@@ -51,7 +52,7 @@ class SparseBitSet {
   static StatusCode Decode(absl::string_view sparse_bit_set, hb_set_t* out);
 
   // Encode a set of integers into a sparse bit set binary blob.
-  static std::string Encode(const hb_set_t& set);
+  static std::string Encode(const hb_set_t& set, BranchFactor branch_factor);
 };
 
 }  // namespace patch_subset
