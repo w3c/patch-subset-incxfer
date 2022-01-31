@@ -1,6 +1,6 @@
 #
 # This is a modified version of Brotli's BUILD file.
-# The only change is adding -Wno-vla-parameter to STRICT_C_OPTIONS.
+# The only change is removing -Werror from STRICT_C_OPTIONS.
 # This was needed because Brotli's build was broken, with this error:
 #
 # ------------------------------------------------------------------
@@ -70,7 +70,6 @@ STRICT_C_OPTIONS = select({
         "--pedantic-errors",
         "-Wall",
         "-Wconversion",
-        "-Werror",
         "-Wextra",
         "-Wlong-long",
         "-Wmissing-declarations",
@@ -78,7 +77,6 @@ STRICT_C_OPTIONS = select({
         "-Wno-strict-aliasing",
         "-Wshadow",
         "-Wsign-compare",
-        "-Wno-vla-parameter",
     ],
 })
 
