@@ -1,6 +1,7 @@
 #include "patch_subset/sparse_bit_set.h"
 
 #include <bitset>
+#include <vector>
 
 #include "common/status.h"
 #include "gtest/gtest.h"
@@ -9,6 +10,8 @@
 
 using std::bitset;
 using std::string;
+using std::to_string;
+using std::vector;
 
 namespace patch_subset {
 
@@ -25,8 +28,21 @@ class SparseBitSetTest : public ::testing::Test {
   }
 
   static string Bits(const string &s, BranchFactor bf) {
+    if (s.empty()) {
+      return "";
+    }
+    string first8_bits;
+    // Decode branch factor and depth from first byte.
+    first8_bits += s[0] & 1 ? "1" : "0";
+    first8_bits += s[0] & 2 ? "1" : "0";
+    first8_bits += "|";
+    for (int i = 2; i < 8; i++) {
+      first8_bits += s[0] & (1 << i) ? "1" : "0";
+    }
+
     string bits;
-    for (unsigned int i = 0; i < s.size(); i++) {
+    // Decode the rest of the bytes.
+    for (unsigned int i = 1; i < s.size(); i++) {
       string byte_bits = bitset<8>(s.c_str()[i]).to_string();
       reverse(byte_bits.begin(), byte_bits.end());
       bits += byte_bits;
@@ -40,11 +56,58 @@ class SparseBitSetTest : public ::testing::Test {
         result += " ";
       }
     }
-    return result;
+    return first8_bits + " " + result;
   }
 
   static string Bits(hb_set_unique_ptr set, BranchFactor bf) {
-    return Bits(SparseBitSet::Encode(*set, bf), bf);
+    string bits = SparseBitSet::Encode(*set, bf);
+    return Bits(bits, bf);
+  }
+
+  static string FromChars(const string &s) {
+    string result;
+    if (s.empty()) {
+      return result;
+    }
+    unsigned char buffer = 0;
+    int num_bits = 0;
+    for (char c : s) {
+      if (c != '1' && c != '0') {
+        continue;
+      }
+      if (c == '1') {
+        buffer |= 1 << num_bits;
+      }
+      num_bits++;
+      if (num_bits == 8) {
+        result.push_back(buffer);
+        buffer = 0;
+        num_bits = 0;
+      }
+    }
+    if (num_bits > 0) {
+      result.push_back(buffer);
+    }
+    return result;
+  }
+
+  static string FromBits(const string &s) {
+    hb_set_unique_ptr set = make_hb_set();
+    EXPECT_EQ(StatusCode::kOk, SparseBitSet::Decode(FromChars(s), set.get()));
+    std::vector<unsigned int> results;
+    for (hb_codepoint_t cp = HB_SET_VALUE_INVALID;
+         hb_set_next(set.get(), &cp);) {
+      results.push_back(cp);
+    }
+    string results_str;
+    for (unsigned int n : results) {
+      results_str += to_string(n);
+      results_str += " ";
+    }
+    if (!results_str.empty()) {
+      results_str = results_str.substr(0, results_str.length() - 1);
+    }
+    return results_str;
   }
 };
 
@@ -55,43 +118,45 @@ TEST_F(SparseBitSetTest, DecodeNullSet) {
 
 TEST_F(SparseBitSetTest, DecodeAppends) {
   hb_set_unique_ptr set = make_hb_set(1, 42);
-  SparseBitSet::Decode(string{0b00000001}, set.get());
-
+  SparseBitSet::Decode(string{0b00000001, 0b00000001}, set.get());
+  //                          ^ d1 bf8 ^
   hb_set_unique_ptr expected = make_hb_set(2, 0, 42);
   EXPECT_TRUE(hb_set_is_equal(expected.get(), set.get()));
 }
 
 TEST_F(SparseBitSetTest, DecodeInvalid) {
   // The encoded set here is truncated and missing 2 bytes.
-  string encoded{0b01010101, 0b00000001, 0b00000001};
+  string encoded{0b00000101, 0b01010101, 0b00000001, 0b00000001};
+  //             ^ d2 bf8 ^
   hb_set_unique_ptr set = make_hb_set();
   EXPECT_EQ(StatusCode::kInvalidArgument,
             SparseBitSet::Decode(encoded, set.get()));
 
   hb_set_unique_ptr empty_set = make_hb_set(0);
-  EXPECT_TRUE(hb_set_is_equal(set.get(), empty_set.get()));
+  // The set was partially updated.
+  EXPECT_FALSE(hb_set_is_equal(set.get(), empty_set.get()));
 }
 
 TEST_F(SparseBitSetTest, EncodeEmpty) { TestEncodeDecode(make_hb_set(), 0); }
 
 TEST_F(SparseBitSetTest, EncodeOneLayer) {
-  TestEncodeDecode(make_hb_set(1, 0), 1);
-  TestEncodeDecode(make_hb_set(1, 7), 1);
-  TestEncodeDecode(make_hb_set(2, 2, 5), 1);
-  TestEncodeDecode(make_hb_set(8, 0, 1, 2, 3, 4, 5, 6, 7), 1);
+  TestEncodeDecode(make_hb_set(1, 0), 2);
+  TestEncodeDecode(make_hb_set(1, 7), 2);
+  TestEncodeDecode(make_hb_set(2, 2, 5), 2);
+  TestEncodeDecode(make_hb_set(8, 0, 1, 2, 3, 4, 5, 6, 7), 2);
 }
 
 TEST_F(SparseBitSetTest, EncodeTwoLayers) {
-  TestEncodeDecode(make_hb_set(1, 63), 2);
-  TestEncodeDecode(make_hb_set(2, 0, 63), 3);
-  TestEncodeDecode(make_hb_set(3, 2, 5, 60), 3);
-  TestEncodeDecode(make_hb_set(5, 0, 30, 31, 33, 63), 5);
+  TestEncodeDecode(make_hb_set(1, 63), 3);
+  TestEncodeDecode(make_hb_set(2, 0, 63), 4);
+  TestEncodeDecode(make_hb_set(3, 2, 5, 60), 4);
+  TestEncodeDecode(make_hb_set(5, 0, 30, 31, 33, 63), 6);
 }
 
 TEST_F(SparseBitSetTest, EncodeManyLayers) {
-  TestEncodeDecode(make_hb_set(2, 10, 49596), 11);
-  TestEncodeDecode(make_hb_set(3, 10, 49595, 49596), 11);
-  TestEncodeDecode(make_hb_set(3, 10, 49588, 49596), 12);
+  TestEncodeDecode(make_hb_set(2, 10, 49596), 12);
+  TestEncodeDecode(make_hb_set(3, 10, 49595, 49596), 12);
+  TestEncodeDecode(make_hb_set(3, 10, 49588, 49596), 13);
 }
 
 TEST_F(SparseBitSetTest, Encode4BitEmpty) {
@@ -99,49 +164,78 @@ TEST_F(SparseBitSetTest, Encode4BitEmpty) {
 }
 
 TEST_F(SparseBitSetTest, Encode4BitSingleNode) {
-  EXPECT_EQ("1000 0000", Bits(make_hb_set(1, 0), BF4));
-  EXPECT_EQ("0100 0000", Bits(make_hb_set(1, 1), BF4));
-  EXPECT_EQ("0010 0000", Bits(make_hb_set(1, 2), BF4));
-  EXPECT_EQ("0001 0000", Bits(make_hb_set(1, 3), BF4));
+  EXPECT_EQ("00|000000 1000 0000", Bits(make_hb_set(1, 0), BF4));
+  //         ^bf4  d1^
+  EXPECT_EQ("00|000000 0100 0000", Bits(make_hb_set(1, 1), BF4));
+  EXPECT_EQ("00|000000 0010 0000", Bits(make_hb_set(1, 2), BF4));
+  EXPECT_EQ("00|000000 0001 0000", Bits(make_hb_set(1, 3), BF4));
 
-  EXPECT_EQ("1100 0000", Bits(make_hb_set(2, 0, 1), BF4));
-  EXPECT_EQ("0011 0000", Bits(make_hb_set(2, 2, 3), BF4));
+  EXPECT_EQ("00|000000 1100 0000", Bits(make_hb_set(2, 0, 1), BF4));
+  EXPECT_EQ("00|000000 0011 0000", Bits(make_hb_set(2, 2, 3), BF4));
 
-  EXPECT_EQ("1111 0000", Bits(make_hb_set(4, 0, 1, 2, 3), BF4));
+  EXPECT_EQ("00|000000 1111 0000", Bits(make_hb_set(4, 0, 1, 2, 3), BF4));
 }
 
 TEST_F(SparseBitSetTest, Encode4BitMultipleNodes) {
-  EXPECT_EQ("0100 1000", Bits(make_hb_set(1, 4), BF4));
-  EXPECT_EQ("0100 0100", Bits(make_hb_set(1, 5), BF4));
-  EXPECT_EQ("0100 0010", Bits(make_hb_set(1, 6), BF4));
-  EXPECT_EQ("0100 0001", Bits(make_hb_set(1, 7), BF4));
+  EXPECT_EQ("00|100000 0100 1000", Bits(make_hb_set(1, 4), BF4));
+  EXPECT_EQ("00|100000 0100 0100", Bits(make_hb_set(1, 5), BF4));
+  EXPECT_EQ("00|100000 0100 0010", Bits(make_hb_set(1, 6), BF4));
+  EXPECT_EQ("00|100000 0100 0001", Bits(make_hb_set(1, 7), BF4));
+  //         ^bf4  d1^
 
-  EXPECT_EQ("0010 1000", Bits(make_hb_set(1, 8), BF4));
-  EXPECT_EQ("0010 0100", Bits(make_hb_set(1, 9), BF4));
-  EXPECT_EQ("0010 0010", Bits(make_hb_set(1, 10), BF4));
-  EXPECT_EQ("0010 0001", Bits(make_hb_set(1, 11), BF4));
+  EXPECT_EQ("00|100000 0010 1000", Bits(make_hb_set(1, 8), BF4));
+  EXPECT_EQ("00|100000 0010 0100", Bits(make_hb_set(1, 9), BF4));
+  EXPECT_EQ("00|100000 0010 0010", Bits(make_hb_set(1, 10), BF4));
+  EXPECT_EQ("00|100000 0010 0001", Bits(make_hb_set(1, 11), BF4));
 
-  EXPECT_EQ("0001 1000", Bits(make_hb_set(1, 12), BF4));
-  EXPECT_EQ("0001 0100", Bits(make_hb_set(1, 13), BF4));
-  EXPECT_EQ("0001 0010", Bits(make_hb_set(1, 14), BF4));
-  EXPECT_EQ("0001 0001", Bits(make_hb_set(1, 15), BF4));
+  EXPECT_EQ("00|100000 0001 1000", Bits(make_hb_set(1, 12), BF4));
+  EXPECT_EQ("00|100000 0001 0100", Bits(make_hb_set(1, 13), BF4));
+  EXPECT_EQ("00|100000 0001 0010", Bits(make_hb_set(1, 14), BF4));
+  EXPECT_EQ("00|100000 0001 0001", Bits(make_hb_set(1, 15), BF4));
 
-  EXPECT_EQ("1100 1000 1000 0000", Bits(make_hb_set(2, 0, 4), BF4));
-  EXPECT_EQ("0011 1000 1000 0000", Bits(make_hb_set(2, 8, 12), BF4));
+  EXPECT_EQ("00|100000 1100 1000 1000 0000", Bits(make_hb_set(2, 0, 4), BF4));
+  EXPECT_EQ("00|100000 0011 1000 1000 0000", Bits(make_hb_set(2, 8, 12), BF4));
 
-  EXPECT_EQ("1111 1111 1111 1111 1111 0000",
+  EXPECT_EQ("00|100000 1111 1111 1111 1111 1111 0000",
             Bits(make_hb_set(16, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
                              14, 15),
                  BF4));
 }
 
+TEST_F(SparseBitSetTest, Encode8) {
+  EXPECT_EQ(
+      "10|010000 "
+      // bf8, d3
+      "10000100 10001000 10000000 00100000 01000000 00010000",
+      Bits(make_hb_set(3, 2, 33, 323), BF8));
+}
+
+TEST_F(SparseBitSetTest, Decode4) {
+  //                  lsb  ....  msb
+  EXPECT_EQ(FromBits("00|000000 0000"), "");
+  EXPECT_EQ(FromBits("00|000000 1000"), "0");
+  EXPECT_EQ(FromBits("00|000000 0100"), "1");
+  EXPECT_EQ(FromBits("00|000000 0010"), "2");
+  EXPECT_EQ(FromBits("00|000000 0001"), "3");
+  EXPECT_EQ(FromBits("00|000000 1111"), "0 1 2 3");
+  //                  ^d1  bf4^
+
+  EXPECT_EQ(FromBits("00|100000 1100 1000 1000"), "0 4");
+  EXPECT_EQ(FromBits("00|100000 0011 1000 1000"), "8 12");
+  //                  ^d2  bf4^
+}
+
+TEST_F(SparseBitSetTest, Decode8) {
+  EXPECT_EQ(FromBits("10|010000 "
+                     // bf8, d3
+                     "10000100 10001000 10000000 00100000 01000000 00010000"),
+            "2 33 323");
+}
+
 TEST_F(SparseBitSetTest, RandomSets) {
   for (BranchFactor bf : {BF4, BF8, BF16, BF32}) {
-    if (bf != BF8) {
-      continue;  // TODO(andyj): remove this in the next CL with Decode().
-    }
     unsigned int seed = 42;
-    for (int i = 0; i < 10000; i++) {
+    for (int i = 0; i < 4000; i++) {
       int size = rand_r(&seed) % 4096;
       hb_set_unique_ptr input = make_hb_set();
       for (int j = 0; j < size; j++) {
@@ -149,10 +243,17 @@ TEST_F(SparseBitSetTest, RandomSets) {
       }
       string bit_set = SparseBitSet::Encode(*input, bf);
       hb_set_unique_ptr output = make_hb_set();
-      SparseBitSet::Decode(bit_set, output.get());
-      EXPECT_EQ(hb_set_is_equal(input.get(), output.get()), true);
+      EXPECT_EQ(StatusCode::kOk, SparseBitSet::Decode(bit_set, output.get()));
+      EXPECT_TRUE(hb_set_is_equal(input.get(), output.get()));
     }
   }
+}
+
+TEST_F(SparseBitSetTest, BranchFactorValues) {
+  EXPECT_EQ(4, BF4);
+  EXPECT_EQ(8, BF8);
+  EXPECT_EQ(16, BF16);
+  EXPECT_EQ(32, BF32);
 }
 
 }  // namespace patch_subset
