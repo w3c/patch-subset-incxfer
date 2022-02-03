@@ -87,6 +87,7 @@ cc_library(
 cc_library(
     name = "common",
     srcs = [
+        "bit_input_buffer.cc",
         "bit_output_buffer.cc",
         "brotli_binary_diff.cc",
         "codepoint_map.cc",
@@ -98,6 +99,7 @@ cc_library(
         "vcdiff_binary_diff.cc",
     ],
     hdrs = [
+        "bit_input_buffer.h",
         "bit_output_buffer.h",
         "binary_diff.h",
         "branch_factor.h",
@@ -133,6 +135,8 @@ cc_test(
     name = "tests",
     size = "small",
     srcs = [
+        "bit_buffer_test.cc",
+        "bit_input_buffer_test.cc",
         "bit_output_buffer_test.cc",
         "brotli_patching_test.cc",
         "brotli_request_logger_test.cc",

@@ -5,6 +5,7 @@
 #include "absl/strings/string_view.h"
 #include "common/status.h"
 #include "hb.h"
+#include "patch_subset/bit_input_buffer.h"
 #include "patch_subset/bit_output_buffer.h"
 
 using ::absl::string_view;
@@ -41,58 +42,40 @@ unsigned int ValuesPerBitForLayer(unsigned int layer, unsigned int tree_depth,
   return values;
 }
 
-char MaskFor(unsigned int bit) { return 1 << bit; }
-
-// Decodes a single layer that spans from start_index to end_index (inclusive)
-// If this is not the last layer, it adds the indexes of the bytes in the next
-// layer to layer_indices otherwise it populates the values in out.
-unsigned int DecodeLayer(string_view sparse_bit_set, size_t start_index,
-                         size_t end_index,
-                         vector<unsigned int>* layer_indices, /* OUT */
-                         hb_set_t* out /* OUT */) {
-  bool has_more_layers = (layer_indices->size() < sparse_bit_set.size());
-  size_t i = start_index;
-  for (; i <= end_index && i < sparse_bit_set.size(); i++) {
-    char byte = sparse_bit_set[i];
-    for (unsigned int bit_index = 0; bit_index < 8; bit_index++) {
-      char mask = MaskFor(bit_index);
-      if (!(byte & mask)) {
-        continue;
-      }
-
-      unsigned int index = (*layer_indices)[i] * 8 + bit_index;
-      if (has_more_layers) {
-        layer_indices->push_back(index);
-        continue;
-      }
-      hb_set_add(out, index);
-    }
-  }
-  return i;
-}
-
 StatusCode SparseBitSet::Decode(string_view sparse_bit_set, hb_set_t* out) {
   if (!out) {
     return StatusCode::kInvalidArgument;
   }
-
   if (sparse_bit_set.empty()) {
     return StatusCode::kOk;
   }
 
-  unsigned int byte_index = 0;
-  vector<unsigned int> layer_indices;
-  layer_indices.push_back(0);
+  BitInputBuffer bits(sparse_bit_set);
+  vector<unsigned int> pending_node_bases{0u};  // Root node.
+  vector<unsigned int> next_level_node_bases;
 
-  while (byte_index < sparse_bit_set.size()) {
-    size_t end_index = layer_indices.size() - 1;
-    if (end_index >= sparse_bit_set.size()) {
-      return StatusCode::kInvalidArgument;
+  for (unsigned int level = 0; level < bits.Depth(); level++) {
+    for (unsigned int current_node_base : pending_node_bases) {
+      uint32_t current_node_bits;
+      if (!bits.read(&current_node_bits)) {
+        // Ran out of node bits.
+        return StatusCode::kInvalidArgument;
+      }
+      for (unsigned int bit_index = 0; bit_index < bits.GetBranchFactor();
+           bit_index++) {
+        if (current_node_bits & 1u << bit_index) {
+          if (level == bits.Depth() - 1) {
+            hb_set_add(out, current_node_base + bit_index);
+          } else {
+            next_level_node_bases.push_back((current_node_base + bit_index) *
+                                            bits.GetBranchFactor());
+          }
+        }
+      }
     }
-    byte_index =
-        DecodeLayer(sparse_bit_set, byte_index, end_index, &layer_indices, out);
+    pending_node_bases.swap(next_level_node_bases);
+    next_level_node_bases.clear();
   }
-
   return StatusCode::kOk;
 }
 
@@ -151,7 +134,7 @@ string SparseBitSet::Encode(const hb_set_t& set, BranchFactor branch_factor) {
   }
   unsigned int bits_per_node = branch_factor;
   unsigned int depth = TreeDepthFor(set, bits_per_node);
-  BitOutputBuffer bit_buffer(branch_factor);
+  BitOutputBuffer bit_buffer(branch_factor, depth);
 
   unsigned int current_node_base_index =
       0;  // Next node to process is the root node.

@@ -9,13 +9,15 @@
 namespace patch_subset {
 
 /*
- * A class for concatenating bits. 1..32 bits can be appended at a time.
+ * A class to help write out an encoded sparse bit set. The first byte
+ * encodes the branch factor and the depth. Based on the branch factor,
+ * groups of 4, 8, 16 or 32 bits will be concatenated at a time.
  * The final result is returned as a std::string.
  */
 class BitOutputBuffer {
  public:
   // Construct an initially empty BitOutputBuffer.
-  BitOutputBuffer(BranchFactor branch_factor);
+  BitOutputBuffer(BranchFactor branch_factor, unsigned int depth);
 
   // The lowest/rightmost bits of the value bits are appended. The number of
   // bits appended depends on the BranchFactor this BitOutputBuffer was
