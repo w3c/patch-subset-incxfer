@@ -82,26 +82,26 @@ TEST_F(BitInputBufferTest, Null) {
 }
 
 TEST_F(BitInputBufferTest, ReservedBitsIgnored) {
-  for (string s : {string{0b00000000}, string{0b01000000}, string{(char) 0b10000000},
-                   string{(char) 0b11000000}}) {
+  for (string s : {string{0b00000000}, string{0b01000000},
+                   string{(char)0b10000000}, string{(char)0b11000000}}) {
     BitInputBuffer bin(s);
     EXPECT_EQ(BF4, bin.GetBranchFactor());
     EXPECT_EQ(1, bin.Depth());
   }
-  for (string s : {string{0b00000001}, string{0b01000001}, string{(char) 0b10000001},
-                   string{(char) 0b11000001}}) {
+  for (string s : {string{0b00000001}, string{0b01000001},
+                   string{(char)0b10000001}, string{(char)0b11000001}}) {
     BitInputBuffer bin(s);
     EXPECT_EQ(BF8, bin.GetBranchFactor());
     EXPECT_EQ(1, bin.Depth());
   }
-  for (string s : {string{0b00000010}, string{0b01000010}, string{(char) 0b10000010},
-                   string{(char) 0b11000010}}) {
+  for (string s : {string{0b00000010}, string{0b01000010},
+                   string{(char)0b10000010}, string{(char)0b11000010}}) {
     BitInputBuffer bin(s);
     EXPECT_EQ(BF16, bin.GetBranchFactor());
     EXPECT_EQ(1, bin.Depth());
   }
-  for (string s : {string{0b00000011}, string{0b01000011}, string{(char) 0b10000011},
-                   string{(char) 0b11000011}}) {
+  for (string s : {string{0b00000011}, string{0b01000011},
+                   string{(char)0b10000011}, string{(char)0b11000011}}) {
     BitInputBuffer bin(s);
     EXPECT_EQ(BF32, bin.GetBranchFactor());
     EXPECT_EQ(1, bin.Depth());
