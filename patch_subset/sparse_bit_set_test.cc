@@ -433,4 +433,57 @@ TEST_F(SparseBitSetTest, BranchFactorValues) {
   EXPECT_EQ(32, BF32);
 }
 
+
+TEST_F(SparseBitSetTest, DepthLimits4) {
+  hb_set_unique_ptr output = make_hb_set();
+  // Depth 16 is OK.
+  EXPECT_EQ(
+      StatusCode::kOk,
+      SparseBitSet::Decode(FromChars("00|111100 00000000"), output.get()));
+}
+
+TEST_F(SparseBitSetTest, DepthLimits8) {
+  hb_set_unique_ptr output = make_hb_set();
+  // Depth 11 is OK.
+  EXPECT_EQ(
+      StatusCode::kOk,
+      SparseBitSet::Decode(FromChars("10|010100 00000000"), output.get()));
+  // Depth 12 is too much.
+  EXPECT_EQ(
+      StatusCode::kInvalidArgument,
+      SparseBitSet::Decode(FromChars("10|110100 00000000"), output.get()));
+}
+
+TEST_F(SparseBitSetTest, DepthLimits16) {
+  hb_set_unique_ptr output = make_hb_set();
+  // Depth 9 is OK.
+  EXPECT_EQ(StatusCode::kOk,
+            SparseBitSet::Decode(FromChars("01|000100 0000000000000000"),
+                                 output.get()));
+  // Depth 10 is too much.
+  EXPECT_EQ(StatusCode::kInvalidArgument,
+            SparseBitSet::Decode(FromChars("01|100100 0000000000000000"),
+                                 output.get()));
+}
+
+TEST_F(SparseBitSetTest, DepthLimits32) {
+  hb_set_unique_ptr output = make_hb_set();
+  // Depth 7 is OK.
+  EXPECT_EQ(StatusCode::kOk,
+            SparseBitSet::Decode(
+                FromChars("11|011000 00000000000000000000000000000000"),
+                output.get()));
+  // Depth 8 is too much.
+  EXPECT_EQ(StatusCode::kInvalidArgument,
+            SparseBitSet::Decode(
+                FromChars("11|111000 00000000000000000000000000000000"),
+                output.get()));
+}
+
+TEST_F(SparseBitSetTest, Entire32BitRange) {
+  for (BranchFactor bf : {BF4, BF8, BF16, BF32}) {
+    TestEncodeDecode(Set({{0xFFFFFFFF, 0xFFFFFFFF}}), bf);
+  }
+}
+
 }  // namespace patch_subset
