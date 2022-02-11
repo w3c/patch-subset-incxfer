@@ -283,7 +283,7 @@ static void SkipExistingFilledNode(uint32_t cp, EncodeContext& context) {
     uint8_t filled_depth = context.filled_levels.at(twig);
     // # of twigs covered by this filled node depends on its level.
     uint32_t twig_size = 1;
-    for (int layer = context.tree_height - 2; layer >filled_depth; layer--) {
+    for (int layer = context.tree_height - 2; layer > filled_depth; layer--) {
       twig_size *= context.bits_per_node;
     }
     // Advance 1 past this filled node.
