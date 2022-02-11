@@ -433,7 +433,6 @@ TEST_F(SparseBitSetTest, BranchFactorValues) {
   EXPECT_EQ(32, BF32);
 }
 
-
 TEST_F(SparseBitSetTest, DepthLimits4) {
   hb_set_unique_ptr output = make_hb_set();
   // Depth 16 is OK.
