@@ -91,7 +91,9 @@ static BranchFactor DecodeBranchFactor(unsigned char first_byte) {
 }
 
 static unsigned int DecodeDepth(unsigned char first_byte) {
-  return (first_byte >> 2) + 1;
+  // Only look at bits 2..5.
+  // Bits 0 and 1 are branch factor. Bits 6 and 7 are reserved for future use.
+  return ((first_byte & 0b00111100u) >> 2) + 1;
 }
 
 }  // namespace patch_subset

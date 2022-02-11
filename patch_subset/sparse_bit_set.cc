@@ -53,8 +53,34 @@ StatusCode SparseBitSet::Decode(string_view sparse_bit_set, hb_set_t* out) {
   }
 
   BitInputBuffer bits(sparse_bit_set);
-  unsigned int bits_per_node = bits.GetBranchFactor();
+  BranchFactor bits_per_node = bits.GetBranchFactor();
   unsigned int tree_height = bits.Depth();
+
+  // Enforce upper limits on tree sizes.
+  // We only need to encode the 32 bit range 0x0 .. 0xFFFFFFFF.
+  switch (bits_per_node) {
+    case BF4:
+      if (tree_height > 16) {
+        return StatusCode::kInvalidArgument;
+      }
+      break;
+    case BF8:
+      if (tree_height > 11) {
+        return StatusCode::kInvalidArgument;
+      }
+      break;
+    case BF16:
+      if (tree_height > 9) {
+        return StatusCode::kInvalidArgument;
+      }
+      break;
+    case BF32:
+      if (tree_height > 7) {
+        return StatusCode::kInvalidArgument;
+      }
+      break;
+  }
+
   // At each level, this is the number of leaf values a node covers.
   unsigned int leaf_node_size = bits_per_node;
   for (unsigned int i = 1; i < tree_height; i++) {
