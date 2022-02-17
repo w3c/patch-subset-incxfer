@@ -481,7 +481,7 @@ TEST_F(SparseBitSetTest, DepthLimits32) {
 
 TEST_F(SparseBitSetTest, Entire32BitRange) {
   for (BranchFactor bf : {BF4, BF8, BF16, BF32}) {
-    TestEncodeDecode(Set({{0xFFFFFFFF, 0xFFFFFFFF}}), bf);
+    TestEncodeDecode(make_hb_set(1, 0xFFFFFFFE), bf);
   }
 }
 
