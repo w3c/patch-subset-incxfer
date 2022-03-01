@@ -54,12 +54,17 @@ class PatchSubsetClientTest : public ::testing::Test {
   PatchRequest CreateRequest(const hb_set_t& codepoints_have,
                              const hb_set_t& codepoints_needed) {
     PatchRequest request;
-    patch_subset::cbor::CompressedSet codepoints_have2;
-    CompressedSet::Encode(codepoints_have, codepoints_have2);
-    request.SetCodepointsHave(codepoints_have2);
-    patch_subset::cbor::CompressedSet codepoints_needed2;
-    CompressedSet::Encode(codepoints_needed, codepoints_needed2);
-    request.SetCodepointsNeeded(codepoints_needed2);
+    if (!hb_set_is_empty(&codepoints_have)) {
+      patch_subset::cbor::CompressedSet codepoints_have2;
+      CompressedSet::Encode(codepoints_have, codepoints_have2);
+      request.SetCodepointsHave(codepoints_have2);
+    }
+
+    if (!hb_set_is_empty(&codepoints_needed)) {
+      patch_subset::cbor::CompressedSet codepoints_needed2;
+      CompressedSet::Encode(codepoints_needed, codepoints_needed2);
+      request.SetCodepointsNeeded(codepoints_needed2);
+    }
 
     request.AddAcceptFormat(PatchFormat::BROTLI_SHARED_DICT);
     request.SetOriginalFontChecksum(kOriginalChecksum);
@@ -141,14 +146,23 @@ TEST_F(PatchSubsetClientTest, SendPatchRequest) {
 }
 
 TEST_F(PatchSubsetClientTest, SendPatchRequest_WithCodepointMapping) {
-  hb_set_unique_ptr codepoints_have = make_hb_set_from_ranges(1, 0x61, 0x62);
+  hb_set_unique_ptr empty_set = make_hb_set();
   hb_set_unique_ptr codepoints_needed = make_hb_set_from_ranges(1, 0x63, 0x65);
   hb_set_unique_ptr codepoints_have_encoded = make_hb_set_from_ranges(1, 0, 1);
   hb_set_unique_ptr codepoints_needed_encoded =
       make_hb_set_from_ranges(1, 2, 3);
 
-  PatchRequest expected_request =
-      CreateRequest(*codepoints_have_encoded, *codepoints_needed_encoded);
+  PatchRequest expected_request = CreateRequest(*empty_set, *empty_set);
+
+  patch_subset::cbor::CompressedSet codepoints_have_compressed;
+  CompressedSet::Encode(*codepoints_have_encoded, codepoints_have_compressed);
+  expected_request.SetIndicesHave(codepoints_have_compressed);
+
+  patch_subset::cbor::CompressedSet codepoints_needed_compressed;
+  CompressedSet::Encode(*codepoints_needed_encoded,
+                        codepoints_needed_compressed);
+  expected_request.SetIndicesNeeded(codepoints_needed_compressed);
+
   expected_request.SetOrderingChecksum(13);
 
   ExpectRequest(expected_request);

@@ -339,10 +339,10 @@ TEST_F(PatchSubsetServerImplWithCodepointRemappingTest,
   PatchResponse response;
   patch_subset::cbor::CompressedSet codepoints_have;
   CompressedSet::Encode(*set_ab_encoded_, codepoints_have);
-  request.SetCodepointsHave(codepoints_have);
+  request.SetIndicesHave(codepoints_have);
   patch_subset::cbor::CompressedSet codepoints_needed;
   CompressedSet::Encode(*set_abcd_encoded_, codepoints_needed);
-  request.SetCodepointsNeeded(codepoints_needed);
+  request.SetIndicesNeeded(codepoints_needed);
   request.SetAcceptFormats({PatchFormat::BROTLI_SHARED_DICT});
   request.SetOriginalFontChecksum(42);
   request.SetBaseChecksum(43);
@@ -369,10 +369,10 @@ TEST_F(PatchSubsetServerImplWithCodepointRemappingTest, BadIndexChecksum) {
   PatchResponse response;
   patch_subset::cbor::CompressedSet codepoints_have;
   CompressedSet::Encode(*set_ab_, codepoints_have);
-  request.SetCodepointsHave(codepoints_have);
+  request.SetIndicesHave(codepoints_have);
   patch_subset::cbor::CompressedSet codepoints_needed;
   CompressedSet::Encode(*set_abcd_, codepoints_needed);
-  request.SetCodepointsNeeded(codepoints_needed);
+  request.SetIndicesNeeded(codepoints_needed);
   request.SetAcceptFormats({PatchFormat::BROTLI_SHARED_DICT});
   request.SetOriginalFontChecksum(42);
   request.SetBaseChecksum(43);
