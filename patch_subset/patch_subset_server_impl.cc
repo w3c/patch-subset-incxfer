@@ -24,6 +24,8 @@ struct RequestState {
   RequestState()
       : codepoints_have(make_hb_set()),
         codepoints_needed(make_hb_set()),
+        indices_have(make_hb_set()),
+        indices_needed(make_hb_set()),
         mapping(),
         codepoint_mapping_invalid(false),
         format(PatchFormat::VCDIFF) {}
@@ -38,6 +40,9 @@ struct RequestState {
 
   hb_set_unique_ptr codepoints_have;
   hb_set_unique_ptr codepoints_needed;
+  hb_set_unique_ptr indices_have;
+  hb_set_unique_ptr indices_needed;
+
   uint64_t ordering_checksum;
   CodepointMap mapping;
   FontData font_data;
@@ -106,7 +111,11 @@ void PatchSubsetServerImpl::LoadInputCodepoints(const PatchRequest& request,
   CompressedSet::Decode(request.CodepointsHave(), state->codepoints_have.get());
   CompressedSet::Decode(request.CodepointsNeeded(),
                         state->codepoints_needed.get());
+  CompressedSet::Decode(request.IndicesHave(), state->indices_have.get());
+  CompressedSet::Decode(request.IndicesNeeded(), state->indices_needed.get());
+
   hb_set_union(state->codepoints_needed.get(), state->codepoints_have.get());
+  hb_set_union(state->indices_needed.get(), state->indices_have.get());
   state->ordering_checksum = request.OrderingChecksum();
 }
 
@@ -126,9 +135,9 @@ StatusCode PatchSubsetServerImpl::ComputeCodepointRemapping(
   subsetter_->CodepointsInFont(state->font_data, codepoints.get());
   codepoint_mapper_->ComputeMapping(codepoints.get(), &state->mapping);
 
-  if (state->IsRebase()) {
-    // Don't remap input codepoints for a rebase request (client isn't
-    // using the mapping yet.)
+  if (hb_set_is_empty(state->indices_have.get()) &&
+      hb_set_is_empty(state->indices_needed.get())) {
+    // Don't remap input codepoints if none are specified as indices.
     return StatusCode::kOk;
   }
 
@@ -150,8 +159,11 @@ StatusCode PatchSubsetServerImpl::ComputeCodepointRemapping(
 
   // Codepoints given to use by the client are using the computed codepoint
   // mapping, so translate the provided sets back to actual codepoints.
-  state->mapping.Decode(state->codepoints_have.get());
-  state->mapping.Decode(state->codepoints_needed.get());
+  state->mapping.Decode(state->indices_have.get());
+  state->mapping.Decode(state->indices_needed.get());
+
+  hb_set_union(state->codepoints_have.get(), state->indices_have.get());
+  hb_set_union(state->codepoints_needed.get(), state->indices_needed.get());
   return StatusCode::kOk;
 }
 

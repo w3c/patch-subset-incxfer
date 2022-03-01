@@ -52,7 +52,8 @@ StatusCode PatchSubsetClient::Extend(const hb_set_t& additional_codepoints,
                                      ClientState& state) {
   PatchRequest request;
   StatusCode result = CreateRequest(additional_codepoints, state, &request);
-  if (result != StatusCode::kOk || request.CodepointsNeeded().empty()) {
+  if (result != StatusCode::kOk ||
+      (request.IndicesNeeded().empty() && request.CodepointsNeeded().empty())) {
     return result;
   }
 
@@ -166,16 +167,26 @@ void PatchSubsetClient::CreateRequest(const hb_set_t& codepoints_have,
   }
   request->AddAcceptFormat(PatchFormat::BROTLI_SHARED_DICT);
 
-  patch_subset::cbor::CompressedSet codepoints_have_encoded;
-  CompressedSet::Encode(codepoints_have, codepoints_have_encoded);
-  if (!codepoints_have_encoded.empty()) {
-    request->SetCodepointsHave(codepoints_have_encoded);
+  if (!hb_set_is_empty(&codepoints_have)) {
+    patch_subset::cbor::CompressedSet codepoints_have_encoded;
+    CompressedSet::Encode(codepoints_have, codepoints_have_encoded);
+
+    if (state.CodepointRemapping().empty()) {
+      request->SetCodepointsHave(codepoints_have_encoded);
+    } else {
+      request->SetIndicesHave(codepoints_have_encoded);
+    }
   }
 
-  patch_subset::cbor::CompressedSet codepoints_needed_encoded;
-  CompressedSet::Encode(codepoints_needed, codepoints_needed_encoded);
-  if (!codepoints_needed_encoded.empty()) {
-    request->SetCodepointsNeeded(codepoints_needed_encoded);
+  if (!hb_set_is_empty(&codepoints_needed)) {
+    patch_subset::cbor::CompressedSet codepoints_needed_encoded;
+    CompressedSet::Encode(codepoints_needed, codepoints_needed_encoded);
+
+    if (state.CodepointRemapping().empty()) {
+      request->SetCodepointsNeeded(codepoints_needed_encoded);
+    } else {
+      request->SetIndicesNeeded(codepoints_needed_encoded);
+    }
   }
 
   if (!state.CodepointRemapping().empty()) {
