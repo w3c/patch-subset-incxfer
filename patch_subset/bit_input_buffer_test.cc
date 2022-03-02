@@ -12,8 +12,25 @@ using std::string;
 
 class BitInputBufferTest : public ::testing::Test {};
 
-TEST_F(BitInputBufferTest, SingleByte4) {
+TEST_F(BitInputBufferTest, SingleByte2) {
   BitInputBuffer bin(string{0b00000000, 0b00001111});
+  //                        ^ d1 bf2 ^
+  EXPECT_EQ(BF2, bin.GetBranchFactor());
+  EXPECT_EQ(1, bin.Depth());
+  uint32_t out = UINT32_MAX;
+  EXPECT_TRUE(bin.read(&out));
+  EXPECT_EQ(out, 0b11);
+  EXPECT_TRUE(bin.read(&out));
+  EXPECT_EQ(out, 0b11);
+  EXPECT_TRUE(bin.read(&out));
+  EXPECT_EQ(out, 0b00);
+  EXPECT_TRUE(bin.read(&out));
+  EXPECT_EQ(out, 0b00);
+  EXPECT_FALSE(bin.read(&out));
+}
+
+TEST_F(BitInputBufferTest, SingleByte4) {
+  BitInputBuffer bin(string{0b00000001, 0b00001111});
   //                        ^ d1 bf4 ^
   EXPECT_EQ(BF4, bin.GetBranchFactor());
   EXPECT_EQ(1, bin.Depth());
@@ -26,24 +43,13 @@ TEST_F(BitInputBufferTest, SingleByte4) {
 }
 
 TEST_F(BitInputBufferTest, SingleRead8) {
-  BitInputBuffer bin(string{0b00000001, 0x2F});
+  BitInputBuffer bin(string{0b00000010, 0x2F});
   //                        ^ d1 bf8 ^
   EXPECT_EQ(BF8, bin.GetBranchFactor());
   EXPECT_EQ(1, bin.Depth());
   uint32_t out = UINT32_MAX;
   EXPECT_TRUE(bin.read(&out));
   EXPECT_EQ(out, 0x2F);
-  EXPECT_FALSE(bin.read(&out));
-}
-
-TEST_F(BitInputBufferTest, SingleRead16) {
-  BitInputBuffer bin(string{0b00000010, 0x7F, 0x10});
-  //                        ^ d1 bf16^
-  EXPECT_EQ(BF16, bin.GetBranchFactor());
-  EXPECT_EQ(1, bin.Depth());
-  uint32_t out = UINT32_MAX;
-  EXPECT_TRUE(bin.read(&out));
-  EXPECT_EQ(out, 0x107F);
   EXPECT_FALSE(bin.read(&out));
 }
 
@@ -66,7 +72,6 @@ TEST_F(BitInputBufferTest, Empty) {
   EXPECT_FALSE(BitInputBuffer(string{0x01}).read(&out));
 
   EXPECT_FALSE(BitInputBuffer(string{0x02}).read(&out));
-  EXPECT_FALSE(BitInputBuffer(string{0x02, 0x01}).read(&out));
 
   EXPECT_FALSE(BitInputBuffer(string{0x03}).read(&out));
   EXPECT_FALSE(BitInputBuffer(string{0x03, 0x01}).read(&out));
@@ -81,27 +86,23 @@ TEST_F(BitInputBufferTest, Null) {
   EXPECT_FALSE(BitInputBuffer(string{0x03}).read(nullptr));
 }
 
-TEST_F(BitInputBufferTest, ReservedBitsIgnored) {
-  for (string s : {string{0b00000000}, string{0b01000000},
-                   string{(char)0b10000000}, string{(char)0b11000000}}) {
+TEST_F(BitInputBufferTest, ReservedBitIgnored) {
+  for (const string& s : {string{0b00000000}, string{(char)0b10000000}}) {
+    BitInputBuffer bin(s);
+    EXPECT_EQ(BF2, bin.GetBranchFactor());
+    EXPECT_EQ(1, bin.Depth());
+  }
+  for (const string& s : {string{0b00000001}, string{(char)0b10000001}}) {
     BitInputBuffer bin(s);
     EXPECT_EQ(BF4, bin.GetBranchFactor());
     EXPECT_EQ(1, bin.Depth());
   }
-  for (string s : {string{0b00000001}, string{0b01000001},
-                   string{(char)0b10000001}, string{(char)0b11000001}}) {
+  for (const string& s : {string{0b00000010}, string{(char)0b10000010}}) {
     BitInputBuffer bin(s);
     EXPECT_EQ(BF8, bin.GetBranchFactor());
     EXPECT_EQ(1, bin.Depth());
   }
-  for (string s : {string{0b00000010}, string{0b01000010},
-                   string{(char)0b10000010}, string{(char)0b11000010}}) {
-    BitInputBuffer bin(s);
-    EXPECT_EQ(BF16, bin.GetBranchFactor());
-    EXPECT_EQ(1, bin.Depth());
-  }
-  for (string s : {string{0b00000011}, string{0b01000011},
-                   string{(char)0b10000011}, string{(char)0b11000011}}) {
+  for (const string& s : {string{0b00000011}, string{(char)0b10000011}}) {
     BitInputBuffer bin(s);
     EXPECT_EQ(BF32, bin.GetBranchFactor());
     EXPECT_EQ(1, bin.Depth());

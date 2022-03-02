@@ -28,11 +28,44 @@ class BitOutputBufferTest : public ::testing::Test {
   }
 };
 
+TEST_F(BitOutputBufferTest, MultipleWrites2) {
+  BitOutputBuffer buf(BranchFactor::BF2, 2);
+  buf.append(0b1111u);
+  buf.append(0b0000u);
+  buf.append(0b1111u);
+  buf.append(0b0000u);
+  std::string out_bits = Bits(buf.to_string());
+  EXPECT_EQ("00100000 11001100", out_bits);
+  //         ^bf2 d2^
+}
+
+TEST_F(BitOutputBufferTest, MultipleWrites2b) {
+  BitOutputBuffer buf(BranchFactor::BF2, 2);
+  buf.append(0b0000u);
+  buf.append(0b1111u);
+  buf.append(0b0000u);
+  buf.append(0b1111u);
+  std::string out_bits = Bits(buf.to_string());
+  EXPECT_EQ("00100000 00110011", out_bits);
+  //         ^bf2 d2^
+}
+
+TEST_F(BitOutputBufferTest, MultipleWrites2c) {
+  BitOutputBuffer buf(BranchFactor::BF2, 2);
+  buf.append(0b0001u);
+  buf.append(0b1111u);
+  buf.append(0b0010u);
+  buf.append(0b1111u);
+  std::string out_bits = Bits(buf.to_string());
+  EXPECT_EQ("00100000 10110111", out_bits);
+  //         ^bf2 d2^
+}
+
 TEST_F(BitOutputBufferTest, SingleWrite4) {
   BitOutputBuffer buf(BranchFactor::BF4, 1);
   buf.append(0b111111111111u);
   std::string out_bits = Bits(buf.to_string());
-  EXPECT_EQ("00000000 11110000", out_bits);
+  EXPECT_EQ("10000000 11110000", out_bits);
   //         ^bf4 d1^
 }
 
@@ -44,7 +77,7 @@ TEST_F(BitOutputBufferTest, MultipleWrites4) {
   buf.append(0b0011u);
   buf.append(0b0101u);
   std::string out_bits = Bits(buf.to_string());
-  EXPECT_EQ("00100000 10010110 00111100 10100000", out_bits);
+  EXPECT_EQ("10100000 10010110 00111100 10100000", out_bits);
   //         ^bf4 d2^
 }
 
@@ -52,7 +85,7 @@ TEST_F(BitOutputBufferTest, SingleWrite8) {
   BitOutputBuffer buf(BranchFactor::BF8, 3);
   buf.append(0b11111111111111111111u);
   std::string out_bits = Bits(buf.to_string());
-  EXPECT_EQ("10010000 11111111", out_bits);
+  EXPECT_EQ("01010000 11111111", out_bits);
   //         ^bf8 d3^
 }
 
@@ -64,35 +97,8 @@ TEST_F(BitOutputBufferTest, MultipleWrites8) {
   buf.append(0b00001111u);
   buf.append(0b10101010u);
   std::string out_bits = Bits(buf.to_string());
-  EXPECT_EQ("10110000 11111111 00000000 00001111 11110000 01010101", out_bits);
+  EXPECT_EQ("01110000 11111111 00000000 00001111 11110000 01010101", out_bits);
   //         ^bf8 d4^
-}
-
-TEST_F(BitOutputBufferTest, SingleWrite16) {
-  BitOutputBuffer buf(BranchFactor::BF16, 5);
-  buf.append(0b11111111111111111111111111111111u);
-  std::string out_bits = Bits(buf.to_string());
-  EXPECT_EQ("01001000 11111111 11111111", out_bits);
-  //        ^bf16 d5^
-}
-
-TEST_F(BitOutputBufferTest, MultipleWrites16) {
-  BitOutputBuffer buf(BranchFactor::BF16, 6);
-  buf.append(0b1111111111111111u);
-  buf.append(0b0000000000000000u);
-  buf.append(0b1111111100000000u);
-  buf.append(0b0000000011111111u);
-  buf.append(0b1110001100101100u);
-  std::string out_bits = Bits(buf.to_string());
-  EXPECT_EQ(
-      "01101000 "
-      // bf16 d6
-      "11111111 11111111 "
-      "00000000 00000000 "
-      "00000000 11111111 "
-      "11111111 00000000 "
-      "00110100 11000111",
-      out_bits);
 }
 
 TEST_F(BitOutputBufferTest, SingleWrite32) {
@@ -123,14 +129,14 @@ TEST_F(BitOutputBufferTest, MultipleWrites32) {
 }
 
 TEST_F(BitOutputBufferTest, EmptyBuffer) {
-  EXPECT_EQ("00000100",
+  EXPECT_EQ("00111000",
+            Bits(BitOutputBuffer(BranchFactor::BF2, 8).to_string()));
+  EXPECT_EQ("10000100",
             Bits(BitOutputBuffer(BranchFactor::BF4, 9).to_string()));
-  EXPECT_EQ("10100100",
+  EXPECT_EQ("01100100",
             Bits(BitOutputBuffer(BranchFactor::BF8, 10).to_string()));
-  EXPECT_EQ("01010100",
-            Bits(BitOutputBuffer(BranchFactor::BF16, 11).to_string()));
-  EXPECT_EQ("11110100",
-            Bits(BitOutputBuffer(BranchFactor::BF32, 12).to_string()));
+  EXPECT_EQ("11010100",
+            Bits(BitOutputBuffer(BranchFactor::BF32, 11).to_string()));
 }
 
 }  // namespace patch_subset

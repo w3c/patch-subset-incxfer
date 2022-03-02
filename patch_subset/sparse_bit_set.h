@@ -53,6 +53,11 @@ class SparseBitSet {
 
   // Encode a set of integers into a sparse bit set binary blob.
   static std::string Encode(const hb_set_t& set, BranchFactor branch_factor);
+  /*
+   * Encode a set of integers into a sparse bit set binary blob.
+   * The optimal branch_factor will be estimated and used automatically.
+   */
+  static std::string Encode(const hb_set_t& set);
 };
 
 }  // namespace patch_subset
