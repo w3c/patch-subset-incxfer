@@ -27,9 +27,10 @@ class BitInputBuffer {
 
  private:
   BranchFactor branch_factor;
-  unsigned int depth;
+  uint32_t depth;
   absl::string_view bits;
-  unsigned int current_byte;
+  uint32_t current_byte;
+  uint8_t current_pair;
   bool first_nibble;
 };
 

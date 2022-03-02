@@ -32,6 +32,7 @@ class BitOutputBuffer {
  private:
   BranchFactor branch_factor;
   std::vector<unsigned char> buffer;
+  uint8_t current_pair;
   bool first_nibble;
 };
 

@@ -34,7 +34,14 @@ class BitBufferTest : public ::testing::Test {
   }
 };
 
+TEST_F(BitBufferTest, Transcode2) {
+  // Min string length is 1 byte, which is 4 2-bit values.
+  check_transcode({0, 0, 0, 0}, BF2, 1);
+  check_transcode({0, 1, 0, 0}, BF2, 2);
+}
+
 TEST_F(BitBufferTest, Transcode4) {
+  // Min string length is 1 bytes, which is 2 4-bit values.
   check_transcode({0, 0}, BF4, 1);
   check_transcode({0, 1, 2, 3}, BF4, 2);
 }
@@ -45,16 +52,6 @@ TEST_F(BitBufferTest, Transcode8) {
   check_transcode({255, 254, 129, 128, 127, 65, 64, 63, 33, 32, 31, 17,
                    16,  15,  9,   8,   7,   5,  4,  3,  2,  1,  0},
                   BF8, 3);
-}
-
-TEST_F(BitBufferTest, Transcode16) {
-  check_transcode({0, 0}, BF16, 1);
-  check_transcode({0, 1, 2, 3}, BF16, 2);
-  check_transcode({255, 254, 129, 128, 127, 65, 64, 63, 33, 32, 31, 17,
-                   16,  15,  9,   8,   7,   5,  4,  3,  2,  1,  0},
-                  BF16, 3);
-  check_transcode({0xFFFF, 0xFFFE, 0xFF00, 0x0F0F, 0x00FF, 0x000F, 0x0000},
-                  BF16, 4);
 }
 
 TEST_F(BitBufferTest, Transcode32) {
