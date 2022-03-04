@@ -26,8 +26,8 @@ class BitInputBuffer {
   bool read(uint32_t *out);
 
  private:
-  BranchFactor branch_factor;
-  uint32_t depth;
+  const BranchFactor branch_factor;
+  const uint32_t depth;
   absl::string_view bits;
   uint32_t current_byte;
   uint8_t current_pair;

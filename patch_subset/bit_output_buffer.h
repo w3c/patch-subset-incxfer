@@ -30,7 +30,7 @@ class BitOutputBuffer {
   std::string to_string();
 
  private:
-  BranchFactor branch_factor;
+  const BranchFactor branch_factor;
   std::vector<unsigned char> buffer;
   uint8_t current_pair;
   bool first_nibble;
