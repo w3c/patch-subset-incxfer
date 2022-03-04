@@ -15,10 +15,9 @@ static const unsigned char kFirstNibbleMask = 0x0F;
 static BranchFactor DecodeBranchFactor(unsigned char first_byte);
 static unsigned int DecodeDepth(unsigned char first_byte);
 
-BitInputBuffer::BitInputBuffer(string_view bits) {
+BitInputBuffer::BitInputBuffer(string_view bits)
+    : branch_factor(DecodeBranchFactor(bits[0])), depth(DecodeDepth(bits[0])) {
   this->bits = bits;
-  this->branch_factor = DecodeBranchFactor(bits[0]);
-  depth = DecodeDepth(bits[0]);
   current_byte = 1;
   current_pair = 0;
   first_nibble = true;

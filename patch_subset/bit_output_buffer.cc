@@ -17,9 +17,8 @@ static const unsigned char kFirstNibbleMask = 0x0F;
 static unsigned char EncodeFirstByte(BranchFactor branch_factor,
                                      unsigned int depth);
 
-BitOutputBuffer::BitOutputBuffer(BranchFactor branch_factor,
-                                 unsigned int depth) {
-  this->branch_factor = branch_factor;
+BitOutputBuffer::BitOutputBuffer(BranchFactor branch_factor, unsigned int depth)
+    : branch_factor(branch_factor) {
   current_pair = 0;
   first_nibble = true;
   buffer.push_back(EncodeFirstByte(branch_factor, depth));

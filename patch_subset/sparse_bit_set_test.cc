@@ -71,7 +71,8 @@ class SparseBitSetTest : public ::testing::Test {
     }
     string result;
     while (!bits.empty()) {
-      int n = bits.size() < bf ? (int)bits.size() : bf;
+      int n =
+          bits.size() < kBFNodeSize[bf] ? (int)bits.size() : kBFNodeSize[bf];
       result += bits.substr(0, n);
       bits = bits.substr(n, bits.size());
       if (!bits.empty()) {
@@ -404,7 +405,7 @@ TEST_F(SparseBitSetTest, MostlyFilledExampleTranscode) {
 }
 
 TEST_F(SparseBitSetTest, OneMissingValue2) {
-  int max = (BF2 * BF2 * BF2 * BF2) - 1;
+  int max = (2 * 2 * 2 * 2) - 1;
   TestEncodeDecode(Set({{1, max}}), BF2);
   for (int i = 1; i < max; i++) {
     TestEncodeDecode(Set({{0, i - 1}, {i + 1, max}}), BF2);
@@ -413,7 +414,7 @@ TEST_F(SparseBitSetTest, OneMissingValue2) {
 }
 
 TEST_F(SparseBitSetTest, OneMissingValue4) {
-  int max = (BF4 * BF4 * BF4 * BF4) - 1;
+  int max = (4 * 4 * 4 * 4) - 1;
   TestEncodeDecode(Set({{1, max}}), BF4);
   for (int i = 1; i < max; i++) {
     TestEncodeDecode(Set({{0, i - 1}, {i + 1, max}}), BF4);
@@ -422,7 +423,7 @@ TEST_F(SparseBitSetTest, OneMissingValue4) {
 }
 
 TEST_F(SparseBitSetTest, OneMissingValue8) {
-  int max = (BF8 * BF8 * BF8 * BF8) - 1;
+  int max = (8 * 8 * 8 * 8) - 1;
   TestEncodeDecode(Set({{1, max}}), BF8);
   for (int i = 1; i < max; i++) {
     TestEncodeDecode(Set({{0, i - 1}, {i + 1, max}}), BF8);
@@ -431,7 +432,7 @@ TEST_F(SparseBitSetTest, OneMissingValue8) {
 }
 
 TEST_F(SparseBitSetTest, OneMissingValue32) {
-  int max = (BF32 * BF32 * BF32 * BF32) - 1;
+  int max = (32 * 32 * 32 * 32) - 1;
   // Too many values to try all possible combinations.
   TestEncodeDecode(Set({{1, max}}), BF32);
   TestEncodeDecode(Set({{0, (max / 2) - 1}, {(max / 2), max}}), BF32);
@@ -439,27 +440,20 @@ TEST_F(SparseBitSetTest, OneMissingValue32) {
 }
 
 TEST_F(SparseBitSetTest, RandomSets) {
-  for (BranchFactor bf : {BF2, BF4, BF8, BF32}) {
-    unsigned int seed = 42;
-    for (int i = 0; i < 1000; i++) {
-      int size = rand_r(&seed) % 6000;
-      hb_set_unique_ptr input = make_hb_set();
-      for (int j = 0; j < size; j++) {
-        hb_set_add(input.get(), rand_r(&seed) % 2048);
-      }
+  unsigned int seed = 42;
+  for (int i = 0; i < 1000; i++) {
+    int size = rand_r(&seed) % 6000;
+    hb_set_unique_ptr input = make_hb_set();
+    for (int j = 0; j < size; j++) {
+      hb_set_add(input.get(), rand_r(&seed) % 2048);
+    }
+    for (BranchFactor bf : {BF2, BF4, BF8, BF32}) {
       string bit_set = SparseBitSet::Encode(*input, bf);
       hb_set_unique_ptr output = make_hb_set();
       EXPECT_EQ(StatusCode::kOk, SparseBitSet::Decode(bit_set, output.get()));
       EXPECT_TRUE(hb_set_is_equal(input.get(), output.get()));
     }
   }
-}
-
-TEST_F(SparseBitSetTest, BranchFactorValues) {
-  EXPECT_EQ(2, BF2);
-  EXPECT_EQ(4, BF4);
-  EXPECT_EQ(8, BF8);
-  EXPECT_EQ(32, BF32);
 }
 
 TEST_F(SparseBitSetTest, DepthLimits2) {

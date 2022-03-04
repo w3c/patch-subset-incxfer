@@ -12,7 +12,6 @@ using std::string;
 
 class BitOutputBufferTest : public ::testing::Test {
  protected:
- protected:
   static string Bits(const string &s) {
     if (s.empty()) {
       return "";

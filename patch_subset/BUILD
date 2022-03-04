@@ -138,6 +138,7 @@ cc_test(
         "bit_buffer_test.cc",
         "bit_input_buffer_test.cc",
         "bit_output_buffer_test.cc",
+        "branch_factor_test.cc", 
         "brotli_patching_test.cc",
         "brotli_request_logger_test.cc",
         "client_server_integration_test.cc",
