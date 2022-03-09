@@ -71,8 +71,8 @@ class SparseBitSetTest : public ::testing::Test {
     }
     string result;
     while (!bits.empty()) {
-      int n =
-          bits.size() < kBFNodeSize[bf] ? (int)bits.size() : kBFNodeSize[bf];
+      int n = bits.size() < kBFNodeSize[bf] ? (int)bits.size()
+                                            : (int)kBFNodeSize[bf];
       result += bits.substr(0, n);
       bits = bits.substr(n, bits.size());
       if (!bits.empty()) {
@@ -656,6 +656,26 @@ TEST_F(SparseBitSetTest, ChooseBranchFactor) {
       "10000000000000000000000000000000 10000000000000000000000000000000 "
       "10000000000000000000000000000000",
       Bits(Set({{0, (32 * 32 * 32)}}), BF32));
+}
+
+TEST_F(SparseBitSetTest, RegressionTest32BitRanges) {
+  EXPECT_EQ(
+      "00|111110  "
+      "11 10 10 10 10 10 01 10 10 10 01 10 01 10 01 10 01 10 01 10 10 10 10 10 "
+      "01 10 10 10 10 10 10 10 10 10 01 10 10 10 01 10 01 10 01 10 10 10 01 10 "
+      "10 10 01 10 10 10 01 10 10 10 10 10 10 01 01 00",
+      Bits(make_hb_set(2, 1, 2546490705), BF2));
+  EXPECT_EQ(FromBits("00|111110  "
+                     "11 10 10 10 10 10 01 10 10 10 01 10 01 10 01 10 01 10 01 "
+                     "10 10 10 10 10 "
+                     "01 10 10 10 10 10 10 10 10 10 01 10 10 10 01 10 01 10 01 "
+                     "10 10 10 01 10 "
+                     "10 10 01 10 10 10 01 10 10 10 10 10 10 01 01 00"),
+            "1 2546490705");
+  TestEncodeDecode(make_hb_set(2, 1, 2546490705), BF2);
+  TestEncodeDecode(make_hb_set(2, 1, 2546490705), BF4);
+  TestEncodeDecode(make_hb_set(2, 1, 2546490705), BF8);
+  TestEncodeDecode(make_hb_set(2, 1, 2546490705), BF32);
 }
 
 }  // namespace patch_subset
