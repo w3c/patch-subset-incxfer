@@ -16,32 +16,36 @@ using std::vector;
 
 namespace patch_subset {
 
-int TreeDepthFor(const hb_set_t& set, uint32_t bits_per_node) {
-  hb_codepoint_t max_value = hb_set_get_max(&set);
-  int depth = 1;
-  hb_codepoint_t value = bits_per_node;
-  while (value - 1 < max_value) {
+// The default size to start vectors at.
+const uint32_t kInitialVectorSize = 2048;
+
+// Finds the tree height needed to represent the codepoints in the set.
+uint32_t TreeDepthFor(const vector<uint32_t>& codepoints,
+                      BranchFactor branch_factor) {
+  uint32_t depth = 1;
+  uint64_t max_value =
+      codepoints[codepoints.size() - 1] >> kBFNodeSizeLog2[branch_factor];
+  while (max_value) {
     depth++;
-    value *= bits_per_node;
+    max_value >>= kBFNodeSizeLog2[branch_factor];
   }
   return depth;
 }
 
-// Returns the number of values that can be encoded by the descendants of a
-// single bit in the given layer of a tree with the given depth, using
-// bits_per_node bits at each node.
+// Returns the log base 2 of the number of values that can be encoded by the
+// descendants of a single bit in the given layer of a tree with the given
+// depth, using bits_per_node bits at each node.
 //
 // For example in layer 0 (root) of a tree of depth 3, with 2 bits per node,
 // each bit (a node at level 1) represents 4 values (2 child nodes, each with
-// 2 values).
-uint32_t ValuesPerBitForLayer(uint32_t layer, uint32_t tree_depth,
-                              uint32_t bits_per_node) {
-  uint32_t values = 1;  // Leaf nodes, each bit is 1 value;
-  // Start at leaf layer, work up to target layer.
-  for (uint32_t i = (int)tree_depth - 1; i > layer; i--) {
-    values *= bits_per_node;
-  }
-  return values;
+// 2 values), so the result would be 2 (2**2 = 4).
+//
+// Because the size is always a multiple of two, it is faster to count the
+// number of bits, then use bit shifting to multiply and divide by this amount.
+uint8_t ValuesPerBitLog2ForLayer(uint32_t layer, uint32_t tree_depth,
+                                 BranchFactor branch_factor) {
+  int num_layers = (int)tree_depth - (int)layer - 1;
+  return kBFNodeSizeLog2[branch_factor] * num_layers;
 }
 
 StatusCode SparseBitSet::Decode(string_view sparse_bit_set, hb_set_t* out) {
@@ -63,18 +67,19 @@ StatusCode SparseBitSet::Decode(string_view sparse_bit_set, hb_set_t* out) {
   }
 
   // At each level, this is the number of leaf values a node covers.
-  uint32_t leaf_node_size = kBFNodeSize[branch_factor];
-  for (uint32_t i = 1; i < tree_height; i++) {
-    leaf_node_size *= kBFNodeSize[branch_factor];
-  }
+  // To be able to describe a range at least 32 bits large (some branch factors
+  // cover slightly more than that exaxt range), 64 bits are needed.
+  uint64_t leaf_node_size = 1ull
+                            << (kBFNodeSizeLog2[branch_factor] * tree_height);
   // At each level, to get from node_base to the values at the leaf level,
   // multiply by this. For example in a BF=4 D=4 tree, at level 1, the node
   // with node_base 2 covers final leaf values starting at 2 * 16.
-  uint32_t node_base_factor = leaf_node_size / kBFNodeSize[branch_factor];
+  // Bit-based version of:
+  //   node_base_factor = leaf_node_size / kBFNodeSize[branch_factor];
+  uint64_t node_base_factor = leaf_node_size >> kBFNodeSizeLog2[branch_factor];
   vector<uint32_t> node_bases{0u};  // Root node.
-  vector<uint32_t> filled_node_bases;
-  vector<uint32_t> filled_node_sizes;
   vector<uint32_t> next_level_node_bases;
+  next_level_node_bases.reserve(kInitialVectorSize);
 
   for (uint32_t level = 0; level < tree_height; level++) {
     for (uint32_t node_base : node_bases) {
@@ -97,17 +102,24 @@ StatusCode SparseBitSet::Decode(string_view sparse_bit_set, hb_set_t* out) {
             if (level == tree_height - 1) {
               hb_set_add(out, node_base + bit_index);
             } else {
-              next_level_node_bases.push_back((node_base + bit_index) *
-                                              kBFNodeSize[branch_factor]);
+              // Bit-based version of:
+              //    base = (node_base + bit_index) * kBFNodeSize[branch_factor];
+              uint32_t base = (node_base + bit_index)
+                              << kBFNodeSizeLog2[branch_factor];
+              next_level_node_bases.push_back(base);
             }
           }
         }
       }
     }
-    leaf_node_size /= kBFNodeSize[branch_factor];
-    node_base_factor /= kBFNodeSize[branch_factor];
+    // Bit-based version of:
+    //    leaf_node_size /= kBFNodeSize[branch_factor];
+    //    node_base_factor /= kBFNodeSize[branch_factor];
+    leaf_node_size >>= kBFNodeSizeLog2[branch_factor];
+    node_base_factor >>= kBFNodeSizeLog2[branch_factor];
     node_bases.swap(next_level_node_bases);
     next_level_node_bases.clear();
+    next_level_node_bases.shrink_to_fit();
   }
   return StatusCode::kOk;
 }
@@ -119,60 +131,85 @@ static void AdvanceToCp(uint32_t prev_cp, uint32_t cp,
   }
   uint32_t first_missing = prev_cp + 1;
   // Count skipped over nodes, if any.
-  for (BranchFactor bf : {BF2, BF4, BF8, BF32}) {
+  for (BranchFactor branch_factor : {BF2, BF4, BF8, BF32}) {
     // Find start of node at least 1 after last cp (first missing value).
-    uint32_t remainder = first_missing % kBFNodeSize[bf];
-    uint32_t start = remainder ? first_missing + (kBFNodeSize[bf] - remainder)
-                               : first_missing;
+    // Bit-based version of:
+    //   uint32_t remainder = first_missing % kBFNodeSize[branch_factor];
+    uint32_t remainder = first_missing & kBFNodeSizeBitMask[branch_factor];
+    uint32_t start =
+        remainder ? first_missing + (kBFNodeSize[branch_factor] - remainder)
+                  : first_missing;
     // Find start of node containing current value - 1 (last missing value).
-    uint32_t end = cp - (cp % kBFNodeSize[bf]);
+    // Bit-based version of:
+    //   remainder = cp % kBFNodeSize[branch_factor];
+    remainder = cp & kBFNodeSizeBitMask[branch_factor];
+    uint32_t end = cp - remainder;
     if (end > start) {
-      empty_leaves[bf] += (end - start) / kBFNodeSize[bf];
+      uint32_t delta = end - start;
+      // Bit-based version of:
+      //   empty_leaves[branch_factor] += delta / kBFNodeSize[branch_factor];
+      empty_leaves[branch_factor] += delta >> kBFNodeSizeLog2[branch_factor];
     }
   }
 }
 
-/*
- * These values were chosen to match the tree sizes seen in a combination of
- * uniform random and usage-frequency weighted random sets.
- */
-uint32_t EstimateTreeSize(uint32_t num_leaf_nodes, BranchFactor bf) {
-  double ratio;
-  switch (bf) {
+// Given a tree with num_leaf_nodes, quickly estimate the number of nodes above
+// the leaves.
+uint32_t EstimateTreeSize(uint32_t num_leaf_nodes, BranchFactor branch_factor) {
+  // Instead of iterating across all the levels from leaf to root, summing the
+  // numbers of nodes at each level, and reducing the # of nodes by a constant
+  // factor, we can do all the adds and multiplies via a single multiply.
+  //
+  // For example, if you keep dividing by 2 each level, then the sum is the
+  // equivalent of multiplying by 2, because 1/2 + 1/4 + 1/16 + 1/32 ... = 1.
+  // In general the sum of 1/(x**n) n=1..infinity is 1/(x-1).
+  //
+  // The ratios below were chosen to match the tree sizes seen in a combination
+  // of uniform random and codepoint-usage-frequency weighted random sets.
+  double geometric_sum;
+  switch (branch_factor) {
     case BF2:
-      ratio = 1.4;
+      // Estimate that the number of nodes divides by 1.4 going up each level.
+      geometric_sum = 1.0 / 0.4;
       break;
     case BF4:
-      ratio = 2.8;
+      // Estimate that the number of nodes divides by 2.8 going up each level.
+      geometric_sum = 1.0 / 1.8;
       break;
     case BF8:
-      ratio = 4;
+      // Estimate that the number of nodes divides by 4 going up each level.
+      geometric_sum = 1.0 / 3.0;
       break;
     case BF32:
-      ratio = 16;
+      // Estimate that the number of nodes divides by going up at each level.
+      geometric_sum = 1.0 / 15.0;
       break;
   }
-  uint32_t total = 0;
-  while (num_leaf_nodes) {
-    num_leaf_nodes = (uint32_t)(num_leaf_nodes / ratio);
-    total += num_leaf_nodes;
-  }
-  return total;
+  return (uint32_t)(num_leaf_nodes * geometric_sum);
 }
 
-/*
- * Look at the number of bytes needed to represent the leaf nodes, ignoring
- * both empty (not encoded) and filled (zero encoded at a higher layer) nodes.
- * Choose the BranchFactor that uses the least bytes.
- */
 BranchFactor ChooseBranchFactor(const hb_set_t& set,
+                                vector<uint32_t>& codepoints /* OUT */,
                                 vector<uint32_t>& filled_twigs /* OUT */) {
   uint32_t empty_leaves[BF32 + 1]{};
 
   // "Twigs" are one level above leaves.
   // Zero-encoding happens at this level or above.
   // Only consider the twig level here.
-  vector<uint32_t> all_filled_twigs[BF32 + 1];
+  uint64_t max_value = hb_set_get_max(&set);
+  vector<uint32_t> bf2;
+  bf2.reserve(std::min((uint64_t)kInitialVectorSize,
+                       (max_value >> kBFTwigSizeLog2[BF2]) + 1));
+  vector<uint32_t> bf4;
+  bf4.reserve(std::min((uint64_t)kInitialVectorSize,
+                       (max_value >> kBFTwigSizeLog2[BF4]) + 1));
+  vector<uint32_t> bf8;
+  bf8.reserve(std::min((uint64_t)kInitialVectorSize,
+                       (max_value >> kBFTwigSizeLog2[BF8]) + 1));
+  vector<uint32_t> bf32;
+  bf32.reserve(std::min((uint64_t)kInitialVectorSize,
+                        (max_value >> kBFTwigSizeLog2[BF32]) + 1));
+  vector<uint32_t> all_filled_twigs[]{bf2, bf4, bf8, bf32};
 
   hb_codepoint_t cp = HB_SET_VALUE_INVALID;
   if (!hb_set_next(&set, &cp)) {
@@ -180,20 +217,28 @@ BranchFactor ChooseBranchFactor(const hb_set_t& set,
   }
   // 0 .. cp-1 are missing/empty (if any).
   AdvanceToCp(UINT32_MAX, cp, empty_leaves);
+  codepoints.push_back(cp);
   uint32_t seq_len = 1;
   uint32_t prev_cp = cp;
   while (hb_set_next(&set, &cp)) {
     AdvanceToCp(prev_cp, cp, empty_leaves);
+    codepoints.push_back(cp);
     if (cp == prev_cp + 1) {
       seq_len++;
     } else {
       seq_len = 1;
     }
-    for (BranchFactor bf : {BF2, BF4, BF8, BF32}) {
-      uint32_t twig_size = kBFTwigSize[bf];
-      if ((cp + 1) % twig_size == 0) {
-        if (seq_len >= twig_size) {
-          all_filled_twigs[bf].push_back(cp / twig_size);
+    for (BranchFactor branch_factor : {BF2, BF4, BF8, BF32}) {
+      // Bit-based version of:
+      //   bool last_value_in_twig = (cp + 1) % kBFTwigSize[branch_factor] == 0;
+      bool last_value_in_twig = (cp & kBFTwigSizeBitMask[branch_factor]) ==
+                                kBFTwigSizeBitMask[branch_factor];
+      if (last_value_in_twig) {
+        if (seq_len >= kBFTwigSize[branch_factor]) {
+          // Bit-based version of:
+          //   all_filled_twigs[branch_factor].push_back(cp / twig_size);
+          all_filled_twigs[branch_factor].push_back(
+              cp >> kBFTwigSizeLog2[branch_factor]);
         }
       } else {
         break;
@@ -203,36 +248,45 @@ BranchFactor ChooseBranchFactor(const hb_set_t& set,
   }
 
   uint32_t bytes[BF32 + 1];
-  for (BranchFactor bf : {BF2, BF4, BF8, BF32}) {
+  for (BranchFactor branch_factor : {BF2, BF4, BF8, BF32}) {
     // We probably did not see the entire range encoded by the leaf layer of the
     // tree for this set (depth depends on BF and max value). The remaining
     // leaves will all be empty and can be ignored. Finish off current node /
     // round up to next node.
-    uint32_t remainder = (prev_cp + 1) % kBFNodeSize[bf];
+    // Bit-based version of:
+    //  remainder = (prev_cp + 1) % kBFNodeSize[branch_factor];
+    uint32_t remainder = (prev_cp + 1) & kBFNodeSizeBitMask[branch_factor];
     if (remainder) {
-      prev_cp += kBFNodeSize[bf] - remainder;
+      prev_cp += kBFNodeSize[branch_factor] - remainder;
     }
-    uint32_t processed_leaves = (prev_cp + 1) / kBFNodeSize[bf];
+    // Bit-based version of:
+    //   processed_leaves = (prev_cp + 1) / kBFNodeSize[branch_factor];
+    uint32_t processed_leaves = (prev_cp + 1) >> kBFNodeSizeLog2[branch_factor];
     // Of the leaves we processed, throw out the empty ones and the filled ones.
     // These are the nodes that will be encoded. Each twig represents multiple
     // leaves.
-    uint32_t leaf_nodes = processed_leaves - empty_leaves[bf] -
-                          (all_filled_twigs[bf].size() * kBFNodeSize[bf]);
+    // Bit-based version of:
+    //   filled_leaves = all_filled_twigs[branch_factor].size() *
+    //   kBFNodeSize[branch_factor];
+    uint32_t filled_leaves = all_filled_twigs[branch_factor].size()
+                             << kBFNodeSizeLog2[branch_factor];
+    uint32_t leaf_nodes =
+        processed_leaves - empty_leaves[branch_factor] - filled_leaves;
     // Now estimate the size of the rest of the tree above the leaves.
-    uint32_t tree_nodes = EstimateTreeSize(leaf_nodes, bf);
+    uint32_t tree_nodes = EstimateTreeSize(leaf_nodes, branch_factor);
     // Compute size in bytes.
-    switch (bf) {
+    switch (branch_factor) {
       case BF2:
-        bytes[bf] = (leaf_nodes + tree_nodes) / 4;
+        bytes[branch_factor] = (leaf_nodes + tree_nodes) >> 2;
         break;
       case BF4:
-        bytes[bf] = (leaf_nodes + tree_nodes) / 2;
+        bytes[branch_factor] = (leaf_nodes + tree_nodes) >> 1;
         break;
       case BF8:
-        bytes[bf] = (leaf_nodes + tree_nodes);
+        bytes[branch_factor] = (leaf_nodes + tree_nodes);
         break;
       case BF32:
-        bytes[bf] = (leaf_nodes + tree_nodes) * 4;
+        bytes[branch_factor] = (leaf_nodes + tree_nodes) << 2;
         break;
     }
   }
@@ -249,20 +303,27 @@ BranchFactor ChooseBranchFactor(const hb_set_t& set,
   return optimal;
 }
 
-vector<uint32_t> FindFilledTwigs(const hb_set_t& set, BranchFactor bf) {
-  uint32_t twig_size = kBFTwigSize[bf];
+vector<uint32_t> FindFilledTwigs(const hb_set_t& set,
+                                 BranchFactor branch_factor,
+                                 vector<uint32_t>& codepoints /* OUT */,
+                                 vector<uint32_t>& filled_twigs /* OUT */) {
   uint32_t prev_cp = UINT32_MAX - 1;
   uint32_t seq_len = 0;
-  vector<uint32_t> filled_twigs;
   for (hb_codepoint_t cp = HB_SET_VALUE_INVALID; hb_set_next(&set, &cp);) {
+    codepoints.push_back(cp);
     if (cp == prev_cp + 1) {
       seq_len++;
     } else {
       seq_len = 1;
     }
-    if ((cp + 1) % twig_size == 0) {
-      if (seq_len == twig_size) {
-        filled_twigs.push_back(cp / twig_size);
+    // Bit based version of:
+    //   bool last_value_in_twig = (cp + 1) % twig_size == 0;
+    bool last_value_in_twig = (cp & kBFTwigSizeBitMask[branch_factor]) ==
+                              kBFTwigSizeBitMask[branch_factor];
+    if (last_value_in_twig) {
+      if (seq_len == kBFTwigSize[branch_factor]) {
+        // Bit-based version of: filled_twigs.push_back(cp / twig_size);
+        filled_twigs.push_back(cp >> kBFTwigSizeLog2[branch_factor]);
       }
       seq_len = 0;
     }
@@ -281,8 +342,7 @@ vector<uint32_t> FindFilledTwigs(const hb_set_t& set, BranchFactor bf) {
  * filled, and thus should be encoded as a zero. The value will be greater
  * than the tree height when no filled nodes exist for these codepoints.
  */
-map<uint32_t, uint8_t> FindFilledNodes(const hb_set_t& set,
-                                       uint32_t bits_per_node,
+map<uint32_t, uint8_t> FindFilledNodes(BranchFactor branch_factor,
                                        uint32_t tree_height,
                                        const vector<uint32_t>& filled_twigs) {
   map<uint32_t, uint8_t> filled_levels;
@@ -296,7 +356,9 @@ map<uint32_t, uint8_t> FindFilledNodes(const hb_set_t& set,
 
   // Now work our way up the layers, "merging" filled nodes by decrementing
   // their filled-at number. Start processing at the layer above the twigs.
-  uint32_t node_size = bits_per_node;  // Number to twigs to consider as a node.
+  uint32_t node_size =
+      kBFNodeSize[branch_factor];  // Number to twigs to consider as a node.
+  uint32_t node_size_bit_mask = kBFNodeSizeBitMask[branch_factor];
   for (int layer = (int)tree_height - 3; layer >= 0; layer--) {
     uint8_t target_level = layer + 1;
     uint32_t prev_twig = UINT32_MAX - 1;
@@ -312,7 +374,11 @@ map<uint32_t, uint8_t> FindFilledNodes(const hb_set_t& set,
       } else {
         seq_len = 0;  // Can not be part of a sequence.
       }
-      if ((twig + 1) % node_size == 0) {
+      // Bit-based version of:
+      // bool last_value_in_twig = (twig + 1) % node_size == 0;
+      bool last_value_in_twig =
+          (twig & node_size_bit_mask) == node_size_bit_mask;
+      if (last_value_in_twig) {
         if (seq_len == node_size) {
           for (uint32_t i = twig - node_size + 1; i <= twig; i++) {
             filled_levels.find(i)->second = layer;  // Increment to next level.
@@ -323,10 +389,14 @@ map<uint32_t, uint8_t> FindFilledNodes(const hb_set_t& set,
       }
       prev_twig = twig;
     }
-    if (num_merged_nodes < bits_per_node) {
+    if (num_merged_nodes < kBFNodeSize[branch_factor]) {
       break;  // No further merges are possible.
     }
-    node_size *= bits_per_node;
+    // Bit-based version of: node_size *= branch_factor;
+    node_size <<= kBFNodeSizeLog2[branch_factor];
+    // N zeros in a row, then 32-N ones in a row.
+    node_size_bit_mask <<= kBFNodeSizeLog2[branch_factor];
+    node_size_bit_mask |= kBFNodeSizeBitMask[branch_factor];
   }
   return filled_levels;
 }
@@ -359,16 +429,15 @@ static const EncodeSymbol kEndOfValues =
 
 struct EncodeContext {
   const uint32_t layer;
-  const uint32_t bits_per_node;
+  const BranchFactor branch_factor;
   const uint32_t tree_height;
-  const uint32_t twig_size;
-  const uint32_t values_per_bit;
-  const uint32_t node_size;
+  const uint8_t values_per_bit_log_2;
+  const uint64_t node_size;
   const map<uint32_t, uint8_t>& filled_levels;
   const vector<uint32_t>& node_bases;
   int next_node_base;
   uint32_t node_base;
-  uint32_t node_max;
+  uint64_t node_max;
   uint32_t node_mask;
   uint32_t filled_max;
   vector<uint32_t>& next_node_bases; /* OUT */
@@ -377,7 +446,8 @@ struct EncodeContext {
 
 static EncodeSymbolType OverrideIfFilled(uint32_t cp,
                                          const EncodeContext& context) {
-  uint32_t twig = cp / context.twig_size;
+  // Bit-based version of: twig = cp / context.twig_size;
+  uint32_t twig = cp >> kBFTwigSizeLog2[context.branch_factor];
   if (context.filled_levels.count(twig)) {
     uint8_t filled_level = context.filled_levels.at(twig);
     if (context.layer == filled_level) {
@@ -426,21 +496,22 @@ static void StartFilledNode(EncodeContext& context) {
 }
 
 static void SkipExistingFilledNode(uint32_t cp, EncodeContext& context) {
-  uint32_t twig = cp / context.twig_size;
+  // Bit-based version of: twig = cp / twig-size;
+  uint32_t twig = cp >> kBFTwigSizeLog2[context.branch_factor];
   // Scan to the right across all applicable filled twigs.
   do {
     uint8_t filled_depth = context.filled_levels.at(twig);
     // # of twigs covered by this filled node depends on its level.
-    uint32_t twig_size = 1;
-    for (int layer = context.tree_height - 2; layer > filled_depth; layer--) {
-      twig_size *= context.bits_per_node;
-    }
+    uint32_t twig_size = 1 << (context.tree_height - filled_depth - 2) *
+                                  kBFNodeSizeLog2[context.branch_factor];
     // Advance 1 past this filled node.
     twig += twig_size;
     // Did we land on another filled node?
   } while (context.filled_levels.count(twig) &&
            context.filled_levels.at(twig) < context.layer);
-  context.filled_max = (twig * context.twig_size) - 1;
+  // Bit-based version of: context.filled_max = (twig * context.twig_size) - 1;
+  context.filled_max = twig << kBFTwigSizeLog2[context.branch_factor];
+  context.filled_max--;
 }
 
 static void EndNormalNode(EncodeContext& context) {
@@ -454,7 +525,7 @@ static void EndNormalNode(EncodeContext& context) {
 
 static void UpdateNodeBit(uint32_t cp, EncodeContext& context) {
   // Figure out which sub-range (bit) cp falls in.
-  uint32_t bit_index = (cp - context.node_base) / context.values_per_bit;
+  uint32_t bit_index = (cp - context.node_base) >> context.values_per_bit_log_2;
   uint32_t cp_mask = 1u << bit_index;
 
   // If this bit is already set, no action needed.
@@ -462,10 +533,10 @@ static void UpdateNodeBit(uint32_t cp, EncodeContext& context) {
     // We are setting this bit for the first time.
     context.node_mask |= cp_mask;
     // Record its base value in the next layer.
-    if (context.values_per_bit > 1) {
+    if (context.values_per_bit_log_2 > 0) {
       // Only compute bases if we're not in the last/leaf layer.
-      context.next_node_bases.push_back(context.node_base +
-                                        (bit_index * context.values_per_bit));
+      context.next_node_bases.push_back(
+          context.node_base + (bit_index << context.values_per_bit_log_2));
     }
   }
 }
@@ -549,24 +620,24 @@ static EncodeState UpdateState(EncodeState state, const EncodeSymbol& input,
   }
 }
 
-void EncodeLayer(const hb_set_t& set, uint32_t layer, uint32_t tree_height,
-                 uint32_t bits_per_node,
+void EncodeLayer(const vector<uint32_t>& codepoints, uint32_t layer,
+                 uint32_t tree_height, BranchFactor branch_factor,
                  const map<uint32_t, uint8_t>& filled_levels,
                  const vector<uint32_t>& node_bases,
                  vector<uint32_t>& next_node_bases, /* OUT */
                  BitOutputBuffer& bit_buffer /* OUT */) {
-  uint32_t values_per_bit =
-      ValuesPerBitForLayer(layer, tree_height, bits_per_node);
-  uint32_t node_size = values_per_bit * bits_per_node;
-  uint32_t twig_size = bits_per_node * bits_per_node;
-  EncodeContext context{layer,         bits_per_node,   tree_height,
-                        twig_size,     values_per_bit,  node_size,
-                        filled_levels, node_bases,      0,
-                        kInvalidCp,    kInvalidCp,      0u,
-                        kInvalidCp,    next_node_bases, bit_buffer};
+  uint8_t values_per_bit_log_2 =
+      ValuesPerBitLog2ForLayer(layer, tree_height, branch_factor);
+  uint64_t node_size = (uint64_t)kBFNodeSize[branch_factor]
+                       << values_per_bit_log_2;
+  EncodeContext context{
+      layer,           branch_factor, tree_height, values_per_bit_log_2,
+      node_size,       filled_levels, node_bases,  0,
+      kInvalidCp,      kInvalidCp,    0u,          kInvalidCp,
+      next_node_bases, bit_buffer};
   EncodeState state = START;
   EncodeSymbol input{INVALID, kInvalidCp};
-  for (hb_codepoint_t cp = HB_SET_VALUE_INVALID; hb_set_next(&set, &cp);) {
+  for (uint32_t cp : codepoints) {
     ParseCodepoint(cp, state, context, input);
     state = UpdateState(state, input, context);
   }
@@ -579,24 +650,26 @@ void EncodeLayer(const hb_set_t& set, uint32_t layer, uint32_t tree_height,
  * completely filled. For example, with BF4, a 1 in filled_twigs means that
  * values 16..31 are all present in the set.
  */
-string EncodeSet(const hb_set_t& set, BranchFactor branch_factor,
+string EncodeSet(const vector<uint32_t>& codepoints, BranchFactor branch_factor,
                  const vector<uint32_t>& filled_twigs) {
-  if (!hb_set_get_population(&set)) {
+  if (codepoints.empty()) {
     return "";
   }
-  uint32_t tree_height = TreeDepthFor(set, kBFNodeSize[branch_factor]);
+  uint32_t tree_height = TreeDepthFor(codepoints, branch_factor);
   // Determine which nodes are completely filled; encode them with zero.
-  map<uint32_t, uint8_t> filled_levels = FindFilledNodes(
-      set, kBFNodeSize[branch_factor], tree_height, filled_twigs);
+  map<uint32_t, uint8_t> filled_levels =
+      FindFilledNodes(branch_factor, tree_height, filled_twigs);
   BitOutputBuffer bit_buffer(branch_factor, tree_height);
 
   // Starting values of the encoding ranges of the nodes queued to be encoded.
   // Queue up the root node.
   vector<uint32_t> node_bases(1, 0);
+  node_bases.reserve(kInitialVectorSize);
   vector<uint32_t> next_node_bases;
+  next_node_bases.reserve(kInitialVectorSize);
   for (uint32_t layer = 0; layer < tree_height; layer++) {
-    EncodeLayer(set, layer, tree_height, kBFNodeSize[branch_factor],
-                filled_levels, node_bases, next_node_bases, bit_buffer);
+    EncodeLayer(codepoints, layer, tree_height, branch_factor, filled_levels,
+                node_bases, next_node_bases, bit_buffer);
     if (next_node_bases.empty()) {
       break;  // Filled nodes mean nothing left to encode.
     }
@@ -607,19 +680,32 @@ string EncodeSet(const hb_set_t& set, BranchFactor branch_factor,
 }
 
 string SparseBitSet::Encode(const hb_set_t& set, BranchFactor branch_factor) {
-  if (!hb_set_get_population(&set)) {
+  uint32_t size = hb_set_get_population(&set);
+  if (size == 0) {
     return "";
   }
-  return EncodeSet(set, branch_factor, FindFilledTwigs(set, branch_factor));
+  vector<uint32_t> codepoints;
+  codepoints.reserve(size);
+  uint64_t max_value = hb_set_get_max(&set);
+  vector<uint32_t> filled_twigs;
+  filled_twigs.reserve(
+      std::min((uint64_t)kInitialVectorSize,
+               (max_value >> kBFTwigSizeLog2[branch_factor]) + 1));
+  FindFilledTwigs(set, branch_factor, codepoints, filled_twigs);
+  return EncodeSet(codepoints, branch_factor, filled_twigs);
 }
 
 string SparseBitSet::Encode(const hb_set_t& set) {
-  if (!hb_set_get_population(&set)) {
+  uint32_t size = hb_set_get_population(&set);
+  if (size == 0) {
     return "";
   }
+  vector<uint32_t> codepoints;
+  codepoints.reserve(size);
   vector<uint32_t> filled_twigs;
-  BranchFactor branch_factor = ChooseBranchFactor(set, filled_twigs);
-  return EncodeSet(set, branch_factor, filled_twigs);
+  BranchFactor branch_factor =
+      ChooseBranchFactor(set, codepoints, filled_twigs);
+  return EncodeSet(codepoints, branch_factor, filled_twigs);
 }
 
 }  // namespace patch_subset
