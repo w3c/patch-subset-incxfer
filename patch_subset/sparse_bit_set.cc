@@ -191,7 +191,6 @@ BranchFactor ChooseBranchFactor(const hb_set_t& set,
   // "Twigs" are one level above leaves.
   // Zero-encoding happens at this level or above.
   // Only consider the twig level here.
-  uint64_t max_value = hb_set_get_max(&set);
   vector<uint32_t> bf2;
   vector<uint32_t> bf4;
   vector<uint32_t> bf8;
