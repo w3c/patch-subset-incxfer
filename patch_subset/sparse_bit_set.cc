@@ -16,9 +16,6 @@ using std::vector;
 
 namespace patch_subset {
 
-// The default size to start vectors at.
-const uint32_t kInitialVectorSize = 2048;
-
 // Finds the tree height needed to represent the codepoints in the set.
 uint32_t TreeDepthFor(const vector<uint32_t>& codepoints,
                       BranchFactor branch_factor) {
@@ -79,7 +76,6 @@ StatusCode SparseBitSet::Decode(string_view sparse_bit_set, hb_set_t* out) {
   uint64_t node_base_factor = leaf_node_size >> kBFNodeSizeLog2[branch_factor];
   vector<uint32_t> node_bases{0u};  // Root node.
   vector<uint32_t> next_level_node_bases;
-  next_level_node_bases.reserve(kInitialVectorSize);
 
   for (uint32_t level = 0; level < tree_height; level++) {
     for (uint32_t node_base : node_bases) {
@@ -119,7 +115,6 @@ StatusCode SparseBitSet::Decode(string_view sparse_bit_set, hb_set_t* out) {
     node_base_factor >>= kBFNodeSizeLog2[branch_factor];
     node_bases.swap(next_level_node_bases);
     next_level_node_bases.clear();
-    next_level_node_bases.shrink_to_fit();
   }
   return StatusCode::kOk;
 }
@@ -198,17 +193,9 @@ BranchFactor ChooseBranchFactor(const hb_set_t& set,
   // Only consider the twig level here.
   uint64_t max_value = hb_set_get_max(&set);
   vector<uint32_t> bf2;
-  bf2.reserve(std::min((uint64_t)kInitialVectorSize,
-                       (max_value >> kBFTwigSizeLog2[BF2]) + 1));
   vector<uint32_t> bf4;
-  bf4.reserve(std::min((uint64_t)kInitialVectorSize,
-                       (max_value >> kBFTwigSizeLog2[BF4]) + 1));
   vector<uint32_t> bf8;
-  bf8.reserve(std::min((uint64_t)kInitialVectorSize,
-                       (max_value >> kBFTwigSizeLog2[BF8]) + 1));
   vector<uint32_t> bf32;
-  bf32.reserve(std::min((uint64_t)kInitialVectorSize,
-                        (max_value >> kBFTwigSizeLog2[BF32]) + 1));
   vector<uint32_t> all_filled_twigs[]{bf2, bf4, bf8, bf32};
 
   hb_codepoint_t cp = HB_SET_VALUE_INVALID;
@@ -664,9 +651,7 @@ string EncodeSet(const vector<uint32_t>& codepoints, BranchFactor branch_factor,
   // Starting values of the encoding ranges of the nodes queued to be encoded.
   // Queue up the root node.
   vector<uint32_t> node_bases(1, 0);
-  node_bases.reserve(kInitialVectorSize);
   vector<uint32_t> next_node_bases;
-  next_node_bases.reserve(kInitialVectorSize);
   for (uint32_t layer = 0; layer < tree_height; layer++) {
     EncodeLayer(codepoints, layer, tree_height, branch_factor, filled_levels,
                 node_bases, next_node_bases, bit_buffer);
@@ -686,11 +671,7 @@ string SparseBitSet::Encode(const hb_set_t& set, BranchFactor branch_factor) {
   }
   vector<uint32_t> codepoints;
   codepoints.reserve(size);
-  uint64_t max_value = hb_set_get_max(&set);
   vector<uint32_t> filled_twigs;
-  filled_twigs.reserve(
-      std::min((uint64_t)kInitialVectorSize,
-               (max_value >> kBFTwigSizeLog2[branch_factor]) + 1));
   FindFilledTwigs(set, branch_factor, codepoints, filled_twigs);
   return EncodeSet(codepoints, branch_factor, filled_twigs);
 }
