@@ -1,6 +1,6 @@
 #include "patch_subset/sparse_bit_set.h"
 
-#include <map>
+#include <unordered_map>
 #include <vector>
 
 #include "absl/strings/string_view.h"
@@ -10,8 +10,8 @@
 #include "patch_subset/bit_output_buffer.h"
 
 using ::absl::string_view;
-using std::map;
 using std::string;
+using std::unordered_map;
 using std::vector;
 
 namespace patch_subset {
@@ -330,10 +330,10 @@ vector<uint32_t> FindFilledTwigs(const hb_set_t& set,
  * filled, and thus should be encoded as a zero. The value will be greater
  * than the tree height when no filled nodes exist for these codepoints.
  */
-map<uint32_t, uint8_t> FindFilledNodes(BranchFactor branch_factor,
-                                       uint32_t tree_height,
-                                       const vector<uint32_t>& filled_twigs) {
-  map<uint32_t, uint8_t> filled_levels;
+unordered_map<uint32_t, uint8_t> FindFilledNodes(
+    BranchFactor branch_factor, uint32_t tree_height,
+    const vector<uint32_t>& filled_twigs) {
+  unordered_map<uint32_t, uint8_t> filled_levels;
   if (tree_height < 2 || filled_twigs.empty()) {
     return filled_levels;
   }
@@ -352,9 +352,8 @@ map<uint32_t, uint8_t> FindFilledNodes(BranchFactor branch_factor,
     uint32_t prev_twig = UINT32_MAX - 1;
     uint32_t seq_len = 0;
     uint32_t num_merged_nodes = 0;
-    for (auto e : filled_levels) {
-      uint32_t twig = e.first;
-      uint8_t filled_level = e.second;
+    for (uint32_t twig : filled_twigs) {
+      uint8_t filled_level = filled_levels[twig];
       if (twig == prev_twig + 1 && filled_level == target_level) {
         seq_len++;  // Continue a good sequence.
       } else if (filled_level == target_level) {
@@ -421,7 +420,7 @@ struct EncodeContext {
   const uint32_t tree_height;
   const uint8_t values_per_bit_log_2;
   const uint64_t node_size;
-  const map<uint32_t, uint8_t>& filled_levels;
+  const unordered_map<uint32_t, uint8_t>& filled_levels;
   const vector<uint32_t>& node_bases;
   int next_node_base;
   uint32_t node_base;
@@ -612,7 +611,7 @@ static EncodeState UpdateState(EncodeState state, const EncodeSymbol& input,
 
 void EncodeLayer(const vector<uint32_t>& codepoints, uint32_t layer,
                  uint32_t tree_height, BranchFactor branch_factor,
-                 const map<uint32_t, uint8_t>& filled_levels,
+                 const unordered_map<uint32_t, uint8_t>& filled_levels,
                  const vector<uint32_t>& node_bases,
                  vector<uint32_t>& next_node_bases, /* OUT */
                  BitOutputBuffer& bit_buffer /* OUT */) {
@@ -647,7 +646,7 @@ string EncodeSet(const vector<uint32_t>& codepoints, BranchFactor branch_factor,
   }
   uint32_t tree_height = TreeDepthFor(codepoints, branch_factor);
   // Determine which nodes are completely filled; encode them with zero.
-  map<uint32_t, uint8_t> filled_levels =
+  unordered_map<uint32_t, uint8_t> filled_levels =
       FindFilledNodes(branch_factor, tree_height, filled_twigs);
   BitOutputBuffer bit_buffer(branch_factor, tree_height);
 
