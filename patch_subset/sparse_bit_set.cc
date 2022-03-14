@@ -96,11 +96,13 @@ StatusCode SparseBitSet::Decode(string_view sparse_bit_set, hb_set_t* out) {
              bit_index++) {
           if (current_node_bits & (1u << bit_index)) {
             if (level == tree_height - 1) {
-              hb_set_add(out, node_base + bit_index);
+              // Bit-based version of:
+              //  hb_set_add(out, node_base + bit_index);
+              hb_set_add(out, node_base | bit_index);
             } else {
               // Bit-based version of:
               //    base = (node_base + bit_index) * kBFNodeSize[branch_factor];
-              uint32_t base = (node_base + bit_index)
+              uint32_t base = (node_base | bit_index)
                               << kBFNodeSizeLog2[branch_factor];
               next_level_node_bases.push_back(base);
             }
@@ -522,7 +524,9 @@ static void UpdateNodeBit(uint32_t cp, EncodeContext& context) {
     if (context.values_per_bit_log_2 > 0) {
       // Only compute bases if we're not in the last/leaf layer.
       context.next_node_bases.push_back(
-          context.node_base + (bit_index << context.values_per_bit_log_2));
+          // Bit-based version of:
+          //   context.node_base + (bit_index << context.values_per_bit_log_2));
+          context.node_base | (bit_index << context.values_per_bit_log_2));
     }
   }
 }
