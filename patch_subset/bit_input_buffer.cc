@@ -34,7 +34,6 @@ bool BitInputBuffer::read(uint32_t *out) {
   if (!out) {
     return false;
   }
-  uint32_t result;
   switch (branch_factor) {
     case BF2:
       if (current_byte >= bits.size()) {
