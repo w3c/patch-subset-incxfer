@@ -13,8 +13,9 @@ using std::string;
 class BitInputBufferTest : public ::testing::Test {};
 
 TEST_F(BitInputBufferTest, SingleByte2) {
-  BitInputBuffer bin(string{0b00000000, 0b00001111});
-  //                        ^ d1 bf2 ^
+  string in{0b00000000, 0b00001111};
+  //        ^ d1 bf2 ^
+  BitInputBuffer bin(in);
   EXPECT_EQ(BF2, bin.GetBranchFactor());
   EXPECT_EQ(1, bin.Depth());
   uint32_t out = UINT32_MAX;
@@ -30,8 +31,9 @@ TEST_F(BitInputBufferTest, SingleByte2) {
 }
 
 TEST_F(BitInputBufferTest, SingleByte4) {
-  BitInputBuffer bin(string{0b00000001, 0b00001111});
-  //                        ^ d1 bf4 ^
+  string in{0b00000001, 0b00001111};
+  //        ^ d1 bf4 ^
+  BitInputBuffer bin(in);
   EXPECT_EQ(BF4, bin.GetBranchFactor());
   EXPECT_EQ(1, bin.Depth());
   uint32_t out = UINT32_MAX;
@@ -43,8 +45,9 @@ TEST_F(BitInputBufferTest, SingleByte4) {
 }
 
 TEST_F(BitInputBufferTest, SingleRead8) {
-  BitInputBuffer bin(string{0b00000010, 0x2F});
-  //                        ^ d1 bf8 ^
+  string in{0b00000010, 0x2F};
+  //        ^ d1 bf8 ^
+  BitInputBuffer bin(in);
   EXPECT_EQ(BF8, bin.GetBranchFactor());
   EXPECT_EQ(1, bin.Depth());
   uint32_t out = UINT32_MAX;
@@ -54,8 +57,9 @@ TEST_F(BitInputBufferTest, SingleRead8) {
 }
 
 TEST_F(BitInputBufferTest, SingleRead32) {
-  BitInputBuffer bin(string{0b00000011, 0x11, 0x22, 0x33, 0x44});
-  //                        ^ d1 bf32^
+  string in{0b00000011, 0x11, 0x22, 0x33, 0x44};
+  //        ^ d1 bf32^
+  BitInputBuffer bin(in);
   EXPECT_EQ(BF32, bin.GetBranchFactor());
   EXPECT_EQ(1, bin.Depth());
   uint32_t out = UINT32_MAX;
