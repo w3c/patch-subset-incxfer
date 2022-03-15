@@ -8,12 +8,15 @@ using absl::string_view;
 
 namespace patch_subset {
 
-static const unsigned int kBitsPerByte = 8;
-static const unsigned int kBitsPerNibble = 4;
-static const unsigned char kFirstNibbleMask = 0x0F;
+static const uint32_t kBitsPerByte = 8;
+static const uint32_t kBitsPerTwoBytes = 16;
+static const uint32_t kBitsPerThreeBytes = 24;
+static const uint32_t kBitsPerNibble = 4;
+static const uint8_t kFirstNibbleMask = 0x0F;
+static const uint8_t kFirstTwoBitsMask = 0b11;
 
 static BranchFactor DecodeBranchFactor(unsigned char first_byte);
-static unsigned int DecodeDepth(unsigned char first_byte);
+static uint32_t DecodeDepth(unsigned char first_byte);
 
 BitInputBuffer::BitInputBuffer(string_view bits)
     : branch_factor(DecodeBranchFactor(bits[0])), depth(DecodeDepth(bits[0])) {
@@ -25,7 +28,7 @@ BitInputBuffer::BitInputBuffer(string_view bits)
 
 const BranchFactor BitInputBuffer::GetBranchFactor() { return branch_factor; }
 
-const unsigned int BitInputBuffer::Depth() { return depth; }
+const uint32_t BitInputBuffer::Depth() { return depth; }
 
 bool BitInputBuffer::read(uint32_t *out) {
   if (!out) {
@@ -37,10 +40,7 @@ bool BitInputBuffer::read(uint32_t *out) {
       if (current_byte >= bits.size()) {
         return false;
       }
-      result = bits[current_byte];
-      result >>= (2 * current_pair);
-      result &= 0b11;
-      *out = result;
+      *out = (bits[current_byte] >> (2 * current_pair)) & kFirstTwoBitsMask;
       current_pair++;
       if (current_pair == 4) {
         current_byte++;
@@ -52,10 +52,10 @@ bool BitInputBuffer::read(uint32_t *out) {
         return false;
       }
       if (first_nibble) {
-        *out = (unsigned char)bits[current_byte] & kFirstNibbleMask;
+        *out = (uint8_t)bits[current_byte] & kFirstNibbleMask;
         first_nibble = false;
       } else {
-        *out = (unsigned char)bits[current_byte++] >> kBitsPerNibble;
+        *out = (uint8_t)bits[current_byte++] >> kBitsPerNibble;
         first_nibble = true;
       }
       break;
@@ -63,17 +63,16 @@ bool BitInputBuffer::read(uint32_t *out) {
       if (current_byte >= bits.size()) {
         return false;
       }
-      *out = (unsigned char)bits[current_byte++];
+      *out = (uint8_t)bits[current_byte++];
       break;
     case BF32:
       if (current_byte + 3 >= bits.size()) {
         return false;
       }
-      result = (unsigned char)bits[current_byte + 3];
-      result = (result << kBitsPerByte) | (unsigned char)bits[current_byte + 2];
-      result = (result << kBitsPerByte) | (unsigned char)bits[current_byte + 1];
-      result = (result << kBitsPerByte) | (unsigned char)bits[current_byte];
-      *out = result;
+      *out = ((uint8_t)bits[current_byte + 3] << kBitsPerThreeBytes) |
+             ((uint8_t)bits[current_byte + 2] << kBitsPerTwoBytes) |
+             ((uint8_t)bits[current_byte + 1] << kBitsPerByte) |
+             (uint8_t)bits[current_byte];
       current_byte += 4;
       break;
   }
@@ -93,7 +92,7 @@ static BranchFactor DecodeBranchFactor(unsigned char first_byte) {
   }
 }
 
-static unsigned int DecodeDepth(unsigned char first_byte) {
+static uint32_t DecodeDepth(unsigned char first_byte) {
   // Only look at bits 2..5.
   // Bits 0 and 1 are branch factor. Bits 7 is reserved for future use.
   return ((first_byte & 0b01111100u) >> 2) + 1;
