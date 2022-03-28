@@ -76,7 +76,7 @@ StatusCode SparseBitSet::Decode(string_view sparse_bit_set, hb_set_t* out) {
   uint64_t node_base_factor = leaf_node_size >> kBFNodeSizeLog2[branch_factor];
   vector<uint32_t> node_bases{0u};  // Root node.
   vector<uint32_t> next_level_node_bases;
-  vector<uint32_t> pending_codepoints;
+  vector<hb_codepoint_t> pending_codepoints;
 
   for (uint32_t level = 0; level < tree_height; level++) {
     for (uint32_t node_base : node_bases) {
@@ -192,7 +192,7 @@ uint32_t EstimateTreeSize(uint32_t num_leaf_nodes, BranchFactor branch_factor) {
   return (uint32_t)(num_leaf_nodes * geometric_sum);
 }
 
-BranchFactor ChooseBranchFactor(const vector<uint32_t>& codepoints,
+BranchFactor ChooseBranchFactor(const vector<hb_codepoint_t>& codepoints,
                                 vector<uint32_t>& filled_twigs /* OUT */) {
   uint32_t empty_leaves[BF32 + 1]{};
 
@@ -297,12 +297,12 @@ BranchFactor ChooseBranchFactor(const vector<uint32_t>& codepoints,
   return optimal;
 }
 
-vector<uint32_t> FindFilledTwigs(const vector<uint32_t>& codepoints,
+vector<uint32_t> FindFilledTwigs(const vector<hb_codepoint_t>& codepoints,
                                  BranchFactor branch_factor,
                                  vector<uint32_t>& filled_twigs /* OUT */) {
   uint32_t prev_cp = UINT32_MAX - 1;
   uint32_t seq_len = 0;
-  for (uint32_t cp : codepoints) {
+  for (hb_codepoint_t cp : codepoints) {
     if (cp == prev_cp + 1) {
       seq_len++;
     } else {
@@ -675,7 +675,7 @@ string SparseBitSet::Encode(const hb_set_t& set, BranchFactor branch_factor) {
   if (size == 0) {
     return "";
   }
-  vector<uint32_t> codepoints;
+  vector<hb_codepoint_t> codepoints;
   codepoints.resize(size);
   hb_set_next_many(&set, HB_SET_VALUE_INVALID, codepoints.data(), size);
   vector<uint32_t> filled_twigs;
@@ -688,7 +688,7 @@ string SparseBitSet::Encode(const hb_set_t& set) {
   if (size == 0) {
     return "";
   }
-  vector<uint32_t> codepoints;
+  vector<hb_codepoint_t> codepoints;
   codepoints.resize(size);
   hb_set_next_many(&set, HB_SET_VALUE_INVALID, codepoints.data(), size);
   vector<uint32_t> filled_twigs;
