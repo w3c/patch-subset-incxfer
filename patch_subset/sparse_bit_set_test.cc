@@ -183,10 +183,6 @@ TEST_F(SparseBitSetTest, DecodeInvalid) {
   hb_set_unique_ptr set = make_hb_set();
   EXPECT_EQ(StatusCode::kInvalidArgument,
             SparseBitSet::Decode(encoded, set.get()));
-
-  hb_set_unique_ptr empty_set = make_hb_set(0);
-  // The set was partially updated.
-  EXPECT_FALSE(hb_set_is_equal(set.get(), empty_set.get()));
 }
 
 TEST_F(SparseBitSetTest, EncodeEmpty) { TestEncodeDecode(make_hb_set(), 0); }
@@ -441,7 +437,7 @@ TEST_F(SparseBitSetTest, OneMissingValue32) {
 
 TEST_F(SparseBitSetTest, RandomSets) {
   unsigned int seed = 42;
-  for (int i = 0; i < 1000; i++) {
+  for (int i = 0; i < 5000; i++) {
     int size = rand_r(&seed) % 6000;
     hb_set_unique_ptr input = make_hb_set();
     for (int j = 0; j < size; j++) {
