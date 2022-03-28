@@ -60,6 +60,7 @@ cc_library(
         "src/hb-shape-plan.h",
         "src/hb-style.h",
         "src/hb-subset.h",
+        "src/hb-subset-repacker.h",
         "src/hb-unicode.h",
         "src/hb-version.h",
     ],
