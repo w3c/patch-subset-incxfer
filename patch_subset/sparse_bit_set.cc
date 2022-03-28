@@ -76,6 +76,7 @@ StatusCode SparseBitSet::Decode(string_view sparse_bit_set, hb_set_t* out) {
   uint64_t node_base_factor = leaf_node_size >> kBFNodeSizeLog2[branch_factor];
   vector<uint32_t> node_bases{0u};  // Root node.
   vector<uint32_t> next_level_node_bases;
+  vector<uint32_t> pending_codepoints;
 
   for (uint32_t level = 0; level < tree_height; level++) {
     for (uint32_t node_base : node_bases) {
@@ -88,6 +89,7 @@ StatusCode SparseBitSet::Decode(string_view sparse_bit_set, hb_set_t* out) {
       if (current_node_bits == 0u) {
         // This is a completely filled node encoded as a zero!
         uint32_t leaf_node_base = node_base * node_base_factor;
+        // Add to the set now; range additions are efficient.
         hb_set_add_range(out, leaf_node_base,
                          leaf_node_base + leaf_node_size - 1);
       } else {
@@ -96,12 +98,13 @@ StatusCode SparseBitSet::Decode(string_view sparse_bit_set, hb_set_t* out) {
              bit_index++) {
           if (current_node_bits & (1u << bit_index)) {
             if (level == tree_height - 1) {
+              // Queue up individual additions to the set for a later bulk add.
               // Bit-based version of:
-              //  hb_set_add(out, node_base + bit_index);
-              hb_set_add(out, node_base | bit_index);
+              //   pending_codepoints.push_back(node_base + bit_index);
+              pending_codepoints.push_back(node_base | bit_index);
             } else {
               // Bit-based version of:
-              //    base = (node_base + bit_index) * kBFNodeSize[branch_factor];
+              //   base = (node_base + bit_index) * kBFNodeSize[branch_factor];
               uint32_t base = (node_base | bit_index)
                               << kBFNodeSizeLog2[branch_factor];
               next_level_node_bases.push_back(base);
@@ -117,6 +120,10 @@ StatusCode SparseBitSet::Decode(string_view sparse_bit_set, hb_set_t* out) {
     node_base_factor >>= kBFNodeSizeLog2[branch_factor];
     node_bases.swap(next_level_node_bases);
     next_level_node_bases.clear();
+  }
+  if (!pending_codepoints.empty()) {
+    hb_set_add_sorted_array(out, pending_codepoints.data(),
+                            pending_codepoints.size());
   }
   return StatusCode::kOk;
 }
@@ -185,8 +192,7 @@ uint32_t EstimateTreeSize(uint32_t num_leaf_nodes, BranchFactor branch_factor) {
   return (uint32_t)(num_leaf_nodes * geometric_sum);
 }
 
-BranchFactor ChooseBranchFactor(const hb_set_t& set,
-                                vector<uint32_t>& codepoints /* OUT */,
+BranchFactor ChooseBranchFactor(const vector<uint32_t>& codepoints,
                                 vector<uint32_t>& filled_twigs /* OUT */) {
   uint32_t empty_leaves[BF32 + 1]{};
 
@@ -199,18 +205,18 @@ BranchFactor ChooseBranchFactor(const hb_set_t& set,
   vector<uint32_t> bf32;
   vector<uint32_t> all_filled_twigs[]{bf2, bf4, bf8, bf32};
 
-  hb_codepoint_t cp = HB_SET_VALUE_INVALID;
-  if (!hb_set_next(&set, &cp)) {
+  auto it = codepoints.begin();
+  if (it == codepoints.end()) {
     return BF8;
   }
   // 0 .. cp-1 are missing/empty (if any).
+  hb_codepoint_t cp = *it++;
   AdvanceToCp(UINT32_MAX, cp, empty_leaves);
-  codepoints.push_back(cp);
   uint32_t seq_len = 1;
   uint32_t prev_cp = cp;
-  while (hb_set_next(&set, &cp)) {
+  while (it != codepoints.end()) {
+    cp = *it++;
     AdvanceToCp(prev_cp, cp, empty_leaves);
-    codepoints.push_back(cp);
     if (cp == prev_cp + 1) {
       seq_len++;
     } else {
@@ -291,14 +297,12 @@ BranchFactor ChooseBranchFactor(const hb_set_t& set,
   return optimal;
 }
 
-vector<uint32_t> FindFilledTwigs(const hb_set_t& set,
+vector<uint32_t> FindFilledTwigs(const vector<uint32_t>& codepoints,
                                  BranchFactor branch_factor,
-                                 vector<uint32_t>& codepoints /* OUT */,
                                  vector<uint32_t>& filled_twigs /* OUT */) {
   uint32_t prev_cp = UINT32_MAX - 1;
   uint32_t seq_len = 0;
-  for (hb_codepoint_t cp = HB_SET_VALUE_INVALID; hb_set_next(&set, &cp);) {
-    codepoints.push_back(cp);
+  for (uint32_t cp : codepoints) {
     if (cp == prev_cp + 1) {
       seq_len++;
     } else {
@@ -672,9 +676,10 @@ string SparseBitSet::Encode(const hb_set_t& set, BranchFactor branch_factor) {
     return "";
   }
   vector<uint32_t> codepoints;
-  codepoints.reserve(size);
+  codepoints.resize(size);
+  hb_set_next_many(&set, HB_SET_VALUE_INVALID, codepoints.data(), size);
   vector<uint32_t> filled_twigs;
-  FindFilledTwigs(set, branch_factor, codepoints, filled_twigs);
+  FindFilledTwigs(codepoints, branch_factor, filled_twigs);
   return EncodeSet(codepoints, branch_factor, filled_twigs);
 }
 
@@ -684,10 +689,10 @@ string SparseBitSet::Encode(const hb_set_t& set) {
     return "";
   }
   vector<uint32_t> codepoints;
-  codepoints.reserve(size);
+  codepoints.resize(size);
+  hb_set_next_many(&set, HB_SET_VALUE_INVALID, codepoints.data(), size);
   vector<uint32_t> filled_twigs;
-  BranchFactor branch_factor =
-      ChooseBranchFactor(set, codepoints, filled_twigs);
+  BranchFactor branch_factor = ChooseBranchFactor(codepoints, filled_twigs);
   return EncodeSet(codepoints, branch_factor, filled_twigs);
 }
 
