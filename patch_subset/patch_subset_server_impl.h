@@ -141,6 +141,9 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
   void LoadInputCodepoints(const patch_subset::cbor::PatchRequest& request,
                            RequestState* state) const;
 
+  bool RequiredFieldsPresent(const patch_subset::cbor::PatchRequest& request,
+                             const RequestState& state) const;
+
   void CheckOriginalChecksum(uint64_t original_checksum,
                              RequestState* state) const;
 

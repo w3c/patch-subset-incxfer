@@ -8,6 +8,7 @@
 #include "hb.h"
 #include "patch_subset/codepoint_mapper.h"
 #include "patch_subset/compressed_set.h"
+#include "patch_subset/constants.h"
 #include "patch_subset/fake_subsetter.h"
 #include "patch_subset/hb_set_unique_ptr.h"
 #include "patch_subset/mock_binary_diff.h"
@@ -167,6 +168,7 @@ TEST_F(PatchSubsetServerImplTest, NewRequest) {
   CompressedSet::Encode(*set_abcd_, codepoints_needed);
   request.SetCodepointsNeeded(codepoints_needed);
   request.SetAcceptFormats({PatchFormat::BROTLI_SHARED_DICT});
+  request.SetProtocolVersion(ProtocolVersion::ONE);
 
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
             StatusCode::kOk);
@@ -193,6 +195,7 @@ TEST_F(PatchSubsetServerImplTest, NewRequestVCDIFF) {
   CompressedSet::Encode(*set_abcd_, codepoints_needed);
   request.SetCodepointsNeeded(codepoints_needed);
   request.SetAcceptFormats({PatchFormat::VCDIFF});
+  request.SetProtocolVersion(ProtocolVersion::ONE);
 
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
             StatusCode::kOk);
@@ -219,6 +222,7 @@ TEST_F(PatchSubsetServerImplTest, PrefersBrotli) {
   request.SetCodepointsNeeded(codepoints_needed);
   request.SetAcceptFormats(
       {PatchFormat::BROTLI_SHARED_DICT, PatchFormat::VCDIFF});
+  request.SetProtocolVersion(ProtocolVersion::ONE);
 
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
             StatusCode::kOk);
@@ -247,6 +251,7 @@ TEST_F(PatchSubsetServerImplWithCodepointRemappingTest,
   CompressedSet::Encode(*set_abcd_, codepoints_needed);
   request.SetCodepointsNeeded(codepoints_needed);
   request.SetAcceptFormats({PatchFormat::BROTLI_SHARED_DICT});
+  request.SetProtocolVersion(ProtocolVersion::ONE);
 
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
             StatusCode::kOk);
@@ -277,6 +282,7 @@ TEST_F(PatchSubsetServerImplTest, PatchRequest) {
   request.SetAcceptFormats({PatchFormat::BROTLI_SHARED_DICT});
   request.SetOriginalFontChecksum(42);
   request.SetBaseChecksum(43);
+  request.SetProtocolVersion(ProtocolVersion::ONE);
 
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
             StatusCode::kOk);
@@ -314,6 +320,7 @@ TEST_F(PatchSubsetServerImplTest, PatchRequestWithCodepointPrediction) {
   request.SetAcceptFormats({PatchFormat::BROTLI_SHARED_DICT});
   request.SetOriginalFontChecksum(42);
   request.SetBaseChecksum(43);
+  request.SetProtocolVersion(ProtocolVersion::ONE);
 
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
             StatusCode::kOk);
@@ -347,6 +354,7 @@ TEST_F(PatchSubsetServerImplWithCodepointRemappingTest,
   request.SetOriginalFontChecksum(42);
   request.SetBaseChecksum(43);
   request.SetOrderingChecksum(44);
+  request.SetProtocolVersion(ProtocolVersion::ONE);
 
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
             StatusCode::kOk);
@@ -377,6 +385,7 @@ TEST_F(PatchSubsetServerImplWithCodepointRemappingTest, BadIndexChecksum) {
   request.SetOriginalFontChecksum(42);
   request.SetBaseChecksum(43);
   request.SetOrderingChecksum(123);
+  request.SetProtocolVersion(ProtocolVersion::ONE);
 
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
             StatusCode::kOk);
@@ -407,6 +416,7 @@ TEST_F(PatchSubsetServerImplTest, BadOriginalFontChecksum) {
   request.SetAcceptFormats({PatchFormat::BROTLI_SHARED_DICT});
   request.SetOriginalFontChecksum(100);
   request.SetBaseChecksum(43);
+  request.SetProtocolVersion(ProtocolVersion::ONE);
 
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
             StatusCode::kOk);
@@ -434,6 +444,7 @@ TEST_F(PatchSubsetServerImplTest, BadBaseChecksum) {
   request.SetAcceptFormats({PatchFormat::BROTLI_SHARED_DICT});
   request.SetOriginalFontChecksum(42);
   request.SetBaseChecksum(100);
+  request.SetProtocolVersion(ProtocolVersion::ONE);
 
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
             StatusCode::kOk);
@@ -454,9 +465,39 @@ TEST_F(PatchSubsetServerImplTest, NotFound) {
   CompressedSet::Encode(*set_abcd_, codepoints_needed);
   request.SetCodepointsNeeded(codepoints_needed);
   request.SetAcceptFormats({PatchFormat::BROTLI_SHARED_DICT});
+  request.SetProtocolVersion(ProtocolVersion::ONE);
 
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
             StatusCode::kNotFound);
+}
+
+TEST_F(PatchSubsetServerImplTest, RejectsMissingBaseChecksum) {
+  PatchRequest request;
+  PatchResponse response;
+  patch_subset::cbor::CompressedSet codepoints_needed;
+  CompressedSet::Encode(*set_abcd_, codepoints_needed);
+  request.SetCodepointsNeeded(codepoints_needed);
+  request.SetCodepointsHave(codepoints_needed);
+  request.SetAcceptFormats({PatchFormat::BROTLI_SHARED_DICT});
+  request.SetProtocolVersion(ProtocolVersion::ONE);
+
+  // base checksum and original font checksum are missing.
+  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
+            StatusCode::kInvalidArgument);
+}
+
+TEST_F(PatchSubsetServerImplTest, RejectsMissingOrderingChecksum) {
+  PatchRequest request;
+  PatchResponse response;
+  patch_subset::cbor::CompressedSet codepoints_needed;
+  CompressedSet::Encode(*set_abcd_, codepoints_needed);
+  request.SetIndicesNeeded(codepoints_needed);
+  request.SetAcceptFormats({PatchFormat::BROTLI_SHARED_DICT});
+  request.SetProtocolVersion(ProtocolVersion::ONE);
+
+  // ordering checksum is missing.
+  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
+            StatusCode::kInvalidArgument);
 }
 
 }  // namespace patch_subset

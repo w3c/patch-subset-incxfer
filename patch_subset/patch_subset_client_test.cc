@@ -48,12 +48,14 @@ class PatchSubsetClientTest : public ::testing::Test {
     CompressedSet::Encode(codepoints, codepoints_needed);
     request.SetCodepointsNeeded(codepoints_needed);
     request.AddAcceptFormat(PatchFormat::BROTLI_SHARED_DICT);
+    request.SetProtocolVersion(ProtocolVersion::ONE);
     return request;
   }
 
   PatchRequest CreateRequest(const hb_set_t& codepoints_have,
                              const hb_set_t& codepoints_needed) {
     PatchRequest request;
+    request.SetProtocolVersion(ProtocolVersion::ONE);
     if (!hb_set_is_empty(&codepoints_have)) {
       patch_subset::cbor::CompressedSet codepoints_have2;
       CompressedSet::Encode(codepoints_have, codepoints_have2);
