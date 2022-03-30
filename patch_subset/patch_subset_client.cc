@@ -161,6 +161,7 @@ void PatchSubsetClient::CreateRequest(const hb_set_t& codepoints_have,
                                       const hb_set_t& codepoints_needed,
                                       const ClientState& state,
                                       PatchRequest* request) {
+  request->SetProtocolVersion(ProtocolVersion::ONE);
   if (hb_set_get_population(&codepoints_have)) {
     request->SetOriginalFontChecksum(state.OriginalFontChecksum());
     request->SetBaseChecksum(hasher_->Checksum(state.FontData()));

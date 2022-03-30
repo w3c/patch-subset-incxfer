@@ -60,6 +60,10 @@ StatusCode PatchSubsetServerImpl::Handle(const std::string& font_id,
 
   LoadInputCodepoints(request, &state);
 
+  if (!RequiredFieldsPresent(request, state)) {
+    return StatusCode::kInvalidArgument;
+  }
+
   StatusCode result;
   if (!Check(result = font_provider_->GetFont(font_id, &state.font_data),
              "Failed to load font (font_id = " + font_id + ").")) {
@@ -117,6 +121,33 @@ void PatchSubsetServerImpl::LoadInputCodepoints(const PatchRequest& request,
   hb_set_union(state->codepoints_needed.get(), state->codepoints_have.get());
   hb_set_union(state->indices_needed.get(), state->indices_have.get());
   state->ordering_checksum = request.OrderingChecksum();
+}
+
+bool PatchSubsetServerImpl::RequiredFieldsPresent(
+    const PatchRequest& request, const RequestState& state) const {
+  if ((!hb_set_is_empty(state.codepoints_have.get()) ||
+       !hb_set_is_empty(state.indices_have.get())) &&
+      (!request.HasBaseChecksum() || !request.HasOriginalFontChecksum())) {
+    LOG(WARNING) << "Request has indicated it has existing codepoints but does "
+                 << "not set a base and/or original checksum.";
+    return false;
+  }
+
+  if ((!hb_set_is_empty(state.indices_have.get()) ||
+       !hb_set_is_empty(state.indices_needed.get())) &&
+      !request.HasOrderingChecksum()) {
+    LOG(WARNING) << "Request requires a codepoint remapping but does not "
+                 << "provide an ordering checksum.";
+    return false;
+  }
+
+  if (!request.HasProtocolVersion() ||
+      request.GetProtocolVersion() != ProtocolVersion::ONE) {
+    LOG(WARNING) << "Protocol version must be 0.";
+    return false;
+  }
+
+  return true;
 }
 
 void PatchSubsetServerImpl::CheckOriginalChecksum(uint64_t original_checksum,
