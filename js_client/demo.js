@@ -1,8 +1,8 @@
-var page_index = -1;
-var states = {};
-var also_load_unicode_range = true;
-var show_unicode_range = false;
-var use_prediction = false;
+let page_index = -1;
+let states = {};
+let also_load_unicode_range = true;
+let show_unicode_range = false;
+let use_prediction = false;
 
 async function update_all_fonts() {
     if (page_index < 0) {
@@ -10,15 +10,15 @@ async function update_all_fonts() {
         return;
     }
 
-    title_font = SENTENCES[page_index][0];
-    title_text = SENTENCES[page_index][1]
-    paragraph_font = PARAGRAPHS[page_index][0];
-    paragraph_text = PARAGRAPHS[page_index][1];
+    let title_font = SENTENCES[page_index][0];
+    let title_text = SENTENCES[page_index][1];
+    let paragraph_font = PARAGRAPHS[page_index][0];
+    let paragraph_text = PARAGRAPHS[page_index][1];
 
-    p1 = update_fonts(title_text,
+    let p1 = update_fonts(title_text,
                       title_font,
                       "Title Font");
-    p2 = update_fonts(paragraph_text,
+    let p2 = update_fonts(paragraph_text,
                       paragraph_font,
                       "Paragraph Font");
     await p1;
@@ -54,12 +54,12 @@ function update_sample_toggle() {
 }
 
 function update_fonts(text, font_id, font_face) {
-    cps = new Set()
-    for (var i = 0; text.codePointAt(i); i++) {
+    let cps = new Set();
+    for (let i = 0; text.codePointAt(i); i++) {
         cps.add(text.codePointAt(i));
     }
 
-    cps_array = []
+    let cps_array = [];
     for (let cp of cps) {
         cps_array.push(cp);
     }
@@ -74,7 +74,7 @@ function patch_codepoints(font_id, font_face, cps) {
     if (!states[font_id]) {
         states[font_id] = new window.Module.State(font_id);
     }
-    var state = states[font_id];
+    let state = states[font_id];
     return new Promise(resolve => {
         state.extend(cps, async function(result) {
             if (!result) {
@@ -94,8 +94,8 @@ function patch_codepoints(font_id, font_face, cps) {
 }
 
 function update_transfer_bars() {
-    var pfe_total = 0;
-    var ur_total = 0;
+    let pfe_total = 0;
+    let ur_total = 0;
     for (let r of performance.getEntriesByType("resource")) {
         if (r.name.includes("/experimental/patch_subset")
             && (r.name.endsWith(".ttf") || r.name.endsWith(".otf"))) {
@@ -105,7 +105,7 @@ function update_transfer_bars() {
             ur_total += r.transferSize;
         }
     }
-    var total = Math.max(Math.max(pfe_total, ur_total), 1);
+    let total = Math.max(Math.max(pfe_total, ur_total), 1);
     document.getElementById("pfe_bar").style.width =
         ((pfe_total / total) * 100) + "%";
     document.getElementById("pfe_bar").textContent = as_string(pfe_total);
@@ -128,13 +128,13 @@ createModule().then(function(Module) {
 });
 
 window.addEventListener('DOMContentLoaded', function() {
-    prev = document.getElementById("prev");
+    let prev = document.getElementById("prev");
     prev.addEventListener("click", function() {
         page_index--;
         if (page_index < 0) page_index = 0;
         update_all_fonts();
     });
-    next = document.getElementById("next");
+    let next = document.getElementById("next");
     next.addEventListener("click", function() {
         page_index++;
         if (page_index >= PARAGRAPHS.length) page_index = PARAGRAPHS.length - 1;

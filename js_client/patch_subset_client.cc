@@ -112,7 +112,8 @@ class State {
     PatchRequest request;
     StatusCode result =
         _client.CreateRequest(*additional_codepoints, _state, &request);
-    if (result != StatusCode::kOk || request.CodepointsNeeded().empty()) {
+    if (result != StatusCode::kOk || (request.CodepointsNeeded().empty() &&
+                                      request.IndicesNeeded().empty())) {
       callback(result == StatusCode::kOk);
       return;
     }
