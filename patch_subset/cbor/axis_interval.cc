@@ -5,21 +5,14 @@
 
 namespace patch_subset::cbor {
 
-AxisInterval::AxisInterval()
-    : _start(std::nullopt), _end(std::nullopt)
-{}
+AxisInterval::AxisInterval() : _start(std::nullopt), _end(std::nullopt) {}
 
 AxisInterval::AxisInterval(AxisInterval&& other) noexcept
-    : _start(other._start), _end(other._start)
-{}
+    : _start(other._start), _end(other._start) {}
 
-AxisInterval::AxisInterval(float point)
-    : _start(point), _end(std::nullopt)
-{}
+AxisInterval::AxisInterval(float point) : _start(point), _end(std::nullopt) {}
 
-AxisInterval::AxisInterval(float start, float end)
-    : _start(start), _end(end)
-{}
+AxisInterval::AxisInterval(float start, float end) : _start(start), _end(end) {}
 
 bool AxisInterval::IsPoint() const {
   return _start && (!_end || *_start == *_end);
@@ -32,14 +25,16 @@ bool AxisInterval::IsValid() const {
   return !_end;
 }
 
-StatusCode AxisInterval::Decode(const cbor_item_t& cbor_map, AxisInterval& out) {
+StatusCode AxisInterval::Decode(const cbor_item_t& cbor_map,
+                                AxisInterval& out) {
   if (!cbor_isa_map(&cbor_map)) {
     return StatusCode::kInvalidArgument;
   }
 
   AxisInterval result;
 
-  StatusCode sc = CborUtils::GetFloatField(cbor_map, kStartFieldNumber, result._start);
+  StatusCode sc =
+      CborUtils::GetFloatField(cbor_map, kStartFieldNumber, result._start);
   if (sc != StatusCode::kOk) {
     return StatusCode::kInvalidArgument;
   }
@@ -79,9 +74,7 @@ StatusCode AxisInterval::Encode(cbor_item_unique_ptr& map_out) const {
   return StatusCode::kOk;
 }
 
-bool AxisInterval::HasStart() const {
-  return bool(_start);
-}
+bool AxisInterval::HasStart() const { return bool(_start); }
 
 AxisInterval& AxisInterval::SetStart(float value) {
   _start.emplace(value);
@@ -93,13 +86,9 @@ AxisInterval& AxisInterval::ResetStart() {
   return *this;
 }
 
-float AxisInterval::Start() const {
-  return *_start;
-}
+float AxisInterval::Start() const { return *_start; }
 
-bool AxisInterval::HasEnd() const {
-  return bool(_end);
-}
+bool AxisInterval::HasEnd() const { return bool(_end); }
 
 AxisInterval& AxisInterval::SetEnd(float value) {
   _end.emplace(value);
@@ -111,9 +100,7 @@ AxisInterval& AxisInterval::ResetEnd() {
   return *this;
 }
 
-float AxisInterval::End() const {
-  return *_end;
-}
+float AxisInterval::End() const { return *_end; }
 
 std::string AxisInterval::ToString() const {
   if (_start && _end) {

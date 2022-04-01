@@ -49,7 +49,6 @@ TEST_F(AxisIntervalTest, Getters) {
   EXPECT_FALSE(interval.HasEnd());
   EXPECT_EQ(interval.Start(), 10.0f);
 
-
   interval.SetEnd(15.0f);
   EXPECT_TRUE(interval.HasStart());
   EXPECT_TRUE(interval.HasEnd());
@@ -74,7 +73,6 @@ TEST_F(AxisIntervalTest, Encode) {
   cbor_item_unique_ptr map = empty_cbor_ptr();
   StatusCode sc = interval.Encode(map);
 
-
   ASSERT_EQ(sc, StatusCode::kOk);
   ASSERT_NE(map.get(), nullptr);
 
@@ -95,7 +93,6 @@ TEST_F(AxisIntervalTest, Encode) {
 }
 
 TEST_F(AxisIntervalTest, DecodeInvalid) {
-
   cbor_item_unique_ptr map = make_cbor_map(2);
   CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeFloat(10.0f)));
   CborUtils::SetField(*map, 1, cbor_move(CborUtils::EncodeFloat(5.0f)));
@@ -106,7 +103,6 @@ TEST_F(AxisIntervalTest, DecodeInvalid) {
 }
 
 TEST_F(AxisIntervalTest, Decode) {
-
   cbor_item_unique_ptr map = make_cbor_map(2);
   CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeFloat(5.0f)));
   CborUtils::SetField(*map, 1, cbor_move(CborUtils::EncodeFloat(10.0f)));
