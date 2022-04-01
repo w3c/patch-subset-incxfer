@@ -337,9 +337,8 @@ cbor_item_t* CborUtils::EncodeFloat(float n) {
 StatusCode CborUtils::DecodeFloat(const cbor_item_t& float_element,
                                   float* out) {
   // Specification states all floats are single precision.
-  if (!cbor_is_float(&float_element)
-      || cbor_float_get_width(&float_element) != CBOR_FLOAT_32
-      || out == nullptr) {
+  if (!cbor_is_float(&float_element) ||
+      cbor_float_get_width(&float_element) != CBOR_FLOAT_32 || out == nullptr) {
     return StatusCode::kInvalidArgument;
   }
   *out = cbor_float_get_float4(&float_element);
