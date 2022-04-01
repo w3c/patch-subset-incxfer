@@ -85,6 +85,32 @@ TEST_F(CborUtilsTest, SetUInt64FieldAbsent) {
   EXPECT_EQ(cbor_map_size(map.get()), 0);
 }
 
+TEST_F(CborUtilsTest, SetFloatFieldPresent) {
+  cbor_item_unique_ptr map = make_cbor_map(1);
+  optional<float> n(543.21f);
+
+  StatusCode sc = CborUtils::SetFloatField(*map, 0, n);
+  ASSERT_EQ(sc, StatusCode::kOk);
+  EXPECT_EQ(cbor_map_size(map.get()), 1);
+
+  cbor_item_unique_ptr field = empty_cbor_ptr();
+  sc = CborUtils::GetField(*map, 0, field);
+  ASSERT_EQ(sc, StatusCode::kOk);
+  float result;
+  sc = CborUtils::DecodeFloat(*field, &result);
+  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(result, 543.21f);
+}
+
+TEST_F(CborUtilsTest, SetFloatFieldAbsent) {
+  cbor_item_unique_ptr map = make_cbor_map(1);
+  optional<float> n;
+
+  StatusCode sc = CborUtils::SetFloatField(*map, 0, n);
+  ASSERT_EQ(sc, StatusCode::kOk);
+  EXPECT_EQ(cbor_map_size(map.get()), 0);
+}
+
 TEST_F(CborUtilsTest, SetStringFieldPresent) {
   cbor_item_unique_ptr map = make_cbor_map(1);
   optional<string> s("foo");
@@ -323,6 +349,38 @@ TEST_F(CborUtilsTest, GetUInt64FieldInvalid) {
   optional<uint64_t> result(-1);
 
   StatusCode sc = CborUtils::GetUInt64Field(*map, 0, result);
+
+  ASSERT_EQ(sc, StatusCode::kInvalidArgument);
+  ASSERT_EQ(result, -1);
+}
+
+TEST_F(CborUtilsTest, GetFloatField) {
+  cbor_item_unique_ptr map = make_cbor_map(1);
+  CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeFloat(1234.56f)));
+  optional<float> result;
+
+  StatusCode sc = CborUtils::GetFloatField(*map, 0, result);
+
+  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(*result, 1234.56f);
+}
+
+TEST_F(CborUtilsTest, GetFloatFieldNotFound) {
+  cbor_item_unique_ptr map = make_cbor_map(0);
+  optional<float> result(-1);
+
+  StatusCode sc = CborUtils::GetFloatField(*map, 0, result);
+
+  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_FALSE(result.has_value());
+}
+
+TEST_F(CborUtilsTest, GetFloatFieldInvalid) {
+  cbor_item_unique_ptr map = make_cbor_map(1);
+  CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString("bad")));
+  optional<float> result(-1);
+
+  StatusCode sc = CborUtils::GetFloatField(*map, 0, result);
 
   ASSERT_EQ(sc, StatusCode::kInvalidArgument);
   ASSERT_EQ(result, -1);
