@@ -61,6 +61,25 @@ StatusCode CborUtils::GetUInt64Field(const cbor_item_t& map, int field_number,
   return StatusCode::kOk;
 }
 
+StatusCode CborUtils::GetFloatField(const cbor_item_t& map, int field_number,
+                                    optional<float>& out) {
+  cbor_item_unique_ptr field = empty_cbor_ptr();
+  StatusCode sc = GetField(map, field_number, field);
+  if (sc == StatusCode::kNotFound) {
+    out.reset();
+    return StatusCode::kOk;
+  } else if (sc != StatusCode::kOk) {
+    return sc;
+  }
+  float result;
+  sc = DecodeFloat(*field, &result);
+  if (sc != StatusCode::kOk) {
+    return sc;
+  }
+  out.emplace(result);
+  return StatusCode::kOk;
+}
+
 // TODO: This method could ignore failures, returning "", if we want.
 StatusCode CborUtils::GetStringField(const cbor_item_t& map, int field_number,
                                      optional<string>& out) {
@@ -185,6 +204,14 @@ StatusCode CborUtils::SetUInt64Field(cbor_item_t& map, int field_number,
   return SetField(map, field_number, cbor_move(EncodeUInt64(value.value())));
 }
 
+StatusCode CborUtils::SetFloatField(cbor_item_t& map, int field_number,
+                                    const optional<float>& value) {
+  if (!value.has_value()) {
+    return StatusCode::kOk;  // Nothing to do.
+  }
+  return SetField(map, field_number, cbor_move(EncodeFloat(value.value())));
+}
+
 StatusCode CborUtils::SetStringField(cbor_item_t& map, int field_number,
                                      const optional<string>& value) {
   if (!value.has_value()) {
@@ -299,6 +326,23 @@ StatusCode CborUtils::DecodeUInt64(const cbor_item_t& int_element,
     return StatusCode::kInvalidArgument;
   }
   *out = cbor_get_int(&int_element);
+  return StatusCode::kOk;
+}
+
+cbor_item_t* CborUtils::EncodeFloat(float n) {
+  // Specification states all floats are single precision.
+  return cbor_build_float4(n);
+}
+
+StatusCode CborUtils::DecodeFloat(const cbor_item_t& float_element,
+                                  float* out) {
+  // Specification states all floats are single precision.
+  if (!cbor_is_float(&float_element)
+      || cbor_float_get_width(&float_element) != CBOR_FLOAT_32
+      || out == nullptr) {
+    return StatusCode::kInvalidArgument;
+  }
+  *out = cbor_float_get_float4(&float_element);
   return StatusCode::kOk;
 }
 

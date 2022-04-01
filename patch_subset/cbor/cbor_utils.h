@@ -22,6 +22,8 @@ class CborUtils {
 
   static StatusCode GetUInt64Field(const cbor_item_t& map, int field_number,
                                    std::optional<uint64_t>& out);
+  static StatusCode GetFloatField(const cbor_item_t& map, int field_number,
+                                  std::optional<float>& out);
   static StatusCode GetStringField(const cbor_item_t& map, int field_number,
                                    std::optional<std::string>& out);
   static StatusCode GetBytesField(const cbor_item_t& map, int field_number,
@@ -40,6 +42,8 @@ class CborUtils {
 
   static StatusCode SetUInt64Field(cbor_item_t& map, int field_number,
                                    const std::optional<uint64_t>& value);
+  static StatusCode SetFloatField(cbor_item_t& map, int field_number,
+                                  const std::optional<float>& value);
   static StatusCode SetStringField(cbor_item_t& map, int field_number,
                                    const std::optional<std::string>& value);
   static StatusCode SetBytesField(cbor_item_t& map, int field_number,
@@ -56,6 +60,9 @@ class CborUtils {
 
   static cbor_item_t* EncodeUInt64(uint64_t n);
   static StatusCode DecodeUInt64(const cbor_item_t& int_element, uint64_t* out);
+
+  static cbor_item_t* EncodeFloat(float n);
+  static StatusCode DecodeFloat(const cbor_item_t& float_element, float* out);
 
   static cbor_item_t* EncodeString(const std::string& s);
   static StatusCode DecodeString(const cbor_item_t& string_item,
