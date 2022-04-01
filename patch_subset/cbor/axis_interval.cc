@@ -70,7 +70,7 @@ StatusCode AxisInterval::Encode(cbor_item_unique_ptr& map_out) const {
     return sc;
   }
 
-  sc = CborUtils::SetFloatField(*map, kStartFieldNumber, _end);
+  sc = CborUtils::SetFloatField(*map, kEndFieldNumber, _end);
   if (sc != StatusCode::kOk) {
     return sc;
   }

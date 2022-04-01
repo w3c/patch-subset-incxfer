@@ -33,7 +33,7 @@ class AxisInterval {
 
   bool IsPoint() const;
   bool IsValid() const;
-  
+
   static StatusCode Decode(const cbor_item_t& cbor_map, AxisInterval& out);
   StatusCode Encode(cbor_item_unique_ptr& map_out) const;
 
@@ -46,7 +46,7 @@ class AxisInterval {
   AxisInterval& SetEnd(float value);
   AxisInterval& ResetEnd();
   float End() const;
-  
+
   std::string ToString() const;
 
   AxisInterval& operator=(AxisInterval&& other) noexcept;
