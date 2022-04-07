@@ -9,8 +9,6 @@
 
 namespace patch_subset::cbor {
 
-using std::optional;
-
 /*
  * A range on a variation axis.
  *

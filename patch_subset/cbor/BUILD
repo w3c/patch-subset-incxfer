@@ -5,6 +5,7 @@ cc_library(
     srcs = [
         "array.cc",
         "axis_interval.cc",
+        "axis_space.cc",
         "cbor_item_unique_ptr.cc",
         "cbor_utils.cc",
         "client_state.cc",
@@ -19,6 +20,7 @@ cc_library(
     hdrs = [
         "array.h",
         "axis_interval.h",
+        "axis_space.h",
         "cbor_item_unique_ptr.h",
         "cbor_utils.h",
         "client_state.h",
@@ -37,7 +39,9 @@ cc_library(
     deps = [
         "//common",
         "//patch_subset:constants",
+        "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/strings",
+        "@harfbuzz",
         "@libcbor//:cbor",
     ],
 )
