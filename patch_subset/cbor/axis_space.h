@@ -27,7 +27,7 @@ class AxisSpace {
   AxisSpace(const AxisSpace& other) = default;
   AxisSpace(AxisSpace&& other) noexcept
       : _space(std::move(other._space)) {}
-  
+
   bool Has(hb_tag_t tag) const;
   void Clear(hb_tag_t tag);
   void AddInterval(hb_tag_t tag, const AxisInterval& interval);
@@ -36,7 +36,6 @@ class AxisSpace {
   static StatusCode Decode(const cbor_item_t& cbor_map, AxisSpace& out);
   StatusCode Encode(cbor_item_unique_ptr& map_out) const;
 
-  
   AxisSpace& operator=(AxisSpace&& other) noexcept;
   bool operator==(const AxisSpace& other) const;
   bool operator!=(const AxisSpace& other) const;

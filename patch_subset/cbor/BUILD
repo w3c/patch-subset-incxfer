@@ -52,6 +52,7 @@ cc_test(
     srcs = [
         "array_test.cc",
         "axis_interval_test.cc",
+        "axis_space_test.cc",
         "cbor_item_unique_ptr_test.cc",
         "cbor_utils_test.cc",
         "client_state_test.cc",
