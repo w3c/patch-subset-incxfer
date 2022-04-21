@@ -9,9 +9,7 @@ bool AxisSpace::Has(hb_tag_t tag) const {
 }
 
 void AxisSpace::Clear(hb_tag_t tag) {
-  if (auto it = _space.find(tag); it != _space.end()) {
-    it->second.clear();
-  }
+  _space.erase(tag);
 }
 
 void AxisSpace::AddInterval(hb_tag_t tag, const AxisInterval& interval) {
@@ -40,7 +38,7 @@ StatusCode AxisSpace::Decode(const cbor_item_t& cbor_map, AxisSpace& out) {
   cbor_pair* pairs = cbor_map_handle(&cbor_map);
   for (unsigned i = 0; i < map_size; i++) {
 
-    cbor_item_t* tag_str = pairs->key;
+    cbor_item_t* tag_str = pairs[i].key;
     if (!cbor_isa_bytestring(tag_str) || cbor_bytestring_length(tag_str) != 4) {
       return StatusCode::kInvalidArgument;
     }
@@ -48,8 +46,8 @@ StatusCode AxisSpace::Decode(const cbor_item_t& cbor_map, AxisSpace& out) {
     hb_tag_t tag = hb_tag_from_string(reinterpret_cast<char*>(cbor_bytestring_handle(tag_str)),
                                       4);
 
-    cbor_item_t* intervals = pairs->value;
-    if (!cbor_isa_array(tag_str)) {
+    cbor_item_t* intervals = pairs[i].value;
+    if (!cbor_isa_array(intervals)) {
       return StatusCode::kInvalidArgument;
     }
 
@@ -65,6 +63,7 @@ StatusCode AxisSpace::Decode(const cbor_item_t& cbor_map, AxisSpace& out) {
     }
   }
 
+  out = std::move(result);
   return StatusCode::kOk;
 }
 
