@@ -8,7 +8,7 @@ namespace patch_subset::cbor {
 AxisInterval::AxisInterval() : _start(std::nullopt), _end(std::nullopt) {}
 
 AxisInterval::AxisInterval(AxisInterval&& other) noexcept
-    : _start(other._start), _end(other._start) {}
+    : _start(other._start), _end(other._end) {}
 
 AxisInterval::AxisInterval(float point) : _start(point), _end(std::nullopt) {}
 
@@ -65,9 +65,11 @@ StatusCode AxisInterval::Encode(cbor_item_unique_ptr& map_out) const {
     return sc;
   }
 
-  sc = CborUtils::SetFloatField(*map, kEndFieldNumber, _end);
-  if (sc != StatusCode::kOk) {
-    return sc;
+  if (!IsPoint()) {
+    sc = CborUtils::SetFloatField(*map, kEndFieldNumber, _end);
+    if (sc != StatusCode::kOk) {
+      return sc;
+    }
   }
 
   map_out.swap(map);
@@ -88,7 +90,7 @@ AxisInterval& AxisInterval::ResetStart() {
 
 float AxisInterval::Start() const { return *_start; }
 
-bool AxisInterval::HasEnd() const { return bool(_end); }
+bool AxisInterval::HasEnd() const { return bool(_start || _end); }
 
 AxisInterval& AxisInterval::SetEnd(float value) {
   _end.emplace(value);
@@ -100,7 +102,12 @@ AxisInterval& AxisInterval::ResetEnd() {
   return *this;
 }
 
-float AxisInterval::End() const { return *_end; }
+float AxisInterval::End() const {
+  if (IsPoint()) {
+    return Start();
+  }
+  return *_end;
+}
 
 std::string AxisInterval::ToString() const {
   if (_start && _end) {
@@ -121,6 +128,11 @@ AxisInterval& AxisInterval::operator=(AxisInterval&& other) noexcept {
 }
 
 bool AxisInterval::operator==(const AxisInterval& other) const {
+
+  if (IsPoint() && other.IsPoint()) {
+    return Start() == other.Start();
+  }
+
   return _start == other._start && _end == other._end;
 }
 

@@ -22,6 +22,30 @@ TEST_F(AxisIntervalTest, IsPoint) {
   EXPECT_TRUE(interval.IsPoint());
 }
 
+TEST_F(AxisIntervalTest, Equal) {
+  AxisInterval a;
+  AxisInterval b;
+
+  EXPECT_TRUE(a == b);
+
+  a.SetStart(10.0f);
+  EXPECT_FALSE(a == b);
+
+  b.SetStart(10.0f);
+  EXPECT_TRUE(a == b);
+
+  a.SetEnd(10.0f);
+  EXPECT_TRUE(a == b);
+
+  a.SetEnd(15.0f);
+  EXPECT_FALSE(a == b);
+
+  b.SetEnd(15.0f);
+  EXPECT_TRUE(a == b);
+}
+
+// TODO test end when not set.
+
 TEST_F(AxisIntervalTest, IsValid) {
   AxisInterval interval;
   EXPECT_TRUE(interval.IsValid());
@@ -46,8 +70,9 @@ TEST_F(AxisIntervalTest, Getters) {
 
   interval.SetStart(10.0f);
   EXPECT_TRUE(interval.HasStart());
-  EXPECT_FALSE(interval.HasEnd());
+  EXPECT_TRUE(interval.HasEnd());
   EXPECT_EQ(interval.Start(), 10.0f);
+  EXPECT_EQ(interval.End(), 10.0f);
 
   interval.SetEnd(15.0f);
   EXPECT_TRUE(interval.HasStart());
@@ -90,6 +115,30 @@ TEST_F(AxisIntervalTest, Encode) {
   sc = CborUtils::DecodeFloat(*field, &value);
   ASSERT_EQ(sc, StatusCode::kOk);
   ASSERT_EQ(value, 2.0f);
+}
+
+TEST_F(AxisIntervalTest, EncodePoint) {
+  AxisInterval interval;
+  interval.SetStart(10.0f);
+  interval.SetEnd(10.0f);
+
+  cbor_item_unique_ptr map = empty_cbor_ptr();
+  StatusCode sc = interval.Encode(map);
+
+  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_NE(map.get(), nullptr);
+
+  cbor_item_unique_ptr field = empty_cbor_ptr();
+  float value;
+  sc = CborUtils::GetField(*map, 0, field);
+  ASSERT_EQ(sc, StatusCode::kOk);
+  sc = CborUtils::DecodeFloat(*field, &value);
+  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(value, 10.0f);
+
+  field = empty_cbor_ptr();
+  sc = CborUtils::GetField(*map, 1, field);
+  ASSERT_EQ(sc, StatusCode::kNotFound);
 }
 
 TEST_F(AxisIntervalTest, DecodeInvalid) {
