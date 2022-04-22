@@ -1,17 +1,14 @@
 #include "patch_subset/cbor/axis_space.h"
 
-#include "patch_subset/cbor/cbor_utils.h"
 #include <optional>
+
+#include "patch_subset/cbor/cbor_utils.h"
 
 namespace patch_subset::cbor {
 
-bool AxisSpace::Has(hb_tag_t tag) const {
-  return _space.contains(tag);
-}
+bool AxisSpace::Has(hb_tag_t tag) const { return _space.contains(tag); }
 
-void AxisSpace::Clear(hb_tag_t tag) {
-  _space.erase(tag);
-}
+void AxisSpace::Clear(hb_tag_t tag) { _space.erase(tag); }
 
 void AxisSpace::AddInterval(hb_tag_t tag, const AxisInterval& interval) {
   _space[tag].push_back(interval);
@@ -61,7 +58,6 @@ StatusCode AxisSpace::GetAxisSpaceField(const cbor_item_t& map,
   return StatusCode::kOk;
 }
 
-
 StatusCode AxisSpace::Decode(const cbor_item_t& cbor_map, AxisSpace& out) {
   if (!cbor_isa_map(&cbor_map)) {
     return StatusCode::kInvalidArgument;
@@ -73,14 +69,13 @@ StatusCode AxisSpace::Decode(const cbor_item_t& cbor_map, AxisSpace& out) {
   size_t map_size = cbor_map_size(&cbor_map);
   cbor_pair* pairs = cbor_map_handle(&cbor_map);
   for (unsigned i = 0; i < map_size; i++) {
-
     cbor_item_t* tag_str = pairs[i].key;
     if (!cbor_isa_bytestring(tag_str) || cbor_bytestring_length(tag_str) != 4) {
       return StatusCode::kInvalidArgument;
     }
 
-    hb_tag_t tag = hb_tag_from_string(reinterpret_cast<char*>(cbor_bytestring_handle(tag_str)),
-                                      4);
+    hb_tag_t tag = hb_tag_from_string(
+        reinterpret_cast<char*>(cbor_bytestring_handle(tag_str)), 4);
 
     cbor_item_t* intervals = pairs[i].value;
     if (!cbor_isa_array(intervals)) {
@@ -91,7 +86,8 @@ StatusCode AxisSpace::Decode(const cbor_item_t& cbor_map, AxisSpace& out) {
     cbor_item_t** intervals_array = cbor_array_handle(intervals);
     for (unsigned i = 0; i < intervals_length; i++) {
       AxisInterval interval;
-      if ((sc = interval.Decode(*intervals_array[i], interval)) != StatusCode::kOk) {
+      if ((sc = interval.Decode(*intervals_array[i], interval)) !=
+          StatusCode::kOk) {
         return sc;
       }
 
@@ -104,7 +100,6 @@ StatusCode AxisSpace::Decode(const cbor_item_t& cbor_map, AxisSpace& out) {
 }
 
 StatusCode AxisSpace::Encode(cbor_item_unique_ptr& map_out) const {
-
   cbor_item_unique_ptr map = make_cbor_map(_space.size());
   StatusCode sc;
 
@@ -117,7 +112,6 @@ StatusCode AxisSpace::Encode(cbor_item_unique_ptr& map_out) const {
     cbor_item_unique_ptr intervals_array = make_cbor_array(i.second.size());
 
     for (const auto& interval : i.second) {
-
       cbor_item_unique_ptr cbor_interval = empty_cbor_ptr();
       if ((sc = interval.Encode(cbor_interval)) != StatusCode::kOk) {
         return sc;
@@ -129,7 +123,8 @@ StatusCode AxisSpace::Encode(cbor_item_unique_ptr& map_out) const {
     }
 
     bool ok = cbor_map_add(
-        map.get(), cbor_pair{.key = cbor_key.get(), .value = intervals_array.get()});
+        map.get(),
+        cbor_pair{.key = cbor_key.get(), .value = intervals_array.get()});
 
     if (!ok) {
       return StatusCode::kInternal;

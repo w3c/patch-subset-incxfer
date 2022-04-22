@@ -34,15 +34,12 @@ PatchResponse::PatchResponse(PatchResponse&& other) noexcept
       _subset_axis_space(std::move(other._subset_axis_space)),
       _original_axis_space(std::move(other._original_axis_space)) {}
 
-PatchResponse::PatchResponse(ProtocolVersion protocol_version,
-                             PatchFormat patch_format, string patch,
-                             string replacement,
-                             uint64_t original_font_checksum,
-                             uint64_t patched_checksum,
-                             vector<int32_t> codepoint_ordering,
-                             uint64_t ordering_checksum,
-                             AxisSpace subset_axis_space,
-                             AxisSpace original_axis_space)
+PatchResponse::PatchResponse(
+    ProtocolVersion protocol_version, PatchFormat patch_format, string patch,
+    string replacement, uint64_t original_font_checksum,
+    uint64_t patched_checksum, vector<int32_t> codepoint_ordering,
+    uint64_t ordering_checksum, AxisSpace subset_axis_space,
+    AxisSpace original_axis_space)
     : _protocol_version(protocol_version),
       _patch_format(patch_format),
       _patch(patch),
@@ -101,12 +98,14 @@ StatusCode PatchResponse::Decode(const cbor_item_t& cbor_map,
     return StatusCode::kInvalidArgument;
   }
 
-  sc = AxisSpace::GetAxisSpaceField(cbor_map, kSubsetAxisSpace, result._subset_axis_space);
+  sc = AxisSpace::GetAxisSpaceField(cbor_map, kSubsetAxisSpace,
+                                    result._subset_axis_space);
   if (sc != StatusCode::kOk) {
     return StatusCode::kInvalidArgument;
   }
 
-  sc = AxisSpace::GetAxisSpaceField(cbor_map, kOriginalAxisSpace, result._original_axis_space);
+  sc = AxisSpace::GetAxisSpaceField(cbor_map, kOriginalAxisSpace,
+                                    result._original_axis_space);
   if (sc != StatusCode::kOk) {
     return StatusCode::kInvalidArgument;
   }
@@ -165,14 +164,14 @@ StatusCode PatchResponse::Encode(cbor_item_unique_ptr& map_out) const {
     return sc;
   }
 
-
-  if ((sc = AxisSpace::SetAxisSpaceField(*map, kSubsetAxisSpace, _subset_axis_space))
-      != StatusCode::kOk) {
+  if ((sc = AxisSpace::SetAxisSpaceField(
+           *map, kSubsetAxisSpace, _subset_axis_space)) != StatusCode::kOk) {
     return sc;
   }
 
-  if ((sc = AxisSpace::SetAxisSpaceField(*map, kOriginalAxisSpace, _original_axis_space))
-      != StatusCode::kOk) {
+  if ((sc = AxisSpace::SetAxisSpaceField(*map, kOriginalAxisSpace,
+                                         _original_axis_space)) !=
+      StatusCode::kOk) {
     return sc;
   }
 
@@ -398,14 +397,13 @@ PatchResponse& PatchResponse::ResetOrderingChecksum() {
   return *this;
 }
 
-
 bool PatchResponse::HasSubsetAxisSpace() const {
-  return _subset_axis_space.has_value ();
+  return _subset_axis_space.has_value();
 }
 
 const AxisSpace& PatchResponse::SubsetAxisSpace() const {
   static const AxisSpace emptySpace;
-  if (_subset_axis_space.has_value ()) {
+  if (_subset_axis_space.has_value()) {
     return _subset_axis_space.value();
   }
   return emptySpace;
@@ -422,12 +420,12 @@ PatchResponse& PatchResponse::ResetSubsetAxisSpace() {
 }
 
 bool PatchResponse::HasOriginalAxisSpace() const {
-  return _original_axis_space.has_value ();
+  return _original_axis_space.has_value();
 }
 
 const AxisSpace& PatchResponse::OriginalAxisSpace() const {
   static const AxisSpace emptySpace;
-  if (_original_axis_space.has_value ()) {
+  if (_original_axis_space.has_value()) {
     return _original_axis_space.value();
   }
   return emptySpace;
@@ -442,7 +440,6 @@ PatchResponse& PatchResponse::ResetOriginalAxisSpace() {
   _original_axis_space.reset();
   return *this;
 }
-
 
 string PatchResponse::ToString() const {
   string s = "";

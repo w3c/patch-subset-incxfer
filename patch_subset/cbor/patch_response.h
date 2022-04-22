@@ -48,8 +48,7 @@ class PatchResponse {
                 std::string patch, std::string replacement,
                 uint64_t original_font_checksum, uint64_t patched_checksum,
                 std::vector<int32_t> codepoint_ordering,
-                uint64_t ordering_checksum,
-                AxisSpace subset_axis_space,
+                uint64_t ordering_checksum, AxisSpace subset_axis_space,
                 AxisSpace original_axis_space);
 
   static StatusCode Decode(const cbor_item_t& cbor_map, PatchResponse& out);
