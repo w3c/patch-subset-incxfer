@@ -13,6 +13,8 @@
 #include "patch_subset/vcdiff_binary_patch.h"
 
 using ::absl::string_view;
+using patch_subset::cbor::AxisInterval;
+using patch_subset::cbor::AxisSpace;
 using patch_subset::cbor::PatchRequest;
 using patch_subset::cbor::PatchResponse;
 
@@ -103,8 +105,32 @@ TEST_F(PatchSubsetServerIntegrationTest, NewRequest) {
   EXPECT_EQ(response.OriginalFontChecksum(), original_font_checksum);
   EXPECT_EQ(response.PatchedChecksum(), subset_abcd_checksum);
   EXPECT_EQ(response.GetPatchFormat(), PatchFormat::BROTLI_SHARED_DICT);
+  EXPECT_FALSE(response.HasSubsetAxisSpace());
+  EXPECT_FALSE(response.HasOriginalAxisSpace());
 
   CheckPatch(empty_, roboto_abcd_, response.Replacement());
+}
+
+TEST_F(PatchSubsetServerIntegrationTest, NewRequest_Variable) {
+  hb_set_unique_ptr set_abcd = make_hb_set_from_ranges(1, 0x61, 0x64);
+
+  PatchRequest request;
+  patch_subset::cbor::CompressedSet codepoints_needed;
+  CompressedSet::Encode(*set_abcd, codepoints_needed);
+  request.SetCodepointsNeeded(codepoints_needed);
+  request.SetAcceptFormats({PatchFormat::BROTLI_SHARED_DICT});
+  request.SetProtocolVersion(ProtocolVersion::ONE);
+
+  PatchResponse response;
+  ASSERT_EQ(server_.Handle("Roboto[wdth,wght].ttf", request, response),
+            StatusCode::kOk);
+
+  AxisSpace expected;
+  expected.AddInterval(HB_TAG('w', 'g', 'h', 't'), AxisInterval(100, 900));
+  expected.AddInterval(HB_TAG('w', 'd', 't', 'h'), AxisInterval(75, 100));
+
+  EXPECT_EQ(response.SubsetAxisSpace(), expected);
+  EXPECT_EQ(response.OriginalAxisSpace(), expected);
 }
 
 TEST_F(PatchSubsetServerIntegrationTest, NewRequestVCDIFF) {

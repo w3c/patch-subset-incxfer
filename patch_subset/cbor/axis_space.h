@@ -3,7 +3,7 @@
 
 #include <optional>
 
-#include "absl/container/flat_hash_map.h"
+#include "absl/container/btree_map.h"
 #include "cbor.h"
 #include "common/status.h"
 #include "hb-subset.h"
@@ -19,7 +19,7 @@ namespace patch_subset::cbor {
  */
 class AxisSpace {
  private:
-  absl::flat_hash_map<hb_tag_t, std::vector<AxisInterval>> _space;
+  absl::btree_map<hb_tag_t, std::vector<AxisInterval>> _space;
 
  public:
   AxisSpace() : _space() {}
@@ -38,6 +38,8 @@ class AxisSpace {
                                       std::optional<AxisSpace>& out);
   static StatusCode Decode(const cbor_item_t& cbor_map, AxisSpace& out);
   StatusCode Encode(cbor_item_unique_ptr& map_out) const;
+
+  std::string ToString() const;
 
   AxisSpace& operator=(AxisSpace&& other) noexcept;
   bool operator==(const AxisSpace& other) const;

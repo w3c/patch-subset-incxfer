@@ -135,6 +135,19 @@ StatusCode AxisSpace::Encode(cbor_item_unique_ptr& map_out) const {
   return StatusCode::kOk;
 }
 
+std::string AxisSpace::ToString() const {
+  std::string result = "";
+  for (auto const& e : _space) {
+    result += e.first;
+    result += ": [";
+    for (auto const& i : e.second) {
+      result += i.ToString() + ", ";
+    }
+    result += "]\n";
+  }
+  return result;
+}
+
 AxisSpace& AxisSpace::operator=(AxisSpace&& other) noexcept {
   _space = std::move(other._space);
   return *this;
