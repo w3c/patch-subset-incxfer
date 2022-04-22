@@ -6,6 +6,7 @@
 
 #include "cbor.h"
 #include "common/status.h"
+#include "patch_subset/cbor/axis_space.h"
 #include "patch_subset/cbor/cbor_item_unique_ptr.h"
 #include "patch_subset/constants.h"
 
@@ -25,6 +26,8 @@ class PatchResponse {
   std::optional<uint64_t> _patched_checksum;
   std::optional<std::vector<int32_t>> _codepoint_ordering;
   std::optional<uint64_t> _ordering_checksum;
+  std::optional<AxisSpace> _subset_axis_space;
+  std::optional<AxisSpace> _original_axis_space;
 
   static const int kProtocolVersionFieldNumber = 0;
   static const int kPatchFormatFieldNumber = 1;
@@ -34,6 +37,8 @@ class PatchResponse {
   static const int kPatchedChecksumFieldNumber = 5;
   static const int kCodepointOrderingFieldNumber = 6;
   static const int kOrderingChecksumFieldNumber = 7;
+  static const int kSubsetAxisSpace = 8;
+  static const int kOriginalAxisSpace = 9;
 
  public:
   PatchResponse();
@@ -43,7 +48,9 @@ class PatchResponse {
                 std::string patch, std::string replacement,
                 uint64_t original_font_checksum, uint64_t patched_checksum,
                 std::vector<int32_t> codepoint_ordering,
-                uint64_t ordering_checksum);
+                uint64_t ordering_checksum,
+                AxisSpace subset_axis_space,
+                AxisSpace original_axis_space);
 
   static StatusCode Decode(const cbor_item_t& cbor_map, PatchResponse& out);
   StatusCode Encode(cbor_item_unique_ptr& map_out) const;
@@ -94,6 +101,16 @@ class PatchResponse {
   uint64_t OrderingChecksum() const;
   PatchResponse& SetOrderingChecksum(uint64_t checksum);
   PatchResponse& ResetOrderingChecksum();
+
+  bool HasSubsetAxisSpace() const;
+  const AxisSpace& SubsetAxisSpace() const;
+  PatchResponse& SetSubsetAxisSpace(const AxisSpace& space);
+  PatchResponse& ResetSubsetAxisSpace();
+
+  bool HasOriginalAxisSpace() const;
+  const AxisSpace& OriginalAxisSpace() const;
+  PatchResponse& SetOriginalAxisSpace(const AxisSpace& patch);
+  PatchResponse& ResetOriginalAxisSpace();
 
   // Returns a human readable version of this PatchResponse.
   std::string ToString() const;

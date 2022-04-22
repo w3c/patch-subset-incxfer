@@ -33,6 +33,12 @@ class AxisSpace {
   void AddInterval(hb_tag_t tag, const AxisInterval& interval);
   const std::vector<AxisInterval>& IntervalsFor(hb_tag_t tag) const;
 
+  static StatusCode SetAxisSpaceField(
+      cbor_item_t& map, int field_number,
+      const std::optional<AxisSpace>& axis_space);
+  static StatusCode GetAxisSpaceField(const cbor_item_t& map,
+                                      int field_number,
+                                      std::optional<AxisSpace>& out);
   static StatusCode Decode(const cbor_item_t& cbor_map, AxisSpace& out);
   StatusCode Encode(cbor_item_unique_ptr& map_out) const;
 
