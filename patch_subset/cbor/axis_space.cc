@@ -1,6 +1,7 @@
 #include "patch_subset/cbor/axis_space.h"
 
 #include "patch_subset/cbor/cbor_utils.h"
+#include <optional>
 
 namespace patch_subset::cbor {
 
@@ -25,6 +26,41 @@ const std::vector<AxisInterval>& AxisSpace::IntervalsFor(hb_tag_t tag) const {
 
   return empty;
 }
+
+StatusCode AxisSpace::SetAxisSpaceField(
+    cbor_item_t& map, int field_number,
+    const std::optional<AxisSpace>& axis_space) {
+  if (!axis_space.has_value()) {
+    return StatusCode::kOk;  // Nothing to do.
+  }
+  cbor_item_unique_ptr field_value = empty_cbor_ptr();
+  StatusCode sc = axis_space.value().Encode(field_value);
+  if (sc != StatusCode::kOk) {
+    return sc;
+  }
+  return CborUtils::SetField(map, field_number, move_out(field_value));
+}
+
+StatusCode AxisSpace::GetAxisSpaceField(const cbor_item_t& map,
+                                        int field_number,
+                                        std::optional<AxisSpace>& out) {
+  cbor_item_unique_ptr field = empty_cbor_ptr();
+  StatusCode sc = CborUtils::GetField(map, field_number, field);
+  if (sc == StatusCode::kNotFound) {
+    out.reset();
+    return StatusCode::kOk;
+  } else if (sc != StatusCode::kOk) {
+    return StatusCode::kInvalidArgument;
+  }
+  AxisSpace results;
+  sc = Decode(*field, results);
+  if (sc != StatusCode::kOk) {
+    return StatusCode::kInvalidArgument;
+  }
+  out.emplace(results);
+  return StatusCode::kOk;
+}
+
 
 StatusCode AxisSpace::Decode(const cbor_item_t& cbor_map, AxisSpace& out) {
   if (!cbor_isa_map(&cbor_map)) {

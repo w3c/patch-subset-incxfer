@@ -36,10 +36,14 @@ TEST_F(PatchResponseTest, Constructor) {
   uint64_t patched_checksum = 2345;
   vector<int32_t> codepoint_ordering{1, 5, 10, 20};
   uint64_t ordering_checksum = 3456;
+  AxisSpace subset;
+  subset.AddInterval(HB_TAG('a', 'a', 'a', 'a'), 10);
+  AxisSpace original;
+  original.AddInterval(HB_TAG('b', 'b', 'b', 'b'), 10);
 
   PatchResponse response(ProtocolVersion::ONE, patch_format, patch, replacement,
                          original_font_checksum, patched_checksum,
-                         codepoint_ordering, ordering_checksum);
+                         codepoint_ordering, ordering_checksum, subset, original);
 
   EXPECT_EQ(response.GetProtocolVersion(), ProtocolVersion::ONE);
   EXPECT_EQ(response.GetPatchFormat(), patch_format);
@@ -49,6 +53,8 @@ TEST_F(PatchResponseTest, Constructor) {
   EXPECT_EQ(response.PatchedChecksum(), patched_checksum);
   EXPECT_EQ(response.CodepointOrdering(), codepoint_ordering);
   EXPECT_EQ(response.OrderingChecksum(), ordering_checksum);
+  EXPECT_EQ(response.SubsetAxisSpace(), subset);
+  EXPECT_EQ(response.OriginalAxisSpace(), original);
 }
 
 TEST_F(PatchResponseTest, CopyConstructor) {
@@ -59,9 +65,14 @@ TEST_F(PatchResponseTest, CopyConstructor) {
   uint64_t patched_checksum = 2345;
   vector<int32_t> codepoint_ordering{1, 5, 10, 20};
   uint64_t ordering_checksum = 3456;
+  AxisSpace subset;
+  subset.AddInterval(HB_TAG('a', 'a', 'a', 'a'), 10);
+  AxisSpace original;
+  original.AddInterval(HB_TAG('b', 'b', 'b', 'b'), 10);
+
   PatchResponse response(ProtocolVersion::ONE, patch_format, patch, replacement,
                          original_font_checksum, patched_checksum,
-                         codepoint_ordering, ordering_checksum);
+                         codepoint_ordering, ordering_checksum, subset, original);
 
   EXPECT_EQ(PatchResponse(response), response);
 }
@@ -74,11 +85,17 @@ TEST_F(PatchResponseTest, MoveConstructor) {
   uint64_t patched_checksum = 2345;
   vector<int32_t> codepoint_ordering{1, 5, 10, 20};
   uint64_t ordering_checksum = 3456;
-  PatchResponse origional(ProtocolVersion::ONE, patch_format, patch,
-                          replacement, original_font_checksum, patched_checksum,
-                          codepoint_ordering, ordering_checksum);
+  AxisSpace subset_space;
+  subset_space.AddInterval(HB_TAG('a', 'a', 'a', 'a'), 10);
+  AxisSpace original_space;
+  original_space.AddInterval(HB_TAG('b', 'b', 'b', 'b'), 10);
 
-  PatchResponse moved = std::move(origional);
+
+  PatchResponse original(ProtocolVersion::ONE, patch_format, patch,
+                         replacement, original_font_checksum, patched_checksum,
+                         codepoint_ordering, ordering_checksum, subset_space, original_space);
+
+  PatchResponse moved = std::move(original);
 
   EXPECT_EQ(moved.GetProtocolVersion(), ProtocolVersion::ONE);
   EXPECT_EQ(moved.GetPatchFormat(), patch_format);
@@ -98,10 +115,15 @@ TEST_F(PatchResponseTest, Encode) {
   uint64_t patched_checksum = 3456;
   vector<int32_t> codepoint_ordering{1, 2, 3, 4, 5};
   uint64_t ordering_checksum = 4567;
+  AxisSpace subset_space;
+  subset_space.AddInterval(HB_TAG('a', 'a', 'a', 'a'), 10);
+  AxisSpace original_space;
+  original_space.AddInterval(HB_TAG('b', 'b', 'b', 'b'), 10);
+
 
   PatchResponse response(ProtocolVersion::ONE, patch_format, patch, replacement,
                          original_font_checksum, patched_checksum,
-                         codepoint_ordering, ordering_checksum);
+                         codepoint_ordering, ordering_checksum, subset_space, original_space);
   cbor_item_unique_ptr map = empty_cbor_ptr();
   StatusCode sc = response.Encode(map);
 
@@ -161,6 +183,16 @@ TEST_F(PatchResponseTest, Encode) {
   sc = CborUtils::DecodeUInt64(*field, &checksum);
   ASSERT_EQ(sc, StatusCode::kOk);
   ASSERT_EQ(checksum, response.OrderingChecksum());
+
+
+  std::optional<AxisSpace> space;
+  ASSERT_EQ(AxisSpace::GetAxisSpaceField(*map, 8, space), StatusCode::kOk);
+  ASSERT_TRUE(space);
+  ASSERT_EQ(*space, subset_space);
+
+  ASSERT_EQ(AxisSpace::GetAxisSpaceField(*map, 9, space), StatusCode::kOk);
+  ASSERT_TRUE(space);
+  ASSERT_EQ(*space, original_space);
 }
 
 TEST_F(PatchResponseTest, Decode) {
@@ -171,11 +203,16 @@ TEST_F(PatchResponseTest, Decode) {
   uint64_t patched_checksum = 3456;
   vector<int32_t> codepoint_ordering{1, 2, 3, 4, 5};
   uint64_t ordering_checksum = 4567;
+  AxisSpace subset_space;
+  subset_space.AddInterval(HB_TAG('a', 'a', 'a', 'a'), 10);
+  AxisSpace original_space;
+  original_space.AddInterval(HB_TAG('b', 'b', 'b', 'b'), 10);
+
 
   PatchResponse expected(ProtocolVersion::ONE, patch_format, patch, replacement,
                          original_font_checksum, patched_checksum,
-                         codepoint_ordering, ordering_checksum);
-  cbor_item_unique_ptr map = make_cbor_map(8);
+                         codepoint_ordering, ordering_checksum, subset_space, original_space);
+  cbor_item_unique_ptr map = make_cbor_map(10);
   cbor_item_unique_ptr type = empty_cbor_ptr();
 
   CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeInt(0)));
@@ -191,6 +228,11 @@ TEST_F(PatchResponseTest, Decode) {
   CborUtils::SetField(*map, 6, move_out(remapping));
   CborUtils::SetField(*map, 7,
                       cbor_move(CborUtils::EncodeUInt64(ordering_checksum)));
+
+
+  ASSERT_EQ(AxisSpace::SetAxisSpaceField(*map, 8, subset_space), StatusCode::kOk);
+  ASSERT_EQ(AxisSpace::SetAxisSpaceField(*map, 9, original_space), StatusCode::kOk);
+
   PatchResponse response;
 
   StatusCode sc = PatchResponse::Decode(*map, response);
@@ -269,9 +311,15 @@ TEST_F(PatchResponseTest, GettersAndSetters) {
 }
 
 TEST_F(PatchResponseTest, EqualsAndNotEquals) {
+  AxisSpace subset_space;
+  subset_space.AddInterval(HB_TAG('a', 'a', 'a', 'a'), 10);
+  AxisSpace original_space;
+  original_space.AddInterval(HB_TAG('b', 'b', 'b', 'b'), 10);
+
+
   PatchResponse response(ProtocolVersion::ONE, PatchFormat::VCDIFF,
                          "patch-data", "replacement-data", 1234, 2345,
-                         {1, 5, 10, 20}, 3456);
+                         {1, 5, 10, 20}, 3456, subset_space, original_space);
 
   EXPECT_EQ(response, PatchResponse(response));
   EXPECT_NE(response, PatchResponse(response).SetProtocolVersion(
@@ -292,6 +340,8 @@ TEST_F(PatchResponseTest, EqualsAndNotEquals) {
   EXPECT_NE(response, PatchResponse(response).ResetCodepointOrdering());
   EXPECT_NE(response, PatchResponse(response).SetOrderingChecksum(42));
   EXPECT_NE(response, PatchResponse(response).ResetOrderingChecksum());
+  EXPECT_NE(response, PatchResponse(response).ResetSubsetAxisSpace());
+  EXPECT_NE(response, PatchResponse(response).ResetOriginalAxisSpace());
 }
 
 }  // namespace patch_subset::cbor

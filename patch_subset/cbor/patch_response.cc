@@ -1,5 +1,6 @@
 #include "patch_subset/cbor/patch_response.h"
 
+#include "patch_subset/cbor/axis_space.h"
 #include "patch_subset/cbor/cbor_utils.h"
 #include "patch_subset/cbor/integer_list.h"
 #include "patch_subset/cbor/patch_format_fields.h"
@@ -17,7 +18,9 @@ PatchResponse::PatchResponse()
       _original_font_checksum(std::nullopt),
       _patched_checksum(std::nullopt),
       _codepoint_ordering(std::nullopt),
-      _ordering_checksum(std::nullopt) {}
+      _ordering_checksum(std::nullopt),
+      _subset_axis_space(std::nullopt),
+      _original_axis_space(std::nullopt) {}
 
 PatchResponse::PatchResponse(PatchResponse&& other) noexcept
     : _protocol_version(other._protocol_version),
@@ -27,7 +30,9 @@ PatchResponse::PatchResponse(PatchResponse&& other) noexcept
       _original_font_checksum(other._original_font_checksum),
       _patched_checksum(other._patched_checksum),
       _codepoint_ordering(std::move(other._codepoint_ordering)),
-      _ordering_checksum(other._ordering_checksum) {}
+      _ordering_checksum(other._ordering_checksum),
+      _subset_axis_space(std::move(other._subset_axis_space)),
+      _original_axis_space(std::move(other._original_axis_space)) {}
 
 PatchResponse::PatchResponse(ProtocolVersion protocol_version,
                              PatchFormat patch_format, string patch,
@@ -35,7 +40,9 @@ PatchResponse::PatchResponse(ProtocolVersion protocol_version,
                              uint64_t original_font_checksum,
                              uint64_t patched_checksum,
                              vector<int32_t> codepoint_ordering,
-                             uint64_t ordering_checksum)
+                             uint64_t ordering_checksum,
+                             AxisSpace subset_axis_space,
+                             AxisSpace original_axis_space)
     : _protocol_version(protocol_version),
       _patch_format(patch_format),
       _patch(patch),
@@ -43,7 +50,9 @@ PatchResponse::PatchResponse(ProtocolVersion protocol_version,
       _original_font_checksum(original_font_checksum),
       _patched_checksum(patched_checksum),
       _codepoint_ordering(codepoint_ordering),
-      _ordering_checksum(ordering_checksum) {}
+      _ordering_checksum(ordering_checksum),
+      _subset_axis_space(subset_axis_space),
+      _original_axis_space(original_axis_space) {}
 
 StatusCode PatchResponse::Decode(const cbor_item_t& cbor_map,
                                  PatchResponse& out) {
@@ -91,6 +100,17 @@ StatusCode PatchResponse::Decode(const cbor_item_t& cbor_map,
   if (sc != StatusCode::kOk) {
     return StatusCode::kInvalidArgument;
   }
+
+  sc = AxisSpace::GetAxisSpaceField(cbor_map, kSubsetAxisSpace, result._subset_axis_space);
+  if (sc != StatusCode::kOk) {
+    return StatusCode::kInvalidArgument;
+  }
+
+  sc = AxisSpace::GetAxisSpaceField(cbor_map, kOriginalAxisSpace, result._original_axis_space);
+  if (sc != StatusCode::kOk) {
+    return StatusCode::kInvalidArgument;
+  }
+
   out = std::move(result);
   return StatusCode::kOk;
 }
@@ -102,7 +122,9 @@ StatusCode PatchResponse::Encode(cbor_item_unique_ptr& map_out) const {
              (_original_font_checksum.has_value() ? 1 : 0) +
              (_patched_checksum.has_value() ? 1 : 0) +
              (_codepoint_ordering.has_value() ? 1 : 0) +
-             (_ordering_checksum.has_value() ? 1 : 0);
+             (_ordering_checksum.has_value() ? 1 : 0) +
+             (_subset_axis_space.has_value() ? 1 : 0) +
+             (_original_axis_space.has_value() ? 1 : 0);
   cbor_item_unique_ptr map = make_cbor_map(size);
   StatusCode sc = CborUtils::SetProtocolVersionField(
       *map, kProtocolVersionFieldNumber, _protocol_version);
@@ -142,6 +164,18 @@ StatusCode PatchResponse::Encode(cbor_item_unique_ptr& map_out) const {
   if (sc != StatusCode::kOk) {
     return sc;
   }
+
+
+  if ((sc = AxisSpace::SetAxisSpaceField(*map, kSubsetAxisSpace, _subset_axis_space))
+      != StatusCode::kOk) {
+    return sc;
+  }
+
+  if ((sc = AxisSpace::SetAxisSpaceField(*map, kOriginalAxisSpace, _original_axis_space))
+      != StatusCode::kOk) {
+    return sc;
+  }
+
   map_out.swap(map);
   return StatusCode::kOk;
 }
@@ -217,6 +251,17 @@ void PatchResponse::CopyTo(PatchResponse& target) const {
     target.SetOrderingChecksum(OrderingChecksum());
   } else {
     target.ResetOrderingChecksum();
+  }
+
+  if (HasSubsetAxisSpace()) {
+    target.SetSubsetAxisSpace(SubsetAxisSpace());
+  } else {
+    target.ResetSubsetAxisSpace();
+  }
+  if (HasOriginalAxisSpace()) {
+    target.SetOriginalAxisSpace(OriginalAxisSpace());
+  } else {
+    target.ResetOriginalAxisSpace();
   }
 }
 
@@ -353,6 +398,52 @@ PatchResponse& PatchResponse::ResetOrderingChecksum() {
   return *this;
 }
 
+
+bool PatchResponse::HasSubsetAxisSpace() const {
+  return _subset_axis_space.has_value ();
+}
+
+const AxisSpace& PatchResponse::SubsetAxisSpace() const {
+  static const AxisSpace emptySpace;
+  if (_subset_axis_space.has_value ()) {
+    return _subset_axis_space.value();
+  }
+  return emptySpace;
+}
+
+PatchResponse& PatchResponse::SetSubsetAxisSpace(const AxisSpace& space) {
+  _subset_axis_space.emplace(space);
+  return *this;
+}
+
+PatchResponse& PatchResponse::ResetSubsetAxisSpace() {
+  _subset_axis_space.reset();
+  return *this;
+}
+
+bool PatchResponse::HasOriginalAxisSpace() const {
+  return _original_axis_space.has_value ();
+}
+
+const AxisSpace& PatchResponse::OriginalAxisSpace() const {
+  static const AxisSpace emptySpace;
+  if (_original_axis_space.has_value ()) {
+    return _original_axis_space.value();
+  }
+  return emptySpace;
+}
+
+PatchResponse& PatchResponse::SetOriginalAxisSpace(const AxisSpace& space) {
+  _original_axis_space.emplace(space);
+  return *this;
+}
+
+PatchResponse& PatchResponse::ResetOriginalAxisSpace() {
+  _original_axis_space.reset();
+  return *this;
+}
+
+
 string PatchResponse::ToString() const {
   string s = "";
   if (GetProtocolVersion() != ProtocolVersion::ONE) {
@@ -415,6 +506,8 @@ PatchResponse& PatchResponse::operator=(PatchResponse&& other) noexcept {
   _patched_checksum = other._patched_checksum;
   _codepoint_ordering = std::move(other._codepoint_ordering);
   _ordering_checksum = other._ordering_checksum;
+  _subset_axis_space = std::move(other._subset_axis_space);
+  _original_axis_space = std::move(other._original_axis_space);
   return *this;
 }
 
@@ -425,7 +518,9 @@ bool PatchResponse::operator==(const PatchResponse& other) const {
          _original_font_checksum == other._original_font_checksum &&
          _patched_checksum == other._patched_checksum &&
          _codepoint_ordering == other._codepoint_ordering &&
-         _ordering_checksum == other._ordering_checksum;
+         _ordering_checksum == other._ordering_checksum &&
+         _subset_axis_space == other._subset_axis_space &&
+         _original_axis_space == other._original_axis_space;
 }
 bool PatchResponse::operator!=(const PatchResponse& other) const {
   return !(*this == other);
