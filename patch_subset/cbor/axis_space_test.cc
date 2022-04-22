@@ -1,7 +1,7 @@
 #include "patch_subset/cbor/axis_space.h"
 
-#include "hb.h"
 #include "gtest/gtest.h"
+#include "hb.h"
 #include "patch_subset/cbor/axis_interval.h"
 #include "patch_subset/cbor/axis_space.h"
 #include "patch_subset/cbor/cbor_item_unique_ptr.h"
@@ -11,11 +11,11 @@ namespace patch_subset::cbor {
 
 class AxisSpaceTest : public ::testing::Test {
  public:
-  AxisSpaceTest() :
-      space(),
-      tag_a(HB_TAG('a', 'a', 'a', 'a')),
-      tag_b(HB_TAG('b', 'b', 'b', 'b')),
-      tag_c(HB_TAG('c', 'c', 'c', 'c')) {
+  AxisSpaceTest()
+      : space(),
+        tag_a(HB_TAG('a', 'a', 'a', 'a')),
+        tag_b(HB_TAG('b', 'b', 'b', 'b')),
+        tag_c(HB_TAG('c', 'c', 'c', 'c')) {
     space.AddInterval(tag_a, AxisInterval(10));
     space.AddInterval(tag_c, AxisInterval(20));
     space.AddInterval(tag_c, AxisInterval(30, 40));
@@ -41,9 +41,9 @@ TEST_F(AxisSpaceTest, Clear) {
 }
 
 TEST_F(AxisSpaceTest, IntervalsFor) {
-  std::vector<AxisInterval> a {AxisInterval(10)};
+  std::vector<AxisInterval> a{AxisInterval(10)};
   std::vector<AxisInterval> b;
-  std::vector<AxisInterval> c {AxisInterval(20), AxisInterval(30, 40)};
+  std::vector<AxisInterval> c{AxisInterval(20), AxisInterval(30, 40)};
 
   EXPECT_EQ(a, space.IntervalsFor(tag_a));
   EXPECT_EQ(b, space.IntervalsFor(tag_b));
@@ -67,6 +67,5 @@ TEST_F(AxisSpaceTest, EncodeDecode) {
   ASSERT_EQ(AxisSpace::Decode(*map, decoded), StatusCode::kOk);
   EXPECT_EQ(space, decoded);
 }
-
 
 }  // namespace patch_subset::cbor

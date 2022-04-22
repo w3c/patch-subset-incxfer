@@ -43,7 +43,8 @@ TEST_F(PatchResponseTest, Constructor) {
 
   PatchResponse response(ProtocolVersion::ONE, patch_format, patch, replacement,
                          original_font_checksum, patched_checksum,
-                         codepoint_ordering, ordering_checksum, subset, original);
+                         codepoint_ordering, ordering_checksum, subset,
+                         original);
 
   EXPECT_EQ(response.GetProtocolVersion(), ProtocolVersion::ONE);
   EXPECT_EQ(response.GetPatchFormat(), patch_format);
@@ -72,7 +73,8 @@ TEST_F(PatchResponseTest, CopyConstructor) {
 
   PatchResponse response(ProtocolVersion::ONE, patch_format, patch, replacement,
                          original_font_checksum, patched_checksum,
-                         codepoint_ordering, ordering_checksum, subset, original);
+                         codepoint_ordering, ordering_checksum, subset,
+                         original);
 
   EXPECT_EQ(PatchResponse(response), response);
 }
@@ -90,10 +92,10 @@ TEST_F(PatchResponseTest, MoveConstructor) {
   AxisSpace original_space;
   original_space.AddInterval(HB_TAG('b', 'b', 'b', 'b'), 10);
 
-
-  PatchResponse original(ProtocolVersion::ONE, patch_format, patch,
-                         replacement, original_font_checksum, patched_checksum,
-                         codepoint_ordering, ordering_checksum, subset_space, original_space);
+  PatchResponse original(ProtocolVersion::ONE, patch_format, patch, replacement,
+                         original_font_checksum, patched_checksum,
+                         codepoint_ordering, ordering_checksum, subset_space,
+                         original_space);
 
   PatchResponse moved = std::move(original);
 
@@ -120,10 +122,10 @@ TEST_F(PatchResponseTest, Encode) {
   AxisSpace original_space;
   original_space.AddInterval(HB_TAG('b', 'b', 'b', 'b'), 10);
 
-
   PatchResponse response(ProtocolVersion::ONE, patch_format, patch, replacement,
                          original_font_checksum, patched_checksum,
-                         codepoint_ordering, ordering_checksum, subset_space, original_space);
+                         codepoint_ordering, ordering_checksum, subset_space,
+                         original_space);
   cbor_item_unique_ptr map = empty_cbor_ptr();
   StatusCode sc = response.Encode(map);
 
@@ -184,7 +186,6 @@ TEST_F(PatchResponseTest, Encode) {
   ASSERT_EQ(sc, StatusCode::kOk);
   ASSERT_EQ(checksum, response.OrderingChecksum());
 
-
   std::optional<AxisSpace> space;
   ASSERT_EQ(AxisSpace::GetAxisSpaceField(*map, 8, space), StatusCode::kOk);
   ASSERT_TRUE(space);
@@ -208,10 +209,10 @@ TEST_F(PatchResponseTest, Decode) {
   AxisSpace original_space;
   original_space.AddInterval(HB_TAG('b', 'b', 'b', 'b'), 10);
 
-
   PatchResponse expected(ProtocolVersion::ONE, patch_format, patch, replacement,
                          original_font_checksum, patched_checksum,
-                         codepoint_ordering, ordering_checksum, subset_space, original_space);
+                         codepoint_ordering, ordering_checksum, subset_space,
+                         original_space);
   cbor_item_unique_ptr map = make_cbor_map(10);
   cbor_item_unique_ptr type = empty_cbor_ptr();
 
@@ -229,9 +230,10 @@ TEST_F(PatchResponseTest, Decode) {
   CborUtils::SetField(*map, 7,
                       cbor_move(CborUtils::EncodeUInt64(ordering_checksum)));
 
-
-  ASSERT_EQ(AxisSpace::SetAxisSpaceField(*map, 8, subset_space), StatusCode::kOk);
-  ASSERT_EQ(AxisSpace::SetAxisSpaceField(*map, 9, original_space), StatusCode::kOk);
+  ASSERT_EQ(AxisSpace::SetAxisSpaceField(*map, 8, subset_space),
+            StatusCode::kOk);
+  ASSERT_EQ(AxisSpace::SetAxisSpaceField(*map, 9, original_space),
+            StatusCode::kOk);
 
   PatchResponse response;
 
@@ -315,7 +317,6 @@ TEST_F(PatchResponseTest, EqualsAndNotEquals) {
   subset_space.AddInterval(HB_TAG('a', 'a', 'a', 'a'), 10);
   AxisSpace original_space;
   original_space.AddInterval(HB_TAG('b', 'b', 'b', 'b'), 10);
-
 
   PatchResponse response(ProtocolVersion::ONE, PatchFormat::VCDIFF,
                          "patch-data", "replacement-data", 1234, 2345,

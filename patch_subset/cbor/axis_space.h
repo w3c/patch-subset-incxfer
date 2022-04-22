@@ -1,13 +1,12 @@
 #ifndef PATCH_SUBSET_CBOR_AXIS_SPACE_H_
 #define PATCH_SUBSET_CBOR_AXIS_SPACE_H_
 
-
-#include "hb-subset.h"
-#include "absl/container/flat_hash_map.h"
 #include <optional>
 
+#include "absl/container/flat_hash_map.h"
 #include "cbor.h"
 #include "common/status.h"
+#include "hb-subset.h"
 #include "patch_subset/cbor/axis_interval.h"
 #include "patch_subset/cbor/cbor_item_unique_ptr.h"
 
@@ -25,8 +24,7 @@ class AxisSpace {
  public:
   AxisSpace() : _space() {}
   AxisSpace(const AxisSpace& other) = default;
-  AxisSpace(AxisSpace&& other) noexcept
-      : _space(std::move(other._space)) {}
+  AxisSpace(AxisSpace&& other) noexcept : _space(std::move(other._space)) {}
 
   bool Has(hb_tag_t tag) const;
   void Clear(hb_tag_t tag);
@@ -36,8 +34,7 @@ class AxisSpace {
   static StatusCode SetAxisSpaceField(
       cbor_item_t& map, int field_number,
       const std::optional<AxisSpace>& axis_space);
-  static StatusCode GetAxisSpaceField(const cbor_item_t& map,
-                                      int field_number,
+  static StatusCode GetAxisSpaceField(const cbor_item_t& map, int field_number,
                                       std::optional<AxisSpace>& out);
   static StatusCode Decode(const cbor_item_t& cbor_map, AxisSpace& out);
   StatusCode Encode(cbor_item_unique_ptr& map_out) const;

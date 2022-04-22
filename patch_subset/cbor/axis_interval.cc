@@ -128,7 +128,6 @@ AxisInterval& AxisInterval::operator=(AxisInterval&& other) noexcept {
 }
 
 bool AxisInterval::operator==(const AxisInterval& other) const {
-
   if (IsPoint() && other.IsPoint()) {
     return Start() == other.Start();
   }
