@@ -167,6 +167,9 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
   void AddChecksums(const FontData& font_data,
                     patch_subset::cbor::PatchResponse& response) const;
 
+  void AddVariableAxesData(const FontData& font_data,
+                           patch_subset::cbor::PatchResponse& response) const;
+
   bool Check(StatusCode result) const;
   bool Check(StatusCode result, const std::string& message) const;
 

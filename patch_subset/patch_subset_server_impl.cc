@@ -4,14 +4,18 @@
 
 #include "absl/strings/string_view.h"
 #include "common/logging.h"
+#include "hb-ot.h"
 #include "hb-subset.h"
 #include "hb.h"
+#include "patch_subset/cbor/axis_space.h"
 #include "patch_subset/codepoint_map.h"
 #include "patch_subset/codepoint_mapper.h"
 #include "patch_subset/compressed_set.h"
 #include "patch_subset/hb_set_unique_ptr.h"
 
 using ::absl::string_view;
+using patch_subset::cbor::AxisInterval;
+using patch_subset::cbor::AxisSpace;
 using patch_subset::cbor::PatchRequest;
 using patch_subset::cbor::PatchResponse;
 using std::vector;
@@ -275,6 +279,7 @@ void PatchSubsetServerImpl::ConstructResponse(const RequestState& state,
   }
 
   AddChecksums(state.font_data, state.client_target_subset, response);
+  AddVariableAxesData(state.font_data, response);
 }
 
 StatusCode PatchSubsetServerImpl::ValidateChecksum(uint64_t checksum,
@@ -287,6 +292,39 @@ StatusCode PatchSubsetServerImpl::ValidateChecksum(uint64_t checksum,
     return StatusCode::kInvalidArgument;
   }
   return StatusCode::kOk;
+}
+
+void PatchSubsetServerImpl::AddVariableAxesData(const FontData& font_data,
+                                                PatchResponse& response) const {
+  hb_blob_t* blob = font_data.reference_blob();
+  hb_face_t* face = hb_face_create(blob, 0);
+  hb_blob_destroy(blob);
+
+  if (!hb_ot_var_has_data(face)) {
+    // No variable axes.
+    hb_face_destroy(face);
+    return;
+  }
+
+  AxisSpace space;
+  hb_ot_var_axis_info_t axes[10];
+  unsigned offset = 0, num_axes = 10;
+  unsigned total_axes = hb_ot_var_get_axis_count(face);
+  while (offset < total_axes) {
+    hb_ot_var_get_axis_infos(face, offset, &num_axes, axes);
+
+    for (unsigned i = 0; i < num_axes; i++) {
+      space.AddInterval(axes[i].tag,
+                        AxisInterval(axes[i].min_value, axes[i].max_value));
+    }
+
+    offset += num_axes;
+  }
+
+  response.SetSubsetAxisSpace(space);
+  response.SetOriginalAxisSpace(space);
+
+  hb_face_destroy(face);
 }
 
 void PatchSubsetServerImpl::AddChecksums(const FontData& font_data,
