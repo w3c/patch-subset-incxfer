@@ -27,13 +27,11 @@ DictionaryPointer CreateDictionary(const FontData& font) {
 }
 
 EncoderStatePointer CreateEncoder(
-    size_t font_size, const BrotliEncoderPreparedDictionary& dictionary) {
+    size_t font_size, unsigned stream_offset, const BrotliEncoderPreparedDictionary& dictionary) {
   EncoderStatePointer state = EncoderStatePointer(
       BrotliEncoderCreateInstance(nullptr, nullptr, nullptr),
       &BrotliEncoderDestroyInstance);
 
-  // TODO(grieger): set window size to a specific size.
-  // TODO(grieger): set stream offset.
   // TODO(grieger): allow quality to be varied.
 
   if (!BrotliEncoderSetParameter(state.get(), BROTLI_PARAM_QUALITY, 9)) {
@@ -41,14 +39,38 @@ EncoderStatePointer CreateEncoder(
     return EncoderStatePointer(nullptr, nullptr);
   }
 
+  /*
+    TODO(grieger): re-enable once the correct size is passed in.
   if (!BrotliEncoderSetParameter(state.get(), BROTLI_PARAM_SIZE_HINT,
                                  font_size)) {
     LOG(WARNING) << "Failed to set brotli size hint.";
     return EncoderStatePointer(nullptr, nullptr);
   }
+  */
 
   if (!BrotliEncoderAttachPreparedDictionary(state.get(), &dictionary)) {
     LOG(WARNING) << "Failed to attach dictionary.";
+    return EncoderStatePointer(nullptr, nullptr);
+  }
+
+  if (!BrotliEncoderSetParameter(state.get(), BROTLI_PARAM_MODE, BROTLI_MODE_FONT)) {
+    LOG(WARNING) << "Failed to set brotli mode.";
+    return EncoderStatePointer(nullptr, nullptr);
+  }
+
+  // TODO(grieger): more general defaults for window and block size.
+  if (!BrotliEncoderSetParameter(state.get(), BROTLI_PARAM_LGWIN, 17)) { // 131 kb window size
+    LOG(WARNING) << "Failed to set brotli window size.";
+    return EncoderStatePointer(nullptr, nullptr);
+  }
+
+  if (!BrotliEncoderSetParameter(state.get(), BROTLI_PARAM_LGBLOCK, 16)) { // 65 kb input block size
+    LOG(WARNING) << "Failed to set brotli block size.";
+    return EncoderStatePointer(nullptr, nullptr);
+  }
+
+  if (!BrotliEncoderSetParameter(state.get(), BROTLI_PARAM_STREAM_OFFSET, stream_offset)) {
+    LOG(WARNING) << "Failed to set brotli stream offset.";
     return EncoderStatePointer(nullptr, nullptr);
   }
 
@@ -139,7 +161,9 @@ StatusCode BrotliBinaryDiff::Diff(const FontData& font_base,
   }
 
   // TODO(grieger): data size may only be the partial size of the full font.
-  EncoderStatePointer state = CreateEncoder(data.size(), *dictionary);
+  EncoderStatePointer state = CreateEncoder(data.size(),
+                                            stream_offset,
+                                            *dictionary);
   if (!state) {
     return StatusCode::kInternal;
   }
