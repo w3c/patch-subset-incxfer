@@ -29,7 +29,7 @@ class BrotliPatchingTest : public ::testing::Test {
   }
 
   std::unique_ptr<FontProvider> font_provider_;
-  std::unique_ptr<BinaryDiff> diff_;
+  std::unique_ptr<BrotliBinaryDiff> diff_;
   std::unique_ptr<BinaryPatch> patch_;
   FontData subset_a_;
   FontData subset_b_;
@@ -52,6 +52,66 @@ TEST_F(BrotliPatchingTest, DiffAndPatchPatchWithEmptyBase) {
 TEST_F(BrotliPatchingTest, DiffAndPatch) {
   FontData patch;
   EXPECT_EQ(diff_->Diff(subset_a_, subset_b_, &patch), StatusCode::kOk);
+
+  EXPECT_GT(patch.size(), 0);
+  EXPECT_LT(patch.size(), subset_a_.size());
+  EXPECT_LT(patch.size(), subset_b_.size());
+  EXPECT_NE(Span<const char>(patch), Span<const char>(subset_a_));
+  EXPECT_NE(Span<const char>(patch), Span<const char>(subset_b_));
+
+  FontData patched;
+  EXPECT_EQ(patch_->Patch(subset_a_, patch, &patched), StatusCode::kOk);
+  EXPECT_EQ(Span<const char>(patched), Span<const char>(subset_b_));
+}
+
+TEST_F(BrotliPatchingTest, StitchingWithEmptyBase) {
+  FontData empty;
+
+  std::vector<uint8_t> sink;
+  EXPECT_EQ(diff_->Diff(empty,
+                        subset_a_.str(0, 1000),
+                        0,
+                        false,
+                        sink),
+            StatusCode::kOk);
+
+  EXPECT_EQ(diff_->Diff(empty,
+                        subset_a_.str(1000),
+                        1000,
+                        true,
+                        sink),
+            StatusCode::kOk);
+
+  FontData patch;
+  patch.copy(reinterpret_cast<const char*>(sink.data()), sink.size());
+
+  EXPECT_GT(patch.size(), 0);
+  EXPECT_LT(patch.size(), subset_a_.size());
+  EXPECT_NE(Span<const char>(patch), Span<const char>(subset_a_));
+
+  FontData patched;
+  EXPECT_EQ(patch_->Patch(empty, patch, &patched), StatusCode::kOk);
+  EXPECT_EQ(Span<const char>(patched), Span<const char>(subset_a_));
+}
+
+TEST_F(BrotliPatchingTest, StitchingWithBase) {
+  std::vector<uint8_t> sink;
+  EXPECT_EQ(diff_->Diff(subset_a_,
+                        subset_b_.str(0, 1000),
+                        0,
+                        false,
+                        sink),
+            StatusCode::kOk);
+
+  EXPECT_EQ(diff_->Diff(subset_a_,
+                        subset_b_.str(1000),
+                        1000,
+                        true,
+                        sink),
+            StatusCode::kOk);
+
+  FontData patch;
+  patch.copy(reinterpret_cast<const char*>(sink.data()), sink.size());
 
   EXPECT_GT(patch.size(), 0);
   EXPECT_LT(patch.size(), subset_a_.size());

@@ -54,6 +54,17 @@ class FontData {
     return ::absl::string_view(data() + start, size() - start);
   }
 
+  // From [start, end)
+  ::absl::string_view str(unsigned int start, unsigned int end) const {
+    if (start >= size() || start >= end) {
+      return ::absl::string_view();
+    }
+    if (end > size()) {
+      end = size();
+    }
+    return ::absl::string_view(data() + start, end - start);
+  }
+
   std::string string() const { return std::string(str()); }
 
   void set(hb_blob_t* blob) {

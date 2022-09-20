@@ -142,7 +142,7 @@ StatusCode BrotliBinaryDiff::Diff(const FontData& font_base,
                        sink);
 
   if (sc == StatusCode::kOk) {
-    // TODO(grieger): eliminate this extra copy.
+    // TODO(grieger): eliminate this extra copy (have fontdata take ownership of sink).
     patch->copy(reinterpret_cast<const char*>(sink.data()), sink.size());
   }
 
