@@ -72,6 +72,8 @@ class FontData {
     buffer_ = hb_blob_reference(blob);
   }
 
+  // TODO(grieger): copy method which takes vector<uint8_t>.
+
   void copy(const char* data, unsigned int length) {
     reset();
     char* buffer = reinterpret_cast<char*>(malloc(length));

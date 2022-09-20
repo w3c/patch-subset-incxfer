@@ -25,6 +25,8 @@ cc_library(
     	    "src/graph/*.cc",
         ],
         exclude = [
+	    "src/test-*.cc",
+    	    "src/graph/test-*.cc",
             "src/hb-coretext.cc",
             "src/hb-ft.cc",
             "src/hb-glib.cc",

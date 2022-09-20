@@ -1,7 +1,8 @@
 #include "patch_subset/brotli_binary_diff.h"
+#include "patch_subset/brotli_binary_patch.h"
 #include "hb-subset.h"
 
-
+#include <stdio.h>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -10,6 +11,7 @@ using std::string_view;
 using std::vector;
 
 using patch_subset::BrotliBinaryDiff;
+using patch_subset::BrotliBinaryPatch;
 using patch_subset::FontData;
 using patch_subset::StatusCode;
 
@@ -142,22 +144,45 @@ unsigned precompressed_length(const hb_face_t* face)
   return total;
 }
 
-void make_patch (hb_face_t* face, const vector<uint8_t>& precompressed)
+void dump(const char* name, const char* data, unsigned size)
+{
+  FILE* f = fopen(name, "w");
+  fwrite(data, size, 1, f);
+  fclose(f);
+}
+
+void make_patch (hb_face_t* face, const vector<uint8_t>& precompressed, unsigned i)
 {
   hb_face_t* subset = make_subset (face);
   hb_blob_t* blob = hb_face_reference_blob (subset);
 
   vector<uint8_t> patch;
   add_compressed_table_directory(subset, blob, patch);
-  printf("1. patch_size = %lu\n", patch.size());
 
   patch.insert(patch.end(), precompressed.begin(), precompressed.end());
-  printf("2. patch_size = %lu\n", patch.size());
 
   add_mutable_tables(blob, table_directory_size(subset) + precompressed_length(face), patch);
-  printf("3. patch_size = %lu\n", patch.size());
 
-  // TODO(grieger): test patch.
+  FontData font_patch;
+  font_patch.copy(reinterpret_cast<const char*>(patch.data()),
+                  patch.size());
+  FontData empty;
+  BrotliBinaryPatch patcher;
+
+
+  if (i == 0) {
+    FontData derived;
+    assert(patcher.Patch(empty, font_patch, &derived) == StatusCode::kOk);
+    printf("patch_size = %lu\n", patch.size());
+    printf("final_subset_size = %u\n", derived.size());
+    dump("actual_subset.ttf", hb_blob_get_data(blob, nullptr), hb_blob_get_length(blob));
+    dump("generated_subset.ttf", reinterpret_cast<const char*>(derived.data()), derived.size());
+
+    assert(derived.size() == hb_blob_get_length(blob));
+    assert(!memcmp(reinterpret_cast<const void*>(derived.data()),
+                   reinterpret_cast<const void*>(hb_blob_get_data(blob, nullptr)),
+                   derived.size()));
+  }
 
   hb_blob_destroy (blob);
 }
@@ -182,8 +207,8 @@ int main(int argc, char** argv) {
 
   vector<uint8_t> precompressed = precompress_immutable(face);
 
-  for (unsigned i = 0; i < 1; i++)
-    make_patch (face, precompressed);
+  for (unsigned i = 0; i < 100; i++)
+    make_patch (face, precompressed, i);
 
 
   hb_face_destroy (face);
