@@ -22,6 +22,13 @@ hb_tag_t immutable_tables[] = {
   0,
 };
 
+void dump(const char* name, const char* data, unsigned size)
+{
+  FILE* f = fopen(name, "w");
+  fwrite(data, size, 1, f);
+  fclose(f);
+}
+
 unsigned table_directory_size(const hb_face_t* face)
 {
   unsigned num_tables = hb_face_get_table_tags (face, 0, nullptr, nullptr);
@@ -96,18 +103,19 @@ hb_face_t* make_subset (hb_face_t* face)
   return subset;
 }
 
-void add_compressed_table_directory(const hb_face_t* subset,
-                                    hb_blob_t* blob,
+void add_compressed_table_directory(const hb_face_t* face,
+                                    hb_blob_t* subset_blob,
                                     vector<uint8_t>& patch)
 {
-  unsigned size = table_directory_size(subset);
+  unsigned size = table_directory_size(face);
+
+  string_view table_directory = string_view(hb_blob_get_data(subset_blob, nullptr),
+                                            size);
 
   BrotliBinaryDiff differ;
   FontData empty;
-
   differ.Diff(empty,
-              string_view(hb_blob_get_data(blob, nullptr),
-                          size),
+              table_directory,
               0,
               false,
               patch);
@@ -144,24 +152,17 @@ unsigned precompressed_length(const hb_face_t* face)
   return total;
 }
 
-void dump(const char* name, const char* data, unsigned size)
-{
-  FILE* f = fopen(name, "w");
-  fwrite(data, size, 1, f);
-  fclose(f);
-}
-
 void make_patch (hb_face_t* face, const vector<uint8_t>& precompressed, unsigned i)
 {
   hb_face_t* subset = make_subset (face);
   hb_blob_t* blob = hb_face_reference_blob (subset);
 
   vector<uint8_t> patch;
-  add_compressed_table_directory(subset, blob, patch);
+  add_compressed_table_directory(face, blob, patch);
 
   patch.insert(patch.end(), precompressed.begin(), precompressed.end());
 
-  add_mutable_tables(blob, table_directory_size(subset) + precompressed_length(face), patch);
+  add_mutable_tables(blob, table_directory_size(face) + precompressed_length(face), patch);
 
   FontData font_patch;
   font_patch.copy(reinterpret_cast<const char*>(patch.data()),
@@ -207,7 +208,7 @@ int main(int argc, char** argv) {
 
   vector<uint8_t> precompressed = precompress_immutable(face);
 
-  for (unsigned i = 0; i < 100; i++)
+  for (unsigned i = 0; i < 1; i++)
     make_patch (face, precompressed, i);
 
 
