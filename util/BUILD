@@ -17,6 +17,7 @@ cc_binary(
     ],
     deps = [
         "//patch_subset:common",
+        "//patch_subset:client",
         "@harfbuzz",
     ],
 )
