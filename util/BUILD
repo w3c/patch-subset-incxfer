@@ -9,3 +9,14 @@ cc_binary(
         "//patch_subset:common",
     ],
 )
+
+cc_binary(
+    name = "precompress-test",
+    srcs = [
+        "precompress-test.cc",
+    ],
+    deps = [
+        "//patch_subset:common",
+        "@harfbuzz",
+    ],
+)

@@ -28,6 +28,8 @@ DictionaryPointer CreateDictionary(const FontData& font) {
 
 EncoderStatePointer CreateEncoder(
     size_t font_size, unsigned stream_offset, const BrotliEncoderPreparedDictionary& dictionary) {
+
+  // TODO(grieger): setup so the encoder state/shared dict can be re-used between Diff calls.
   EncoderStatePointer state = EncoderStatePointer(
       BrotliEncoderCreateInstance(nullptr, nullptr, nullptr),
       &BrotliEncoderDestroyInstance);
