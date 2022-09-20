@@ -46,6 +46,9 @@ vector<uint8_t> precompress_immutable(const hb_face_t* face)
     unsigned int length = 0;
     const uint8_t* data = reinterpret_cast<const uint8_t*>(hb_blob_get_data(blob, &length));
     table_data.insert(table_data.end(), data, data + length);
+    while (table_data.size () % 4 != 0) { // Pad to 4 byte boundary.
+      table_data.push_back (0);
+    }
     hb_blob_destroy (blob);
   }
 
@@ -90,14 +93,14 @@ hb_face_t* make_subset (hb_face_t* face)
   tags.resize (num_tables);
   hb_face_get_table_tags (face, 0, &num_tables, tags.data());
   for (hb_tag_t tag : tags) {
-    assert (hb_face_builder_set_table_order (subset, tag, 100));
+    hb_face_builder_set_table_order (subset, tag, 100);
   }
 
   unsigned i = 0;
   for (hb_tag_t* tag = immutable_tables;
        *tag;
        tag++) {
-    assert (hb_face_builder_set_table_order (subset, *tag, i++));
+    hb_face_builder_set_table_order (subset, *tag, i++);
   }
 
   return subset;
@@ -138,7 +141,11 @@ void add_mutable_tables (hb_blob_t* blob,
 
 unsigned table_length(const hb_face_t* face, hb_tag_t tag)
 {
-  return hb_blob_get_length(hb_face_reference_table(face, tag));
+  unsigned length = hb_blob_get_length(hb_face_reference_table(face, tag));
+  while (length % 4) { // Pad to 4 byte boundary.
+    length++;
+  }
+  return length;
 }
 
 unsigned precompressed_length(const hb_face_t* face)
@@ -173,7 +180,8 @@ void make_patch (hb_face_t* face, const vector<uint8_t>& precompressed, unsigned
 
   if (i == 0) {
     FontData derived;
-    assert(patcher.Patch(empty, font_patch, &derived) == StatusCode::kOk);
+    StatusCode sc = patcher.Patch(empty, font_patch, &derived);
+    assert(sc == StatusCode::kOk);
     printf("patch_size = %lu\n", patch.size());
     printf("final_subset_size = %u\n", derived.size());
     dump("actual_subset.ttf", hb_blob_get_data(blob, nullptr), hb_blob_get_length(blob));
@@ -208,9 +216,8 @@ int main(int argc, char** argv) {
 
   vector<uint8_t> precompressed = precompress_immutable(face);
 
-  for (unsigned i = 0; i < 1; i++)
+  for (unsigned i = 0; i < 500; i++)
     make_patch (face, precompressed, i);
-
 
   hb_face_destroy (face);
   return 0;
