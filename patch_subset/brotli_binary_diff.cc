@@ -27,7 +27,7 @@ DictionaryPointer CreateDictionary(const FontData& font) {
 }
 
 EncoderStatePointer CreateEncoder(
-    size_t font_size, unsigned stream_offset, const BrotliEncoderPreparedDictionary& dictionary) {
+    size_t font_size, unsigned stream_offset, const BrotliEncoderPreparedDictionary* dictionary) {
 
   // TODO(grieger): setup so the encoder state/shared dict can be re-used between Diff calls.
   EncoderStatePointer state = EncoderStatePointer(
@@ -50,7 +50,7 @@ EncoderStatePointer CreateEncoder(
   }
   */
 
-  if (!BrotliEncoderAttachPreparedDictionary(state.get(), &dictionary)) {
+  if (dictionary && !BrotliEncoderAttachPreparedDictionary(state.get(), dictionary)) {
     LOG(WARNING) << "Failed to attach dictionary.";
     return EncoderStatePointer(nullptr, nullptr);
   }
@@ -156,16 +156,21 @@ StatusCode BrotliBinaryDiff::Diff(const FontData& font_base,
                                   unsigned stream_offset,
                                   bool is_last,
                                   std::vector<uint8_t>& sink) const {
-  DictionaryPointer dictionary = CreateDictionary(font_base);
-  if (!dictionary) {
-    LOG(WARNING) << "Failed to create the shared dictionary.";
-    return StatusCode::kInternal;
+  // There's a decent amount of overhead in creating a dictionary, even if it's completely empty.
+  // So don't set a dictionary unless it's non-empty.
+  DictionaryPointer dictionary (nullptr, nullptr);
+  if (font_base.size() > 0) {
+    dictionary = CreateDictionary(font_base);
+    if (!dictionary) {
+      LOG(WARNING) << "Failed to create the shared dictionary.";
+      return StatusCode::kInternal;
+    }
   }
 
   // TODO(grieger): data size may only be the partial size of the full font.
   EncoderStatePointer state = CreateEncoder(data.size(),
                                             stream_offset,
-                                            *dictionary);
+                                            dictionary.get ());
   if (!state) {
     return StatusCode::kInternal;
   }
