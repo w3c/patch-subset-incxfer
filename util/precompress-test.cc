@@ -15,6 +15,8 @@ using patch_subset::BrotliBinaryPatch;
 using patch_subset::FontData;
 using patch_subset::StatusCode;
 
+#define PRECACHE false
+
 hb_tag_t immutable_tables[] = {
   HB_TAG ('G', 'D', 'E', 'F'),
   HB_TAG ('G', 'S', 'U', 'B'),
@@ -57,6 +59,7 @@ vector<uint8_t> precompress_immutable(const hb_face_t* face)
   vector<uint8_t> sink;
   FontData empty;
   BrotliBinaryDiff differ;
+  // TODO(grieger): compress at quality 11
   StatusCode sc = differ.Diff(empty,
                               std::string_view(reinterpret_cast<const char*>(table_data.data()),
                                                table_data.size()),
@@ -165,11 +168,15 @@ void make_patch (hb_face_t* face, const vector<uint8_t>& precompressed, unsigned
   hb_blob_t* blob = hb_face_reference_blob (subset);
 
   vector<uint8_t> patch;
-  add_compressed_table_directory(face, blob, patch);
 
-  patch.insert(patch.end(), precompressed.begin(), precompressed.end());
-
-  add_mutable_tables(blob, table_directory_size(face) + precompressed_length(face), patch);
+  if (PRECACHE) {
+    // TODO(grieger): try manually writing the metablock to avoid spinning up a new brotli encoder.
+    add_compressed_table_directory(face, blob, patch);
+    patch.insert(patch.end(), precompressed.begin(), precompressed.end());
+    add_mutable_tables(blob, table_directory_size(face) + precompressed_length(face), patch);
+  } else {
+    add_mutable_tables(blob, 0, patch);
+  }
 
   FontData font_patch;
   font_patch.copy(reinterpret_cast<const char*>(patch.data()),
