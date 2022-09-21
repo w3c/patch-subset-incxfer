@@ -13,6 +13,9 @@ namespace patch_subset {
 // with a shared dictionary.
 class BrotliBinaryDiff : public BinaryDiff {
  public:
+  BrotliBinaryDiff() : quality_(9) {}
+  BrotliBinaryDiff(unsigned quality) : quality_(quality) {}
+
   StatusCode Diff(const FontData& font_base, const FontData& font_derived,
                   FontData* patch /* OUT */) const override;
 
@@ -22,6 +25,9 @@ class BrotliBinaryDiff : public BinaryDiff {
                   unsigned stream_offset,
                   bool is_last,
                   std::vector<uint8_t>& sink) const;
+
+ private:
+  unsigned quality_;
 };
 
 }  // namespace patch_subset

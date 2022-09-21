@@ -27,7 +27,10 @@ DictionaryPointer CreateDictionary(const FontData& font) {
 }
 
 EncoderStatePointer CreateEncoder(
-    size_t font_size, unsigned stream_offset, const BrotliEncoderPreparedDictionary* dictionary) {
+    unsigned quality,
+    size_t font_size,
+    unsigned stream_offset,
+    const BrotliEncoderPreparedDictionary* dictionary) {
 
   // TODO(grieger): setup so the encoder state/shared dict can be re-used between Diff calls.
   EncoderStatePointer state = EncoderStatePointer(
@@ -36,7 +39,7 @@ EncoderStatePointer CreateEncoder(
 
   // TODO(grieger): allow quality to be varied.
 
-  if (!BrotliEncoderSetParameter(state.get(), BROTLI_PARAM_QUALITY, 9)) {
+  if (!BrotliEncoderSetParameter(state.get(), BROTLI_PARAM_QUALITY, quality)) {
     LOG(WARNING) << "Failed to set brotli quality.";
     return EncoderStatePointer(nullptr, nullptr);
   }
@@ -168,7 +171,8 @@ StatusCode BrotliBinaryDiff::Diff(const FontData& font_base,
   }
 
   // TODO(grieger): data size may only be the partial size of the full font.
-  EncoderStatePointer state = CreateEncoder(data.size(),
+  EncoderStatePointer state = CreateEncoder(quality_,
+                                            data.size(),
                                             stream_offset,
                                             dictionary.get ());
   if (!state) {

@@ -15,8 +15,10 @@ using patch_subset::BrotliBinaryPatch;
 using patch_subset::FontData;
 using patch_subset::StatusCode;
 
-#define PRECACHE true
-#define DUMP_STATE false
+constexpr bool PRECACHE = true;
+constexpr bool DUMP_STATE = false;
+constexpr unsigned DYNAMIC_QUALITY = 9;
+constexpr unsigned STATIC_QUALITY = 11;
 
 hb_tag_t immutable_tables[] = {
   HB_TAG ('G', 'D', 'E', 'F'),
@@ -59,7 +61,7 @@ vector<uint8_t> precompress_immutable(const hb_face_t* face)
 
   vector<uint8_t> sink;
   FontData empty;
-  BrotliBinaryDiff differ;
+  BrotliBinaryDiff differ(STATIC_QUALITY);
   // TODO(grieger): compress at quality 11
   StatusCode sc = differ.Diff(empty,
                               std::string_view(reinterpret_cast<const char*>(table_data.data()),
@@ -159,7 +161,7 @@ void add_mutable_tables (hb_blob_t* blob,
                          unsigned offset,
                          vector<uint8_t>& patch)
 {
-  BrotliBinaryDiff differ;
+  BrotliBinaryDiff differ(DYNAMIC_QUALITY);
   FontData empty;
 
   differ.Diff(empty,
