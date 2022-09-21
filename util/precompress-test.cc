@@ -15,7 +15,8 @@ using patch_subset::BrotliBinaryPatch;
 using patch_subset::FontData;
 using patch_subset::StatusCode;
 
-#define PRECACHE false
+#define PRECACHE true
+#define DUMP_STATE false
 
 hb_tag_t immutable_tables[] = {
   HB_TAG ('G', 'D', 'E', 'F'),
@@ -113,18 +114,45 @@ void add_compressed_table_directory(const hb_face_t* face,
                                     hb_blob_t* subset_blob,
                                     vector<uint8_t>& patch)
 {
+  // There's a high overhead to brotli compressing the small table directory at the front and
+  // compression here only saves a small number of bytes. So instead just emit a uncompressed
+  // literal meta-block. We manually construct the appropriate stream and meta block header.
+
+  // stream + meta-block header is 4 bytes total:
+  // WINDOW  ISLAST  MNIBBLES (4)  MLEN-1             ISUNCOMPRESSED PAD (5 bits)
+  // 1000000 0       00            XXXXXXXX XXXXXXXX  1              00000
+  //
+  // Example (size = 299 (00000001 00101011))
+  //                1        172      4        4
+  // Encoded as: 00000001 10101100 00000100 00000100
+  unsigned window_bits = 1; // 17 (0000001)
   unsigned size = table_directory_size(face);
+  unsigned mlen = size - 1;
+  uint8_t encoded_size[2] = {
+    (uint8_t) (mlen & 0xFF),
+    (uint8_t) ((mlen >> 8) & 0xFF),
+  };
+
+  uint32_t header =
+      (window_bits & 0b1111111) | // Window Bits
+      (encoded_size[0] << 10)   | // MLEN
+      (encoded_size[1]  << 18)  | // MLEN
+      (1 << 26);                  // ISUNCOMPRESSED
+  uint8_t encoded_header[4] = {
+    (uint8_t) (header & 0xFF),
+    (uint8_t) (header >> 8 & 0xFF),
+    (uint8_t) (header >> 16 & 0xFF),
+    (uint8_t) (header >> 24 & 0xFF),
+  };
+
+  patch.push_back(encoded_header[0]);
+  patch.push_back(encoded_header[1]);
+  patch.push_back(encoded_header[2]);
+  patch.push_back(encoded_header[3]);
 
   string_view table_directory = string_view(hb_blob_get_data(subset_blob, nullptr),
                                             size);
-
-  BrotliBinaryDiff differ;
-  FontData empty;
-  differ.Diff(empty,
-              table_directory,
-              0,
-              false,
-              patch);
+  patch.insert(patch.end(), table_directory.begin(), table_directory.end());
 }
 
 void add_mutable_tables (hb_blob_t* blob,
@@ -186,18 +214,28 @@ void make_patch (hb_face_t* face, const vector<uint8_t>& precompressed, unsigned
 
 
   if (i == 0) {
+
     FontData derived;
     StatusCode sc = patcher.Patch(empty, font_patch, &derived);
-    assert(sc == StatusCode::kOk);
+    if (sc != StatusCode::kOk) {
+      printf("Patch application failed.\n");
+      exit(-1);
+    }
     printf("patch_size = %lu\n", patch.size());
     printf("final_subset_size = %u\n", derived.size());
-    dump("actual_subset.ttf", hb_blob_get_data(blob, nullptr), hb_blob_get_length(blob));
-    dump("generated_subset.ttf", reinterpret_cast<const char*>(derived.data()), derived.size());
+    if (DUMP_STATE) {
+      dump("patch.bin", reinterpret_cast<const char*>(patch.data()), patch.size());
+      dump("actual_subset.ttf", hb_blob_get_data(blob, nullptr), hb_blob_get_length(blob));
+      dump("generated_subset.ttf", reinterpret_cast<const char*>(derived.data()), derived.size());
+    }
 
-    assert(derived.size() == hb_blob_get_length(blob));
-    assert(!memcmp(reinterpret_cast<const void*>(derived.data()),
-                   reinterpret_cast<const void*>(hb_blob_get_data(blob, nullptr)),
-                   derived.size()));
+    if (derived.size() != hb_blob_get_length(blob)
+        || memcmp(reinterpret_cast<const void*>(derived.data()),
+                  reinterpret_cast<const void*>(hb_blob_get_data(blob, nullptr)),
+                  derived.size())) {
+      printf("Derived subset is not equivalent to expected subset.\n");
+      exit(-1);
+    }
   }
 
   hb_blob_destroy (blob);
