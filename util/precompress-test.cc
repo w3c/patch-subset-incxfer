@@ -15,10 +15,15 @@ using patch_subset::BrotliBinaryPatch;
 using patch_subset::FontData;
 using patch_subset::StatusCode;
 
-constexpr bool PRECACHE = true;
 constexpr bool DUMP_STATE = false;
 constexpr unsigned DYNAMIC_QUALITY = 9;
 constexpr unsigned STATIC_QUALITY = 11;
+
+constexpr enum Mode {
+  PRECOMPRESS_LAYOUT,
+  IMMUTABLE_LAYOUT,
+  MUTABLE_LAYOUT,
+} MODE = IMMUTABLE_LAYOUT;
 
 hb_tag_t immutable_tables[] = {
   HB_TAG ('G', 'D', 'E', 'F'),
@@ -83,30 +88,34 @@ hb_face_t* make_subset (hb_face_t* face)
   hb_set_add_range (hb_subset_input_unicode_set (input),
                     'a', 'z');
 
-  for (hb_tag_t* tag = immutable_tables;
-       *tag;
-       tag++)
-    hb_set_add (hb_subset_input_set (input, HB_SUBSET_SETS_NO_SUBSET_TABLE_TAG),
-                *tag);
-  hb_subset_input_set_flags (input, HB_SUBSET_FLAGS_RETAIN_GIDS);
+  if (MODE != MUTABLE_LAYOUT) {
+    for (hb_tag_t* tag = immutable_tables;
+         *tag;
+         tag++)
+      hb_set_add (hb_subset_input_set (input, HB_SUBSET_SETS_NO_SUBSET_TABLE_TAG),
+                  *tag);
+    hb_subset_input_set_flags (input, HB_SUBSET_FLAGS_RETAIN_GIDS);
+  }
 
   subset = hb_subset_or_fail (face, input);
   hb_subset_input_destroy (input);
 
   // Reorder immutable tables to be first.
-  unsigned num_tables = hb_face_get_table_tags (face, 0, nullptr, nullptr);
-  vector<hb_tag_t> tags;
-  tags.resize (num_tables);
-  hb_face_get_table_tags (face, 0, &num_tables, tags.data());
-  for (hb_tag_t tag : tags) {
-    hb_face_builder_set_table_order (subset, tag, 100);
-  }
+  if (MODE != MUTABLE_LAYOUT) {
+    unsigned num_tables = hb_face_get_table_tags (face, 0, nullptr, nullptr);
+    vector<hb_tag_t> tags;
+    tags.resize (num_tables);
+    hb_face_get_table_tags (face, 0, &num_tables, tags.data());
+    for (hb_tag_t tag : tags) {
+      hb_face_builder_set_table_order (subset, tag, 100);
+    }
 
-  unsigned i = 0;
-  for (hb_tag_t* tag = immutable_tables;
-       *tag;
-       tag++) {
-    hb_face_builder_set_table_order (subset, *tag, i++);
+    unsigned i = 0;
+    for (hb_tag_t* tag = immutable_tables;
+         *tag;
+         tag++) {
+      hb_face_builder_set_table_order (subset, *tag, i++);
+    }
   }
 
   return subset;
@@ -199,7 +208,7 @@ void make_patch (hb_face_t* face, const vector<uint8_t>& precompressed, unsigned
 
   vector<uint8_t> patch;
 
-  if (PRECACHE) {
+  if (MODE == PRECOMPRESS_LAYOUT) {
     // TODO(grieger): try manually writing the metablock to avoid spinning up a new brotli encoder.
     add_compressed_table_directory(face, blob, patch);
     patch.insert(patch.end(), precompressed.begin(), precompressed.end());
