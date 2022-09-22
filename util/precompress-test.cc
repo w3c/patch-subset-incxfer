@@ -27,6 +27,7 @@ enum Mode {
   END,
 };
 
+// TODO(grieger): this should be all "No Subset Tables" in the font.
 hb_tag_t immutable_tables[] = {
   HB_TAG ('G', 'D', 'E', 'F'),
   HB_TAG ('G', 'S', 'U', 'B'),
@@ -103,20 +104,7 @@ hb_face_t* make_subset (hb_face_t* face, Mode mode)
 
   // Reorder immutable tables to be first.
   if (mode != MUTABLE_LAYOUT) {
-    unsigned num_tables = hb_face_get_table_tags (face, 0, nullptr, nullptr);
-    vector<hb_tag_t> tags;
-    tags.resize (num_tables);
-    hb_face_get_table_tags (face, 0, &num_tables, tags.data());
-    for (hb_tag_t tag : tags) {
-      hb_face_builder_set_table_order (subset, tag, 100);
-    }
-
-    unsigned i = 0;
-    for (hb_tag_t* tag = immutable_tables;
-         *tag;
-         tag++) {
-      hb_face_builder_set_table_order (subset, *tag, i++);
-    }
+    hb_face_builder_set_table_ordering (subset, immutable_tables);
   }
 
   return subset;
