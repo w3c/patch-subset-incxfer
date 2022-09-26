@@ -19,6 +19,10 @@ using patch_subset::StatusCode;
 
 constexpr bool DUMP_STATE = false;
 constexpr unsigned STATIC_QUALITY = 11;
+// Number of codepoints to include in the subset. Set to
+// -1 to use ascii as a subset.
+constexpr unsigned SUBSET_SIZE = 750;
+constexpr unsigned TRIAL_DURATION_MS = 1000;
 
 enum Mode {
   PRECOMPRESS_LAYOUT = 0,
@@ -81,14 +85,14 @@ vector<uint8_t> precompress_immutable(const hb_face_t* face)
   return sink;
 }
 
-hb_face_t* make_subset (hb_face_t* face, Mode mode)
+hb_face_t* make_subset (hb_face_t* face, hb_set_t* codepoints, Mode mode)
 {
   hb_face_t* subset = nullptr;
 
   hb_subset_input_t* input = hb_subset_input_create_or_fail ();
 
-  hb_set_add_range (hb_subset_input_unicode_set (input),
-                    0, 255); // ASCII
+  hb_set_clear (hb_subset_input_set (input, HB_SUBSET_SETS_DROP_TABLE_TAG));
+  hb_set_union (hb_subset_input_unicode_set (input), codepoints);
 
   if (mode != MUTABLE_LAYOUT) {
     for (hb_tag_t* tag = immutable_tables;
@@ -96,7 +100,8 @@ hb_face_t* make_subset (hb_face_t* face, Mode mode)
          tag++)
       hb_set_add (hb_subset_input_set (input, HB_SUBSET_SETS_NO_SUBSET_TABLE_TAG),
                   *tag);
-    hb_subset_input_set_flags (input, HB_SUBSET_FLAGS_RETAIN_GIDS);
+    hb_subset_input_set_flags (input,
+                               HB_SUBSET_FLAGS_RETAIN_GIDS | HB_SUBSET_FLAGS_PASSTHROUGH_UNRECOGNIZED);
   }
 
   subset = hb_subset_or_fail (face, input);
@@ -126,6 +131,8 @@ void add_compressed_table_directory(const hb_face_t* face,
   //                1        172      4        4
   // Encoded as: 00000001 10101100 00000100 00000100
   unsigned window_bits = 1; // 17 (0000001)
+  // TODO(grieger): compute based on size of # of tables in the subset, then we can re-enable
+  //                the standard drop tables list.
   unsigned size = table_directory_size(face);
   unsigned mlen = size - 1;
   uint8_t encoded_size[2] = {
@@ -192,6 +199,7 @@ unsigned precompressed_length(const hb_face_t* face)
 }
 
 unsigned make_patch (hb_face_t* face,
+                     hb_set_t* codepoints,
                      Mode mode,
                      unsigned dynamic_quality,
                      unsigned codepoint_count,
@@ -199,7 +207,7 @@ unsigned make_patch (hb_face_t* face,
 {
   static const vector<uint8_t> precompressed = precompress_immutable(face);
 
-  hb_face_t* subset = make_subset (face, mode);
+  hb_face_t* subset = make_subset (face, codepoints, mode);
   hb_blob_t* blob = hb_face_reference_blob (subset);
 
   vector<uint8_t> patch;
@@ -260,6 +268,27 @@ const char* mode_to_string(Mode mode) {
   }
 }
 
+void create_subset_set (hb_face_t* face, hb_set_t* codepoints)
+{
+  if (SUBSET_SIZE == (unsigned) -1) {
+    // ASCII
+    hb_set_add_range (codepoints, 0, 255);
+    return;
+  }
+
+  hb_set_t* all_codepoints = hb_set_create ();
+  hb_face_collect_unicodes (face, all_codepoints);
+
+  unsigned count = 0;
+  hb_codepoint_t cp = HB_SET_VALUE_INVALID;
+  while (hb_set_next (all_codepoints, &cp) && count < SUBSET_SIZE) {
+    hb_set_add (codepoints, cp);
+    count++;
+  }
+
+  hb_set_destroy (all_codepoints);
+}
+
 int main(int argc, char** argv) {
   if (argc < 2) {
     std::cout << "ERROR: invalid args." << std::endl;
@@ -275,6 +304,9 @@ int main(int argc, char** argv) {
   }
 
   hb_face_t* face = hb_face_create (font_blob, 0);
+  hb_set_t* codepoints = hb_set_create ();
+  create_subset_set (face, codepoints);
+
   hb_blob_destroy (font_blob);
 
   printf("mode, quality, duration_ms, iterations, patch_size, ms/req\n");
@@ -286,11 +318,11 @@ int main(int argc, char** argv) {
 
       unsigned i = 0;
       while (true) {
-        patch_size = make_patch (face, (Mode) mode, quality, 0, i);
+        patch_size = make_patch (face, codepoints, (Mode) mode, quality, 0, i);
         if (i % 20 == 0) {
           auto stop = high_resolution_clock::now();
           duration_ms = duration_cast<milliseconds>(stop - start).count();
-          if (duration_ms > 5000) {
+          if (duration_ms > TRIAL_DURATION_MS) {
             break;
           }
         }
@@ -304,5 +336,6 @@ int main(int argc, char** argv) {
   }
 
   hb_face_destroy (face);
+  hb_set_destroy (codepoints);
   return 0;
 }
