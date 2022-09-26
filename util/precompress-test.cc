@@ -22,7 +22,7 @@ constexpr unsigned STATIC_QUALITY = 11;
 // Number of codepoints to include in the subset. Set to
 // -1 to use ascii as a subset.
 constexpr unsigned SUBSET_SIZE = 750;
-constexpr unsigned TRIAL_DURATION_MS = 1000;
+constexpr unsigned TRIAL_DURATION_MS = 2500;
 
 enum Mode {
   PRECOMPRESS_LAYOUT = 0,
@@ -102,6 +102,8 @@ hb_face_t* make_subset (hb_face_t* face, hb_set_t* codepoints, Mode mode)
                   *tag);
     hb_subset_input_set_flags (input,
                                HB_SUBSET_FLAGS_RETAIN_GIDS | HB_SUBSET_FLAGS_PASSTHROUGH_UNRECOGNIZED);
+  } else {
+    hb_subset_input_set_flags (input, HB_SUBSET_FLAGS_PASSTHROUGH_UNRECOGNIZED);
   }
 
   subset = hb_subset_or_fail (face, input);
