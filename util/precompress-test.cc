@@ -21,9 +21,9 @@ constexpr bool DUMP_STATE = false;
 constexpr unsigned STATIC_QUALITY = 11;
 // Number of codepoints to include in the subset. Set to
 // -1 to use ascii as a subset.
-constexpr unsigned SUBSET_COUNT = 1000;
-constexpr unsigned BASE_COUNT = 750;
-constexpr unsigned TRIAL_DURATION_MS = 500;
+constexpr unsigned SUBSET_COUNT = 10;
+constexpr unsigned BASE_COUNT = 1000;
+constexpr unsigned TRIAL_DURATION_MS = 1000;
 
 enum Mode {
   PRECOMPRESS_LAYOUT = 0,
@@ -81,7 +81,10 @@ vector<uint8_t> precompress_immutable(const hb_face_t* face)
                               header_size,
                               false,
                               sink);
-  assert(sc == StatusCode::kOk);
+  if (sc != StatusCode::kOk) {
+    printf("Precompression brotli encoding failed.\n");
+    exit(-1);
+  }
 
   return sink;
 }
@@ -112,7 +115,7 @@ hb_face_t* make_subset (hb_face_t* face, hb_set_t* codepoints, Mode mode)
 
   // Reorder immutable tables to be first.
   if (mode != MUTABLE_LAYOUT) {
-    hb_face_builder_set_table_ordering (subset, immutable_tables);
+    hb_face_builder_sort_tables (subset, immutable_tables);
   }
 
   return subset;
@@ -201,31 +204,26 @@ unsigned precompressed_length(const hb_face_t* face)
 }
 
 unsigned make_patch (hb_face_t* face,
-                     hb_set_t* base_codepoints,
-                     hb_set_t* subset_codepoints,
+                     hb_face_t* base_face,
+                     hb_face_t* subset_face,
                      Mode mode,
                      unsigned dynamic_quality,
-                     unsigned codepoint_count,
                      unsigned i)
 {
   static const vector<uint8_t> precompressed = precompress_immutable(face);
 
   FontData base;
-  if (hb_set_get_population (base_codepoints) > 0) {
-    hb_face_t* subset = make_subset (face, base_codepoints, mode);
-    hb_blob_t* blob = hb_face_reference_blob (subset);
+  if (base_face) {
+    hb_blob_t* blob = hb_face_reference_blob (base_face);
     base.copy (hb_blob_get_data (blob, nullptr), hb_blob_get_length (blob));
-    hb_face_destroy (subset);
     hb_blob_destroy (blob);
   }
 
-
-  hb_face_t* subset = make_subset (face, subset_codepoints, mode);
-  hb_blob_t* blob = hb_face_reference_blob (subset);
+  hb_blob_t* blob = hb_face_reference_blob (subset_face);
 
   vector<uint8_t> patch;
 
-  if (hb_set_get_population (base_codepoints) == 0 && mode == PRECOMPRESS_LAYOUT) {
+  if (!base_face && mode == PRECOMPRESS_LAYOUT) {
     add_compressed_table_directory(face, blob, patch);
     patch.insert(patch.end(), precompressed.begin(), precompressed.end());
     add_mutable_tables(base, blob, dynamic_quality, table_directory_size(face) + precompressed_length(face), patch);
@@ -267,6 +265,32 @@ unsigned make_patch (hb_face_t* face,
   return patch.size();
 }
 
+unsigned make_patch (hb_face_t* face,
+                     hb_set_t* base_codepoints,
+                     hb_set_t* subset_codepoints,
+                     Mode mode,
+                     unsigned dynamic_quality,
+                     unsigned i)
+{
+  hb_face_t* base_face = nullptr;
+  if (hb_set_get_population (base_codepoints) > 0) {
+    base_face = make_subset (face, base_codepoints, mode);
+  }
+  hb_face_t* subset_face = make_subset (face, subset_codepoints, mode);
+
+  unsigned result = make_patch (face,
+                                base_face,
+                                subset_face,
+                                mode,
+                                dynamic_quality,
+                                i);
+
+  hb_face_destroy (base_face);
+  hb_face_destroy (subset_face);
+
+  return result;
+}
+
 const char* mode_to_string(Mode mode) {
   switch (mode) {
     case PRECOMPRESS_LAYOUT:
@@ -301,27 +325,62 @@ void create_subset_set (hb_face_t* face, hb_set_t* codepoints, unsigned count)
   hb_set_destroy (all_codepoints);
 }
 
-int main(int argc, char** argv) {
-  if (argc < 2) {
-    std::cout << "ERROR: invalid args." << std::endl;
-    return -1;
+void test_dictionary_size(hb_face_t* face) {
+
+  printf("quality, duration_ms, iterations, base_codepoints, base_size, patch_size, ms/req\n");
+  unsigned quality = 5;
+  Mode mode = IMMUTABLE_LAYOUT;
+  for (unsigned base_count = BASE_COUNT;
+       base_count <= 10 * BASE_COUNT;
+       base_count += BASE_COUNT)
+  {
+    hb_set_t* base_codepoints = hb_set_create ();
+    hb_set_t* subset_codepoints = hb_set_create ();
+    create_subset_set (face, base_codepoints, base_count);
+    create_subset_set (face, subset_codepoints, base_count + SUBSET_COUNT);
+
+    hb_face_t* base_face = make_subset (face, base_codepoints, mode);
+    hb_face_t* subset_face = make_subset (face, subset_codepoints, mode);
+    hb_set_destroy (base_codepoints);
+    hb_set_destroy (subset_codepoints);
+    hb_blob_t* base_blob = hb_face_reference_blob (base_face);
+
+    unsigned patch_size = 0;
+    unsigned base_size = hb_blob_get_length (base_blob);
+    hb_blob_destroy (base_blob);
+    unsigned duration_ms = 0;
+    auto start = high_resolution_clock::now();
+
+    unsigned i = 0;
+    while (true) {
+      patch_size = make_patch (face,
+                               base_face,
+                               subset_face,
+                               MUTABLE_LAYOUT, quality, i);
+      if (i % 20 == 0) {
+        auto stop = high_resolution_clock::now();
+        duration_ms = duration_cast<milliseconds>(stop - start).count();
+        if (duration_ms > TRIAL_DURATION_MS) {
+          break;
+        }
+      }
+      i++;
+    }
+
+    float ms_per_request = (float) duration_ms / (float) i;
+    printf("%u, %u, %u, %u, %u, %u, %.2f\n",
+           quality, duration_ms, i, base_count, base_size, patch_size, ms_per_request);
+
+    hb_face_destroy (base_face);
+    hb_face_destroy (subset_face);
   }
+}
 
-  char* font_path = argv[1];
-
-  hb_blob_t* font_blob = hb_blob_create_from_file_or_fail (font_path);
-  if (!font_blob) {
-    std::cout << "ERROR: invalid file path." << std::endl;
-    return -1;
-  }
-
-  hb_face_t* face = hb_face_create (font_blob, 0);
+void test_precompression(hb_face_t* face) {
   hb_set_t* base_codepoints = hb_set_create ();
   hb_set_t* subset_codepoints = hb_set_create ();
   create_subset_set (face, base_codepoints, BASE_COUNT);
   create_subset_set (face, subset_codepoints, SUBSET_COUNT);
-
-  hb_blob_destroy (font_blob);
 
   printf("mode, quality, duration_ms, iterations, patch_size, ms/req\n");
   unsigned start_mode = BASE_COUNT > 0 ? IMMUTABLE_LAYOUT : PRECOMPRESS_LAYOUT;
@@ -336,7 +395,7 @@ int main(int argc, char** argv) {
         patch_size = make_patch (face,
                                  base_codepoints,
                                  subset_codepoints,
-                                 (Mode) mode, quality, 0, i);
+                                 (Mode) mode, quality, i);
         if (i % 20 == 0) {
           auto stop = high_resolution_clock::now();
           duration_ms = duration_cast<milliseconds>(stop - start).count();
@@ -353,8 +412,30 @@ int main(int argc, char** argv) {
     }
   }
 
-  hb_face_destroy (face);
   hb_set_destroy (base_codepoints);
   hb_set_destroy (subset_codepoints);
+}
+
+int main(int argc, char** argv) {
+  if (argc < 2) {
+    std::cout << "ERROR: invalid args." << std::endl;
+    return -1;
+  }
+
+  char* font_path = argv[1];
+
+  hb_blob_t* font_blob = hb_blob_create_from_file_or_fail (font_path);
+  if (!font_blob) {
+    std::cout << "ERROR: invalid file path." << std::endl;
+    return -1;
+  }
+
+  hb_face_t* face = hb_face_create (font_blob, 0);
+
+  //test_precompression (face);
+  test_dictionary_size (face);
+
+  hb_blob_destroy (font_blob);
+  hb_face_destroy (face);
   return 0;
 }
