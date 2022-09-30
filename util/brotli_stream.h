@@ -35,8 +35,10 @@ class BrotliStream {
 
  private:
 
+  bool add_mlen (unsigned size);
+
   void add_stream_header ();
-  
+
   unsigned uncompressed_size_;
   unsigned window_bits_;
   unsigned window_size_;
