@@ -19,22 +19,56 @@ class BrotliStreamTest : public ::testing::Test {
   }
 };
 
-TEST_F(BrotliStreamTest, InsertUncompressed) {
-  BrotliStream stream(22);
-  char data[] = {'H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd'};
-  stream.insert_uncompressed(Span<const uint8_t>((const uint8_t*) data, 11));
-  stream.end_stream();
-
+void CheckDecompressesTo(const BrotliStream& stream,
+                         Span<const uint8_t> expected)
+{
   BrotliBinaryPatch patcher;
   FontData empty;
   FontData patch;
   patch.copy((const char*) stream.compressed_data().data(), stream.compressed_data().size());
 
-  // TODO: move to helper.
+  Span<const char> expected_char((const char*) expected.data(), expected.size());
+
   FontData uncompressed;
   EXPECT_EQ(patcher.Patch(empty, patch, &uncompressed), StatusCode::kOk);
   EXPECT_EQ(Span<const char>(uncompressed),
-            Span<const char>(data));
+            expected_char);
 }
+
+TEST_F(BrotliStreamTest, InsertUncompressed) {
+  BrotliStream stream(22);
+  uint8_t data[] = {'H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd'};
+  stream.insert_uncompressed(data);
+  stream.end_stream();
+
+  CheckDecompressesTo(stream, data);
+}
+
+TEST_F(BrotliStreamTest, InsertUncompressedMultiple) {
+  BrotliStream stream(22);
+  uint8_t data_1[] = {'H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd'};
+  uint8_t data_2[] = {'t', 'e', 's', 't'};
+  stream.insert_uncompressed(data_1);
+  stream.insert_uncompressed(data_2);
+  stream.end_stream();
+
+  CheckDecompressesTo(stream,
+                      {'H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', 't', 'e', 's', 't'});
+}
+
+TEST_F(BrotliStreamTest, InsertUncompressedLarge) {
+  BrotliStream stream(22);
+  std::vector<uint8_t> data;
+  data.resize(26777216);
+  data[100] = 123;
+  data[25000000] = 45;
+  stream.insert_uncompressed(data);
+  stream.end_stream();
+
+  CheckDecompressesTo(stream, data);
+}
+
+
+
 
 }  // namespace patch_subset

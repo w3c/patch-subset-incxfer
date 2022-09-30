@@ -10,13 +10,6 @@ void BrotliStream::insert_from_dictionary(unsigned offset, unsigned length) {
 }
 
 void BrotliStream::insert_uncompressed(absl::Span<const uint8_t> bytes) {
-  if (!uncompressed_size_) {
-    add_stream_header();
-  }
-
-  // For meta-block header format see: https://datatracker.ietf.org/doc/html/rfc7932#section-9.2
-  buffer_.append_number(0b0, 1); // ISLAST
-
   uint32_t size = bytes.size();
   uint32_t num_nibbles = 0;
   uint32_t num_nibbles_code = 0;
@@ -38,11 +31,17 @@ void BrotliStream::insert_uncompressed(absl::Span<const uint8_t> bytes) {
     num_nibbles_code = 0b10;
   } else {
     // Too big for one meta-block Break into multiple meta-blocks.
-    insert_uncompressed(bytes.subspan(0, 1 << 24));
-    insert_uncompressed(bytes.subspan(1 << 24));
+    insert_uncompressed(bytes.subspan(0, (1 << 24) - 1));
+    insert_uncompressed(bytes.subspan((1 << 24) - 1));
     return;
   }
 
+  if (!uncompressed_size_) {
+    add_stream_header();
+  }
+
+  // For meta-block header format see: https://datatracker.ietf.org/doc/html/rfc7932#section-9.2
+  buffer_.append_number(0b0, 1); // ISLAST
   buffer_.append_number(num_nibbles_code, 2);       // MNIBBLES
   buffer_.append_number(size - 1, num_nibbles * 4); // MLEN - 1
   buffer_.append_number(0b1, 1);                    // ISUNCOMPRESSED
