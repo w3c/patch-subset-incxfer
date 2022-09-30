@@ -23,6 +23,14 @@ class BrotliBitBuffer {
   // Prefix codes are appened from MSB to LSB
   void append_prefix_code(uint8_t bits, unsigned count);
 
+  void append_raw(absl::Span<const uint8_t> bytes) {
+    buffer_.insert(buffer_.end(), bytes.begin(), bytes.end());
+  }
+
+  void pad_to_end_of_byte() { // TODO(grieger): add tests.
+    bit_index_ = 8;
+  }
+
   absl::Span<const uint8_t> data() const;
 
  private:

@@ -31,10 +31,13 @@ cc_test(
         "brotli_bit_buffer_test.cc",
         "brotli_bit_buffer.cc",
         "brotli_bit_buffer.h",
+        "brotli_stream.cc",
+        "brotli_stream.h",
+        "brotli_stream_test.cc",
     ],
     deps = [
         "@com_google_absl//absl/types:span",
         "@gtest//:gtest_main",
-        "@harfbuzz",
+        "//patch_subset:client",
     ],
 )
