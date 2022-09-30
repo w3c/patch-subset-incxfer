@@ -43,4 +43,26 @@ TEST_F(BrotliBitBufferTest, Append) {
       }),  buffer.data());
 }
 
+TEST_F(BrotliBitBufferTest, AppendPrefix) {
+  BrotliBitBuffer buffer;
+
+  buffer.append_prefix_code(0b1, 1);
+  EXPECT_EQ(Span<const uint8_t> ({0b00000001}), buffer.data());
+
+  buffer.append_prefix_code(0b11010, 5);
+  EXPECT_EQ(Span<const uint8_t> ({0b00010111}), buffer.data());
+}
+
+TEST_F(BrotliBitBufferTest, AppendOutOfBounds) {
+  BrotliBitBuffer buffer;
+
+  buffer.append_number(0x0D0C0B0A, 48);
+  EXPECT_EQ(Span<const uint8_t> ({0x0A, 0x0B, 0x0C, 0x0D}), buffer.data());
+
+  buffer.append_prefix_code(0b11001100, 48);
+  EXPECT_EQ(Span<const uint8_t> ({0x0A, 0x0B, 0x0C, 0x0D, 0b00110011}), buffer.data());
+
+
+}
+
 }  // namespace patch_subset

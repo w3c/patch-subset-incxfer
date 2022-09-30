@@ -21,7 +21,7 @@ class BrotliBitBuffer {
   void append_number(uint32_t bits, unsigned count);
 
   // Prefix codes are appened from MSB to LSB
-  void append_prefix_code(uint32_t bits, unsigned count);
+  void append_prefix_code(uint8_t bits, unsigned count);
 
   absl::Span<const uint8_t> data() const;
 
