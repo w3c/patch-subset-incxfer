@@ -39,6 +39,8 @@ class BrotliStream {
 
   void add_stream_header ();
 
+  void add_prefix_tree (unsigned code, unsigned width);
+
   unsigned uncompressed_size_;
   unsigned window_bits_;
   unsigned window_size_;
