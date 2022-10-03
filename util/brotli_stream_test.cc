@@ -83,6 +83,19 @@ TEST_F(BrotliStreamTest, InsertFromDictionary) {
   CheckDecompressesTo(stream, expected, dict_data);
 }
 
+TEST_F(BrotliStreamTest, InsertMixed) {
+  BrotliStream stream(22, 11);
+  uint8_t dict_data[] = {'H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd'};
+  uint8_t data[] = {'1', '2', '3'};
+
+  stream.insert_from_dictionary(1, 4);
+  stream.insert_uncompressed(data);
+  stream.insert_from_dictionary(6, 3);
+  stream.end_stream();
+
+  uint8_t expected[] = {'e', 'l', 'l', 'o', '1', '2', '3', 'w', 'o', 'r'};
+  CheckDecompressesTo(stream, expected, dict_data);
+}
 
 
 }  // namespace patch_subset
