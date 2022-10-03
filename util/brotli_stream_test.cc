@@ -20,17 +20,19 @@ class BrotliStreamTest : public ::testing::Test {
 };
 
 void CheckDecompressesTo(const BrotliStream& stream,
-                         Span<const uint8_t> expected)
+                         Span<const uint8_t> expected,
+                         Span<const uint8_t> dict_data=Span<const uint8_t>())
 {
   BrotliBinaryPatch patcher;
-  FontData empty;
+  FontData dict;
+  dict.copy((const char*) dict_data.data(), dict_data.size());
   FontData patch;
   patch.copy((const char*) stream.compressed_data().data(), stream.compressed_data().size());
 
   Span<const char> expected_char((const char*) expected.data(), expected.size());
 
   FontData uncompressed;
-  EXPECT_EQ(patcher.Patch(empty, patch, &uncompressed), StatusCode::kOk);
+  ASSERT_EQ(patcher.Patch(dict, patch, &uncompressed), StatusCode::kOk);
   EXPECT_EQ(Span<const char>(uncompressed),
             expected_char);
 }
@@ -68,6 +70,17 @@ TEST_F(BrotliStreamTest, InsertUncompressedLarge) {
   CheckDecompressesTo(stream, data);
 }
 
+
+TEST_F(BrotliStreamTest, InsertFromDictionary) {
+  BrotliStream stream(22, 11);
+  uint8_t dict_data[] = {'H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd'};
+
+  stream.insert_from_dictionary(1, 4);
+  stream.end_stream();
+
+  uint8_t expected[] = {'e', 'l', 'l', 'o'};
+  CheckDecompressesTo(stream, expected, dict_data);
+}
 
 
 
