@@ -33,7 +33,13 @@ cc_test(
         "brotli_bit_buffer.h",
         "brotli_stream.cc",
         "brotli_stream.h",
+        "brotli_font_diff.cc",
+        "brotli_font_diff_test.cc",
+        "brotli_font_diff.h",
         "brotli_stream_test.cc",
+    ],
+    data = [
+        "//patch_subset:testdata",
     ],
     deps = [
         "@com_google_absl//absl/types:span",
