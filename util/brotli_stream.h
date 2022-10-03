@@ -13,10 +13,11 @@ namespace util {
  */
 class BrotliStream {
  public:
-  BrotliStream(unsigned window_bits) :
+  BrotliStream(unsigned window_bits, unsigned dictionary_size=0) :
       uncompressed_size_(0),
       window_bits_(std::max(std::min(window_bits, 24u), 10u)),
       window_size_((1 << window_bits_) - 16),
+      dictionary_size_(dictionary_size),
       buffer_() {}
 
   // Insert bytes into the uncompressed stream from the shared dictionary
@@ -44,6 +45,7 @@ class BrotliStream {
   unsigned uncompressed_size_;
   unsigned window_bits_;
   unsigned window_size_;
+  unsigned dictionary_size_;
   BrotliBitBuffer buffer_;
 };
 

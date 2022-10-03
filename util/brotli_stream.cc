@@ -23,6 +23,73 @@ static unsigned num_of_postfix_bits(unsigned distance) {
   }
 }
 
+static uint16_t to_copy_code(unsigned  length,
+                             uint16_t* num_extra_bits,
+                             uint32_t* extra_bits) {
+  // See: https://datatracker.ietf.org/doc/html/rfc7932#section-5
+  constexpr unsigned code_to_extra_bits[] = {
+    /* 0 */  0,
+    /* 1 */  0,
+    /* 2 */  0,
+    /* 3 */  0,
+    /* 4 */  0,
+    /* 5 */  0,
+    /* 6 */  0,
+    /* 7 */  0,
+    /* 8 */  1,
+    /* 9 */  1,
+    /* 10 */ 2,
+    /* 11 */ 2,
+    /* 12 */ 3,
+    /* 13 */ 3,
+    /* 14 */ 4,
+    /* 15 */ 4,
+    /* 16 */ 5,
+    /* 17 */ 5,
+    /* 18 */ 6,
+    /* 19 */ 7,
+    /* 20 */ 8,
+    /* 21 */ 9,
+    /* 22 */ 10,
+    /* 23 */ 24,
+  };
+
+  uint16_t code = 0;
+  unsigned max_length = 2;
+  unsigned prev_max_length = 1;
+  do {
+    if (length <= max_length || code == 23) {
+      *num_extra_bits = code_to_extra_bits[code];
+      *extra_bits = length - prev_max_length - 1;
+      return code;
+    }
+
+    code++;
+    prev_max_length = max_length;
+    max_length += (1 << code_to_extra_bits[code]);
+  } while(true);
+}
+
+static unsigned insert_and_copy_code(unsigned copy_length,
+                                     uint16_t* num_extra_bits,
+                                     uint32_t* extra_bits) {
+  // See: https://datatracker.ietf.org/doc/html/rfc7932#section-5
+  uint16_t copy_code = to_copy_code(copy_length, num_extra_bits, extra_bits);
+  uint16_t prefix = 0;
+  if (copy_code <= 7) {
+    prefix = 128;
+  } else if (copy_code <= 15) {
+    prefix = 192;
+    copy_code -= 8;
+  } else {
+    prefix = 384;
+    copy_code -= 16;
+  }
+
+  // Insert length is 0.
+  return prefix | copy_code;
+}
+
 static void to_distance_code(unsigned distance,
                              unsigned postfix_bits,
                              uint16_t* distance_code,
@@ -38,7 +105,8 @@ static void to_distance_code(unsigned distance,
 }
 
 void BrotliStream::insert_from_dictionary(unsigned offset, unsigned length) {
-  unsigned distance = offset; // TODO compute the backwards distance.
+  // Backwards distance to the region in the dictionary starting at offset.
+  unsigned distance = (dictionary_size_ + std::min(window_size_, uncompressed_size_)) - offset - 1;
 
   if (!add_mlen(length)) {
     // Too big for one meta-block Break into multiple meta-blocks.
@@ -58,25 +126,42 @@ void BrotliStream::insert_from_dictionary(unsigned offset, unsigned length) {
   buffer_.append_number(postfix_bits, 2); // NPOSTFIX
   buffer_.append_number(0b0000, 4);       // NDIRECT
 
-  buffer_.append_number(0b00, 2);         // Literal block type context mode (TODO)
+  buffer_.append_number(0b00, 2);         // Literal block type context mode
   buffer_.append_number(0b0, 1);          // NTREESL = 1 (number of literal prefix trees)
   buffer_.append_number(0b0, 1);          // NTREESD = 1 (number of literal prefix trees)
 
 
+  // NTREESL prefix codes for literals:
+  // we don't use any literals so just encode a 1 symbol tree with the zero literal.
+  add_prefix_tree(0, 8);
 
-  // NTREESL prefix codes for literals TODO
-  // NBLTYPESI prefix codes for insert-and-copy lengths TODO
+  // NBLTYPESI prefix codes for insert-and-copy lengths:
+  uint16_t copy_num_extra_bits = 0;
+  uint32_t copy_extra_bits = 0;
+  uint16_t copy_code = insert_and_copy_code(length, &copy_num_extra_bits, &copy_extra_bits);
+  add_prefix_tree(copy_code, 10); // width = 10 since num codes = 704
 
   // NTREESD prefix codes for distances.
   uint16_t distance_code;
-  uint16_t num_extra_bits;
-  uint32_t extra_bits;
-  unsigned distance_code_width = Log2FloorNonZero(16 + (48 << postfix_bits));
+  uint16_t dist_num_extra_bits;
+  uint32_t dist_extra_bits;
+  unsigned distance_code_width = (unsigned) ceil(log(16 + (48 << postfix_bits)) / log(2));
   to_distance_code(distance, postfix_bits,
-                   &distance_code, &num_extra_bits, &extra_bits);
+                   &distance_code, &dist_num_extra_bits, &dist_extra_bits);
   add_prefix_tree(distance_code, distance_code_width);
 
-  // TODO: insert and copy command.
+
+
+  // Command:
+  // Insert and copy length: Code is omitted, just add the extra bits
+  buffer_.append_number(copy_extra_bits, copy_num_extra_bits);
+
+  // Literals (None).
+  // Distance Code: Code is omitted, just add the extra bits
+  buffer_.append_number(dist_extra_bits, dist_num_extra_bits);
+
+  // Pad to byte boundary.
+  buffer_.pad_to_end_of_byte();
 }
 
 void BrotliStream::insert_uncompressed(absl::Span<const uint8_t> bytes) {
