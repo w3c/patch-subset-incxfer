@@ -20,6 +20,8 @@ class BrotliFontDiff {
                                 hb_subset_plan_t* derived_plan,
                                 hb_face_t* derived_face,
                                 patch_subset::FontData* patch) const;
+
+ private:
 };
 
 }  // namespace util
