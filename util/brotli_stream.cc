@@ -106,7 +106,7 @@ static void to_distance_code(unsigned distance,
 
 void BrotliStream::insert_from_dictionary(unsigned offset, unsigned length) {
   // Backwards distance to the region in the dictionary starting at offset.
-  unsigned distance = (dictionary_size_ + std::min(window_size_, uncompressed_size_)) - offset - 1;
+  unsigned distance = (dictionary_size_ + std::min(window_size_, uncompressed_size_)) - offset;
 
   if (!add_mlen(length)) {
     // Too big for one meta-block Break into multiple meta-blocks.
@@ -159,9 +159,7 @@ void BrotliStream::insert_from_dictionary(unsigned offset, unsigned length) {
   // Literals (None).
   // Distance Code: Code is omitted, just add the extra bits
   buffer_.append_number(dist_extra_bits, dist_num_extra_bits);
-
-  // Pad to byte boundary.
-  buffer_.pad_to_end_of_byte();
+  uncompressed_size_ += length;
 }
 
 void BrotliStream::insert_uncompressed(absl::Span<const uint8_t> bytes) {
