@@ -2,11 +2,44 @@
 
 #include <utility>
 
+#include "c/enc/prefix.h"
+#include "c/enc/fast_log.h"
+
 namespace util {
 
 constexpr unsigned MAX_METABLOCK_SIZE = (1 << 24);
 
+static unsigned num_of_postfix_bits(unsigned distance) {
+  // Max distances worked out using the encoding scheme found in:
+  // https://datatracker.ietf.org/doc/html/rfc7932#section-4
+  if (distance <= 67108860) {
+    return 0b00;
+  } else if (distance <= 134217720) {
+    return 0b01;
+  } else if (distance <= 268435440) {
+    return 0b10;
+  } else {
+    return 0b11;
+  }
+}
+
+static void to_distance_code(unsigned distance,
+                             unsigned postfix_bits,
+                             uint16_t* distance_code,
+                             uint16_t* num_extra_bits,
+                             uint32_t* extra_bits)
+{
+  uint16_t composite_distance;
+  PrefixEncodeCopyDistance(distance + 15,
+                           0, postfix_bits,
+                           &composite_distance, extra_bits);
+  *num_extra_bits = (composite_distance & 0b1111110000000000) >> 10;
+  *distance_code = composite_distance & 0b0000001111111111;
+}
+
 void BrotliStream::insert_from_dictionary(unsigned offset, unsigned length) {
+  unsigned distance = offset; // TODO compute the backwards distance.
+
   if (!add_mlen(length)) {
     // Too big for one meta-block Break into multiple meta-blocks.
     insert_from_dictionary(offset, MAX_METABLOCK_SIZE);
@@ -14,7 +47,36 @@ void BrotliStream::insert_from_dictionary(unsigned offset, unsigned length) {
     return;
   }
 
-  // TODO
+  unsigned postfix_bits = num_of_postfix_bits(distance);
+
+  // Reference: https://datatracker.ietf.org/doc/html/rfc7932#section-9.2
+  buffer_.append_number(0b0, 1);          // ISUNCOMPRESSED
+  buffer_.append_number(0b0, 1);          // NBLTYPESL = 1 (number of literal block types)
+  buffer_.append_number(0b0, 1);          // NBLTYPESI = 1 (number of insert+copy block types)
+  buffer_.append_number(0b0, 1);          // NBLTYPESD = 1 (number of distance block types)
+
+  buffer_.append_number(postfix_bits, 2); // NPOSTFIX
+  buffer_.append_number(0b0000, 4);       // NDIRECT
+
+  buffer_.append_number(0b00, 2);         // Literal block type context mode (TODO)
+  buffer_.append_number(0b0, 1);          // NTREESL = 1 (number of literal prefix trees)
+  buffer_.append_number(0b0, 1);          // NTREESD = 1 (number of literal prefix trees)
+
+
+
+  // NTREESL prefix codes for literals TODO
+  // NBLTYPESI prefix codes for insert-and-copy lengths TODO
+
+  // NTREESD prefix codes for distances.
+  uint16_t distance_code;
+  uint16_t num_extra_bits;
+  uint32_t extra_bits;
+  unsigned distance_code_width = Log2FloorNonZero(16 + (48 << postfix_bits));
+  to_distance_code(distance, postfix_bits,
+                   &distance_code, &num_extra_bits, &extra_bits);
+  add_prefix_tree(distance_code, distance_code_width);
+
+  // TODO: insert and copy command.
 }
 
 void BrotliStream::insert_uncompressed(absl::Span<const uint8_t> bytes) {
@@ -99,6 +161,12 @@ void BrotliStream::add_stream_header() {
 
   std::pair<uint8_t, uint8_t> code = window_codes[window_bits_ - 10];
   buffer_.append_number(code.first, code.second);
+}
+
+void BrotliStream::add_prefix_tree (unsigned code, unsigned width) {
+  buffer_.append_number(0b01, 2);     // Simple Tree
+  buffer_.append_number(0b00, 2);     // NSYM = 1
+  buffer_.append_number(code, width); // Symbol 1
 }
 
 }  // namespace util
