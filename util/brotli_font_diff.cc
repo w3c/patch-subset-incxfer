@@ -9,6 +9,7 @@ using ::patch_subset::FontData;
 
 namespace util {
 
+// TODO(garretrieger): move GlyfDiff into it's own file.
 class GlyfDiff {
 
  public:
@@ -22,10 +23,12 @@ class GlyfDiff {
   {
     hb_blob_t* loca = hb_face_reference_table(derived_face, HB_TAG('l', 'o', 'c', 'a'));
     derived_loca = (const uint8_t*) hb_blob_get_data(loca, nullptr);
+    // TODO(garretrieger): blob should be retained until we're done with derived_loca
     hb_blob_destroy(loca);
 
     hb_blob_t* glyf = hb_face_reference_table(derived_face, HB_TAG('g', 'l', 'y', 'f'));
     derived_glyf = (const uint8_t*) hb_blob_get_data(glyf, nullptr);
+    // TODO(garretrieger): blob should be retained until we're done with derived_glyf
     hb_blob_destroy(glyf);
 
     glyf = hb_face_reference_table(base_face, HB_TAG('g', 'l', 'y', 'f'));
@@ -77,12 +80,21 @@ class GlyfDiff {
     // *_derived_gid: glyph id in the derived subset glyph space.
     // *_old_gid:     glyph id in the original font glyph space.
 
-    // TODO(garretrieger): this might have issues when retain gids is set.
+    // TODO(garretrieger): this has issues when retain gids is set.
 
-    while (base_gid < hb_face_get_glyph_count(base_face) ||
-           derived_gid < hb_face_get_glyph_count(derived_face)) {
+    unsigned base_glyph_count = hb_face_get_glyph_count(base_face);
+    unsigned derived_glyph_count = hb_face_get_glyph_count(derived_face);
+    // TODO(garretrieger): this termination condition only works if the font is formed
+    //                     to expectations (that you consume all base and derived glyphs)
+    while (base_gid < base_glyph_count ||
+           derived_gid < derived_glyph_count) {
       unsigned base_old_gid = hb_map_get(base_new_to_old, base_gid);
-      base_derived_gid = hb_map_get(derived_old_to_new, base_old_gid);
+      if (base_old_gid == HB_MAP_VALUE_INVALID && base_gid < base_glyph_count) {
+        // This is a retain gids font, so the gid's don't change between subsets.
+        base_derived_gid = base_gid;
+      } else {
+        base_derived_gid = hb_map_get(derived_old_to_new, base_old_gid);
+      }
 
       switch (mode) {
         case INIT:
@@ -122,6 +134,7 @@ class GlyfDiff {
   void CommitRange(BrotliStream& out) {
     switch (mode) {
       case NEW_DATA:
+        // TODO(garretrieger): compress this data, don't use a dictionary.
         out.insert_uncompressed(Span<const uint8_t>(derived_glyf + derived_offset,
                                                     length));
         break;
@@ -204,12 +217,8 @@ StatusCode BrotliFontDiff::Diff(hb_subset_plan_t* base_plan,
   const uint8_t* derived_data = (const uint8_t*) hb_blob_get_data(derived, &derived_length);
   unsigned glyf_offset = glyf_data - derived_data;
 
-  // TODO(garretrieger): actually diff
-  // Algo:
-  // - output uncompressed segments for non 'glyf' parts of the file.
-  // - find the ranges of glyphs in the base, and in derived
-  // - walk the ranges in parallel output backward refs or uncompressed meta-blocks.
-
+  // TODO(garretrieger): insert the non-glyf data by compressing using the regular encoder
+  //                     against a partial dictionary.
   out.insert_uncompressed(Span<const uint8_t>(derived_data, glyf_offset));
 
   GlyfDiff glyf_diff(base_plan, base_face, derived_plan, derived_face);

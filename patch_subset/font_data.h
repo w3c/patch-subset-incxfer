@@ -14,6 +14,7 @@ class FontData {
  public:
   FontData() : buffer_(hb_blob_get_empty()) {}
 
+  // TODO(garretrieger): construct from span
   explicit FontData(::absl::string_view data) : buffer_(hb_blob_get_empty()) {
     copy(data);
   }
@@ -42,6 +43,8 @@ class FontData {
   bool operator==(const FontData& other) const { return str() == other.str(); }
 
   bool empty() const { return size() == 0; }
+
+  // TODO(garretrieger): add a to_span method.
 
   ::absl::string_view str() const {
     return ::absl::string_view(data(), size());
@@ -72,7 +75,8 @@ class FontData {
     buffer_ = hb_blob_reference(blob);
   }
 
-  // TODO(grieger): copy method which takes vector<uint8_t>.
+  // TODO(garretrieger): copy method which takes vector<uint8_t>.
+  // TODO(garretgrieger): method which takes ownership of a vector<uint8_t>
 
   void copy(const char* data, unsigned int length) {
     reset();

@@ -11,6 +11,14 @@ using ::util::BrotliFontDiff;
 
 namespace patch_subset {
 
+void dump(const char* name, const char* data, unsigned size)
+{
+  // TODO remove
+  FILE* f = fopen(name, "w");
+  fwrite(data, size, 1, f);
+  fclose(f);
+}
+
 class BrotliFontDiffTest : public ::testing::Test {
  protected:
   BrotliFontDiffTest() {}
@@ -21,6 +29,9 @@ class BrotliFontDiffTest : public ::testing::Test {
   }
 };
 
+// TODO(garretrieger): more tests
+// - long loca.
+// - retain gids.
 TEST_F(BrotliFontDiffTest, Diff) {
   hb_blob_t* font_data =
       hb_blob_create_from_file_or_fail("patch_subset/testdata/Roboto-Regular.ttf");
