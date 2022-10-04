@@ -27,6 +27,11 @@ class BrotliStream {
   // Insert bytes into the stream raw with no compression applied.
   void insert_uncompressed(absl::Span<const uint8_t> bytes);
 
+  // TODO(garretrieger): add methods:
+  // - insert_compressed: insert bytes and apply brotli compression, no dictionary is used.
+  // - insert_with_partial_dictionary: insert compressed bytes and use a subrange of the
+  //                                   full dictionary to encode against.
+
   // Insert a meta-block that signals the end of the stream.
   void end_stream();
 
