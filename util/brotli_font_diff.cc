@@ -36,6 +36,11 @@ class GlyfDiff {
 
     hb_blob_destroy(glyf);
     hb_blob_destroy(base);
+
+    hb_blob_t* head = hb_face_reference_table(derived_face, HB_TAG('h', 'e', 'a', 'd'));
+    const char* head_data = hb_blob_get_data(head, nullptr);
+    use_short_loca = !head_data[51];
+    hb_blob_destroy(head);
   }
 
  private:
@@ -62,6 +67,7 @@ class GlyfDiff {
 
   const uint8_t* derived_glyf;
   const uint8_t* derived_loca;
+  bool use_short_loca;
 
  public:
   void MakeDiff(BrotliStream& out) {
@@ -70,6 +76,8 @@ class GlyfDiff {
     // base_gid:      glyph id in the base subset glyph space.
     // *_derived_gid: glyph id in the derived subset glyph space.
     // *_old_gid:     glyph id in the original font glyph space.
+
+    // TODO(garretrieger): this might have issues when retain gids is set.
 
     while (base_gid < hb_face_get_glyph_count(base_face) ||
            derived_gid < hb_face_get_glyph_count(derived_face)) {
@@ -142,16 +150,35 @@ class GlyfDiff {
 
   // Length of glyph (in bytes) found in the derived subset.
   unsigned GlyphLength(unsigned gid) {
-    unsigned index = gid * 2; // TODO assumes short loca.
+    if (use_short_loca) {
+      unsigned index = gid * 2;
 
-    unsigned off_1 = ((derived_loca[index] & 0xFF) << 8) |
-                     (derived_loca[index + 1] & 0xFF);
+      unsigned off_1 = ((derived_loca[index] & 0xFF) << 8) |
+                       (derived_loca[index + 1] & 0xFF);
 
-    index += 2;
-    unsigned off_2 = ((derived_loca[index] & 0xFF) << 8) |
-                     (derived_loca[index + 1] & 0xFF);
+      index += 2;
+      unsigned off_2 = ((derived_loca[index] & 0xFF) << 8) |
+                       (derived_loca[index + 1] & 0xFF);
 
-    return (off_2 * 2) - (off_1 * 2);
+      return (off_2 * 2) - (off_1 * 2);
+    }
+
+    unsigned index = gid * 4;
+
+    unsigned off_1 =
+        ((derived_loca[index] & 0xFF) << 24) |
+        ((derived_loca[index+1] & 0xFF) << 16) |
+        ((derived_loca[index+2] & 0xFF) << 8) |
+        (derived_loca[index+3] & 0xFF);
+
+    index += 4;
+    unsigned off_2 =
+        ((derived_loca[index] & 0xFF) << 24) |
+        ((derived_loca[index+1] & 0xFF) << 16) |
+        ((derived_loca[index+2] & 0xFF) << 8) |
+        (derived_loca[index+3] & 0xFF);
+
+    return off_2 - off_1;
   }
 };
 
