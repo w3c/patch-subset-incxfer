@@ -1,5 +1,6 @@
 #include "patch_subset/brotli_binary_diff.h"
 #include "patch_subset/brotli_binary_patch.h"
+#include "util/brotli_font_diff.h"
 #include "hb-subset.h"
 
 #include <stdio.h>
@@ -12,6 +13,7 @@ using namespace std::chrono;
 using std::string_view;
 using std::vector;
 
+using util::BrotliFontDiff;
 using patch_subset::BrotliBinaryDiff;
 using patch_subset::BrotliBinaryPatch;
 using patch_subset::FontData;
@@ -23,12 +25,13 @@ constexpr unsigned STATIC_QUALITY = 11;
 // -1 to use ascii as a subset.
 constexpr unsigned SUBSET_COUNT = 10;
 constexpr unsigned BASE_COUNT = 1000;
-constexpr unsigned TRIAL_DURATION_MS = 1000;
+constexpr unsigned TRIAL_DURATION_MS = 5000;
 
 enum Mode {
   PRECOMPRESS_LAYOUT = 0,
   IMMUTABLE_LAYOUT,
   MUTABLE_LAYOUT,
+  CUSTOM_DIFF,
   END,
 };
 
@@ -89,7 +92,7 @@ vector<uint8_t> precompress_immutable(const hb_face_t* face)
   return sink;
 }
 
-hb_face_t* make_subset (hb_face_t* face, hb_set_t* codepoints, Mode mode)
+hb_face_t* make_subset (hb_face_t* face, hb_set_t* codepoints, Mode mode, hb_subset_plan_t** plan)
 {
   hb_face_t* subset = nullptr;
 
@@ -98,7 +101,7 @@ hb_face_t* make_subset (hb_face_t* face, hb_set_t* codepoints, Mode mode)
   hb_set_clear (hb_subset_input_set (input, HB_SUBSET_SETS_DROP_TABLE_TAG));
   hb_set_union (hb_subset_input_unicode_set (input), codepoints);
 
-  if (mode != MUTABLE_LAYOUT) {
+  if (mode != MUTABLE_LAYOUT && mode != CUSTOM_DIFF) {
     for (hb_tag_t* tag = immutable_tables;
          *tag;
          tag++)
@@ -110,11 +113,12 @@ hb_face_t* make_subset (hb_face_t* face, hb_set_t* codepoints, Mode mode)
     hb_subset_input_set_flags (input, HB_SUBSET_FLAGS_PASSTHROUGH_UNRECOGNIZED);
   }
 
-  subset = hb_subset_or_fail (face, input);
+  *plan = hb_subset_plan_create_or_fail (face, input);
+  subset = hb_subset_plan_execute_or_fail (*plan);
   hb_subset_input_destroy (input);
 
   // Reorder immutable tables to be first.
-  if (mode != MUTABLE_LAYOUT) {
+  if (mode != MUTABLE_LAYOUT && mode != CUSTOM_DIFF) {
     hb_face_builder_sort_tables (subset, immutable_tables);
   }
 
@@ -205,7 +209,9 @@ unsigned precompressed_length(const hb_face_t* face)
 
 unsigned make_patch (hb_face_t* face,
                      hb_face_t* base_face,
+                     hb_subset_plan_t* base_plan,
                      hb_face_t* subset_face,
+                     hb_subset_plan_t* subset_plan,
                      Mode mode,
                      unsigned dynamic_quality,
                      unsigned i)
@@ -227,6 +233,12 @@ unsigned make_patch (hb_face_t* face,
     add_compressed_table_directory(face, blob, patch);
     patch.insert(patch.end(), precompressed.begin(), precompressed.end());
     add_mutable_tables(base, blob, dynamic_quality, table_directory_size(face) + precompressed_length(face), patch);
+  } else if (mode == CUSTOM_DIFF) {
+    // Use custom differ
+    BrotliFontDiff differ;
+    FontData patch_data;
+    differ.Diff(base_plan, base_face, subset_plan, subset_face, &patch_data);
+    patch.insert(patch.end(), patch_data.str().begin(), patch_data.str().end());
   } else {
     add_mutable_tables(base, blob, dynamic_quality, 0, patch);
   }
@@ -273,14 +285,19 @@ unsigned make_patch (hb_face_t* face,
                      unsigned i)
 {
   hb_face_t* base_face = nullptr;
+  hb_subset_plan_t* base_plan = nullptr;
   if (hb_set_get_population (base_codepoints) > 0) {
-    base_face = make_subset (face, base_codepoints, mode);
+    base_face = make_subset (face, base_codepoints, mode, &base_plan);
   }
-  hb_face_t* subset_face = make_subset (face, subset_codepoints, mode);
+
+  hb_subset_plan_t* subset_plan;
+  hb_face_t* subset_face = make_subset (face, subset_codepoints, mode, &subset_plan);
 
   unsigned result = make_patch (face,
                                 base_face,
+                                base_plan,
                                 subset_face,
+                                subset_plan,
                                 mode,
                                 dynamic_quality,
                                 i);
@@ -329,7 +346,7 @@ void test_dictionary_size(hb_face_t* face) {
 
   printf("quality, duration_ms, iterations, base_codepoints, base_size, patch_size, ms/req\n");
   unsigned quality = 5;
-  Mode mode = IMMUTABLE_LAYOUT;
+  Mode mode = MUTABLE_LAYOUT;
   for (unsigned base_count = BASE_COUNT;
        base_count <= 10 * BASE_COUNT;
        base_count += BASE_COUNT)
@@ -339,8 +356,10 @@ void test_dictionary_size(hb_face_t* face) {
     create_subset_set (face, base_codepoints, base_count);
     create_subset_set (face, subset_codepoints, base_count + SUBSET_COUNT);
 
-    hb_face_t* base_face = make_subset (face, base_codepoints, mode);
-    hb_face_t* subset_face = make_subset (face, subset_codepoints, mode);
+    hb_subset_plan_t* base_plan;
+    hb_face_t* base_face = make_subset (face, base_codepoints, mode, &base_plan);
+    hb_subset_plan_t* subset_plan;
+    hb_face_t* subset_face = make_subset (face, subset_codepoints, mode, &subset_plan);
     hb_set_destroy (base_codepoints);
     hb_set_destroy (subset_codepoints);
     hb_blob_t* base_blob = hb_face_reference_blob (base_face);
@@ -355,8 +374,10 @@ void test_dictionary_size(hb_face_t* face) {
     while (true) {
       patch_size = make_patch (face,
                                base_face,
+                               base_plan,
                                subset_face,
-                               MUTABLE_LAYOUT, quality, i);
+                               subset_plan,
+                               CUSTOM_DIFF, quality, i);
       if (i % 20 == 0) {
         auto stop = high_resolution_clock::now();
         duration_ms = duration_cast<milliseconds>(stop - start).count();
@@ -384,7 +405,7 @@ void test_precompression(hb_face_t* face) {
 
   printf("mode, quality, duration_ms, iterations, patch_size, ms/req\n");
   unsigned start_mode = BASE_COUNT > 0 ? IMMUTABLE_LAYOUT : PRECOMPRESS_LAYOUT;
-  for (unsigned mode = start_mode; mode < END; mode++) {
+  for (unsigned mode = start_mode; mode < CUSTOM_DIFF; mode++) {
     for (unsigned quality = 0; quality <= 9; quality ++) {
       unsigned patch_size = 0;
       unsigned duration_ms = 0;

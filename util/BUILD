@@ -16,6 +16,10 @@ cc_binary(
         "brotli_bit_buffer.cc",
         "brotli_bit_buffer.h",
         "precompress-test.cc",
+        "brotli_stream.cc",
+        "brotli_stream.h",
+        "brotli_font_diff.cc",
+        "brotli_font_diff.h",
     ],
     deps = [
         "//patch_subset:client",
