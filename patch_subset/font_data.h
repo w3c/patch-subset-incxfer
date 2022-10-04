@@ -12,9 +12,22 @@ namespace patch_subset {
 // Holds the binary data for a font.
 class FontData {
  public:
+
+  static FontData ToFontData(hb_face_t* face) {
+    hb_blob_t* blob = hb_face_reference_blob(face);
+    FontData data(blob);
+    hb_blob_destroy(blob);
+    return data;
+  }
+
   FontData() : buffer_(hb_blob_get_empty()) {}
 
   // TODO(garretrieger): construct from span
+
+  explicit FontData(hb_blob_t* blob) : buffer_(hb_blob_get_empty()) {
+    set(blob);
+  }
+
   explicit FontData(::absl::string_view data) : buffer_(hb_blob_get_empty()) {
     copy(data);
   }
