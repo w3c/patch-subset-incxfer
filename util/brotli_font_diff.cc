@@ -44,6 +44,10 @@ class GlyfDiff {
     const char* head_data = hb_blob_get_data(head, nullptr);
     use_short_loca = !head_data[51];
     hb_blob_destroy(head);
+
+    base_glyph_count = hb_face_get_glyph_count(base_face);
+    derived_glyph_count = hb_face_get_glyph_count(derived_face);
+    retain_gids = base_glyph_count < hb_map_get_population(base_new_to_old);
   }
 
  private:
@@ -70,7 +74,11 @@ class GlyfDiff {
 
   const uint8_t* derived_glyf;
   const uint8_t* derived_loca;
+
+  unsigned base_glyph_count;
+  unsigned derived_glyph_count;
   bool use_short_loca;
+  bool retain_gids;
 
  public:
   void MakeDiff(BrotliStream& out) {
@@ -79,22 +87,8 @@ class GlyfDiff {
     // base_gid:      glyph id in the base subset glyph space.
     // *_derived_gid: glyph id in the derived subset glyph space.
     // *_old_gid:     glyph id in the original font glyph space.
-
-    // TODO(garretrieger): this has issues when retain gids is set.
-
-    unsigned base_glyph_count = hb_face_get_glyph_count(base_face);
-    unsigned derived_glyph_count = hb_face_get_glyph_count(derived_face);
-    // TODO(garretrieger): this termination condition only works if the font is formed
-    //                     to expectations (that you consume all base and derived glyphs)
-    while (base_gid < base_glyph_count ||
-           derived_gid < derived_glyph_count) {
-      unsigned base_old_gid = hb_map_get(base_new_to_old, base_gid);
-      if (base_old_gid == HB_MAP_VALUE_INVALID && base_gid < base_glyph_count) {
-        // This is a retain gids font, so the gid's don't change between subsets.
-        base_derived_gid = base_gid;
-      } else {
-        base_derived_gid = hb_map_get(derived_old_to_new, base_old_gid);
-      }
+    while (derived_gid < derived_glyph_count) {
+      unsigned base_derived_gid = BaseToDerivedGid(base_gid);
 
       switch (mode) {
         case INIT:
@@ -129,6 +123,17 @@ class GlyfDiff {
     }
 
     CommitRange(out);
+  }
+
+ private:
+  unsigned BaseToDerivedGid(unsigned gid) {
+    if (retain_gids) {
+      // If retain gids is set gids are equivalent in all three spaces.
+      return gid < base_glyph_count ? gid : HB_MAP_VALUE_INVALID;
+    }
+
+    unsigned base_old_gid = hb_map_get(base_new_to_old, base_gid);
+    return hb_map_get(derived_old_to_new, base_old_gid);
   }
 
   void CommitRange(BrotliStream& out) {
