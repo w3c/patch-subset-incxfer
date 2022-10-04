@@ -9,8 +9,18 @@ using ::patch_subset::FontData;
 
 namespace util {
 
-// TODO(garretrieger): move GlyfDiff into it's own file.
+
+/*
+ * Writes out a brotli encoded copy of the 'derived' subsets glyf table using the 'base' subset
+ * as a shared dictionary.
+ *
+ * Performs the comparison using the glyph ids in the plans for each subset and does not actually
+ * compare any glyph bytes. Common ranges are glyphs are encoded using backwards references to the
+ * base dictionary. Novel glyph data found in 'derived' is encoded as compressed data without the
+ * use of the shared dictionary.
+ */
 class GlyfDiff {
+  // TODO(garretrieger): move GlyfDiff into it's own file.
 
  public:
   GlyfDiff(hb_subset_plan_t* base_plan,
@@ -89,7 +99,6 @@ class GlyfDiff {
     // *_old_gid:     glyph id in the original font glyph space.
     while (derived_gid < derived_glyph_count) {
       unsigned base_derived_gid = BaseToDerivedGid(base_gid);
-
       switch (mode) {
         case INIT:
           StartRange();
