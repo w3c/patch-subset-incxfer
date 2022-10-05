@@ -1,11 +1,11 @@
-#ifndef UTIL_BROTLI_FONT_DIFF_H_
-#define UTIL_BROTLI_FONT_DIFF_H_
+#ifndef BROTLI_BROTLI_FONT_DIFF_H_
+#define BROTLI_BROTLI_FONT_DIFF_H_
 
 #include "common/status.h"
 #include "hb-subset.h"
 #include "patch_subset/font_data.h"
 
-namespace util {
+namespace brotli {
 
 /*
  * Produces a brotli binary diff between two fonts. Uses knowledge of the underlying font format
@@ -24,6 +24,6 @@ class BrotliFontDiff {
  private:
 };
 
-}  // namespace util
+}  // namespace brotli
 
-#endif  // UTIL_BROTLI_FONT_DIFF_H_
+#endif  // BROTLI_BROTLI_FONT_DIFF_H_

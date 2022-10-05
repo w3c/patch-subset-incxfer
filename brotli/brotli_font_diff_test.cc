@@ -1,4 +1,4 @@
-#include "util/brotli_font_diff.h"
+#include "brotli/brotli_font_diff.h"
 
 #include "absl/types/span.h"
 #include "gtest/gtest.h"
@@ -7,9 +7,10 @@
 
 using ::absl::Span;
 using ::patch_subset::BrotliBinaryPatch;
-using ::util::BrotliFontDiff;
+using ::patch_subset::FontData;
+using ::patch_subset::StatusCode;
 
-namespace patch_subset {
+namespace brotli {
 
 void dump(const char* name, const char* data, unsigned size)
 {
@@ -140,4 +141,4 @@ TEST_F(BrotliFontDiffTest, LongLoca) {
 }
 
 
-}  // namespace patch_subset
+}  // namespace brotli

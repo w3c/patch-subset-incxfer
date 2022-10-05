@@ -1,13 +1,13 @@
-#include "util/brotli_font_diff.h"
+#include "brotli/brotli_font_diff.h"
 
 #include "absl/types/span.h"
-#include "util/brotli_stream.h"
+#include "brotli/brotli_stream.h"
 
 using ::absl::Span;
 using ::patch_subset::StatusCode;
 using ::patch_subset::FontData;
 
-namespace util {
+namespace brotli {
 
 
 /*
@@ -256,4 +256,4 @@ StatusCode BrotliFontDiff::Diff(hb_subset_plan_t* base_plan,
   return StatusCode::kOk;
 }
 
-}  // namespace util
+}  // namespace brotli

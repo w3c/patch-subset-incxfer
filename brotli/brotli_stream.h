@@ -1,12 +1,12 @@
-#ifndef UTIL_BROTLI_STREAM_H_
-#define UTIL_BROTLI_STREAM_H_
+#ifndef BROTLI_BROTLI_STREAM_H_
+#define BROTLI_BROTLI_STREAM_H_
 
 #include <algorithm>
 
 #include "absl/types/span.h"
-#include "util/brotli_bit_buffer.h"
+#include "brotli/brotli_bit_buffer.h"
 
-namespace util {
+namespace brotli {
 
 /*
  * A helper class used to generate a brotli compressed stream.
@@ -54,6 +54,6 @@ class BrotliStream {
   BrotliBitBuffer buffer_;
 };
 
-}  // namespace util
+}  // namespace brotli
 
-#endif  // UTIL_BROTLI_STREAM_H_
+#endif  // BROTLI_BROTLI_STREAM_H_

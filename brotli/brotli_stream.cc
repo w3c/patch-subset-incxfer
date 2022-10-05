@@ -1,11 +1,11 @@
-#include "util/brotli_stream.h"
+#include "brotli/brotli_stream.h"
 
 #include <utility>
 
 #include "c/enc/prefix.h"
 #include "c/enc/fast_log.h"
 
-namespace util {
+namespace brotli {
 
 constexpr unsigned MAX_METABLOCK_SIZE = (1 << 24);
 
@@ -252,4 +252,4 @@ void BrotliStream::add_prefix_tree (unsigned code, unsigned width) {
   buffer_.append_number(code, width); // Symbol 1
 }
 
-}  // namespace util
+}  // namespace brotli
