@@ -120,6 +120,7 @@ cc_library(
         "//visibility:public",
     ],
     deps = [
+        "//brotli:shared_brotli_encoder",
         "//common",
         "//patch_subset/cbor",
         "@brotli//:brotlienc",
