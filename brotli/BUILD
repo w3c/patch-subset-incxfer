@@ -4,7 +4,7 @@ cc_library(
         # TODO "shared_brotli_encoder.cc",
         "brotli_bit_buffer.cc",
         "brotli_font_diff.cc",
-        "brotli_stream.cc"
+        "brotli_stream.cc",
     ],
     hdrs = [
         # TODO "shared_brotli_encoder.h",
@@ -16,9 +16,22 @@ cc_library(
         "//visibility:public",
     ],
     deps = [
+        "//patch_subset:common",
         "@brotli//:brotlienc",
         "@com_google_absl//absl/types:span",
-        "//patch_subset:common",
+    ],
+)
+
+cc_library(
+    name = "shared_brotli_encoder",
+    hdrs = [
+        "shared_brotli_encoder.h",
+    ],
+    visibility = [
+        "//visibility:public",
+    ],
+    deps = [
+        "@brotli//:brotlienc",
     ],
 )
 
@@ -35,10 +48,10 @@ cc_test(
     ],
     deps = [
         ":encoding",
-        "@com_google_absl//absl/types:span",
-        "@gtest//:gtest_main",
+        "//common",
         "//patch_subset:client",
         "@brotli//:brotlienc",
-        "//common",
+        "@com_google_absl//absl/types:span",
+        "@gtest//:gtest_main",
     ],
 )
