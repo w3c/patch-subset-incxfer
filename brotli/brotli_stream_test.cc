@@ -1,13 +1,14 @@
 #include "absl/types/span.h"
 #include "gtest/gtest.h"
-#include "util/brotli_stream.h"
+#include "brotli/brotli_stream.h"
 #include "patch_subset/brotli_binary_patch.h"
 
 using ::absl::Span;
-using ::util::BrotliStream;
 using ::patch_subset::BrotliBinaryPatch;
+using ::patch_subset::FontData;
+using ::patch_subset::StatusCode;
 
-namespace patch_subset {
+namespace brotli {
 
 class BrotliStreamTest : public ::testing::Test {
  protected:
@@ -98,4 +99,4 @@ TEST_F(BrotliStreamTest, InsertMixed) {
 }
 
 
-}  // namespace patch_subset
+}  // namespace brotli

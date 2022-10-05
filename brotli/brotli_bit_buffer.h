@@ -1,11 +1,11 @@
-#ifndef UTIL_BROTLI_BIT_BUFFER_H_
-#define UTIL_BROTLI_BIT_BUFFER_H_
+#ifndef BROTLI_BROTLI_BIT_BUFFER_H_
+#define BROTLI_BROTLI_BIT_BUFFER_H_
 
 #include <cstdint>
 #include <vector>
 #include "absl/types/span.h"
 
-namespace util {
+namespace brotli {
 
 /*
  * A class to help write out a brotli byte stream which is a concatenation
@@ -41,6 +41,6 @@ class BrotliBitBuffer {
   unsigned bit_index_;
 };
 
-}  // namespace util
+}  // namespace brotli
 
-#endif  // UTIL_BROTLI_BIT_BUFFER_H_
+#endif  // BROTLI_BROTLI_BIT_BUFFER_H_

@@ -1,6 +1,6 @@
 #include "patch_subset/brotli_binary_diff.h"
 #include "patch_subset/brotli_binary_patch.h"
-#include "util/brotli_font_diff.h"
+#include "brotli/brotli_font_diff.h"
 #include "hb-subset.h"
 
 #include <stdio.h>
@@ -13,7 +13,7 @@ using namespace std::chrono;
 using std::string_view;
 using std::vector;
 
-using util::BrotliFontDiff;
+using brotli::BrotliFontDiff;
 using patch_subset::BrotliBinaryDiff;
 using patch_subset::BrotliBinaryPatch;
 using patch_subset::FontData;

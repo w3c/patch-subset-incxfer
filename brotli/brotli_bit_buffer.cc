@@ -1,9 +1,9 @@
-#include "util/brotli_bit_buffer.h"
+#include "brotli/brotli_bit_buffer.h"
 
 #include <vector>
 #include "absl/types/span.h"
 
-namespace util {
+namespace brotli {
 
 void BrotliBitBuffer::append_number(uint32_t bits, unsigned count) {
 
@@ -49,4 +49,4 @@ absl::Span<const uint8_t> BrotliBitBuffer::data() const {
   return absl::Span<const uint8_t>(buffer_);
 }
 
-}  // namespace util
+}  // namespace brotli

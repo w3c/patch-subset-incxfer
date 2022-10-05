@@ -1,11 +1,10 @@
 #include "absl/types/span.h"
 #include "gtest/gtest.h"
-#include "util/brotli_bit_buffer.h"
+#include "brotli/brotli_bit_buffer.h"
 
 using ::absl::Span;
-using ::util::BrotliBitBuffer;
 
-namespace patch_subset {
+namespace brotli {
 
 class BrotliBitBufferTest : public ::testing::Test {
  protected:
@@ -65,4 +64,4 @@ TEST_F(BrotliBitBufferTest, AppendOutOfBounds) {
 
 }
 
-}  // namespace patch_subset
+}  // namespace brotli
