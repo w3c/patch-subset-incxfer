@@ -38,6 +38,20 @@ void CheckDecompressesTo(const BrotliStream& stream,
             expected_char);
 }
 
+TEST_F(BrotliStreamTest, InsertCompressed) {
+  BrotliStream stream(22);
+  uint8_t data[] = {
+    'H', 'e', 'l', 'l', 'o', ' ',
+    'H', 'e', 'l', 'l', 'o', ' ',
+    'H', 'e', 'l', 'l', 'o', ' ',
+    'H', 'e', 'l', 'l', 'o', ' '};
+  stream.insert_compressed(data);
+  stream.end_stream();
+
+  EXPECT_LT(stream.compressed_data().size(), 24);
+  CheckDecompressesTo(stream, data);
+}
+
 TEST_F(BrotliStreamTest, InsertUncompressed) {
   BrotliStream stream(22);
   uint8_t data[] = {'H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd'};
@@ -87,14 +101,16 @@ TEST_F(BrotliStreamTest, InsertFromDictionary) {
 TEST_F(BrotliStreamTest, InsertMixed) {
   BrotliStream stream(22, 11);
   uint8_t dict_data[] = {'H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd'};
-  uint8_t data[] = {'1', '2', '3'};
+  uint8_t data1[] = {'1', '2', '3'};
+  uint8_t data2[] = {'6', '7', '8', '9'};
 
   stream.insert_from_dictionary(1, 4);
-  stream.insert_uncompressed(data);
+  stream.insert_uncompressed(data1);
   stream.insert_from_dictionary(6, 3);
+  stream.insert_compressed(data2);
   stream.end_stream();
 
-  uint8_t expected[] = {'e', 'l', 'l', 'o', '1', '2', '3', 'w', 'o', 'r'};
+  uint8_t expected[] = {'e', 'l', 'l', 'o', '1', '2', '3', 'w', 'o', 'r', '6', '7', '8', '9'};
   CheckDecompressesTo(stream, expected, dict_data);
 }
 

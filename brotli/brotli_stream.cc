@@ -2,8 +2,12 @@
 
 #include <utility>
 
+#include "brotli/shared_brotli_encoder.h"
+#include "common/logging.h"
 #include "c/enc/prefix.h"
 #include "c/enc/fast_log.h"
+
+using patch_subset::StatusCode;
 
 namespace brotli {
 
@@ -180,6 +184,44 @@ void BrotliStream::insert_uncompressed(absl::Span<const uint8_t> bytes) {
   uncompressed_size_ += size;
 }
 
+StatusCode BrotliStream::insert_compressed(absl::Span<const uint8_t> bytes) {
+  EncoderStatePointer state = SharedBrotliEncoder::CreateEncoder(5,
+                                                                 0,
+                                                                 uncompressed_size_,
+                                                                 nullptr);
+  if (!state) {
+    LOG(WARNING) << "Failed to create brotli encoder.";
+    return StatusCode::kInternal;
+  }
+
+  if (!BrotliEncoderSetParameter(state.get(), BROTLI_PARAM_LGWIN, window_bits_)) {
+    LOG(WARNING) << "Failed to set brotli window size.";
+    return StatusCode::kInternal;
+  }
+
+  byte_align(); // When stitching in a new metablock we must byte align first.
+  bool result = SharedBrotliEncoder::CompressToSink(
+      string_view((const char*) bytes.data(), bytes.size()),
+      false,
+      state.get(),
+      &buffer_.sink());
+  if (!result) {
+    LOG(WARNING) << "Failed to encode brotli binary patch.";
+    return StatusCode::kInternal;
+  }
+
+  return StatusCode::kOk;
+}
+
+// Align the stream to the nearest byte boundary.
+void BrotliStream::byte_align() {
+  if (buffer_.is_byte_aligned()) {
+    return;
+  }
+
+  add_mlen(0);
+}
+
 void BrotliStream::end_stream() {
   buffer_.append_number(0b1,  1); // ISLAST
   buffer_.append_number(0b1,  1); // ISLASTEMPTY
@@ -191,6 +233,7 @@ bool BrotliStream::add_mlen (unsigned size) {
   uint32_t num_nibbles_code = 0;
   if (size == 0) {
     // Empty meta-block
+    buffer_.append_number(0b0,  1);  // ISLAST
     buffer_.append_number(0b11, 2); // MNIBBLES
     buffer_.append_number(0b0,  1); // Reserved
     buffer_.append_number(0b00, 2); // MSKIPBYTES

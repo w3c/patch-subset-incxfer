@@ -27,11 +27,21 @@ class BrotliBitBuffer {
     buffer_.insert(buffer_.end(), bytes.begin(), bytes.end());
   }
 
-  void pad_to_end_of_byte() { // TODO(grieger): add tests.
+  void pad_to_end_of_byte() {
     bit_index_ = 8;
   }
 
-  absl::Span<const uint8_t> data() const;
+  bool is_byte_aligned() const {
+    return bit_index_ == 8;
+  }
+
+  absl::Span<const uint8_t> data() const {
+    return absl::Span<const uint8_t>(buffer_);
+  }
+
+  std::vector<uint8_t>& sink() {
+    return buffer_;
+  }
 
  private:
 

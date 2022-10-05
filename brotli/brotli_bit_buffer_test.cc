@@ -64,4 +64,27 @@ TEST_F(BrotliBitBufferTest, AppendOutOfBounds) {
 
 }
 
+TEST_F(BrotliBitBufferTest, PadToByte) {
+  BrotliBitBuffer buffer;
+
+  EXPECT_TRUE(buffer.is_byte_aligned());
+
+  buffer.append_number(11, 4);
+  EXPECT_FALSE(buffer.is_byte_aligned());
+  EXPECT_EQ(Span<const uint8_t> ({11}), buffer.data());
+
+  buffer.pad_to_end_of_byte();
+  EXPECT_TRUE(buffer.is_byte_aligned());
+  EXPECT_EQ(Span<const uint8_t> ({11}), buffer.data());
+
+  buffer.pad_to_end_of_byte();
+  EXPECT_TRUE(buffer.is_byte_aligned());
+  EXPECT_EQ(Span<const uint8_t> ({11}), buffer.data());
+
+  buffer.append_number(12, 4);
+  EXPECT_FALSE(buffer.is_byte_aligned());
+  EXPECT_EQ(Span<const uint8_t> ({11, 12}), buffer.data());
+}
+
+
 }  // namespace brotli
