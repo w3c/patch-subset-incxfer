@@ -45,8 +45,4 @@ void BrotliBitBuffer::append_prefix_code(uint8_t bits, unsigned count) {
   append_number(reverse(bits) >> (8 - count), count);
 }
 
-absl::Span<const uint8_t> BrotliBitBuffer::data() const {
-  return absl::Span<const uint8_t>(buffer_);
-}
-
 }  // namespace brotli

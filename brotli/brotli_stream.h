@@ -5,6 +5,7 @@
 
 #include "absl/types/span.h"
 #include "brotli/brotli_bit_buffer.h"
+#include "common/status.h"
 
 namespace brotli {
 
@@ -26,6 +27,12 @@ class BrotliStream {
 
   // Insert bytes into the stream raw with no compression applied.
   void insert_uncompressed(absl::Span<const uint8_t> bytes);
+
+  // Insert bytes and compress them. No shared dictionary is used.
+  patch_subset::StatusCode insert_compressed(absl::Span<const uint8_t> bytes);
+
+  // Align the stream to the nearest byte boundary.
+  void byte_align();
 
   // TODO(garretrieger): add methods:
   // - insert_compressed: insert bytes and apply brotli compression, no dictionary is used.

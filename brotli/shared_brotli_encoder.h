@@ -1,7 +1,10 @@
 #ifndef BROTLI_SHARED_BROTLI_ENCODER_H_
 #define BROTLI_SHARED_BROTLI_ENCODER_H_
 
+#include <memory>
+
 #include "brotli/encode.h"
+#include "common/logging.h"
 
 #include "absl/strings/string_view.h"
 
