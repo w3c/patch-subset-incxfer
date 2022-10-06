@@ -71,7 +71,6 @@ class GlyfDiff {
   unsigned length = 0;
 
   unsigned base_gid = 0;
-  unsigned base_derived_gid = 0;
   unsigned derived_gid = 0;
 
   hb_face_t* base_face;
@@ -101,7 +100,7 @@ class GlyfDiff {
       unsigned base_derived_gid = BaseToDerivedGid(base_gid);
       switch (mode) {
         case INIT:
-          StartRange();
+          StartRange(base_derived_gid);
           continue;
 
         case NEW_DATA:
@@ -113,7 +112,7 @@ class GlyfDiff {
           }
 
           CommitRange(out);
-          StartRange();
+          StartRange(base_derived_gid);
           continue;
 
         case EXISTING_DATA:
@@ -126,7 +125,7 @@ class GlyfDiff {
           }
 
           CommitRange(out);
-          StartRange();
+          StartRange(base_derived_gid);
           continue;
       }
     }
@@ -161,7 +160,7 @@ class GlyfDiff {
     derived_offset += length;
   }
 
-  void StartRange() {
+  void StartRange(unsigned base_derived_gid) {
     length = GlyphLength(derived_gid);
 
     if (base_derived_gid != derived_gid) {
