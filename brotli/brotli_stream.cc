@@ -2,11 +2,13 @@
 
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "brotli/shared_brotli_encoder.h"
 #include "common/logging.h"
 #include "c/enc/prefix.h"
 #include "c/enc/fast_log.h"
 
+using absl::Span;
 using patch_subset::StatusCode;
 
 namespace brotli {
@@ -184,9 +186,20 @@ void BrotliStream::insert_uncompressed(absl::Span<const uint8_t> bytes) {
   uncompressed_size_ += size;
 }
 
-StatusCode BrotliStream::insert_compressed(absl::Span<const uint8_t> bytes) {
+StatusCode BrotliStream::insert_compressed(Span<const uint8_t> bytes) {
+  return insert_compressed_with_partial_dict(bytes, Span<const uint8_t>());
+}
+
+StatusCode BrotliStream::insert_compressed_with_partial_dict(
+    Span<const uint8_t> bytes,
+    Span<const uint8_t> partial_dict) {
+
   if (!bytes.size()) {
     return StatusCode::kOk;
+  }
+
+  if (partial_dict.size() > dictionary_size_) {
+    partial_dict = partial_dict.subspan(0, dictionary_size_);
   }
 
   if (!uncompressed_size_ && dictionary_size_) {
@@ -200,28 +213,29 @@ StatusCode BrotliStream::insert_compressed(absl::Span<const uint8_t> bytes) {
   // the regular brotli encoder which will start byte aligned.
   byte_align();
 
+  DictionaryPointer dictionary(nullptr, nullptr);
+  if (partial_dict.size() > 0) {
+    dictionary = SharedBrotliEncoder::CreateDictionary(partial_dict);
+    if (!dictionary) {
+      LOG(WARNING) << "Failed to create brotli dictionary.";
+      return StatusCode::kInternal;
+    }
+  }
+
   // dictionary_size is added to the stream offset so that static dictionary references (which
   // are window + dictionary size + static word id) will be created with the right distance.
   // TODO(garretrieger): this trick fails if stream_offset > window size since internally the brotli
   //                     encoder uses min(stream_offset, window_size). To avoid this we must make sure
   //                     the window size is always > dict + uncompressed size.
-  unsigned stream_offset = uncompressed_size_ + dictionary_size_;
-  EncoderStatePointer state = SharedBrotliEncoder::CreateEncoder(5,
-                                                                 0,
-                                                                 stream_offset,
-                                                                 nullptr);
+  unsigned stream_offset = uncompressed_size_ + dictionary_size_ - partial_dict.size();
+  EncoderStatePointer state = create_encoder(stream_offset, dictionary.get());
   if (!state) {
     LOG(WARNING) << "Failed to create brotli encoder.";
     return StatusCode::kInternal;
   }
 
-  if (!BrotliEncoderSetParameter(state.get(), BROTLI_PARAM_LGWIN, window_bits_)) {
-    LOG(WARNING) << "Failed to set brotli window size.";
-    return StatusCode::kInternal;
-  }
-
   bool result = SharedBrotliEncoder::CompressToSink(
-      string_view((const char*) bytes.data(), bytes.size()),
+      absl::string_view((const char*) bytes.data(), bytes.size()),
       false,
       state.get(),
       &buffer_.sink());
@@ -248,6 +262,26 @@ void BrotliStream::end_stream() {
   buffer_.append_number(0b1,  1); // ISLASTEMPTY
   buffer_.pad_to_end_of_byte ();
 }
+
+EncoderStatePointer BrotliStream::create_encoder(unsigned stream_offset,
+                                                 const BrotliEncoderPreparedDictionary* dictionary) const {
+  EncoderStatePointer state = SharedBrotliEncoder::CreateEncoder(5,
+                                                                 0,
+                                                                 stream_offset,
+                                                                 dictionary);
+  if (!state) {
+    return state;
+  }
+
+  if (!BrotliEncoderSetParameter(state.get(), BROTLI_PARAM_LGWIN, window_bits_)) {
+    LOG(WARNING) << "Failed to set brotli window size.";
+    state.reset();
+    return state;
+  }
+
+  return state;
+}
+
 
 bool BrotliStream::add_mlen (unsigned size) {
   uint32_t num_nibbles = 0;

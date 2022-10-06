@@ -7,8 +7,7 @@
 #include "common/logging.h"
 
 #include "absl/strings/string_view.h"
-
-using ::absl::string_view;
+#include "absl/types/span.h"
 
 namespace brotli {
 
@@ -24,10 +23,10 @@ class SharedBrotliEncoder {
 
  public:
 
-  static DictionaryPointer CreateDictionary(string_view data) {
+  static DictionaryPointer CreateDictionary(absl::Span<const uint8_t> data) {
     return DictionaryPointer(BrotliEncoderPrepareDictionary(
         BROTLI_SHARED_DICTIONARY_RAW, data.size(),
-        reinterpret_cast<const uint8_t*>(data.data()),
+        data.data(),
         BROTLI_MAX_QUALITY, nullptr, nullptr, nullptr),
                              &BrotliEncoderDestroyPreparedDictionary);
   }
@@ -87,7 +86,7 @@ class SharedBrotliEncoder {
     return state;
   }
 
-  static bool CompressToSink(string_view derived,
+  static bool CompressToSink(absl::string_view derived,
                              bool is_last,
                              BrotliEncoderState* state, /* OUT */
                              std::vector<uint8_t>* sink /* OUT */) {
@@ -100,7 +99,7 @@ class SharedBrotliEncoder {
     BROTLI_BOOL result = BROTLI_TRUE;
     while (result &&
            (source_index < derived.size() || !IsFinished(state, current_op, is_last))) {
-      const string_view sp = derived.substr(source_index);
+      const absl::string_view sp = derived.substr(source_index);
       available_in = sp.size();
       const uint8_t* next_in =
           available_in ? reinterpret_cast<const uint8_t*>(sp.data()) : nullptr;
