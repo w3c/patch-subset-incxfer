@@ -2,8 +2,8 @@
 
 #include "absl/types/span.h"
 #include "gtest/gtest.h"
-#include "patch_subset/brotli_binary_patch.h"
 #include "hb-subset.h"
+#include "patch_subset/brotli_binary_patch.h"
 
 using ::absl::Span;
 using ::patch_subset::BrotliBinaryPatch;
@@ -12,8 +12,7 @@ using ::patch_subset::StatusCode;
 
 namespace brotli {
 
-void dump(const char* name, const char* data, unsigned size)
-{
+void dump(const char* name, const char* data, unsigned size) {
   // TODO remove
   FILE* f = fopen(name, "w");
   fwrite(data, size, 1, f);
@@ -27,14 +26,14 @@ class BrotliFontDiffTest : public ::testing::Test {
   ~BrotliFontDiffTest() override {}
 
   void SetUp() override {
-    hb_blob_t* font_data =
-        hb_blob_create_from_file_or_fail("patch_subset/testdata/Roboto-Regular.ttf");
+    hb_blob_t* font_data = hb_blob_create_from_file_or_fail(
+        "patch_subset/testdata/Roboto-Regular.ttf");
     ASSERT_TRUE(font_data);
     roboto = hb_face_create(font_data, 0);
     hb_blob_destroy(font_data);
 
-    font_data =
-        hb_blob_create_from_file_or_fail("patch_subset/testdata/NotoSansJP-Regular.ttf");
+    font_data = hb_blob_create_from_file_or_fail(
+        "patch_subset/testdata/NotoSansJP-Regular.ttf");
     ASSERT_TRUE(font_data);
     noto_sans_jp = hb_face_create(font_data, 0);
     hb_blob_destroy(font_data);
@@ -47,13 +46,11 @@ class BrotliFontDiffTest : public ::testing::Test {
     hb_subset_input_destroy(input);
   }
 
-  void Check(const FontData& base,
-             const FontData& patch,
+  void Check(const FontData& base, const FontData& patch,
              const FontData& derived) {
     BrotliBinaryPatch patcher;
     FontData patched;
-    EXPECT_EQ(StatusCode::kOk,
-              patcher.Patch(base, patch, &patched));
+    EXPECT_EQ(StatusCode::kOk, patcher.Patch(base, patch, &patched));
 
     EXPECT_EQ(derived.str(), patched.str());
   }
@@ -64,7 +61,6 @@ class BrotliFontDiffTest : public ::testing::Test {
 };
 
 TEST_F(BrotliFontDiffTest, Diff) {
-
   hb_set_add_range(hb_subset_input_unicode_set(input), 0x41, 0x5A);
   hb_subset_plan_t* base_plan = hb_subset_plan_create_or_fail(roboto, input);
   hb_face_t* base_face = hb_subset_plan_execute_or_fail(base_plan);
@@ -115,17 +111,18 @@ TEST_F(BrotliFontDiffTest, DiffRetainGids) {
 // TODO(garretrieger): diff where base is not a subset of derived.
 
 TEST_F(BrotliFontDiffTest, LongLoca) {
-
   hb_set_add_range(hb_subset_input_glyph_set(input), 1000, 5000);
   hb_set_add_range(hb_subset_input_glyph_set(input), 8000, 10000);
-  hb_subset_plan_t* base_plan = hb_subset_plan_create_or_fail(noto_sans_jp, input);
+  hb_subset_plan_t* base_plan =
+      hb_subset_plan_create_or_fail(noto_sans_jp, input);
   hb_face_t* base_face = hb_subset_plan_execute_or_fail(base_plan);
   FontData base = FontData::ToFontData(base_face);
   ASSERT_TRUE(base_plan);
 
-  hb_set_add_range(hb_subset_input_glyph_set(input),  500, 750);
+  hb_set_add_range(hb_subset_input_glyph_set(input), 500, 750);
   hb_set_add_range(hb_subset_input_glyph_set(input), 11000, 11100);
-  hb_subset_plan_t* derived_plan = hb_subset_plan_create_or_fail(noto_sans_jp, input);
+  hb_subset_plan_t* derived_plan =
+      hb_subset_plan_create_or_fail(noto_sans_jp, input);
   hb_face_t* derived_face = hb_subset_plan_execute_or_fail(derived_plan);
   FontData derived = FontData::ToFontData(derived_face);
   ASSERT_TRUE(derived_plan);
@@ -139,6 +136,5 @@ TEST_F(BrotliFontDiffTest, LongLoca) {
   hb_face_destroy(base_face);
   hb_face_destroy(derived_face);
 }
-
 
 }  // namespace brotli

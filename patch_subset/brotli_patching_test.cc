@@ -68,18 +68,10 @@ TEST_F(BrotliPatchingTest, StitchingWithEmptyBase) {
   FontData empty;
 
   std::vector<uint8_t> sink;
-  EXPECT_EQ(diff_->Diff(empty,
-                        subset_a_.str(0, 1000),
-                        0,
-                        false,
-                        sink),
+  EXPECT_EQ(diff_->Diff(empty, subset_a_.str(0, 1000), 0, false, sink),
             StatusCode::kOk);
 
-  EXPECT_EQ(diff_->Diff(empty,
-                        subset_a_.str(1000),
-                        1000,
-                        true,
-                        sink),
+  EXPECT_EQ(diff_->Diff(empty, subset_a_.str(1000), 1000, true, sink),
             StatusCode::kOk);
 
   FontData patch;
@@ -96,18 +88,10 @@ TEST_F(BrotliPatchingTest, StitchingWithEmptyBase) {
 
 TEST_F(BrotliPatchingTest, StitchingWithBase) {
   std::vector<uint8_t> sink;
-  EXPECT_EQ(diff_->Diff(subset_a_,
-                        subset_b_.str(0, 1000),
-                        0,
-                        false,
-                        sink),
+  EXPECT_EQ(diff_->Diff(subset_a_, subset_b_.str(0, 1000), 0, false, sink),
             StatusCode::kOk);
 
-  EXPECT_EQ(diff_->Diff(subset_a_,
-                        subset_b_.str(1000),
-                        1000,
-                        true,
-                        sink),
+  EXPECT_EQ(diff_->Diff(subset_a_, subset_b_.str(1000), 1000, true, sink),
             StatusCode::kOk);
 
   FontData patch;
