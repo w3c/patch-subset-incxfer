@@ -43,7 +43,7 @@ StatusCode BrotliBinaryDiff::Diff(const FontData& font_base,
   // So don't set a dictionary unless it's non-empty.
   DictionaryPointer dictionary (nullptr, nullptr);
   if (font_base.size() > 0) {
-    dictionary = SharedBrotliEncoder::CreateDictionary(font_base.str());
+    dictionary = SharedBrotliEncoder::CreateDictionary(font_base.span());
     if (!dictionary) {
       LOG(WARNING) << "Failed to create the shared dictionary.";
       return StatusCode::kInternal;

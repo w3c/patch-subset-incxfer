@@ -5,6 +5,7 @@
 
 #include "absl/types/span.h"
 #include "brotli/brotli_bit_buffer.h"
+#include "brotli/shared_brotli_encoder.h"
 #include "common/status.h"
 
 namespace brotli {
@@ -31,6 +32,16 @@ class BrotliStream {
   // Insert bytes and compress them. No shared dictionary is used.
   patch_subset::StatusCode insert_compressed(absl::Span<const uint8_t> bytes);
 
+  // Insert bytes and compress them uses a portion of the full dictionary.
+  // Where partial_dict is the dictionary bytes from [0, partial_dict.size())
+  patch_subset::StatusCode insert_compressed_with_partial_dict(
+      absl::Span<const uint8_t> bytes,
+      absl::Span<const uint8_t> partial_dict);
+
+  // TODO(garretrieger): insert_compressed_with_partial_dict that is offset
+  //                     from the start. Will need to disable static dict references
+  //                     somehow. Can we set a empty custom static dict?
+
   // Align the stream to the nearest byte boundary.
   void byte_align();
 
@@ -47,6 +58,9 @@ class BrotliStream {
   }
 
  private:
+
+  EncoderStatePointer create_encoder(unsigned stream_offset,
+                                     const BrotliEncoderPreparedDictionary* dictionary) const;
 
   bool add_mlen (unsigned size);
 

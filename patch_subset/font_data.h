@@ -5,6 +5,7 @@
 #include <memory>
 
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "hb.h"
 
 namespace patch_subset {
@@ -58,6 +59,10 @@ class FontData {
   bool empty() const { return size() == 0; }
 
   // TODO(garretrieger): add a to_span method.
+
+  ::absl::Span<const uint8_t> span() const {
+    return ::absl::Span<const uint8_t>(reinterpret_cast<const uint8_t*>(data()), size());
+  }
 
   ::absl::string_view str() const {
     return ::absl::string_view(data(), size());
