@@ -13,7 +13,6 @@ namespace patch_subset {
 // Holds the binary data for a font.
 class FontData {
  public:
-
   static FontData ToFontData(hb_face_t* face) {
     hb_blob_t* blob = hb_face_reference_blob(face);
     FontData data(blob);
@@ -61,7 +60,8 @@ class FontData {
   // TODO(garretrieger): add a to_span method.
 
   ::absl::Span<const uint8_t> span() const {
-    return ::absl::Span<const uint8_t>(reinterpret_cast<const uint8_t*>(data()), size());
+    return ::absl::Span<const uint8_t>(reinterpret_cast<const uint8_t*>(data()),
+                                       size());
   }
 
   ::absl::string_view str() const {

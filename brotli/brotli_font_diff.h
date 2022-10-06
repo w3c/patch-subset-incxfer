@@ -8,8 +8,8 @@
 namespace brotli {
 
 /*
- * Produces a brotli binary diff between two fonts. Uses knowledge of the underlying font format
- * to more efficiently produce a diff.
+ * Produces a brotli binary diff between two fonts. Uses knowledge of the
+ * underlying font format to more efficiently produce a diff.
  */
 class BrotliFontDiff {
  public:

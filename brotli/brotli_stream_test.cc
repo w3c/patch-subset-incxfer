@@ -1,6 +1,7 @@
+#include "brotli/brotli_stream.h"
+
 #include "absl/types/span.h"
 #include "gtest/gtest.h"
-#include "brotli/brotli_stream.h"
 #include "patch_subset/brotli_binary_patch.h"
 
 using ::absl::Span;
@@ -16,35 +17,30 @@ class BrotliStreamTest : public ::testing::Test {
 
   ~BrotliStreamTest() override {}
 
-  void SetUp() override {
-  }
+  void SetUp() override {}
 };
 
-void CheckDecompressesTo(const BrotliStream& stream,
-                         Span<const uint8_t> expected,
-                         Span<const uint8_t> dict_data=Span<const uint8_t>())
-{
+void CheckDecompressesTo(
+    const BrotliStream& stream, Span<const uint8_t> expected,
+    Span<const uint8_t> dict_data = Span<const uint8_t>()) {
   BrotliBinaryPatch patcher;
   FontData dict;
-  dict.copy((const char*) dict_data.data(), dict_data.size());
+  dict.copy((const char*)dict_data.data(), dict_data.size());
   FontData patch;
-  patch.copy((const char*) stream.compressed_data().data(), stream.compressed_data().size());
+  patch.copy((const char*)stream.compressed_data().data(),
+             stream.compressed_data().size());
 
-  Span<const char> expected_char((const char*) expected.data(), expected.size());
+  Span<const char> expected_char((const char*)expected.data(), expected.size());
 
   FontData uncompressed;
   ASSERT_EQ(patcher.Patch(dict, patch, &uncompressed), StatusCode::kOk);
-  EXPECT_EQ(Span<const char>(uncompressed),
-            expected_char);
+  EXPECT_EQ(Span<const char>(uncompressed), expected_char);
 }
 
 TEST_F(BrotliStreamTest, InsertCompressed) {
   BrotliStream stream(22);
-  uint8_t data[] = {
-    'H', 'e', 'l', 'l', 'o', ' ',
-    'H', 'e', 'l', 'l', 'o', ' ',
-    'H', 'e', 'l', 'l', 'o', ' ',
-    'H', 'e', 'l', 'l', 'o', ' '};
+  uint8_t data[] = {'H', 'e', 'l', 'l', 'o', ' ', 'H', 'e', 'l', 'l', 'o', ' ',
+                    'H', 'e', 'l', 'l', 'o', ' ', 'H', 'e', 'l', 'l', 'o', ' '};
   stream.insert_compressed(data);
   stream.end_stream();
 
@@ -54,12 +50,9 @@ TEST_F(BrotliStreamTest, InsertCompressed) {
 
 TEST_F(BrotliStreamTest, InsertCompressedWithDict) {
   BrotliStream stream(22, 100);
-  uint8_t data[] = {
-    'H', 'e', 'l', 'l', 'o', ' ',
-    'H', 'e', 'l', 'l', 'o', ' ',
-    'H', 'e', 'l', 'l', 'o', ' ',
-    'H', 'e', 'l', 'l', 'o', ' ',
-    'H', 'e', 'l', 'l', 'o', ' '};
+  uint8_t data[] = {'H', 'e', 'l', 'l', 'o', ' ', 'H', 'e', 'l', 'l',
+                    'o', ' ', 'H', 'e', 'l', 'l', 'o', ' ', 'H', 'e',
+                    'l', 'l', 'o', ' ', 'H', 'e', 'l', 'l', 'o', ' '};
   stream.insert_compressed(data);
   stream.end_stream();
 
@@ -69,7 +62,6 @@ TEST_F(BrotliStreamTest, InsertCompressedWithDict) {
   CheckDecompressesTo(stream, data, dict);
 }
 
-
 TEST_F(BrotliStreamTest, InsertCompressedWithPartialDict) {
   std::vector<uint8_t> dict;
   for (unsigned i = 0; i < 500; i++) {
@@ -78,10 +70,9 @@ TEST_F(BrotliStreamTest, InsertCompressedWithPartialDict) {
 
   Span<const uint8_t> data = Span<const uint8_t>(dict).subspan(5, 100);
   BrotliStream stream(22, dict.size());
-  stream.insert_compressed_with_partial_dict(data,
-                                             Span<const uint8_t>(dict).subspan(0, 200));
+  stream.insert_compressed_with_partial_dict(
+      data, Span<const uint8_t>(dict).subspan(0, 200));
   stream.end_stream();
-
 
   EXPECT_LT(stream.compressed_data().size(), 100);
   CheckDecompressesTo(stream, data, dict);
@@ -95,12 +86,11 @@ TEST_F(BrotliStreamTest, InsertMultipleCompressedWithPartialDict) {
 
   Span<const uint8_t> data = Span<const uint8_t>(dict).subspan(5, 150);
   BrotliStream stream(22, dict.size());
-  stream.insert_compressed_with_partial_dict(data.subspan(0, 75),
-                                             Span<const uint8_t>(dict).subspan(0, 100));
-  stream.insert_compressed_with_partial_dict(data.subspan(75, 75),
-                                             Span<const uint8_t>(dict).subspan(0, 200));
+  stream.insert_compressed_with_partial_dict(
+      data.subspan(0, 75), Span<const uint8_t>(dict).subspan(0, 100));
+  stream.insert_compressed_with_partial_dict(
+      data.subspan(75, 75), Span<const uint8_t>(dict).subspan(0, 200));
   stream.end_stream();
-
 
   EXPECT_LT(stream.compressed_data().size(), 100);
   CheckDecompressesTo(stream, data, dict);
@@ -123,8 +113,8 @@ TEST_F(BrotliStreamTest, InsertUncompressedMultiple) {
   stream.insert_uncompressed(data_2);
   stream.end_stream();
 
-  CheckDecompressesTo(stream,
-                      {'H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', 't', 'e', 's', 't'});
+  CheckDecompressesTo(stream, {'H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l',
+                               'd', 't', 'e', 's', 't'});
 }
 
 TEST_F(BrotliStreamTest, InsertUncompressedLarge) {
@@ -138,7 +128,6 @@ TEST_F(BrotliStreamTest, InsertUncompressedLarge) {
 
   CheckDecompressesTo(stream, data);
 }
-
 
 TEST_F(BrotliStreamTest, InsertFromDictionary) {
   BrotliStream stream(22, 11);
@@ -165,9 +154,9 @@ TEST_F(BrotliStreamTest, InsertMixed) {
   stream.insert_from_dictionary(0, 2);
   stream.end_stream();
 
-  uint8_t expected[] = {'e', 'l', 'l', 'o', '1', '2', '3', 'w', 'o', 'r', '6', '7', '8', '9', 'H', 'e'};
+  uint8_t expected[] = {'e', 'l', 'l', 'o', '1', '2', '3', 'w',
+                        'o', 'r', '6', '7', '8', '9', 'H', 'e'};
   CheckDecompressesTo(stream, expected, dict_data);
 }
-
 
 }  // namespace brotli

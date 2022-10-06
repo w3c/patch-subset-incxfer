@@ -20,10 +20,8 @@ class BrotliBinaryDiff : public BinaryDiff {
                   FontData* patch /* OUT */) const override;
 
   // For use in stitching together a brotli patch.
-  StatusCode Diff(const FontData& font_base,
-                  ::absl::string_view data,
-                  unsigned stream_offset,
-                  bool is_last,
+  StatusCode Diff(const FontData& font_base, ::absl::string_view data,
+                  unsigned stream_offset, bool is_last,
                   std::vector<uint8_t>& sink) const;
 
  private:
