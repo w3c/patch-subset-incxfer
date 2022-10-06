@@ -185,9 +185,30 @@ void BrotliStream::insert_uncompressed(absl::Span<const uint8_t> bytes) {
 }
 
 StatusCode BrotliStream::insert_compressed(absl::Span<const uint8_t> bytes) {
+  if (!bytes.size()) {
+    return StatusCode::kOk;
+  }
+
+  if (!uncompressed_size_ && dictionary_size_) {
+    // If uncompressed size is zero but the dict is non-zero then
+    // the brotli encoder call would add a stream header as would normally
+    // be needed.
+    add_stream_header();
+  }
+
+  // We need to ensure byte alignment since we're calling into
+  // the regular brotli encoder which will start byte aligned.
+  byte_align();
+
+  // dictionary_size is added to the stream offset so that static dictionary references (which
+  // are window + dictionary size + static word id) will be created with the right distance.
+  // TODO(garretrieger): this trick fails if stream_offset > window size since internally the brotli
+  //                     encoder uses min(stream_offset, window_size). To avoid this we must make sure
+  //                     the window size is always > dict + uncompressed size.
+  unsigned stream_offset = uncompressed_size_ + dictionary_size_;
   EncoderStatePointer state = SharedBrotliEncoder::CreateEncoder(5,
                                                                  0,
-                                                                 uncompressed_size_,
+                                                                 stream_offset,
                                                                  nullptr);
   if (!state) {
     LOG(WARNING) << "Failed to create brotli encoder.";
@@ -199,7 +220,6 @@ StatusCode BrotliStream::insert_compressed(absl::Span<const uint8_t> bytes) {
     return StatusCode::kInternal;
   }
 
-  byte_align(); // When stitching in a new metablock we must byte align first.
   bool result = SharedBrotliEncoder::CompressToSink(
       string_view((const char*) bytes.data(), bytes.size()),
       false,
@@ -210,6 +230,7 @@ StatusCode BrotliStream::insert_compressed(absl::Span<const uint8_t> bytes) {
     return StatusCode::kInternal;
   }
 
+  uncompressed_size_ += bytes.size();
   return StatusCode::kOk;
 }
 
