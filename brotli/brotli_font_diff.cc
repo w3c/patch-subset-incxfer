@@ -148,9 +148,8 @@ class GlyfDiff {
   void CommitRange(BrotliStream& out) {
     switch (mode) {
       case NEW_DATA:
-        // TODO(garretrieger): compress this data, don't use a dictionary.
-        out.insert_uncompressed(Span<const uint8_t>(derived_glyf + derived_offset,
-                                                    length));
+        out.insert_compressed(Span<const uint8_t>(derived_glyf + derived_offset,
+                                                  length));
         break;
       case EXISTING_DATA:
         out.insert_from_dictionary(base_glyf_offset + base_offset, length);
@@ -213,7 +212,7 @@ StatusCode BrotliFontDiff::Diff(hb_subset_plan_t* base_plan,
                                 hb_face_t* base_face,
                                 hb_subset_plan_t* derived_plan,
                                 hb_face_t* derived_face,
-                                FontData* patch) const
+                                FontData* patch) const // TODO(garretrieger): write into sink.
 {
   hb_blob_t* base = hb_face_reference_blob(base_face);
   hb_blob_t* derived = hb_face_reference_blob(derived_face);
@@ -233,14 +232,14 @@ StatusCode BrotliFontDiff::Diff(hb_subset_plan_t* base_plan,
 
   // TODO(garretrieger): insert the non-glyf data by compressing using the regular encoder
   //                     against a partial dictionary.
-  out.insert_uncompressed(Span<const uint8_t>(derived_data, glyf_offset));
+  out.insert_compressed(Span<const uint8_t>(derived_data, glyf_offset));
 
   GlyfDiff glyf_diff(base_plan, base_face, derived_plan, derived_face);
   glyf_diff.MakeDiff(out);
 
   if (derived_length > glyf_offset + glyf_length) {
-    out.insert_uncompressed(Span<const uint8_t>(glyf_data + glyf_length,
-                                                derived_length - glyf_offset - glyf_length));
+    out.insert_compressed(Span<const uint8_t>(glyf_data + glyf_length,
+                                              derived_length - glyf_offset - glyf_length));
   }
 
   out.end_stream();
