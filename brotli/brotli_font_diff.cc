@@ -9,6 +9,12 @@ using ::patch_subset::FontData;
 
 namespace brotli {
 
+Span<const uint8_t> to_span(hb_blob_t* blob) {
+  unsigned length;
+  const uint8_t* data = reinterpret_cast<const uint8_t*>(hb_blob_get_data(blob, &length));
+  return Span<const uint8_t>(data, length);
+}
+
 
 /*
  * Writes out a brotli encoded copy of the 'derived' subsets glyf table using the 'base' subset
@@ -215,30 +221,35 @@ StatusCode BrotliFontDiff::Diff(hb_subset_plan_t* base_plan,
 {
   hb_blob_t* base = hb_face_reference_blob(base_face);
   hb_blob_t* derived = hb_face_reference_blob(derived_face);
+  Span<const uint8_t> base_span = to_span(base);
+  Span<const uint8_t> derived_span = to_span(derived);
 
   // get a 'real' (non facebuilder) face for the faces.
   derived_face = hb_face_create(derived, 0);
   base_face = hb_face_create(base, 0);
 
-  BrotliStream out(22, hb_blob_get_length(base));
+  BrotliStream out(22, base_span.size());
 
-  hb_blob_t* glyf = hb_face_reference_table(derived_face, HB_TAG('g', 'l', 'y', 'f'));
-  unsigned glyf_length;
-  unsigned derived_length;
-  const uint8_t* glyf_data = (const uint8_t*) hb_blob_get_data(glyf, &glyf_length);
-  const uint8_t* derived_data = (const uint8_t*) hb_blob_get_data(derived, &derived_length);
-  unsigned glyf_offset = glyf_data - derived_data;
+  hb_blob_t* base_glyf = hb_face_reference_table(base_face, HB_TAG('g', 'l', 'y', 'f'));
+  hb_blob_t* derived_glyf = hb_face_reference_table(derived_face, HB_TAG('g', 'l', 'y', 'f'));
+  Span<const uint8_t> base_glyf_span = to_span(base_glyf);
+  Span<const uint8_t> derived_glyf_span = to_span(derived_glyf);
+
+  unsigned base_glyf_offset = base_glyf_span.data() - base_span.data();
+  unsigned derived_glyf_offset = derived_glyf_span.data() - derived_span.data();
 
   // TODO(garretrieger): insert the non-glyf data by compressing using the regular encoder
   //                     against a partial dictionary.
-  out.insert_compressed(Span<const uint8_t>(derived_data, glyf_offset));
+  out.insert_compressed_with_partial_dict(derived_span.subspan(0, derived_glyf_offset),
+                                          base_span.subspan(0, base_glyf_offset));
 
   GlyfDiff glyf_diff(base_plan, base_face, derived_plan, derived_face);
   glyf_diff.MakeDiff(out);
 
-  if (derived_length > glyf_offset + glyf_length) {
-    out.insert_compressed(Span<const uint8_t>(glyf_data + glyf_length,
-                                              derived_length - glyf_offset - glyf_length));
+  if (derived_span.size() > derived_glyf_offset + derived_glyf_span.size()) {
+    out.insert_compressed(derived_span.subspan(
+        derived_glyf_offset + derived_glyf_span.size(),
+        derived_span.size() - derived_glyf_offset - derived_glyf_span.size()));
   }
 
   out.end_stream();
