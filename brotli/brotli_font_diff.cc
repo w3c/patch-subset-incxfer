@@ -229,6 +229,7 @@ StatusCode BrotliFontDiff::Diff(
   derived_face = hb_face_create(derived, 0);
   base_face = hb_face_create(base, 0);
 
+  // TODO(garretrieger): Compute a window size based on the non-glyf + base data sizes.
   BrotliStream out(22, base_span.size());
 
   hb_blob_t* base_glyf =
@@ -241,9 +242,6 @@ StatusCode BrotliFontDiff::Diff(
   unsigned base_glyf_offset = base_glyf_span.data() - base_span.data();
   unsigned derived_glyf_offset = derived_glyf_span.data() - derived_span.data();
 
-  // TODO(garretrieger): insert the non-glyf data by compressing using the
-  // regular encoder
-  //                     against a partial dictionary.
   out.insert_compressed_with_partial_dict(
       derived_span.subspan(0, derived_glyf_offset),
       base_span.subspan(0, base_glyf_offset));
