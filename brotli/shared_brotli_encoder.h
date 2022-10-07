@@ -31,13 +31,9 @@ class SharedBrotliEncoder {
   static EncoderStatePointer CreateEncoder(
       unsigned quality, size_t font_size, unsigned stream_offset,
       const BrotliEncoderPreparedDictionary* dictionary) {
-    // TODO(grieger): setup so the encoder state/shared dict can be re-used
-    // between Diff calls.
     EncoderStatePointer state = EncoderStatePointer(
         BrotliEncoderCreateInstance(nullptr, nullptr, nullptr),
         &BrotliEncoderDestroyInstance);
-
-    // TODO(grieger): allow quality to be varied.
 
     if (!BrotliEncoderSetParameter(state.get(), BROTLI_PARAM_QUALITY,
                                    quality)) {
@@ -45,14 +41,11 @@ class SharedBrotliEncoder {
       return EncoderStatePointer(nullptr, nullptr);
     }
 
-    /*
-      TODO(grieger): re-enable once the correct size is passed in.
-      if (!BrotliEncoderSetParameter(state.get(), BROTLI_PARAM_SIZE_HINT,
-                                 font_size)) {
+    if (font_size && !BrotliEncoderSetParameter(
+                         state.get(), BROTLI_PARAM_SIZE_HINT, font_size)) {
       LOG(WARNING) << "Failed to set brotli size hint.";
       return EncoderStatePointer(nullptr, nullptr);
-      }
-    */
+    }
 
     if (dictionary &&
         !BrotliEncoderAttachPreparedDictionary(state.get(), dictionary)) {
@@ -66,20 +59,8 @@ class SharedBrotliEncoder {
       return EncoderStatePointer(nullptr, nullptr);
     }
 
-    // TODO(grieger): more general defaults for window and block size.
-    if (!BrotliEncoderSetParameter(state.get(), BROTLI_PARAM_LGWIN,
-                                   17)) {  // 131 kb window size
-      LOG(WARNING) << "Failed to set brotli window size.";
-      return EncoderStatePointer(nullptr, nullptr);
-    }
-
-    if (!BrotliEncoderSetParameter(state.get(), BROTLI_PARAM_LGBLOCK,
-                                   16)) {  // 65 kb input block size
-      LOG(WARNING) << "Failed to set brotli block size.";
-      return EncoderStatePointer(nullptr, nullptr);
-    }
-
-    if (!BrotliEncoderSetParameter(state.get(), BROTLI_PARAM_STREAM_OFFSET,
+    if (stream_offset &&
+        !BrotliEncoderSetParameter(state.get(), BROTLI_PARAM_STREAM_OFFSET,
                                    stream_offset)) {
       LOG(WARNING) << "Failed to set brotli stream offset.";
       return EncoderStatePointer(nullptr, nullptr);

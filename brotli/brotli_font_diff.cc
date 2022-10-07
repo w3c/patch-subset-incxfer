@@ -229,7 +229,8 @@ StatusCode BrotliFontDiff::Diff(
   derived_face = hb_face_create(derived, 0);
   base_face = hb_face_create(base, 0);
 
-  // TODO(garretrieger): Compute a window size based on the non-glyf + base data sizes.
+  // TODO(garretrieger): Compute a window size based on the non-glyf + base data
+  // sizes.
   BrotliStream out(22, base_span.size());
 
   hb_blob_t* base_glyf =
