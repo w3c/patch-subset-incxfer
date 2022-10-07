@@ -216,18 +216,16 @@ class GlyfDiff {
 };
 
 StatusCode BrotliFontDiff::Diff(
-    hb_subset_plan_t* base_plan, hb_face_t* base_face,
-    hb_subset_plan_t* derived_plan, hb_face_t* derived_face,
+    hb_subset_plan_t* base_plan, hb_blob_t* base,
+    hb_subset_plan_t* derived_plan, hb_blob_t* derived,
     FontData* patch) const  // TODO(garretrieger): write into sink.
 {
-  hb_blob_t* base = hb_face_reference_blob(base_face);
-  hb_blob_t* derived = hb_face_reference_blob(derived_face);
   Span<const uint8_t> base_span = to_span(base);
   Span<const uint8_t> derived_span = to_span(derived);
 
   // get a 'real' (non facebuilder) face for the faces.
-  derived_face = hb_face_create(derived, 0);
-  base_face = hb_face_create(base, 0);
+  hb_face_t* derived_face = hb_face_create(derived, 0);
+  hb_face_t* base_face = hb_face_create(base, 0);
 
   // TODO(garretrieger): Compute a window size based on the non-glyf + base data
   // sizes.
@@ -266,9 +264,6 @@ StatusCode BrotliFontDiff::Diff(
 
   hb_face_destroy(base_face);
   hb_face_destroy(derived_face);
-
-  hb_blob_destroy(base);
-  hb_blob_destroy(derived);
 
   return StatusCode::kOk;
 }

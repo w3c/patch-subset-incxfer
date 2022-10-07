@@ -15,10 +15,9 @@ class BrotliFontDiff {
  public:
   BrotliFontDiff() {}
 
-  patch_subset::StatusCode Diff(hb_subset_plan_t* base_plan,
-                                hb_face_t* base_face,
+  patch_subset::StatusCode Diff(hb_subset_plan_t* base_plan, hb_blob_t* base,
                                 hb_subset_plan_t* derived_plan,
-                                hb_face_t* derived_face,
+                                hb_blob_t* derived,
                                 patch_subset::FontData* patch) const;
 
  private:

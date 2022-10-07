@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/types/span.h"
 #include "brotli/brotli_font_diff.h"
 #include "hb-subset.h"
 #include "patch_subset/brotli_binary_diff.h"
@@ -14,6 +15,7 @@ using namespace std::chrono;
 using std::string_view;
 using std::vector;
 
+using absl::Span;
 using brotli::BrotliFontDiff;
 using patch_subset::BrotliBinaryDiff;
 using patch_subset::BrotliBinaryPatch;
@@ -24,17 +26,9 @@ constexpr bool DUMP_STATE = false;
 constexpr unsigned STATIC_QUALITY = 11;
 // Number of codepoints to include in the subset. Set to
 // -1 to use ascii as a subset.
-constexpr unsigned SUBSET_COUNT = 10;
-constexpr unsigned BASE_COUNT = 1000;
-constexpr unsigned TRIAL_DURATION_MS = 5000;
-
-enum Mode {
-  PRECOMPRESS_LAYOUT = 0,
-  IMMUTABLE_LAYOUT,
-  MUTABLE_LAYOUT,
-  CUSTOM_DIFF,
-  END,
-};
+constexpr unsigned SUBSET_COUNT = 500;
+constexpr unsigned BASE_COUNT = 250;
+constexpr unsigned TRIAL_DURATION_MS = 500;
 
 // TODO(grieger): this should be all "No Subset Tables" in the font.
 hb_tag_t immutable_tables[] = {
@@ -44,16 +38,252 @@ hb_tag_t immutable_tables[] = {
     0,
 };
 
-void dump(const char* name, const char* data, unsigned size) {
+static void dump(const char* name, const char* data, unsigned size) {
   FILE* f = fopen(name, "w");
   fwrite(data, size, 1, f);
   fclose(f);
 }
 
-unsigned table_directory_size(const hb_face_t* face) {
+static unsigned table_directory_size(const hb_face_t* face) {
   unsigned num_tables = hb_face_get_table_tags(face, 0, nullptr, nullptr);
   return 12 + num_tables * 16;
 }
+
+enum Mode {
+  PRECOMPRESS_LAYOUT = 0,
+  IMMUTABLE_LAYOUT,
+  MUTABLE_LAYOUT,
+  CUSTOM_DIFF,
+  END,
+};
+
+class Operation {
+ public:
+  Operation(hb_blob_t* original_, hb_set_t* base_set_, hb_set_t* subset_set_)
+      : original(original_), base_set(base_set_), subset_set(subset_set_) {}
+
+  ~Operation() {
+    hb_set_destroy(base_set);
+    hb_set_destroy(subset_set);
+    hb_blob_destroy(original);
+    hb_blob_destroy(base);
+    hb_blob_destroy(subset);
+
+    hb_face_destroy(original_face);
+    hb_face_destroy(base_face);
+    hb_face_destroy(subset_face);
+
+    hb_subset_plan_destroy(base_plan);
+    hb_subset_plan_destroy(subset_plan);
+  }
+
+  unsigned MakeSubsets() {
+    original_face = hb_face_create(original, 0);
+
+    unsigned base_size = 0;
+    if (hb_set_get_population(base_set) > 0) {
+      base = make_subset(original_face, base_set, &base_plan);
+      base_face = hb_face_create(base, 0);
+      base_size = hb_blob_get_length(base);
+    }
+
+    subset = make_subset(original_face, subset_set, &subset_plan);
+    subset_face = hb_face_create(subset, 0);
+
+    return base_size;
+  }
+
+  unsigned MakePatch(unsigned i) {
+    vector<uint8_t> patch;
+    if (!base && mode == PRECOMPRESS_LAYOUT) {
+      add_compressed_table_directory(subset_face, subset, patch);
+      patch.insert(patch.end(), precompressed.begin(), precompressed.end());
+      add_mutable_tables(
+          table_directory_size(subset_face) + precompressed_length(subset_face),
+          patch);
+    } else if (mode == CUSTOM_DIFF) {
+      // Use custom differ
+      BrotliFontDiff differ;
+      FontData patch_data;
+      differ.Diff(base_plan, base, subset_plan, subset, &patch_data);
+      patch.insert(patch.end(), patch_data.str().begin(),
+                   patch_data.str().end());
+    } else {
+      add_mutable_tables(0, patch);
+    }
+
+    if (i == 0) {
+      FontData font_patch;
+      font_patch.copy(reinterpret_cast<const char*>(patch.data()),
+                      patch.size());
+      BrotliBinaryPatch patcher;
+
+      FontData base_font_data;
+      if (base) {
+        base_font_data.set(base);
+      }
+      FontData derived;
+      StatusCode sc = patcher.Patch(base_font_data, font_patch, &derived);
+      if (sc != StatusCode::kOk) {
+        printf("Patch application failed.\n");
+        exit(-1);
+      }
+      if (DUMP_STATE) {
+        dump("patch.bin", reinterpret_cast<const char*>(patch.data()),
+             patch.size());
+        dump("actual_subset.ttf", hb_blob_get_data(subset, nullptr),
+             hb_blob_get_length(subset));
+        dump("generated_subset.ttf",
+             reinterpret_cast<const char*>(derived.data()), derived.size());
+      }
+
+      if (derived.size() != hb_blob_get_length(subset) ||
+          memcmp(
+              reinterpret_cast<const void*>(derived.data()),
+              reinterpret_cast<const void*>(hb_blob_get_data(subset, nullptr)),
+              derived.size())) {
+        printf("Derived subset is not equivalent to expected subset.\n");
+        exit(-1);
+      }
+    }
+
+    return patch.size();
+  }
+
+ private:
+  unsigned table_length(const hb_face_t* face, hb_tag_t tag) {
+    unsigned length = hb_blob_get_length(hb_face_reference_table(face, tag));
+    while (length % 4) {  // Pad to 4 byte boundary.
+      length++;
+    }
+    return length;
+  }
+
+  unsigned precompressed_length(const hb_face_t* face) {
+    unsigned total = 0;
+    for (hb_tag_t* tag = immutable_tables; *tag; tag++) {
+      total += table_length(face, *tag);
+    }
+    return total;
+  }
+
+  void add_compressed_table_directory(const hb_face_t* face,
+                                      hb_blob_t* subset_blob,
+                                      vector<uint8_t>& patch) {
+    // There's a high overhead to brotli compressing the small table directory
+    // at the front and compression here only saves a small number of bytes. So
+    // instead just emit a uncompressed literal meta-block. We manually
+    // construct the appropriate stream and meta block header.
+
+    // stream + meta-block header is 4 bytes total:
+    // WINDOW  ISLAST  MNIBBLES (4)  MLEN-1             ISUNCOMPRESSED PAD (5
+    // bits) 1000000 0       00            XXXXXXXX XXXXXXXX  1 00000
+    //
+    // Example (size = 299 (00000001 00101011))
+    //                1        172      4        4
+    // Encoded as: 00000001 10101100 00000100 00000100
+    unsigned window_bits = 1;  // 17 (0000001)
+    // TODO(grieger): compute based on size of # of tables in the subset, then
+    // we can re-enable
+    //                the standard drop tables list.
+    unsigned size = table_directory_size(face);
+    unsigned mlen = size - 1;
+    uint8_t encoded_size[2] = {
+        (uint8_t)(mlen & 0xFF),
+        (uint8_t)((mlen >> 8) & 0xFF),
+    };
+
+    uint32_t header = (window_bits & 0b1111111) |  // Window Bits
+                      (encoded_size[0] << 10) |    // MLEN
+                      (encoded_size[1] << 18) |    // MLEN
+                      (1 << 26);                   // ISUNCOMPRESSED
+    uint8_t encoded_header[4] = {
+        (uint8_t)(header & 0xFF),
+        (uint8_t)(header >> 8 & 0xFF),
+        (uint8_t)(header >> 16 & 0xFF),
+        (uint8_t)(header >> 24 & 0xFF),
+    };
+
+    patch.push_back(encoded_header[0]);
+    patch.push_back(encoded_header[1]);
+    patch.push_back(encoded_header[2]);
+    patch.push_back(encoded_header[3]);
+
+    string_view table_directory =
+        string_view(hb_blob_get_data(subset_blob, nullptr), size);
+    patch.insert(patch.end(), table_directory.begin(), table_directory.end());
+  }
+
+  hb_blob_t* make_subset(hb_face_t* face, hb_set_t* codepoints,
+                         hb_subset_plan_t** plan) {
+    hb_face_t* subset = nullptr;
+
+    hb_subset_input_t* input = hb_subset_input_create_or_fail();
+
+    hb_set_clear(hb_subset_input_set(input, HB_SUBSET_SETS_DROP_TABLE_TAG));
+    hb_set_union(hb_subset_input_unicode_set(input), codepoints);
+
+    if (mode != MUTABLE_LAYOUT && mode != CUSTOM_DIFF) {
+      for (hb_tag_t* tag = immutable_tables; *tag; tag++)
+        hb_set_add(
+            hb_subset_input_set(input, HB_SUBSET_SETS_NO_SUBSET_TABLE_TAG),
+            *tag);
+      hb_subset_input_set_flags(input,
+                                HB_SUBSET_FLAGS_RETAIN_GIDS |
+                                    HB_SUBSET_FLAGS_PASSTHROUGH_UNRECOGNIZED);
+    } else {
+      hb_subset_input_set_flags(input,
+                                HB_SUBSET_FLAGS_PASSTHROUGH_UNRECOGNIZED);
+    }
+
+    *plan = hb_subset_plan_create_or_fail(face, input);
+    subset = hb_subset_plan_execute_or_fail(*plan);
+    hb_subset_input_destroy(input);
+
+    // Reorder immutable tables to be first.
+    if (mode != MUTABLE_LAYOUT && mode != CUSTOM_DIFF) {
+      hb_face_builder_sort_tables(subset, immutable_tables);
+    }
+
+    hb_blob_t* result = hb_face_reference_blob(subset);
+    hb_face_destroy(subset);
+
+    return result;
+  }
+
+  void add_mutable_tables(unsigned offset, vector<uint8_t>& patch) {
+    BrotliBinaryDiff differ(dynamic_quality);
+    FontData base_font_data;
+    if (base) {
+      base_font_data.set(base);
+    }
+
+    differ.Diff(base_font_data,
+                string_view(hb_blob_get_data(subset, nullptr) + offset,
+                            hb_blob_get_length(subset) - offset),
+                offset, true, patch);
+  }
+
+ private:
+  hb_blob_t* original;
+  hb_set_t* base_set;
+  hb_set_t* subset_set;
+
+  hb_blob_t* base = nullptr;
+  hb_blob_t* subset = nullptr;
+
+  hb_face_t* original_face = nullptr;
+  hb_face_t* base_face = nullptr;
+  hb_face_t* subset_face = nullptr;
+
+  hb_subset_plan_t* base_plan = nullptr;
+  hb_subset_plan_t* subset_plan = nullptr;
+
+ public:
+  Mode mode = MUTABLE_LAYOUT;
+  unsigned dynamic_quality = 5;
+  Span<const uint8_t> precompressed;
+};
 
 vector<uint8_t> precompress_immutable(const hb_face_t* face) {
   vector<uint8_t> table_data;
@@ -87,197 +317,14 @@ vector<uint8_t> precompress_immutable(const hb_face_t* face) {
   return sink;
 }
 
-hb_face_t* make_subset(hb_face_t* face, hb_set_t* codepoints, Mode mode,
-                       hb_subset_plan_t** plan) {
-  hb_face_t* subset = nullptr;
-
-  hb_subset_input_t* input = hb_subset_input_create_or_fail();
-
-  hb_set_clear(hb_subset_input_set(input, HB_SUBSET_SETS_DROP_TABLE_TAG));
-  hb_set_union(hb_subset_input_unicode_set(input), codepoints);
-
-  if (mode != MUTABLE_LAYOUT && mode != CUSTOM_DIFF) {
-    for (hb_tag_t* tag = immutable_tables; *tag; tag++)
-      hb_set_add(hb_subset_input_set(input, HB_SUBSET_SETS_NO_SUBSET_TABLE_TAG),
-                 *tag);
-    hb_subset_input_set_flags(
-        input,
-        HB_SUBSET_FLAGS_RETAIN_GIDS | HB_SUBSET_FLAGS_PASSTHROUGH_UNRECOGNIZED);
-  } else {
-    hb_subset_input_set_flags(input, HB_SUBSET_FLAGS_PASSTHROUGH_UNRECOGNIZED);
-  }
-
-  *plan = hb_subset_plan_create_or_fail(face, input);
-  subset = hb_subset_plan_execute_or_fail(*plan);
-  hb_subset_input_destroy(input);
-
-  // Reorder immutable tables to be first.
-  if (mode != MUTABLE_LAYOUT && mode != CUSTOM_DIFF) {
-    hb_face_builder_sort_tables(subset, immutable_tables);
-  }
-
-  return subset;
-}
-
-void add_compressed_table_directory(const hb_face_t* face,
-                                    hb_blob_t* subset_blob,
-                                    vector<uint8_t>& patch) {
-  // There's a high overhead to brotli compressing the small table directory at
-  // the front and compression here only saves a small number of bytes. So
-  // instead just emit a uncompressed literal meta-block. We manually construct
-  // the appropriate stream and meta block header.
-
-  // stream + meta-block header is 4 bytes total:
-  // WINDOW  ISLAST  MNIBBLES (4)  MLEN-1             ISUNCOMPRESSED PAD (5
-  // bits) 1000000 0       00            XXXXXXXX XXXXXXXX  1              00000
-  //
-  // Example (size = 299 (00000001 00101011))
-  //                1        172      4        4
-  // Encoded as: 00000001 10101100 00000100 00000100
-  unsigned window_bits = 1;  // 17 (0000001)
-  // TODO(grieger): compute based on size of # of tables in the subset, then we
-  // can re-enable
-  //                the standard drop tables list.
-  unsigned size = table_directory_size(face);
-  unsigned mlen = size - 1;
-  uint8_t encoded_size[2] = {
-      (uint8_t)(mlen & 0xFF),
-      (uint8_t)((mlen >> 8) & 0xFF),
-  };
-
-  uint32_t header = (window_bits & 0b1111111) |  // Window Bits
-                    (encoded_size[0] << 10) |    // MLEN
-                    (encoded_size[1] << 18) |    // MLEN
-                    (1 << 26);                   // ISUNCOMPRESSED
-  uint8_t encoded_header[4] = {
-      (uint8_t)(header & 0xFF),
-      (uint8_t)(header >> 8 & 0xFF),
-      (uint8_t)(header >> 16 & 0xFF),
-      (uint8_t)(header >> 24 & 0xFF),
-  };
-
-  patch.push_back(encoded_header[0]);
-  patch.push_back(encoded_header[1]);
-  patch.push_back(encoded_header[2]);
-  patch.push_back(encoded_header[3]);
-
-  string_view table_directory =
-      string_view(hb_blob_get_data(subset_blob, nullptr), size);
-  patch.insert(patch.end(), table_directory.begin(), table_directory.end());
-}
-
-void add_mutable_tables(const FontData& base, hb_blob_t* blob, unsigned quality,
+void add_mutable_tables(hb_blob_t* base, hb_blob_t* subset, unsigned quality,
                         unsigned offset, vector<uint8_t>& patch) {
+  FontData base_data(base);
   BrotliBinaryDiff differ(quality);
-  differ.Diff(base,
-              string_view(hb_blob_get_data(blob, nullptr) + offset,
-                          hb_blob_get_length(blob) - offset),
+  differ.Diff(base_data,
+              string_view(hb_blob_get_data(subset, nullptr) + offset,
+                          hb_blob_get_length(subset) - offset),
               offset, true, patch);
-}
-
-unsigned table_length(const hb_face_t* face, hb_tag_t tag) {
-  unsigned length = hb_blob_get_length(hb_face_reference_table(face, tag));
-  while (length % 4) {  // Pad to 4 byte boundary.
-    length++;
-  }
-  return length;
-}
-
-unsigned precompressed_length(const hb_face_t* face) {
-  unsigned total = 0;
-  for (hb_tag_t* tag = immutable_tables; *tag; tag++) {
-    total += table_length(face, *tag);
-  }
-  return total;
-}
-
-unsigned make_patch(hb_face_t* face, hb_face_t* base_face,
-                    hb_subset_plan_t* base_plan, hb_face_t* subset_face,
-                    hb_subset_plan_t* subset_plan, Mode mode,
-                    unsigned dynamic_quality, unsigned i) {
-  static const vector<uint8_t> precompressed = precompress_immutable(face);
-
-  FontData base;
-  if (base_face) {
-    hb_blob_t* blob = hb_face_reference_blob(base_face);
-    base.copy(hb_blob_get_data(blob, nullptr), hb_blob_get_length(blob));
-    hb_blob_destroy(blob);
-  }
-
-  hb_blob_t* blob = hb_face_reference_blob(subset_face);
-
-  vector<uint8_t> patch;
-
-  if (!base_face && mode == PRECOMPRESS_LAYOUT) {
-    add_compressed_table_directory(face, blob, patch);
-    patch.insert(patch.end(), precompressed.begin(), precompressed.end());
-    add_mutable_tables(base, blob, dynamic_quality,
-                       table_directory_size(face) + precompressed_length(face),
-                       patch);
-  } else if (mode == CUSTOM_DIFF) {
-    // Use custom differ
-    BrotliFontDiff differ;
-    FontData patch_data;
-    differ.Diff(base_plan, base_face, subset_plan, subset_face, &patch_data);
-    patch.insert(patch.end(), patch_data.str().begin(), patch_data.str().end());
-  } else {
-    add_mutable_tables(base, blob, dynamic_quality, 0, patch);
-  }
-
-  FontData font_patch;
-  font_patch.copy(reinterpret_cast<const char*>(patch.data()), patch.size());
-  BrotliBinaryPatch patcher;
-
-  if (i == 0) {
-    FontData derived;
-    StatusCode sc = patcher.Patch(base, font_patch, &derived);
-    if (sc != StatusCode::kOk) {
-      printf("Patch application failed.\n");
-      exit(-1);
-    }
-    if (DUMP_STATE) {
-      dump("patch.bin", reinterpret_cast<const char*>(patch.data()),
-           patch.size());
-      dump("actual_subset.ttf", hb_blob_get_data(blob, nullptr),
-           hb_blob_get_length(blob));
-      dump("generated_subset.ttf",
-           reinterpret_cast<const char*>(derived.data()), derived.size());
-    }
-
-    if (derived.size() != hb_blob_get_length(blob) ||
-        memcmp(reinterpret_cast<const void*>(derived.data()),
-               reinterpret_cast<const void*>(hb_blob_get_data(blob, nullptr)),
-               derived.size())) {
-      printf("Derived subset is not equivalent to expected subset.\n");
-      exit(-1);
-    }
-  }
-
-  hb_blob_destroy(blob);
-
-  return patch.size();
-}
-
-unsigned make_patch(hb_face_t* face, hb_set_t* base_codepoints,
-                    hb_set_t* subset_codepoints, Mode mode,
-                    unsigned dynamic_quality, unsigned i) {
-  hb_face_t* base_face = nullptr;
-  hb_subset_plan_t* base_plan = nullptr;
-  if (hb_set_get_population(base_codepoints) > 0) {
-    base_face = make_subset(face, base_codepoints, mode, &base_plan);
-  }
-
-  hb_subset_plan_t* subset_plan;
-  hb_face_t* subset_face =
-      make_subset(face, subset_codepoints, mode, &subset_plan);
-
-  unsigned result = make_patch(face, base_face, base_plan, subset_face,
-                               subset_plan, mode, dynamic_quality, i);
-
-  hb_face_destroy(base_face);
-  hb_face_destroy(subset_face);
-
-  return result;
 }
 
 const char* mode_to_string(Mode mode) {
@@ -318,7 +365,6 @@ void test_dictionary_size(hb_face_t* face) {
       "quality, duration_ms, iterations, base_codepoints, base_size, "
       "patch_size, ms/req\n");
   unsigned quality = 5;
-  Mode mode = MUTABLE_LAYOUT;
   for (unsigned base_count = BASE_COUNT; base_count <= 10 * BASE_COUNT;
        base_count += BASE_COUNT) {
     hb_set_t* base_codepoints = hb_set_create();
@@ -326,25 +372,22 @@ void test_dictionary_size(hb_face_t* face) {
     create_subset_set(face, base_codepoints, base_count);
     create_subset_set(face, subset_codepoints, base_count + SUBSET_COUNT);
 
-    hb_subset_plan_t* base_plan;
-    hb_face_t* base_face = make_subset(face, base_codepoints, mode, &base_plan);
-    hb_subset_plan_t* subset_plan;
-    hb_face_t* subset_face =
-        make_subset(face, subset_codepoints, mode, &subset_plan);
-    hb_set_destroy(base_codepoints);
-    hb_set_destroy(subset_codepoints);
-    hb_blob_t* base_blob = hb_face_reference_blob(base_face);
-
     unsigned patch_size = 0;
-    unsigned base_size = hb_blob_get_length(base_blob);
-    hb_blob_destroy(base_blob);
     unsigned duration_ms = 0;
+
+    Operation op(hb_face_reference_blob(face), base_codepoints,
+                 subset_codepoints);
+    op.dynamic_quality = 5;
+    op.mode = MUTABLE_LAYOUT;
+    unsigned base_size = op.MakeSubsets();
+    op.mode = CUSTOM_DIFF;
+
     auto start = high_resolution_clock::now();
 
     unsigned i = 0;
     while (true) {
-      patch_size = make_patch(face, base_face, base_plan, subset_face,
-                              subset_plan, CUSTOM_DIFF, quality, i);
+      patch_size = op.MakePatch(i);
+
       if (i % 20 == 0) {
         auto stop = high_resolution_clock::now();
         duration_ms = duration_cast<milliseconds>(stop - start).count();
@@ -358,9 +401,6 @@ void test_dictionary_size(hb_face_t* face) {
     float ms_per_request = (float)duration_ms / (float)i;
     printf("%u, %u, %u, %u, %u, %u, %.2f\n", quality, duration_ms, i,
            base_count, base_size, patch_size, ms_per_request);
-
-    hb_face_destroy(base_face);
-    hb_face_destroy(subset_face);
   }
 }
 
@@ -369,6 +409,7 @@ void test_precompression(hb_face_t* face) {
   hb_set_t* subset_codepoints = hb_set_create();
   create_subset_set(face, base_codepoints, BASE_COUNT);
   create_subset_set(face, subset_codepoints, SUBSET_COUNT);
+  vector<uint8_t> precompressed = precompress_immutable(face);
 
   printf("mode, quality, duration_ms, iterations, patch_size, ms/req\n");
   unsigned start_mode = BASE_COUNT > 0 ? IMMUTABLE_LAYOUT : PRECOMPRESS_LAYOUT;
@@ -380,8 +421,16 @@ void test_precompression(hb_face_t* face) {
 
       unsigned i = 0;
       while (true) {
-        patch_size = make_patch(face, base_codepoints, subset_codepoints,
-                                (Mode)mode, quality, i);
+        Operation op(hb_face_reference_blob(face),
+                     hb_set_reference(base_codepoints),
+                     hb_set_reference(subset_codepoints));
+        op.dynamic_quality = quality;
+        op.mode = (Mode)mode;
+        op.precompressed = precompressed;
+
+        op.MakeSubsets();
+        patch_size = op.MakePatch(i);
+
         if (i % 20 == 0) {
           auto stop = high_resolution_clock::now();
           duration_ms = duration_cast<milliseconds>(stop - start).count();
@@ -418,8 +467,8 @@ int main(int argc, char** argv) {
 
   hb_face_t* face = hb_face_create(font_blob, 0);
 
-  // test_precompression (face);
-  test_dictionary_size(face);
+  test_precompression(face);
+  // test_dictionary_size(face);
 
   hb_blob_destroy(font_blob);
   hb_face_destroy(face);
