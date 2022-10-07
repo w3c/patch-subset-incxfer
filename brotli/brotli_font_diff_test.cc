@@ -43,6 +43,7 @@ class BrotliFontDiffTest : public ::testing::Test {
 
   void TearDown() override {
     hb_face_destroy(roboto);
+    hb_face_destroy(noto_sans_jp);
     hb_subset_input_destroy(input);
   }
 
@@ -77,6 +78,8 @@ TEST_F(BrotliFontDiffTest, Diff) {
   FontData patch;
   differ.Diff(base_plan, base_face, derived_plan, derived_face, &patch);
 
+  Check(base, patch, derived);
+
   hb_subset_plan_destroy(base_plan);
   hb_subset_plan_destroy(derived_plan);
   hb_face_destroy(base_face);
@@ -101,6 +104,8 @@ TEST_F(BrotliFontDiffTest, DiffRetainGids) {
   BrotliFontDiff differ;
   FontData patch;
   differ.Diff(base_plan, base_face, derived_plan, derived_face, &patch);
+
+  Check(base, patch, derived);
 
   hb_subset_plan_destroy(base_plan);
   hb_subset_plan_destroy(derived_plan);
@@ -130,6 +135,8 @@ TEST_F(BrotliFontDiffTest, LongLoca) {
   BrotliFontDiff differ;
   FontData patch;
   differ.Diff(base_plan, base_face, derived_plan, derived_face, &patch);
+
+  Check(base, patch, derived);
 
   hb_subset_plan_destroy(base_plan);
   hb_subset_plan_destroy(derived_plan);
