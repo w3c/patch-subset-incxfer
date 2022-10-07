@@ -45,9 +45,10 @@ StatusCode BrotliBinaryDiff::Diff(const FontData& font_base, string_view data,
     }
   }
 
-  // TODO(grieger): data size may only be the partial size of the full font.
+  // Don't give the encoder an estimated size if this is not all the data.
+  unsigned data_size = !stream_offset && is_last ? data.size() : 0;
   EncoderStatePointer state = SharedBrotliEncoder::CreateEncoder(
-      quality_, data.size(), stream_offset, dictionary.get());
+      quality_, data_size, stream_offset, dictionary.get());
   if (!state) {
     return StatusCode::kInternal;
   }
