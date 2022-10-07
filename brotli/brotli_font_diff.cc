@@ -261,10 +261,14 @@ StatusCode BrotliFontDiff::Diff(
   patch->copy((const char*)out.compressed_data().data(),
               out.compressed_data().size());
 
-  hb_blob_destroy(derived);
-  hb_face_destroy(derived_face);
+  hb_blob_destroy(base_glyf);
+  hb_blob_destroy(derived_glyf);
+
   hb_face_destroy(base_face);
+  hb_face_destroy(derived_face);
+
   hb_blob_destroy(base);
+  hb_blob_destroy(derived);
 
   return StatusCode::kOk;
 }

@@ -106,7 +106,8 @@ static void to_distance_code(unsigned distance, unsigned postfix_bits,
 }
 
 void BrotliStream::insert_from_dictionary(unsigned offset, unsigned length) {
-  // TODO(garretrieger): length < 2 can't be encoded with a backwards ref, should use
+  // TODO(garretrieger): length < 2 can't be encoded with a backwards ref,
+  // should use
   //                     a literal insertion instead.
   if (!length) {
     // no-op.
