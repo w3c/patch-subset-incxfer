@@ -16,6 +16,56 @@ Span<const uint8_t> to_span(hb_blob_t* blob) {
   return Span<const uint8_t>(data, length);
 }
 
+class TableRange {
+
+ public:
+  TableRange(hb_face_t* base_face, hb_face_t* derived_face, hb_tag_t tag) {
+    hb_blob_t* table =
+        hb_face_reference_table(derived_face, tag);
+    derived_ = (const uint8_t*) hb_blob_get_data(table, nullptr);
+    // TODO(garretrieger): blob should be retained until we're done with
+    // derived_glyf
+    hb_blob_destroy(table);;
+
+    table = hb_face_reference_table(base_face, tag);
+    hb_blob_t* base = hb_face_reference_blob(base_face);
+    const uint8_t* table_data = (const uint8_t*)hb_blob_get_data(table, nullptr);
+    const uint8_t* base_data = (const uint8_t*)hb_blob_get_data(base, nullptr);
+    base_table_offset_ = table_data - base_data;
+
+    hb_blob_destroy(table);
+    hb_blob_destroy(base);
+  }
+
+ private:
+  const uint8_t* derived_;
+  unsigned base_table_offset_;
+  unsigned base_offset_ = 0;
+  unsigned derived_offset_ = 0;
+  unsigned length_ = 0;
+
+ public:
+  const uint8_t* data() { return derived_; }
+
+  void Extend(unsigned length) {
+    length_ += length;
+  }
+
+  void CommitNew(BrotliStream& out) {
+    out.insert_compressed(
+        Span<const uint8_t>(derived_ + derived_offset_, length_));
+    derived_offset_ += length_;
+    length_ = 0;
+  }
+
+  void CommitExisting(BrotliStream& out) {
+    out.insert_from_dictionary(base_table_offset_ + base_offset_, length_);
+    base_offset_ += length_;
+    derived_offset_ += length_;
+    length_ = 0;
+  }
+};
+
 /*
  * Writes out a brotli encoded copy of the 'derived' subsets glyf table using
  * the 'base' subset as a shared dictionary.
@@ -30,40 +80,19 @@ class GlyfDiff {
   // TODO(garretrieger): move GlyfDiff into it's own file.
 
  public:
-  GlyfDiff(hb_subset_plan_t* base_plan, hb_face_t* base_face_,
-           hb_subset_plan_t* derived_plan, hb_face_t* derived_face_)
-      : base_face(base_face_),
-        derived_face(derived_face_),
+  GlyfDiff(hb_subset_plan_t* base_plan, hb_face_t* base_face,
+           hb_subset_plan_t* derived_plan, hb_face_t* derived_face)
+      : glyf_range(base_face, derived_face, HB_TAG('g', 'l', 'y', 'f')),
+        loca_range(base_face, derived_face, HB_TAG('l', 'o', 'c', 'a')),
         base_new_to_old(hb_subset_plan_new_to_old_glyph_mapping(base_plan)),
         derived_old_to_new(
             hb_subset_plan_old_to_new_glyph_mapping(derived_plan)) {
-    hb_blob_t* loca =
-        hb_face_reference_table(derived_face, HB_TAG('l', 'o', 'c', 'a'));
-    derived_loca = (const uint8_t*)hb_blob_get_data(loca, nullptr);
-    // TODO(garretrieger): blob should be retained until we're done with
-    // derived_loca
-    hb_blob_destroy(loca);
-
-    hb_blob_t* glyf =
-        hb_face_reference_table(derived_face, HB_TAG('g', 'l', 'y', 'f'));
-    derived_glyf = (const uint8_t*)hb_blob_get_data(glyf, nullptr);
-    // TODO(garretrieger): blob should be retained until we're done with
-    // derived_glyf
-    hb_blob_destroy(glyf);
-
-    glyf = hb_face_reference_table(base_face, HB_TAG('g', 'l', 'y', 'f'));
-    hb_blob_t* base = hb_face_reference_blob(base_face);
-    const uint8_t* glyf_data = (const uint8_t*)hb_blob_get_data(glyf, nullptr);
-    const uint8_t* base_data = (const uint8_t*)hb_blob_get_data(base, nullptr);
-    base_glyf_offset = glyf_data - base_data;
-
-    hb_blob_destroy(glyf);
-    hb_blob_destroy(base);
 
     hb_blob_t* head =
         hb_face_reference_table(derived_face, HB_TAG('h', 'e', 'a', 'd'));
     const char* head_data = hb_blob_get_data(head, nullptr);
     use_short_loca = !head_data[51];
+    loca_width = use_short_loca ? 2 : 4;
     hb_blob_destroy(head);
 
     base_glyph_count = hb_face_get_glyph_count(base_face);
@@ -77,31 +106,32 @@ class GlyfDiff {
     NEW_DATA,
     EXISTING_DATA,
   } mode = INIT;
-  unsigned base_offset = 0;
-  unsigned derived_offset = 0;
-  unsigned length = 0;
+
+  TableRange glyf_range;
+  TableRange loca_range;
 
   unsigned base_gid = 0;
   unsigned derived_gid = 0;
 
-  hb_face_t* base_face;
-  unsigned base_glyf_offset;
-
-  hb_face_t* derived_face;
-
   const hb_map_t* base_new_to_old;
   const hb_map_t* derived_old_to_new;
-
-  const uint8_t* derived_glyf;
-  const uint8_t* derived_loca;
 
   unsigned base_glyph_count;
   unsigned derived_glyph_count;
   bool use_short_loca;
+  unsigned loca_width;
   bool retain_gids;
 
  public:
   void MakeDiff(BrotliStream& out) {
+    // Build loca and glyf together.
+    /*
+    BrotliStream loca(out.window_bits(), out.dictionary_size(), out.uncompressed_size());
+    BrotliStream glyf(out.window_bits(),
+                      out.dictionary_size(),
+                      out.uncompressed_size() + derived_loca_length);
+    */
+
     // Notation:
     // base_gid:      glyph id in the base subset glyph space.
     // *_derived_gid: glyph id in the derived subset glyph space.
@@ -116,31 +146,33 @@ class GlyfDiff {
         case NEW_DATA:
           if (base_derived_gid != derived_gid) {
             // Continue current range.
-            length += GlyphLength(derived_gid);
+            glyf_range.Extend(GlyphLength(derived_gid));
+            //loca_range.Extend(loca_width);
             derived_gid++;
             continue;
           }
 
-          CommitRange(out);
+          CommitRange(out, out);
           StartRange(base_derived_gid);
           continue;
 
         case EXISTING_DATA:
           if (base_derived_gid == derived_gid) {
             // Continue current range.
-            length += GlyphLength(derived_gid);
+            glyf_range.Extend(GlyphLength(derived_gid));
+            //loca_range.Extend(loca_width);
             derived_gid++;
             base_gid++;
             continue;
           }
 
-          CommitRange(out);
+          CommitRange(out, out);
           StartRange(base_derived_gid);
           continue;
       }
     }
 
-    CommitRange(out);
+    CommitRange(out, out);
   }
 
  private:
@@ -154,24 +186,24 @@ class GlyfDiff {
     return hb_map_get(derived_old_to_new, base_old_gid);
   }
 
-  void CommitRange(BrotliStream& out) {
+  void CommitRange(BrotliStream& loca, BrotliStream& glyf) {
     switch (mode) {
       case NEW_DATA:
-        out.insert_compressed(
-            Span<const uint8_t>(derived_glyf + derived_offset, length));
+        glyf_range.CommitNew(glyf);
+        //loca_range.CommitNew(loca);
         break;
       case EXISTING_DATA:
-        out.insert_from_dictionary(base_glyf_offset + base_offset, length);
-        base_offset += length;
+        glyf_range.CommitExisting(glyf);
+        //loca_range.CommitExisting(loca);
         break;
       case INIT:
         return;
     }
-    derived_offset += length;
   }
 
   void StartRange(unsigned base_derived_gid) {
-    length = GlyphLength(derived_gid);
+    glyf_range.Extend(GlyphLength(derived_gid));
+    //loca_range.Extend(loca_width);
 
     if (base_derived_gid != derived_gid) {
       mode = NEW_DATA;
@@ -185,6 +217,8 @@ class GlyfDiff {
 
   // Length of glyph (in bytes) found in the derived subset.
   unsigned GlyphLength(unsigned gid) {
+    const uint8_t* derived_loca = loca_range.data();
+
     if (use_short_loca) {
       unsigned index = gid * 2;
 
