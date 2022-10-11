@@ -65,14 +65,14 @@ TEST_F(BrotliFontDiffTest, Diff) {
   hb_set_add_range(hb_subset_input_unicode_set(input), 0x41, 0x5A);
   hb_subset_plan_t* base_plan = hb_subset_plan_create_or_fail(roboto, input);
   hb_face_t* base_face = hb_subset_plan_execute_or_fail(base_plan);
-  hb_blob_t* base_blob = hb_face_reference_blob (base_face);
+  hb_blob_t* base_blob = hb_face_reference_blob(base_face);
   FontData base = FontData::ToFontData(base_face);
   ASSERT_TRUE(base_plan);
 
   hb_set_add_range(hb_subset_input_unicode_set(input), 0x61, 0x7A);
   hb_subset_plan_t* derived_plan = hb_subset_plan_create_or_fail(roboto, input);
   hb_face_t* derived_face = hb_subset_plan_execute_or_fail(derived_plan);
-  hb_blob_t* derived_blob = hb_face_reference_blob (derived_face);
+  hb_blob_t* derived_blob = hb_face_reference_blob(derived_face);
   FontData derived = FontData::ToFontData(derived_face);
   ASSERT_TRUE(derived_plan);
 
@@ -96,14 +96,14 @@ TEST_F(BrotliFontDiffTest, DiffRetainGids) {
   hb_subset_input_set_flags(input, HB_SUBSET_FLAGS_RETAIN_GIDS);
   hb_subset_plan_t* base_plan = hb_subset_plan_create_or_fail(roboto, input);
   hb_face_t* base_face = hb_subset_plan_execute_or_fail(base_plan);
-  hb_blob_t* base_blob = hb_face_reference_blob (base_face);
+  hb_blob_t* base_blob = hb_face_reference_blob(base_face);
   FontData base = FontData::ToFontData(base_face);
   ASSERT_TRUE(base_plan);
 
   hb_set_add(hb_subset_input_unicode_set(input), 0x47);
   hb_subset_plan_t* derived_plan = hb_subset_plan_create_or_fail(roboto, input);
   hb_face_t* derived_face = hb_subset_plan_execute_or_fail(derived_plan);
-  hb_blob_t* derived_blob = hb_face_reference_blob (derived_face);
+  hb_blob_t* derived_blob = hb_face_reference_blob(derived_face);
   FontData derived = FontData::ToFontData(derived_face);
   ASSERT_TRUE(derived_plan);
 
@@ -129,7 +129,7 @@ TEST_F(BrotliFontDiffTest, LongLoca) {
   hb_subset_plan_t* base_plan =
       hb_subset_plan_create_or_fail(noto_sans_jp, input);
   hb_face_t* base_face = hb_subset_plan_execute_or_fail(base_plan);
-  hb_blob_t* base_blob = hb_face_reference_blob (base_face);
+  hb_blob_t* base_blob = hb_face_reference_blob(base_face);
   FontData base = FontData::ToFontData(base_face);
   ASSERT_TRUE(base_plan);
 
@@ -138,7 +138,7 @@ TEST_F(BrotliFontDiffTest, LongLoca) {
   hb_subset_plan_t* derived_plan =
       hb_subset_plan_create_or_fail(noto_sans_jp, input);
   hb_face_t* derived_face = hb_subset_plan_execute_or_fail(derived_plan);
-  hb_blob_t* derived_blob = hb_face_reference_blob (derived_face);
+  hb_blob_t* derived_blob = hb_face_reference_blob(derived_face);
   FontData derived = FontData::ToFontData(derived_face);
   ASSERT_TRUE(derived_plan);
 
