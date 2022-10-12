@@ -189,7 +189,7 @@ TEST_F(BrotliStreamTest, FourByteAlign) {
   stream.four_byte_align_uncompressed();
   EXPECT_EQ(stream.uncompressed_size(), 0);
 
-  stream.insert_from_dictionary(0, 1);
+  stream.insert_from_dictionary(0, 2);
   stream.four_byte_align_uncompressed();
   EXPECT_EQ(stream.uncompressed_size(), 4);
   stream.four_byte_align_uncompressed();
@@ -198,9 +198,11 @@ TEST_F(BrotliStreamTest, FourByteAlign) {
   stream.end_stream();
 
   uint8_t expected[] = {
-    '1', 0, 0, 0
+    '1', '2', 0, 0
   };
   CheckDecompressesTo(stream, expected, dict);
 }
+
+// TODO(garretrieger): test one byte dictionary insert.
 
 }  // namespace brotli

@@ -56,6 +56,23 @@ class BrotliFontDiffTest : public ::testing::Test {
     EXPECT_EQ(derived.str(), patched.str());
   }
 
+  void SortTables(hb_face_t* face, hb_face_t* subset) {
+    std::vector<hb_tag_t> table_order;
+    unsigned count = 50;
+    hb_tag_t table_tags[50];
+    hb_face_get_table_tags(face, 0, &count, table_tags);
+    for (unsigned i = 0; i < 50; i++) {
+      if (table_tags[i] == HB_TAG('g', 'l', 'y', 'f')
+          || table_tags[i] == HB_TAG('l', 'o', 'c', 'a'))
+        continue;
+      table_order.push_back(table_tags[i]);
+    }
+    table_order.push_back(HB_TAG('l', 'o', 'c', 'a'));
+    table_order.push_back(HB_TAG('g', 'l', 'y', 'f'));
+    table_order.push_back(0);
+    hb_face_builder_sort_tables(subset, table_order.data());
+  }
+
   hb_face_t* roboto;
   hb_face_t* noto_sans_jp;
   hb_subset_input_t* input;
@@ -67,6 +84,7 @@ TEST_F(BrotliFontDiffTest, Diff) {
   hb_set_add_range(hb_subset_input_unicode_set(input), 0x41, 0x5A);
   hb_subset_plan_t* base_plan = hb_subset_plan_create_or_fail(roboto, input);
   hb_face_t* base_face = hb_subset_plan_execute_or_fail(base_plan);
+  SortTables(roboto, base_face);
   hb_blob_t* base_blob = hb_face_reference_blob(base_face);
   FontData base = FontData::ToFontData(base_face);
   ASSERT_TRUE(base_plan);
@@ -74,13 +92,15 @@ TEST_F(BrotliFontDiffTest, Diff) {
   hb_set_add_range(hb_subset_input_unicode_set(input), 0x61, 0x7A);
   hb_subset_plan_t* derived_plan = hb_subset_plan_create_or_fail(roboto, input);
   hb_face_t* derived_face = hb_subset_plan_execute_or_fail(derived_plan);
+  SortTables(roboto, derived_face);
   hb_blob_t* derived_blob = hb_face_reference_blob(derived_face);
   FontData derived = FontData::ToFontData(derived_face);
   ASSERT_TRUE(derived_plan);
 
   BrotliFontDiff differ;
   FontData patch;
-  differ.Diff(base_plan, base_blob, derived_plan, derived_blob, &patch);
+  ASSERT_EQ(differ.Diff(base_plan, base_blob, derived_plan, derived_blob, &patch),
+            StatusCode::kOk);
 
   Check(base, patch, derived);
 
@@ -98,6 +118,7 @@ TEST_F(BrotliFontDiffTest, DiffRetainGids) {
   hb_subset_input_set_flags(input, HB_SUBSET_FLAGS_RETAIN_GIDS);
   hb_subset_plan_t* base_plan = hb_subset_plan_create_or_fail(roboto, input);
   hb_face_t* base_face = hb_subset_plan_execute_or_fail(base_plan);
+  SortTables(roboto, base_face);
   hb_blob_t* base_blob = hb_face_reference_blob(base_face);
   FontData base = FontData::ToFontData(base_face);
   ASSERT_TRUE(base_plan);
@@ -105,13 +126,15 @@ TEST_F(BrotliFontDiffTest, DiffRetainGids) {
   hb_set_add(hb_subset_input_unicode_set(input), 0x47);
   hb_subset_plan_t* derived_plan = hb_subset_plan_create_or_fail(roboto, input);
   hb_face_t* derived_face = hb_subset_plan_execute_or_fail(derived_plan);
+  SortTables(roboto, derived_face);
   hb_blob_t* derived_blob = hb_face_reference_blob(derived_face);
   FontData derived = FontData::ToFontData(derived_face);
   ASSERT_TRUE(derived_plan);
 
   BrotliFontDiff differ;
   FontData patch;
-  differ.Diff(base_plan, base_blob, derived_plan, derived_blob, &patch);
+  ASSERT_EQ(differ.Diff(base_plan, base_blob, derived_plan, derived_blob, &patch),
+            StatusCode::kOk);
 
   Check(base, patch, derived);
 
@@ -131,6 +154,7 @@ TEST_F(BrotliFontDiffTest, LongLoca) {
   hb_subset_plan_t* base_plan =
       hb_subset_plan_create_or_fail(noto_sans_jp, input);
   hb_face_t* base_face = hb_subset_plan_execute_or_fail(base_plan);
+  SortTables(noto_sans_jp, base_face);
   hb_blob_t* base_blob = hb_face_reference_blob(base_face);
   FontData base = FontData::ToFontData(base_face);
   ASSERT_TRUE(base_plan);
@@ -140,13 +164,16 @@ TEST_F(BrotliFontDiffTest, LongLoca) {
   hb_subset_plan_t* derived_plan =
       hb_subset_plan_create_or_fail(noto_sans_jp, input);
   hb_face_t* derived_face = hb_subset_plan_execute_or_fail(derived_plan);
+  SortTables(noto_sans_jp, derived_face);
   hb_blob_t* derived_blob = hb_face_reference_blob(derived_face);
   FontData derived = FontData::ToFontData(derived_face);
   ASSERT_TRUE(derived_plan);
 
   BrotliFontDiff differ;
   FontData patch;
-  differ.Diff(base_plan, base_blob, derived_plan, derived_blob, &patch);
+  ASSERT_EQ(differ.Diff(base_plan, base_blob, derived_plan, derived_blob, &patch),
+            StatusCode::kOk);
+
 
   Check(base, patch, derived);
 
