@@ -64,14 +64,14 @@ class BrotliFontDiffTest : public ::testing::Test {
     for (unsigned i = 0; i < count; i++) {
       if (table_tags[i] == HB_TAG('g', 'l', 'y', 'f') ||
           table_tags[i] == HB_TAG('l', 'o', 'c', 'a') ||
-          table_tags[i] == HB_TAG('h', 'm', 't', 'x'))
-          //table_tags[i] == HB_TAG('v', 'm', 't', 'x'))
+          table_tags[i] == HB_TAG('h', 'm', 't', 'x') ||
+          table_tags[i] == HB_TAG('v', 'm', 't', 'x'))
         continue;
       table_order.push_back(table_tags[i]);
     }
 
     table_order.push_back(HB_TAG('h', 'm', 't', 'x'));
-    //table_order.push_back(HB_TAG('v', 'm', 't', 'x'));
+    table_order.push_back(HB_TAG('v', 'm', 't', 'x'));
     table_order.push_back(HB_TAG('l', 'o', 'c', 'a'));
     table_order.push_back(HB_TAG('g', 'l', 'y', 'f'));
     table_order.push_back(0);

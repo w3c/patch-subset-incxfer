@@ -56,36 +56,48 @@ class DiffDriver {
     // TODO(garretrieger): add these from a set of tags and in the order of the
     // tables
     //                     in the actual font.
-    differs.push_back(RangeAndDiffer(base_face, derived_face,
-                                     HB_TAG('h', 'm', 't', 'x'), stream,
-                                     new HmtxDiffer(
-                                         TableRange::to_span(base_face, HB_TAG('h', 'h', 'e', 'a')),
-                                         TableRange::to_span(derived_face,
-                                                             HB_TAG('h', 'h', 'e', 'a')))));
+    if (HasTable(base_face, HB_TAG('h', 'm', 't', 'x')) &&
+        HasTable(base_face, HB_TAG('h', 'h', 'e', 'a')) &&
+        HasTable(derived_face, HB_TAG('h', 'm', 't', 'x')) &&
+        HasTable(derived_face, HB_TAG('h', 'h', 'e', 'a'))) {
+      differs.push_back(RangeAndDiffer(base_face, derived_face,
+                                       HB_TAG('h', 'm', 't', 'x'), stream,
+                                       new HmtxDiffer(
+                                           TableRange::to_span(base_face, HB_TAG('h', 'h', 'e', 'a')),
+                                           TableRange::to_span(derived_face,
+                                                               HB_TAG('h', 'h', 'e', 'a')))));
+    }
 
-    /*
-    differs.push_back(RangeAndDiffer(base_face, derived_face,
-                                     HB_TAG('v', 'm', 't', 'x'), stream,
-                                     new HmtxDiffer(
-                                         TableRange::to_span(base_face, HB_TAG('v', 'h', 'e', 'a')),
-                                         TableRange::to_span(derived_face,
-                                                             HB_TAG('v', 'h', 'e', 'a')))));
-    */
+    if (HasTable(base_face, HB_TAG('v', 'm', 't', 'x')) &&
+        HasTable(base_face, HB_TAG('v', 'h', 'e', 'a')) &&
+        HasTable(derived_face, HB_TAG('v', 'm', 't', 'x')) &&
+        HasTable(derived_face, HB_TAG('v', 'h', 'e', 'a'))) {
+      differs.push_back(RangeAndDiffer(base_face, derived_face,
+                                       HB_TAG('v', 'm', 't', 'x'), stream,
+                                       new HmtxDiffer(
+                                           TableRange::to_span(base_face, HB_TAG('v', 'h', 'e', 'a')),
+                                           TableRange::to_span(derived_face,
+                                                               HB_TAG('v', 'h', 'e', 'a')))));
+    }
 
-    differs.push_back(RangeAndDiffer(base_face, derived_face,
-                                     HB_TAG('l', 'o', 'c', 'a'), stream,
-                                     new LocaDiffer(use_short_loca)));
+    if (HasTable(base_face, HB_TAG('l', 'o', 'c', 'a')) &&
+        HasTable(base_face, HB_TAG('g', 'l', 'y', 'f'))) {
+      differs.push_back(RangeAndDiffer(base_face, derived_face,
+                                       HB_TAG('l', 'o', 'c', 'a'), stream,
+                                       new LocaDiffer(use_short_loca)));
 
-    differs.push_back(RangeAndDiffer(
-        base_face, derived_face, HB_TAG('g', 'l', 'y', 'f'), stream,
-        new GlyfDiffer(
-            TableRange::to_span(derived_face, HB_TAG('l', 'o', 'c', 'a')),
-            use_short_loca)));
+      differs.push_back(RangeAndDiffer(
+          base_face, derived_face, HB_TAG('g', 'l', 'y', 'f'), stream,
+          new GlyfDiffer(
+              TableRange::to_span(derived_face, HB_TAG('l', 'o', 'c', 'a')),
+              use_short_loca)));
+    }
   }
 
- private:
-  std::vector<RangeAndDiffer> differs;
 
+ public:
+  std::vector<RangeAndDiffer> differs;
+ private:
   BrotliStream& out;
 
   unsigned base_gid = 0;
@@ -159,6 +171,13 @@ class DiffDriver {
     unsigned base_old_gid = hb_map_get(base_new_to_old, base_gid);
     return hb_map_get(derived_old_to_new, base_old_gid);
   }
+
+  bool HasTable(hb_face_t* face, hb_tag_t tag) {
+    hb_blob_t* table = hb_face_reference_table(face, tag);
+    bool non_empty = (table != hb_blob_get_empty());
+    hb_blob_destroy(table);
+    return non_empty;
+  }
 };
 
 StatusCode BrotliFontDiff::Diff(
@@ -177,19 +196,14 @@ StatusCode BrotliFontDiff::Diff(
   // sizes.
   BrotliStream out(22, base_span.size());
 
-  static const std::vector<hb_tag_t> custom_diff_tags {
-    HB_TAG('h', 'm', 't', 'x'),
-    //HB_TAG('v', 'm', 't', 'x'),
-    HB_TAG('l', 'o', 'c', 'a'),
-    HB_TAG('g', 'l', 'y', 'f')
-  };
-
   unsigned derived_start_offset = 0;
   unsigned derived_end_offset = 0;
   unsigned base_start_offset = 0;
   unsigned base_end_offset = 0;
 
-  for (hb_tag_t tag : custom_diff_tags) {
+  DiffDriver diff_driver(base_plan, base_face, derived_plan, derived_face, out);
+  for (auto& differ : diff_driver.differs) {
+    hb_tag_t tag = differ.range.tag();
     Span<const uint8_t> base_span = TableRange::padded_table_span(
         TableRange::to_span(base_face, tag));
     Span<const uint8_t> derived_span = TableRange::padded_table_span(
@@ -222,7 +236,6 @@ StatusCode BrotliFontDiff::Diff(
       derived_span.subspan(0, derived_start_offset),
       base_span.subspan(0, base_start_offset));
 
-  DiffDriver diff_driver(base_plan, base_face, derived_plan, derived_face, out);
   diff_driver.MakeDiff();
 
   if (derived_span.size() > derived_end_offset) {

@@ -54,6 +54,7 @@ class TableRange {
                                table_offset(derived_face, tag)));
 
     base_table_offset_ = table_offset(base_face, tag);
+    tag_ = tag;
   }
 
  private:
@@ -64,8 +65,12 @@ class TableRange {
   unsigned derived_offset_ = 0;
   unsigned length_ = 0;
   std::unique_ptr<BrotliStream> out;
+  hb_tag_t tag_;
 
  public:
+
+  hb_tag_t tag() const { return tag_; }
+
   BrotliStream& stream() { return *out; }
 
   const uint8_t* data() { return derived_.data(); }
