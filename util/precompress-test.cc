@@ -22,7 +22,7 @@ using patch_subset::BrotliBinaryPatch;
 using patch_subset::FontData;
 using patch_subset::StatusCode;
 
-constexpr bool DUMP_STATE = true;
+constexpr bool DUMP_STATE = false;
 constexpr unsigned STATIC_QUALITY = 11;
 // Number of codepoints to include in the subset. Set to
 // -1 to use ascii as a subset.
@@ -255,11 +255,13 @@ class Operation {
       for (unsigned i = 0; i < count; i++) {
         if (table_tags[i] == HB_TAG('g', 'l', 'y', 'f') ||
             table_tags[i] == HB_TAG('l', 'o', 'c', 'a') ||
-            table_tags[i] == HB_TAG('h', 'm', 't', 'x'))
+            table_tags[i] == HB_TAG('h', 'm', 't', 'x') ||
+            table_tags[i] == HB_TAG('v', 'm', 't', 'x'))
           continue;
         table_order.push_back(table_tags[i]);
       }
       table_order.push_back(HB_TAG('h', 'm', 't', 'x'));
+      table_order.push_back(HB_TAG('v', 'm', 't', 'x'));
       table_order.push_back(HB_TAG('l', 'o', 'c', 'a'));
       table_order.push_back(HB_TAG('g', 'l', 'y', 'f'));
       table_order.push_back(0);
