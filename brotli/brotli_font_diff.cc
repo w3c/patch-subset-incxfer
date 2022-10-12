@@ -2,6 +2,8 @@
 
 #include "absl/types/span.h"
 #include "brotli/brotli_stream.h"
+#include "brotli/glyf_differ.h"
+#include "brotli/loca_differ.h"
 #include "brotli/table_range.h"
 
 using ::absl::Span;
@@ -9,7 +11,6 @@ using ::patch_subset::FontData;
 using ::patch_subset::StatusCode;
 
 namespace brotli {
-
 
 /*
  * Writes out a brotli encoded copy of the 'derived' subsets glyf table using
@@ -21,16 +22,27 @@ namespace brotli {
  * found in 'derived' is encoded as compressed data without the use of the
  * shared dictionary.
  */
-class GlyfDiff {
-  // TODO(garretrieger): move GlyfDiff into it's own file.
+class DiffDriver {
+  // TODO(garretrieger): move this too it's own file.
+
+  struct RangeAndDiffer {
+    RangeAndDiffer(hb_face_t* base_face,
+                   hb_face_t* derived_face,
+                   hb_tag_t tag,
+                   const BrotliStream& base_stream,
+                   TableDiffer* differ_)
+        : range(base_face, derived_face, tag, base_stream), differ(differ_)
+    {}
+
+    TableRange range;
+    std::unique_ptr<TableDiffer> differ;
+  };
 
  public:
-  GlyfDiff(hb_subset_plan_t* base_plan, hb_face_t* base_face,
-           hb_subset_plan_t* derived_plan, hb_face_t* derived_face,
-           BrotliStream& stream) // TODO store and append to out
-      : glyf_range(base_face, derived_face, HB_TAG('g', 'l', 'y', 'f'), stream),
-        loca_range(base_face, derived_face, HB_TAG('l', 'o', 'c', 'a'), stream),
-        out(stream),
+  DiffDriver(hb_subset_plan_t* base_plan, hb_face_t* base_face,
+             hb_subset_plan_t* derived_plan, hb_face_t* derived_face,
+             BrotliStream& stream) // TODO store and append to out
+      : out(stream),
         base_new_to_old(hb_subset_plan_new_to_old_glyph_mapping(base_plan)),
         derived_old_to_new(
             hb_subset_plan_old_to_new_glyph_mapping(derived_plan)) {
@@ -38,26 +50,30 @@ class GlyfDiff {
     hb_blob_t* head =
         hb_face_reference_table(derived_face, HB_TAG('h', 'e', 'a', 'd'));
     const char* head_data = hb_blob_get_data(head, nullptr);
-    use_short_loca = !head_data[51];
-    loca_width = use_short_loca ? 2 : 4;
+    unsigned use_short_loca = !head_data[51];
     hb_blob_destroy(head);
 
     base_glyph_count = hb_face_get_glyph_count(base_face);
     derived_glyph_count = hb_face_get_glyph_count(derived_face);
     retain_gids = base_glyph_count < hb_map_get_population(base_new_to_old);
+
+    // TODO(garretrieger): add these from a set of tags and in the order of the tables
+    //                     in the actual font.
+    differs.push_back(RangeAndDiffer(
+        base_face, derived_face, HB_TAG('l', 'o', 'c', 'a'), stream,
+        new LocaDiffer(use_short_loca)));
+
+    differs.push_back(RangeAndDiffer(
+        base_face, derived_face, HB_TAG('g', 'l', 'y', 'f'), stream,
+        new GlyfDiffer(TableRange::to_span(derived_face,
+                                           HB_TAG('l', 'o', 'c', 'a')),
+                       use_short_loca)));
   }
 
  private:
-  enum Mode {
-    INIT = 0,
-    NEW_DATA,
-    EXISTING_DATA,
-  } mode = INIT;
 
-  bool loca_diverged = false;
+  std::vector<RangeAndDiffer> differs;
 
-  TableRange glyf_range;
-  TableRange loca_range;
   BrotliStream& out;
 
   unsigned base_gid = 0;
@@ -68,8 +84,7 @@ class GlyfDiff {
 
   unsigned base_glyph_count;
   unsigned derived_glyph_count;
-  bool use_short_loca;
-  unsigned loca_width;
+
   bool retain_gids;
 
  public:
@@ -81,53 +96,44 @@ class GlyfDiff {
 
     while (derived_gid < derived_glyph_count) {
       unsigned base_derived_gid = BaseToDerivedGid(base_gid);
-      switch (mode) {
-        case INIT:
-          StartRange(base_derived_gid);
-          continue;
 
-        case NEW_DATA:
-          loca_diverged = true;
-          if (base_derived_gid != derived_gid) {
-            // Continue current range.
-            glyf_range.Extend(GlyphLength(derived_gid));
-            loca_range.Extend(loca_width);
-            derived_gid++;
-            continue;
+      for (auto& range_and_differ : differs) {
+        TableDiffer* differ = range_and_differ.differ.get();
+        TableRange& range = range_and_differ.range;
+
+        bool was_new_data = differ->IsNewData();
+        unsigned length = differ->Process(derived_gid, base_gid, base_derived_gid);
+
+        if (derived_gid > 0 && was_new_data != differ->IsNewData()) {
+          if (was_new_data) {
+            range.CommitNew();
+          } else {
+            range.CommitExisting();
           }
+        }
 
-          CommitRange();
-          StartRange(base_derived_gid);
-          continue;
-
-        case EXISTING_DATA:
-          if (base_derived_gid == derived_gid) {
-            // Continue current range.
-            glyf_range.Extend(GlyphLength(derived_gid));
-            loca_range.Extend(loca_width);
-            derived_gid++;
-            base_gid++;
-            continue;
-          }
-
-          CommitRange();
-          StartRange(base_derived_gid);
-          continue;
+        range.Extend(length);
       }
+
+      if (base_derived_gid == derived_gid) {
+        base_gid++;
+      }
+      derived_gid++;
     }
 
-    CommitRange();
-    loca_range.Extend(loca_width); // Loca has num glyphs + 1 entries.
-    if (loca_diverged) {
-      loca_range.CommitNew();
-    } else {
-      loca_range.CommitExisting();
+    // Finalize and commit any outstanding changes.
+    for (auto& range_and_differ : differs) {
+      TableDiffer* differ = range_and_differ.differ.get();
+      TableRange& range = range_and_differ.range;
+      range.Extend(differ->Finalize());
+      if (differ->IsNewData()) {
+        range.CommitNew();
+      } else {
+        range.CommitExisting();
+      }
+      range.stream().four_byte_align_uncompressed();
+      out.append(range.stream());
     }
-
-    loca_range.stream().four_byte_align_uncompressed();
-    out.append(loca_range.stream());
-    glyf_range.stream().four_byte_align_uncompressed();
-    out.append(glyf_range.stream());
   }
 
  private:
@@ -139,70 +145,6 @@ class GlyfDiff {
 
     unsigned base_old_gid = hb_map_get(base_new_to_old, base_gid);
     return hb_map_get(derived_old_to_new, base_old_gid);
-  }
-
-  void CommitRange() {
-    switch (mode) {
-      case NEW_DATA:
-        glyf_range.CommitNew();
-        break;
-      case EXISTING_DATA:
-        glyf_range.CommitExisting();
-        if (!loca_diverged) {
-          loca_range.CommitExisting();
-        }
-        break;
-      case INIT:
-        return;
-    }
-  }
-
-  void StartRange(unsigned base_derived_gid) {
-    glyf_range.Extend(GlyphLength(derived_gid));
-    loca_range.Extend(loca_width);
-
-    if (base_derived_gid != derived_gid) {
-      mode = NEW_DATA;
-      loca_diverged = true;
-    } else {
-      mode = EXISTING_DATA;
-      base_gid++;
-    }
-
-    derived_gid++;
-  }
-
-  // Length of glyph (in bytes) found in the derived subset.
-  unsigned GlyphLength(unsigned gid) {
-    const uint8_t* derived_loca = loca_range.data();
-
-    if (use_short_loca) {
-      unsigned index = gid * 2;
-
-      unsigned off_1 = ((derived_loca[index] & 0xFF) << 8) |
-                       (derived_loca[index + 1] & 0xFF);
-
-      index += 2;
-      unsigned off_2 = ((derived_loca[index] & 0xFF) << 8) |
-                       (derived_loca[index + 1] & 0xFF);
-
-      return (off_2 * 2) - (off_1 * 2);
-    }
-
-    unsigned index = gid * 4;
-
-    unsigned off_1 = ((derived_loca[index] & 0xFF) << 24) |
-                     ((derived_loca[index + 1] & 0xFF) << 16) |
-                     ((derived_loca[index + 2] & 0xFF) << 8) |
-                     (derived_loca[index + 3] & 0xFF);
-
-    index += 4;
-    unsigned off_2 = ((derived_loca[index] & 0xFF) << 24) |
-                     ((derived_loca[index + 1] & 0xFF) << 16) |
-                     ((derived_loca[index + 2] & 0xFF) << 8) |
-                     (derived_loca[index + 3] & 0xFF);
-
-    return off_2 - off_1;
   }
 };
 
@@ -249,8 +191,8 @@ StatusCode BrotliFontDiff::Diff(
       derived_span.subspan(0, derived_loca_offset),
       base_span.subspan(0, base_loca_offset));
 
-  GlyfDiff glyf_diff(base_plan, base_face, derived_plan, derived_face, out);
-  glyf_diff.MakeDiff();
+  DiffDriver diff_driver(base_plan, base_face, derived_plan, derived_face, out);
+  diff_driver.MakeDiff();
 
   if (derived_span.size() > derived_glyf_offset + derived_glyf_span.size()) {
     out.insert_compressed(derived_span.subspan(
