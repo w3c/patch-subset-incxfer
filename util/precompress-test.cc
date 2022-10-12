@@ -22,13 +22,13 @@ using patch_subset::BrotliBinaryPatch;
 using patch_subset::FontData;
 using patch_subset::StatusCode;
 
-constexpr bool DUMP_STATE = false;
+constexpr bool DUMP_STATE = true;
 constexpr unsigned STATIC_QUALITY = 11;
 // Number of codepoints to include in the subset. Set to
 // -1 to use ascii as a subset.
 constexpr unsigned SUBSET_COUNT = 10;
 constexpr unsigned BASE_COUNT = 1000;
-constexpr unsigned TRIAL_DURATION_MS = 1000;
+constexpr unsigned TRIAL_DURATION_MS = 5000;
 
 // TODO(grieger): this should be all "No Subset Tables" in the font.
 hb_tag_t immutable_tables[] = {
@@ -122,6 +122,11 @@ class Operation {
       if (base) {
         base_font_data.set(base);
       }
+      if (DUMP_STATE) {
+        dump("actual_subset.ttf", hb_blob_get_data(subset, nullptr),
+             hb_blob_get_length(subset));
+      }
+
       FontData derived;
       StatusCode sc = patcher.Patch(base_font_data, font_patch, &derived);
       if (sc != StatusCode::kOk) {
@@ -131,8 +136,6 @@ class Operation {
       if (DUMP_STATE) {
         dump("patch.bin", reinterpret_cast<const char*>(patch.data()),
              patch.size());
-        dump("actual_subset.ttf", hb_blob_get_data(subset, nullptr),
-             hb_blob_get_length(subset));
         dump("generated_subset.ttf",
              reinterpret_cast<const char*>(derived.data()), derived.size());
       }
@@ -249,12 +252,14 @@ class Operation {
       unsigned count = 50;
       hb_tag_t table_tags[50];
       hb_face_get_table_tags(face, 0, &count, table_tags);
-      for (unsigned i = 0; i < 50; i++) {
+      for (unsigned i = 0; i < count; i++) {
         if (table_tags[i] == HB_TAG('g', 'l', 'y', 'f') ||
-            table_tags[i] == HB_TAG('l', 'o', 'c', 'a'))
+            table_tags[i] == HB_TAG('l', 'o', 'c', 'a') ||
+            table_tags[i] == HB_TAG('h', 'm', 't', 'x'))
           continue;
         table_order.push_back(table_tags[i]);
       }
+      table_order.push_back(HB_TAG('h', 'm', 't', 'x'));
       table_order.push_back(HB_TAG('l', 'o', 'c', 'a'));
       table_order.push_back(HB_TAG('g', 'l', 'y', 'f'));
       table_order.push_back(0);

@@ -61,12 +61,17 @@ class BrotliFontDiffTest : public ::testing::Test {
     unsigned count = 50;
     hb_tag_t table_tags[50];
     hb_face_get_table_tags(face, 0, &count, table_tags);
-    for (unsigned i = 0; i < 50; i++) {
+    for (unsigned i = 0; i < count; i++) {
       if (table_tags[i] == HB_TAG('g', 'l', 'y', 'f') ||
-          table_tags[i] == HB_TAG('l', 'o', 'c', 'a'))
+          table_tags[i] == HB_TAG('l', 'o', 'c', 'a') ||
+          table_tags[i] == HB_TAG('h', 'm', 't', 'x'))
+          //table_tags[i] == HB_TAG('v', 'm', 't', 'x'))
         continue;
       table_order.push_back(table_tags[i]);
     }
+
+    table_order.push_back(HB_TAG('h', 'm', 't', 'x'));
+    //table_order.push_back(HB_TAG('v', 'm', 't', 'x'));
     table_order.push_back(HB_TAG('l', 'o', 'c', 'a'));
     table_order.push_back(HB_TAG('g', 'l', 'y', 'f'));
     table_order.push_back(0);

@@ -4,6 +4,7 @@
 #include "brotli/brotli_stream.h"
 #include "brotli/glyf_differ.h"
 #include "brotli/loca_differ.h"
+#include "brotli/hmtx_differ.h"
 #include "brotli/table_range.h"
 
 using ::absl::Span;
@@ -55,6 +56,22 @@ class DiffDriver {
     // TODO(garretrieger): add these from a set of tags and in the order of the
     // tables
     //                     in the actual font.
+    differs.push_back(RangeAndDiffer(base_face, derived_face,
+                                     HB_TAG('h', 'm', 't', 'x'), stream,
+                                     new HmtxDiffer(
+                                         TableRange::to_span(base_face, HB_TAG('h', 'h', 'e', 'a')),
+                                         TableRange::to_span(derived_face,
+                                                             HB_TAG('h', 'h', 'e', 'a')))));
+
+    /*
+    differs.push_back(RangeAndDiffer(base_face, derived_face,
+                                     HB_TAG('v', 'm', 't', 'x'), stream,
+                                     new HmtxDiffer(
+                                         TableRange::to_span(base_face, HB_TAG('v', 'h', 'e', 'a')),
+                                         TableRange::to_span(derived_face,
+                                                             HB_TAG('v', 'h', 'e', 'a')))));
+    */
+
     differs.push_back(RangeAndDiffer(base_face, derived_face,
                                      HB_TAG('l', 'o', 'c', 'a'), stream,
                                      new LocaDiffer(use_short_loca)));
@@ -160,44 +177,57 @@ StatusCode BrotliFontDiff::Diff(
   // sizes.
   BrotliStream out(22, base_span.size());
 
-  Span<const uint8_t> base_glyf_span = TableRange::padded_table_span(
-      TableRange::to_span(base_face, HB_TAG('g', 'l', 'y', 'f')));
-  Span<const uint8_t> base_loca_span = TableRange::padded_table_span(
-      TableRange::to_span(base_face, HB_TAG('l', 'o', 'c', 'a')));
-  Span<const uint8_t> derived_glyf_span = TableRange::padded_table_span(
-      TableRange::to_span(derived_face, HB_TAG('g', 'l', 'y', 'f')));
-  Span<const uint8_t> derived_loca_span = TableRange::padded_table_span(
-      TableRange::to_span(derived_face, HB_TAG('l', 'o', 'c', 'a')));
+  static const std::vector<hb_tag_t> custom_diff_tags {
+    HB_TAG('h', 'm', 't', 'x'),
+    //HB_TAG('v', 'm', 't', 'x'),
+    HB_TAG('l', 'o', 'c', 'a'),
+    HB_TAG('g', 'l', 'y', 'f')
+  };
 
-  unsigned base_loca_offset =
-      TableRange::table_offset(base_face, HB_TAG('l', 'o', 'c', 'a'));
-  unsigned derived_loca_offset =
-      TableRange::table_offset(derived_face, HB_TAG('l', 'o', 'c', 'a'));
-  unsigned derived_glyf_offset =
-      TableRange::table_offset(derived_face, HB_TAG('g', 'l', 'y', 'f'));
+  unsigned derived_start_offset = 0;
+  unsigned derived_end_offset = 0;
+  unsigned base_start_offset = 0;
+  unsigned base_end_offset = 0;
 
-  if (derived_loca_span.data() + derived_loca_span.size() !=
-      derived_glyf_span.data()) {
-    LOG(WARNING) << "derived loca must immeditately preceed glyf.";
-    return StatusCode::kInternal;
-  }
+  for (hb_tag_t tag : custom_diff_tags) {
+    Span<const uint8_t> base_span = TableRange::padded_table_span(
+        TableRange::to_span(base_face, tag));
+    Span<const uint8_t> derived_span = TableRange::padded_table_span(
+      TableRange::to_span(derived_face, tag));
 
-  if (base_loca_span.data() + base_loca_span.size() != base_glyf_span.data()) {
-    LOG(WARNING) << "base loca must immeditately preceed glyf.";
-    return StatusCode::kInternal;
+    unsigned base_offset = TableRange::table_offset(base_face, tag);
+    unsigned derived_offset = TableRange::table_offset(derived_face, tag);
+
+    if (!derived_start_offset) {
+      derived_start_offset = derived_offset;
+    }
+
+    if (!base_start_offset) {
+      base_start_offset = base_offset;
+    }
+
+    if (derived_end_offset && derived_end_offset != derived_offset) {
+      LOG(WARNING) << "custom diff tables in derived are not sequential.";
+    }
+
+    if (base_end_offset && base_end_offset != base_offset) {
+      LOG(WARNING) << "custom diff tables in base are not sequential.";
+    }
+
+    derived_end_offset = derived_offset + derived_span.size();
+    base_end_offset = base_offset + base_span.size();
   }
 
   out.insert_compressed_with_partial_dict(
-      derived_span.subspan(0, derived_loca_offset),
-      base_span.subspan(0, base_loca_offset));
+      derived_span.subspan(0, derived_start_offset),
+      base_span.subspan(0, base_start_offset));
 
   DiffDriver diff_driver(base_plan, base_face, derived_plan, derived_face, out);
   diff_driver.MakeDiff();
 
-  if (derived_span.size() > derived_glyf_offset + derived_glyf_span.size()) {
+  if (derived_span.size() > derived_end_offset) {
     out.insert_compressed(derived_span.subspan(
-        derived_glyf_offset + derived_glyf_span.size(),
-        derived_span.size() - derived_glyf_offset - derived_glyf_span.size()));
+        derived_end_offset, derived_end_offset - derived_span.size()));
   }
 
   out.end_stream();

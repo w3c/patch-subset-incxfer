@@ -34,7 +34,7 @@ class LocaDiffer : public TableDiffer {
     return loca_width_;
   }
 
-  unsigned Finalize() override {
+  unsigned Finalize() const override {
     // Loca table has one extra entry at the end. Stay in current mode.
     return loca_width_;
   }
