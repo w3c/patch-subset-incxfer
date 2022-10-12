@@ -13,7 +13,7 @@ class TableDiffer {
   virtual unsigned Process(unsigned derived_gid, unsigned base_gid,
                            unsigned base_derived_gid) = 0;
 
-  virtual unsigned Finalize() = 0;
+  virtual unsigned Finalize() const = 0;
 
   virtual bool IsNewData() const = 0;
 };

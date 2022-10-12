@@ -9,6 +9,7 @@ cc_library(
         "table_differ.h",
         "glyf_differ.h",
         "loca_differ.h",
+        "hmtx_differ.h",
     ],
     hdrs = [
         # TODO "shared_brotli_encoder.h",

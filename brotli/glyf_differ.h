@@ -27,7 +27,7 @@ class GlyfDiffer : public TableDiffer {
     return GlyphLength(derived_gid);
   }
 
-  unsigned Finalize() override {
+  unsigned Finalize() const override {
     // noop
     return 0;
   }
