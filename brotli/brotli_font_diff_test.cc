@@ -61,6 +61,8 @@ class BrotliFontDiffTest : public ::testing::Test {
   hb_subset_input_t* input;
 };
 
+// TODO(grieger): update tests for loca diff?
+
 TEST_F(BrotliFontDiffTest, Diff) {
   hb_set_add_range(hb_subset_input_unicode_set(input), 0x41, 0x5A);
   hb_subset_plan_t* base_plan = hb_subset_plan_create_or_fail(roboto, input);
