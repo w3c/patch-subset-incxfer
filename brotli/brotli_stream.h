@@ -37,7 +37,9 @@ class BrotliStream {
   patch_subset::StatusCode insert_compressed_with_partial_dict(
       absl::Span<const uint8_t> bytes, absl::Span<const uint8_t> partial_dict);
 
-  // TODO test
+
+  // Appends another stream onto this one. The other stream must have been started with
+  // a starting_offset == this.uncompressed_size_.
   void append(BrotliStream& other) {
     byte_align();
     other.byte_align();
@@ -55,8 +57,8 @@ class BrotliStream {
   // Align the stream to the nearest byte boundary.
   void byte_align();
 
-  // Align the end of uncompressed data with a 4 byte boundary.
-  // TODO test
+  // Align the end of uncompressed data with a 4 byte boundary. Padding with zeroes
+  // as nescessary.
   void four_byte_align_uncompressed() {
     uint8_t zeroes[] = {0, 0, 0 ,0};
     if (uncompressed_size_ % 4 != 0) {
