@@ -22,13 +22,13 @@ using patch_subset::BrotliBinaryPatch;
 using patch_subset::FontData;
 using patch_subset::StatusCode;
 
-constexpr bool DUMP_STATE = false;
+constexpr bool DUMP_STATE = true;
 constexpr unsigned STATIC_QUALITY = 11;
 // Number of codepoints to include in the subset. Set to
 // -1 to use ascii as a subset.
-constexpr unsigned SUBSET_COUNT = 500;
-constexpr unsigned BASE_COUNT = 250;
-constexpr unsigned TRIAL_DURATION_MS = 500;
+constexpr unsigned SUBSET_COUNT = 10;
+constexpr unsigned BASE_COUNT = 1000;
+constexpr unsigned TRIAL_DURATION_MS = 5000;
 
 // TODO(grieger): this should be all "No Subset Tables" in the font.
 hb_tag_t immutable_tables[] = {
@@ -243,6 +243,22 @@ class Operation {
     // Reorder immutable tables to be first.
     if (mode != MUTABLE_LAYOUT && mode != CUSTOM_DIFF) {
       hb_face_builder_sort_tables(subset, immutable_tables);
+    } else if (mode == CUSTOM_DIFF) {
+      // place glyf + loca last
+      std::vector<hb_tag_t> table_order;
+      unsigned count = 50;
+      hb_tag_t table_tags[50];
+      hb_face_get_table_tags(face, 0, &count, table_tags);
+      for (unsigned i = 0; i < 50; i++) {
+        if (table_tags[i] == HB_TAG('g', 'l', 'y', 'f')
+            || table_tags[i] == HB_TAG('l', 'o', 'c', 'a'))
+          continue;
+        table_order.push_back(table_tags[i]);
+      }
+      table_order.push_back(HB_TAG('l', 'o', 'c', 'a'));
+      table_order.push_back(HB_TAG('g', 'l', 'y', 'f'));
+      table_order.push_back(0);
+      hb_face_builder_sort_tables(subset, table_order.data());
     }
 
     hb_blob_t* result = hb_face_reference_blob(subset);
@@ -378,9 +394,8 @@ void test_dictionary_size(hb_face_t* face) {
     Operation op(hb_face_reference_blob(face), base_codepoints,
                  subset_codepoints);
     op.dynamic_quality = 5;
-    op.mode = MUTABLE_LAYOUT;
-    unsigned base_size = op.MakeSubsets();
     op.mode = CUSTOM_DIFF;
+    unsigned base_size = op.MakeSubsets();
 
     auto start = high_resolution_clock::now();
 
@@ -467,8 +482,8 @@ int main(int argc, char** argv) {
 
   hb_face_t* face = hb_face_create(font_blob, 0);
 
-  test_precompression(face);
-  // test_dictionary_size(face);
+  //test_precompression(face);
+  test_dictionary_size(face);
 
   hb_blob_destroy(font_blob);
   hb_face_destroy(face);

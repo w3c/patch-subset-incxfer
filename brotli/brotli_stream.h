@@ -37,6 +37,16 @@ class BrotliStream {
   patch_subset::StatusCode insert_compressed_with_partial_dict(
       absl::Span<const uint8_t> bytes, absl::Span<const uint8_t> partial_dict);
 
+  // TODO test
+  void append(BrotliStream& other) {
+    byte_align();
+    other.byte_align();
+    buffer_.sink().insert(buffer_.sink().end(),
+                          other.buffer_.sink().begin(),
+                          other.buffer_.sink().end());
+    uncompressed_size_ += other.uncompressed_size();
+  }
+
   // TODO(garretrieger): insert_compressed_with_partial_dict that is offset
   //                     from the start. Will need to disable static dict
   //                     references somehow. Can we set a empty custom static
@@ -45,12 +55,15 @@ class BrotliStream {
   // Align the stream to the nearest byte boundary.
   void byte_align();
 
-  // TODO(garretrieger): add methods:
-  // - insert_compressed: insert bytes and apply brotli compression, no
-  // dictionary is used.
-  // - insert_with_partial_dictionary: insert compressed bytes and use a
-  // subrange of the
-  //                                   full dictionary to encode against.
+  // Align the end of uncompressed data with a 4 byte boundary.
+  // TODO test
+  void four_byte_align_uncompressed() {
+    uint8_t zeroes[] = {0, 0, 0 ,0};
+    if (uncompressed_size_ % 4 != 0) {
+      unsigned to_add = 4 - (uncompressed_size_ % 4);
+      insert_uncompressed(absl::Span<const uint8_t>(zeroes, to_add));
+    }
+  }
 
   // Insert a meta-block that signals the end of the stream.
   void end_stream();

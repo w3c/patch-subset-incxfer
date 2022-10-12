@@ -20,17 +20,20 @@ class TableRange {
 
  public:
   TableRange(hb_face_t* base_face, hb_face_t* derived_face, hb_tag_t tag) {
+    // TODO(grieger): use spans, eg. to_span above.
     hb_blob_t* table =
         hb_face_reference_table(derived_face, tag);
-    derived_ = (const uint8_t*) hb_blob_get_data(table, nullptr);
+    derived_ = (const uint8_t*) hb_blob_get_data(table, &derived_length_);
     // TODO(garretrieger): blob should be retained until we're done with
     // derived_glyf
-    hb_blob_destroy(table);;
+    hb_blob_destroy(table);
 
     table = hb_face_reference_table(base_face, tag);
     hb_blob_t* base = hb_face_reference_blob(base_face);
     const uint8_t* table_data = (const uint8_t*)hb_blob_get_data(table, nullptr);
     const uint8_t* base_data = (const uint8_t*)hb_blob_get_data(base, nullptr);
+    // TODO(garretrieger): blob should be retained until we're done with
+    // base_glyf
     base_table_offset_ = table_data - base_data;
 
     hb_blob_destroy(table);
@@ -42,10 +45,14 @@ class TableRange {
   unsigned base_table_offset_;
   unsigned base_offset_ = 0;
   unsigned derived_offset_ = 0;
+  unsigned derived_length_ = 0;
   unsigned length_ = 0;
 
  public:
   const uint8_t* data() { return derived_; }
+  unsigned length() {
+    return derived_length_;
+  }
 
   void Extend(unsigned length) {
     length_ += length;
@@ -107,6 +114,8 @@ class GlyfDiff {
     EXISTING_DATA,
   } mode = INIT;
 
+  bool loca_diverged = false;
+
   TableRange glyf_range;
   TableRange loca_range;
 
@@ -125,17 +134,15 @@ class GlyfDiff {
  public:
   void MakeDiff(BrotliStream& out) {
     // Build loca and glyf together.
-    /*
-    BrotliStream loca(out.window_bits(), out.dictionary_size(), out.uncompressed_size());
     BrotliStream glyf(out.window_bits(),
                       out.dictionary_size(),
-                      out.uncompressed_size() + derived_loca_length);
-    */
+                      out.uncompressed_size() + loca_range.length());
 
     // Notation:
     // base_gid:      glyph id in the base subset glyph space.
     // *_derived_gid: glyph id in the derived subset glyph space.
     // *_old_gid:     glyph id in the original font glyph space.
+
     while (derived_gid < derived_glyph_count) {
       unsigned base_derived_gid = BaseToDerivedGid(base_gid);
       switch (mode) {
@@ -144,15 +151,16 @@ class GlyfDiff {
           continue;
 
         case NEW_DATA:
+          loca_diverged = true;
           if (base_derived_gid != derived_gid) {
             // Continue current range.
             glyf_range.Extend(GlyphLength(derived_gid));
-            //loca_range.Extend(loca_width);
+            loca_range.Extend(loca_width);
             derived_gid++;
             continue;
           }
 
-          CommitRange(out, out);
+          CommitRange(out, glyf);
           StartRange(base_derived_gid);
           continue;
 
@@ -160,19 +168,28 @@ class GlyfDiff {
           if (base_derived_gid == derived_gid) {
             // Continue current range.
             glyf_range.Extend(GlyphLength(derived_gid));
-            //loca_range.Extend(loca_width);
+            loca_range.Extend(loca_width);
             derived_gid++;
             base_gid++;
             continue;
           }
 
-          CommitRange(out, out);
+          CommitRange(out, glyf);
           StartRange(base_derived_gid);
           continue;
       }
     }
 
-    CommitRange(out, out);
+    CommitRange(out, glyf);
+    loca_range.Extend(loca_width); // Loca has num glyphs + 1 entries.
+    if (loca_diverged) {
+      loca_range.CommitNew(out);
+    } else {
+      loca_range.CommitExisting(out);
+    }
+    out.four_byte_align_uncompressed();
+
+    out.append(glyf);
   }
 
  private:
@@ -190,11 +207,12 @@ class GlyfDiff {
     switch (mode) {
       case NEW_DATA:
         glyf_range.CommitNew(glyf);
-        //loca_range.CommitNew(loca);
         break;
       case EXISTING_DATA:
         glyf_range.CommitExisting(glyf);
-        //loca_range.CommitExisting(loca);
+        if (!loca_diverged) {
+          loca_range.CommitExisting(loca);
+        }
         break;
       case INIT:
         return;
@@ -203,10 +221,11 @@ class GlyfDiff {
 
   void StartRange(unsigned base_derived_gid) {
     glyf_range.Extend(GlyphLength(derived_gid));
-    //loca_range.Extend(loca_width);
+    loca_range.Extend(loca_width);
 
     if (base_derived_gid != derived_gid) {
       mode = NEW_DATA;
+      loca_diverged = true;
     } else {
       mode = EXISTING_DATA;
       base_gid++;
@@ -267,17 +286,35 @@ StatusCode BrotliFontDiff::Diff(
 
   hb_blob_t* base_glyf =
       hb_face_reference_table(base_face, HB_TAG('g', 'l', 'y', 'f'));
+  hb_blob_t* base_loca =
+      hb_face_reference_table(base_face, HB_TAG('l', 'o', 'c', 'a'));
   hb_blob_t* derived_glyf =
       hb_face_reference_table(derived_face, HB_TAG('g', 'l', 'y', 'f'));
-  Span<const uint8_t> base_glyf_span = to_span(base_glyf);
-  Span<const uint8_t> derived_glyf_span = to_span(derived_glyf);
+  hb_blob_t* derived_loca =
+      hb_face_reference_table(derived_face, HB_TAG('l', 'o', 'c', 'a'));
 
-  unsigned base_glyf_offset = base_glyf_span.data() - base_span.data();
+  Span<const uint8_t> base_glyf_span = to_span(base_glyf);
+  Span<const uint8_t> base_loca_span = to_span(base_loca);
+  Span<const uint8_t> derived_glyf_span = to_span(derived_glyf);
+  Span<const uint8_t> derived_loca_span = to_span(derived_loca);
+
+  unsigned base_loca_offset = base_loca_span.data() - base_span.data();
+  unsigned derived_loca_offset = derived_loca_span.data() - derived_span.data();
   unsigned derived_glyf_offset = derived_glyf_span.data() - derived_span.data();
 
+  if (derived_loca_span.data() + derived_loca_span.size() != derived_glyf_span.data()) {
+    LOG(WARNING) << "derived loca must immeditately preceed glyf.";
+    return StatusCode::kInternal;
+  }
+
+  if (base_loca_span.data() + base_loca_span.size() != base_glyf_span.data()) {
+    LOG(WARNING) << "base loca must immeditately preceed glyf.";
+    return StatusCode::kInternal;
+  }
+
   out.insert_compressed_with_partial_dict(
-      derived_span.subspan(0, derived_glyf_offset),
-      base_span.subspan(0, base_glyf_offset));
+      derived_span.subspan(0, derived_loca_offset),
+      base_span.subspan(0, base_loca_offset));
 
   GlyfDiff glyf_diff(base_plan, base_face, derived_plan, derived_face);
   glyf_diff.MakeDiff(out);
@@ -294,7 +331,9 @@ StatusCode BrotliFontDiff::Diff(
               out.compressed_data().size());
 
   hb_blob_destroy(base_glyf);
+  hb_blob_destroy(base_loca);
   hb_blob_destroy(derived_glyf);
+  hb_blob_destroy(derived_loca);
 
   hb_face_destroy(base_face);
   hb_face_destroy(derived_face);
