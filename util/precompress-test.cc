@@ -22,13 +22,13 @@ using patch_subset::BrotliBinaryPatch;
 using patch_subset::FontData;
 using patch_subset::StatusCode;
 
-constexpr bool DUMP_STATE = true;
+constexpr bool DUMP_STATE = false;
 constexpr unsigned STATIC_QUALITY = 11;
 // Number of codepoints to include in the subset. Set to
 // -1 to use ascii as a subset.
 constexpr unsigned SUBSET_COUNT = 10;
 constexpr unsigned BASE_COUNT = 1000;
-constexpr unsigned TRIAL_DURATION_MS = 5000;
+constexpr unsigned TRIAL_DURATION_MS = 1000;
 
 // TODO(grieger): this should be all "No Subset Tables" in the font.
 hb_tag_t immutable_tables[] = {
@@ -250,8 +250,8 @@ class Operation {
       hb_tag_t table_tags[50];
       hb_face_get_table_tags(face, 0, &count, table_tags);
       for (unsigned i = 0; i < 50; i++) {
-        if (table_tags[i] == HB_TAG('g', 'l', 'y', 'f')
-            || table_tags[i] == HB_TAG('l', 'o', 'c', 'a'))
+        if (table_tags[i] == HB_TAG('g', 'l', 'y', 'f') ||
+            table_tags[i] == HB_TAG('l', 'o', 'c', 'a'))
           continue;
         table_order.push_back(table_tags[i]);
       }
@@ -482,7 +482,7 @@ int main(int argc, char** argv) {
 
   hb_face_t* face = hb_face_create(font_blob, 0);
 
-  //test_precompression(face);
+  // test_precompression(face);
   test_dictionary_size(face);
 
   hb_blob_destroy(font_blob);

@@ -10,8 +10,7 @@ class TableDiffer {
  public:
   virtual ~TableDiffer() = default;
 
-  virtual unsigned Process(unsigned derived_gid,
-                           unsigned base_gid,
+  virtual unsigned Process(unsigned derived_gid, unsigned base_gid,
                            unsigned base_derived_gid) = 0;
 
   virtual unsigned Finalize() = 0;
