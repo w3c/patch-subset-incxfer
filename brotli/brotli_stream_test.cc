@@ -159,4 +159,48 @@ TEST_F(BrotliStreamTest, InsertMixed) {
   CheckDecompressesTo(stream, expected, dict_data);
 }
 
+TEST_F(BrotliStreamTest, AppendStreams) {
+  uint8_t dict[] = {'H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd'};
+
+  BrotliStream a(22, 11);
+  BrotliStream b(22, 11, 5);
+  BrotliStream c(22, 11, 12);
+
+  a.insert_from_dictionary(1, 5);
+  b.insert_from_dictionary(3, 7);
+  c.insert_from_dictionary(5, 4);
+
+  a.append(b);
+  a.append(c);
+  a.end_stream();
+
+  uint8_t expected[] = {
+    'e', 'l', 'l', 'o', ' ',
+    'l', 'o', ' ', 'w', 'o', 'r', 'l',
+    ' ', 'w', 'o', 'r'
+  };
+  CheckDecompressesTo(a, expected, dict);
+}
+
+TEST_F(BrotliStreamTest, FourByteAlign) {
+  uint8_t dict[] = {'1', '2', '3', '4'};
+  BrotliStream stream(22, 4);
+
+  stream.four_byte_align_uncompressed();
+  EXPECT_EQ(stream.uncompressed_size(), 0);
+
+  stream.insert_from_dictionary(0, 1);
+  stream.four_byte_align_uncompressed();
+  EXPECT_EQ(stream.uncompressed_size(), 4);
+  stream.four_byte_align_uncompressed();
+  EXPECT_EQ(stream.uncompressed_size(), 4);
+
+  stream.end_stream();
+
+  uint8_t expected[] = {
+    '1', 0, 0, 0
+  };
+  CheckDecompressesTo(stream, expected, dict);
+}
+
 }  // namespace brotli
