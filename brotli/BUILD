@@ -5,6 +5,7 @@ cc_library(
         "brotli_bit_buffer.cc",
         "brotli_font_diff.cc",
         "brotli_stream.cc",
+        "table_range.h",
     ],
     hdrs = [
         # TODO "shared_brotli_encoder.h",
