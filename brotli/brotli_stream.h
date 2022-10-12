@@ -16,7 +16,7 @@ namespace brotli {
 class BrotliStream {
  public:
   BrotliStream(unsigned window_bits, unsigned dictionary_size = 0, unsigned starting_offset = 0)
-      : uncompressed_size_(starting_offset),
+      : starting_offset_(starting_offset), uncompressed_size_(starting_offset),
         window_bits_(std::max(std::min(window_bits, 24u), 10u)),
         window_size_((1 << window_bits_) - 16),
         dictionary_size_(dictionary_size),
@@ -46,7 +46,7 @@ class BrotliStream {
     buffer_.sink().insert(buffer_.sink().end(),
                           other.buffer_.sink().begin(),
                           other.buffer_.sink().end());
-    uncompressed_size_ += other.uncompressed_size();
+    uncompressed_size_ += (other.uncompressed_size_ - other.starting_offset_);
   }
 
   // TODO(garretrieger): insert_compressed_with_partial_dict that is offset
@@ -87,6 +87,7 @@ class BrotliStream {
 
   void add_prefix_tree(unsigned code, unsigned width);
 
+  unsigned starting_offset_;
   unsigned uncompressed_size_;
   unsigned window_bits_;
   unsigned window_size_;

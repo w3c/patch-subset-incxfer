@@ -174,6 +174,8 @@ TEST_F(BrotliStreamTest, AppendStreams) {
   a.append(c);
   a.end_stream();
 
+  EXPECT_EQ(a.uncompressed_size(), 5 + 7 + 4);
+
   uint8_t expected[] = {
     'e', 'l', 'l', 'o', ' ',
     'l', 'o', ' ', 'w', 'o', 'r', 'l',

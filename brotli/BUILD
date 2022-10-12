@@ -6,6 +6,9 @@ cc_library(
         "brotli_font_diff.cc",
         "brotli_stream.cc",
         "table_range.h",
+        "table_differ.h",
+        "glyf_differ.h",
+        "loca_differ.h",
     ],
     hdrs = [
         # TODO "shared_brotli_encoder.h",
