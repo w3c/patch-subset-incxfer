@@ -7,7 +7,6 @@
 namespace brotli {
 
 class GlyfDiffer : public TableDiffer {
-
  private:
   enum Mode {
     INIT = 0,
@@ -19,12 +18,10 @@ class GlyfDiffer : public TableDiffer {
   bool use_short_loca_;
 
  public:
-  GlyfDiffer(absl::Span<const uint8_t> loca, bool use_short_loca) :
-      loca_(loca), use_short_loca_(use_short_loca)
-  {}
+  GlyfDiffer(absl::Span<const uint8_t> loca, bool use_short_loca)
+      : loca_(loca), use_short_loca_(use_short_loca) {}
 
-  unsigned Process(unsigned derived_gid,
-                   unsigned base_gid,
+  unsigned Process(unsigned derived_gid, unsigned base_gid,
                    unsigned base_derived_gid) override {
     mode = (base_derived_gid == derived_gid) ? EXISTING_DATA : NEW_DATA;
     return GlyphLength(derived_gid);
@@ -35,9 +32,7 @@ class GlyfDiffer : public TableDiffer {
     return 0;
   }
 
-  bool IsNewData() const override {
-    return mode == NEW_DATA;
-  }
+  bool IsNewData() const override { return mode == NEW_DATA; }
 
  private:
   // Length of glyph (in bytes) found in the derived subset.

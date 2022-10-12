@@ -15,8 +15,10 @@ namespace brotli {
  */
 class BrotliStream {
  public:
-  BrotliStream(unsigned window_bits, unsigned dictionary_size = 0, unsigned starting_offset = 0)
-      : starting_offset_(starting_offset), uncompressed_size_(starting_offset),
+  BrotliStream(unsigned window_bits, unsigned dictionary_size = 0,
+               unsigned starting_offset = 0)
+      : starting_offset_(starting_offset),
+        uncompressed_size_(starting_offset),
         window_bits_(std::max(std::min(window_bits, 24u), 10u)),
         window_size_((1 << window_bits_) - 16),
         dictionary_size_(dictionary_size),
@@ -37,14 +39,12 @@ class BrotliStream {
   patch_subset::StatusCode insert_compressed_with_partial_dict(
       absl::Span<const uint8_t> bytes, absl::Span<const uint8_t> partial_dict);
 
-
-  // Appends another stream onto this one. The other stream must have been started with
-  // a starting_offset == this.uncompressed_size_.
+  // Appends another stream onto this one. The other stream must have been
+  // started with a starting_offset == this.uncompressed_size_.
   void append(BrotliStream& other) {
     byte_align();
     other.byte_align();
-    buffer_.sink().insert(buffer_.sink().end(),
-                          other.buffer_.sink().begin(),
+    buffer_.sink().insert(buffer_.sink().end(), other.buffer_.sink().begin(),
                           other.buffer_.sink().end());
     uncompressed_size_ += (other.uncompressed_size_ - other.starting_offset_);
   }
@@ -57,10 +57,10 @@ class BrotliStream {
   // Align the stream to the nearest byte boundary.
   void byte_align();
 
-  // Align the end of uncompressed data with a 4 byte boundary. Padding with zeroes
-  // as nescessary.
+  // Align the end of uncompressed data with a 4 byte boundary. Padding with
+  // zeroes as nescessary.
   void four_byte_align_uncompressed() {
-    uint8_t zeroes[] = {0, 0, 0 ,0};
+    uint8_t zeroes[] = {0, 0, 0, 0};
     if (uncompressed_size_ % 4 != 0) {
       unsigned to_add = 4 - (uncompressed_size_ % 4);
       insert_uncompressed(absl::Span<const uint8_t>(zeroes, to_add));

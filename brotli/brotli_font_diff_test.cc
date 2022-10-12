@@ -62,8 +62,8 @@ class BrotliFontDiffTest : public ::testing::Test {
     hb_tag_t table_tags[50];
     hb_face_get_table_tags(face, 0, &count, table_tags);
     for (unsigned i = 0; i < 50; i++) {
-      if (table_tags[i] == HB_TAG('g', 'l', 'y', 'f')
-          || table_tags[i] == HB_TAG('l', 'o', 'c', 'a'))
+      if (table_tags[i] == HB_TAG('g', 'l', 'y', 'f') ||
+          table_tags[i] == HB_TAG('l', 'o', 'c', 'a'))
         continue;
       table_order.push_back(table_tags[i]);
     }
@@ -99,8 +99,9 @@ TEST_F(BrotliFontDiffTest, Diff) {
 
   BrotliFontDiff differ;
   FontData patch;
-  ASSERT_EQ(differ.Diff(base_plan, base_blob, derived_plan, derived_blob, &patch),
-            StatusCode::kOk);
+  ASSERT_EQ(
+      differ.Diff(base_plan, base_blob, derived_plan, derived_blob, &patch),
+      StatusCode::kOk);
 
   Check(base, patch, derived);
 
@@ -133,8 +134,9 @@ TEST_F(BrotliFontDiffTest, DiffRetainGids) {
 
   BrotliFontDiff differ;
   FontData patch;
-  ASSERT_EQ(differ.Diff(base_plan, base_blob, derived_plan, derived_blob, &patch),
-            StatusCode::kOk);
+  ASSERT_EQ(
+      differ.Diff(base_plan, base_blob, derived_plan, derived_blob, &patch),
+      StatusCode::kOk);
 
   Check(base, patch, derived);
 
@@ -171,9 +173,9 @@ TEST_F(BrotliFontDiffTest, LongLoca) {
 
   BrotliFontDiff differ;
   FontData patch;
-  ASSERT_EQ(differ.Diff(base_plan, base_blob, derived_plan, derived_blob, &patch),
-            StatusCode::kOk);
-
+  ASSERT_EQ(
+      differ.Diff(base_plan, base_blob, derived_plan, derived_blob, &patch),
+      StatusCode::kOk);
 
   Check(base, patch, derived);
 

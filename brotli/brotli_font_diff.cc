@@ -26,13 +26,9 @@ class DiffDriver {
   // TODO(garretrieger): move this too it's own file.
 
   struct RangeAndDiffer {
-    RangeAndDiffer(hb_face_t* base_face,
-                   hb_face_t* derived_face,
-                   hb_tag_t tag,
-                   const BrotliStream& base_stream,
-                   TableDiffer* differ_)
-        : range(base_face, derived_face, tag, base_stream), differ(differ_)
-    {}
+    RangeAndDiffer(hb_face_t* base_face, hb_face_t* derived_face, hb_tag_t tag,
+                   const BrotliStream& base_stream, TableDiffer* differ_)
+        : range(base_face, derived_face, tag, base_stream), differ(differ_) {}
 
     TableRange range;
     std::unique_ptr<TableDiffer> differ;
@@ -41,12 +37,11 @@ class DiffDriver {
  public:
   DiffDriver(hb_subset_plan_t* base_plan, hb_face_t* base_face,
              hb_subset_plan_t* derived_plan, hb_face_t* derived_face,
-             BrotliStream& stream) // TODO store and append to out
+             BrotliStream& stream)
       : out(stream),
         base_new_to_old(hb_subset_plan_new_to_old_glyph_mapping(base_plan)),
         derived_old_to_new(
             hb_subset_plan_old_to_new_glyph_mapping(derived_plan)) {
-
     hb_blob_t* head =
         hb_face_reference_table(derived_face, HB_TAG('h', 'e', 'a', 'd'));
     const char* head_data = hb_blob_get_data(head, nullptr);
@@ -57,21 +52,21 @@ class DiffDriver {
     derived_glyph_count = hb_face_get_glyph_count(derived_face);
     retain_gids = base_glyph_count < hb_map_get_population(base_new_to_old);
 
-    // TODO(garretrieger): add these from a set of tags and in the order of the tables
+    // TODO(garretrieger): add these from a set of tags and in the order of the
+    // tables
     //                     in the actual font.
-    differs.push_back(RangeAndDiffer(
-        base_face, derived_face, HB_TAG('l', 'o', 'c', 'a'), stream,
-        new LocaDiffer(use_short_loca)));
+    differs.push_back(RangeAndDiffer(base_face, derived_face,
+                                     HB_TAG('l', 'o', 'c', 'a'), stream,
+                                     new LocaDiffer(use_short_loca)));
 
     differs.push_back(RangeAndDiffer(
         base_face, derived_face, HB_TAG('g', 'l', 'y', 'f'), stream,
-        new GlyfDiffer(TableRange::to_span(derived_face,
-                                           HB_TAG('l', 'o', 'c', 'a')),
-                       use_short_loca)));
+        new GlyfDiffer(
+            TableRange::to_span(derived_face, HB_TAG('l', 'o', 'c', 'a')),
+            use_short_loca)));
   }
 
  private:
-
   std::vector<RangeAndDiffer> differs;
 
   BrotliStream& out;
@@ -102,7 +97,8 @@ class DiffDriver {
         TableRange& range = range_and_differ.range;
 
         bool was_new_data = differ->IsNewData();
-        unsigned length = differ->Process(derived_gid, base_gid, base_derived_gid);
+        unsigned length =
+            differ->Process(derived_gid, base_gid, base_derived_gid);
 
         if (derived_gid > 0 && was_new_data != differ->IsNewData()) {
           if (was_new_data) {
@@ -164,20 +160,24 @@ StatusCode BrotliFontDiff::Diff(
   // sizes.
   BrotliStream out(22, base_span.size());
 
-  Span<const uint8_t> base_glyf_span =
-      TableRange::padded_table_span(TableRange::to_span(base_face, HB_TAG('g', 'l', 'y', 'f')));
-  Span<const uint8_t> base_loca_span =
-      TableRange::padded_table_span(TableRange::to_span(base_face, HB_TAG('l', 'o', 'c', 'a')));
-  Span<const uint8_t> derived_glyf_span =
-      TableRange::padded_table_span(TableRange::to_span(derived_face, HB_TAG('g', 'l', 'y', 'f')));
-  Span<const uint8_t> derived_loca_span =
-      TableRange::padded_table_span(TableRange::to_span(derived_face, HB_TAG('l', 'o', 'c', 'a')));
+  Span<const uint8_t> base_glyf_span = TableRange::padded_table_span(
+      TableRange::to_span(base_face, HB_TAG('g', 'l', 'y', 'f')));
+  Span<const uint8_t> base_loca_span = TableRange::padded_table_span(
+      TableRange::to_span(base_face, HB_TAG('l', 'o', 'c', 'a')));
+  Span<const uint8_t> derived_glyf_span = TableRange::padded_table_span(
+      TableRange::to_span(derived_face, HB_TAG('g', 'l', 'y', 'f')));
+  Span<const uint8_t> derived_loca_span = TableRange::padded_table_span(
+      TableRange::to_span(derived_face, HB_TAG('l', 'o', 'c', 'a')));
 
-  unsigned base_loca_offset = TableRange::table_offset(base_face, HB_TAG('l', 'o', 'c', 'a'));
-  unsigned derived_loca_offset = TableRange::table_offset(derived_face, HB_TAG('l', 'o', 'c', 'a'));
-  unsigned derived_glyf_offset = TableRange::table_offset(derived_face, HB_TAG('g', 'l', 'y', 'f'));
+  unsigned base_loca_offset =
+      TableRange::table_offset(base_face, HB_TAG('l', 'o', 'c', 'a'));
+  unsigned derived_loca_offset =
+      TableRange::table_offset(derived_face, HB_TAG('l', 'o', 'c', 'a'));
+  unsigned derived_glyf_offset =
+      TableRange::table_offset(derived_face, HB_TAG('g', 'l', 'y', 'f'));
 
-  if (derived_loca_span.data() + derived_loca_span.size() != derived_glyf_span.data()) {
+  if (derived_loca_span.data() + derived_loca_span.size() !=
+      derived_glyf_span.data()) {
     LOG(WARNING) << "derived loca must immeditately preceed glyf.";
     return StatusCode::kInternal;
   }

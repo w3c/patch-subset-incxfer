@@ -176,11 +176,8 @@ TEST_F(BrotliStreamTest, AppendStreams) {
 
   EXPECT_EQ(a.uncompressed_size(), 5 + 7 + 4);
 
-  uint8_t expected[] = {
-    'e', 'l', 'l', 'o', ' ',
-    'l', 'o', ' ', 'w', 'o', 'r', 'l',
-    ' ', 'w', 'o', 'r'
-  };
+  uint8_t expected[] = {'e', 'l', 'l', 'o', ' ', 'l', 'o', ' ',
+                        'w', 'o', 'r', 'l', ' ', 'w', 'o', 'r'};
   CheckDecompressesTo(a, expected, dict);
 }
 
@@ -199,9 +196,7 @@ TEST_F(BrotliStreamTest, FourByteAlign) {
 
   stream.end_stream();
 
-  uint8_t expected[] = {
-    '1', '2', 0, 0
-  };
+  uint8_t expected[] = {'1', '2', 0, 0};
   CheckDecompressesTo(stream, expected, dict);
 }
 
