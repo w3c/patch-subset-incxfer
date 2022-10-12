@@ -68,7 +68,6 @@ class TableRange {
   hb_tag_t tag_;
 
  public:
-
   hb_tag_t tag() const { return tag_; }
 
   BrotliStream& stream() { return *out; }
