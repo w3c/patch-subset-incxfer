@@ -71,7 +71,7 @@ std::string BitOutputBuffer::to_string() {
 }
 
 static uint8_t EncodeFirstByte(BranchFactor branch_factor, unsigned int depth) {
-  uint8_t result;
+  uint8_t result = 0;
   switch (branch_factor) {
     case BF2:
       result = 0b00;

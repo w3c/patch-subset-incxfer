@@ -105,13 +105,15 @@ static void to_distance_code(unsigned distance, unsigned postfix_bits,
   *distance_code = composite_distance & 0b0000001111111111;
 }
 
-void BrotliStream::insert_from_dictionary(unsigned offset, unsigned length) {
-  // TODO(garretrieger): length < 2 can't be encoded with a backwards ref,
-  // should use
-  //                     a literal insertion instead.
+bool BrotliStream::insert_from_dictionary(unsigned offset, unsigned length) {
   if (!length) {
     // no-op.
-    return;
+    return true;
+  }
+
+  if (length == 1) {
+    // length of 1 can't be encoded as a backwards ref.
+    return false;
   }
 
   // Backwards distance to the region in the dictionary starting at offset.
@@ -120,10 +122,14 @@ void BrotliStream::insert_from_dictionary(unsigned offset, unsigned length) {
 
   if (!add_mlen(length)) {
     // Too big for one meta-block Break into multiple meta-blocks.
-    insert_from_dictionary(offset, MAX_METABLOCK_SIZE);
-    insert_from_dictionary(offset + MAX_METABLOCK_SIZE,
-                           length - MAX_METABLOCK_SIZE);
-    return;
+    unsigned remainder_length = length - MAX_METABLOCK_SIZE;
+    if (remainder_length <= 1) {
+      remainder_length = 2;
+    }
+
+    return insert_from_dictionary(offset, length - remainder_length) &&
+        insert_from_dictionary(offset + (length - remainder_length),
+                               remainder_length);
   }
 
   unsigned postfix_bits = num_of_postfix_bits(distance);
@@ -176,6 +182,7 @@ void BrotliStream::insert_from_dictionary(unsigned offset, unsigned length) {
   // Distance Code: Code is omitted, just add the extra bits
   buffer_.append_number(dist_extra_bits, dist_num_extra_bits);
   uncompressed_size_ += length;
+  return true;
 }
 
 void BrotliStream::insert_uncompressed(absl::Span<const uint8_t> bytes) {

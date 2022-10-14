@@ -133,12 +133,52 @@ TEST_F(BrotliStreamTest, InsertFromDictionary) {
   BrotliStream stream(22, 11);
   uint8_t dict_data[] = {'H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd'};
 
-  stream.insert_from_dictionary(1, 4);
-  stream.insert_from_dictionary(6, 3);
+  EXPECT_TRUE(stream.insert_from_dictionary(1, 4));
+  EXPECT_TRUE(stream.insert_from_dictionary(6, 3));
   stream.end_stream();
 
   uint8_t expected[] = {'e', 'l', 'l', 'o', 'w', 'o', 'r'};
   CheckDecompressesTo(stream, expected, dict_data);
+}
+
+TEST_F(BrotliStreamTest, InsertFromDictionarySmall) {
+  BrotliStream stream(22, 10);
+  EXPECT_FALSE(stream.insert_from_dictionary(1, 1));
+  EXPECT_EQ(stream.uncompressed_size(), 0);
+}
+
+TEST_F(BrotliStreamTest, InsertFromDictionaryLarge) {
+
+  std::vector<uint8_t> dict;
+  dict.resize(25000000);
+  dict[100] = 123;
+  dict[23000000] = 45;
+
+  BrotliStream stream(22, dict.size());
+
+  EXPECT_TRUE(stream.insert_from_dictionary(50, 24000000));
+  stream.end_stream();
+
+  CheckDecompressesTo(stream,
+                      Span<const uint8_t>(dict).subspan(50, 24000000),
+                      dict);
+}
+
+TEST_F(BrotliStreamTest, InsertFromDictionaryLarge_AvoidsTooSmallRef) {
+
+  std::vector<uint8_t> dict;
+  dict.resize(25000000);
+  dict[100] = 123;
+  dict[23000000] = 45;
+
+  BrotliStream stream(22, dict.size());
+
+  EXPECT_TRUE(stream.insert_from_dictionary(50, (1 << 24) + 1));
+  stream.end_stream();
+
+  CheckDecompressesTo(stream,
+                      Span<const uint8_t>(dict).subspan(50, (1 << 24) + 1),
+                      dict);
 }
 
 TEST_F(BrotliStreamTest, InsertMixed) {
@@ -147,11 +187,11 @@ TEST_F(BrotliStreamTest, InsertMixed) {
   uint8_t data1[] = {'1', '2', '3'};
   uint8_t data2[] = {'6', '7', '8', '9'};
 
-  stream.insert_from_dictionary(1, 4);
+  EXPECT_TRUE(stream.insert_from_dictionary(1, 4));
   stream.insert_uncompressed(data1);
-  stream.insert_from_dictionary(6, 3);
+  EXPECT_TRUE(stream.insert_from_dictionary(6, 3));
   stream.insert_compressed(data2);
-  stream.insert_from_dictionary(0, 2);
+  EXPECT_TRUE(stream.insert_from_dictionary(0, 2));
   stream.end_stream();
 
   uint8_t expected[] = {'e', 'l', 'l', 'o', '1', '2', '3', 'w',
@@ -166,9 +206,9 @@ TEST_F(BrotliStreamTest, AppendStreams) {
   BrotliStream b(22, 11, 5);
   BrotliStream c(22, 11, 12);
 
-  a.insert_from_dictionary(1, 5);
-  b.insert_from_dictionary(3, 7);
-  c.insert_from_dictionary(5, 4);
+  EXPECT_TRUE(a.insert_from_dictionary(1, 5));
+  EXPECT_TRUE(b.insert_from_dictionary(3, 7));
+  EXPECT_TRUE(c.insert_from_dictionary(5, 4));
 
   a.append(b);
   a.append(c);
@@ -188,7 +228,7 @@ TEST_F(BrotliStreamTest, FourByteAlign) {
   stream.four_byte_align_uncompressed();
   EXPECT_EQ(stream.uncompressed_size(), 0);
 
-  stream.insert_from_dictionary(0, 2);
+  EXPECT_TRUE(stream.insert_from_dictionary(0, 2));
   stream.four_byte_align_uncompressed();
   EXPECT_EQ(stream.uncompressed_size(), 4);
   stream.four_byte_align_uncompressed();
@@ -199,7 +239,5 @@ TEST_F(BrotliStreamTest, FourByteAlign) {
   uint8_t expected[] = {'1', '2', 0, 0};
   CheckDecompressesTo(stream, expected, dict);
 }
-
-// TODO(garretrieger): test one byte dictionary insert.
 
 }  // namespace brotli
