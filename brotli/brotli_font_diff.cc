@@ -157,7 +157,6 @@ class DiffDriver {
   }
 
  private:
-
   unsigned BaseToDerivedGid(unsigned gid) {
     if (retain_gids) {
       // If retain gids is set gids are equivalent in all three spaces.
@@ -176,11 +175,9 @@ class DiffDriver {
   }
 };
 
-StatusCode BrotliFontDiff::Diff(
-    hb_subset_plan_t* base_plan, hb_blob_t* base,
-    hb_subset_plan_t* derived_plan, hb_blob_t* derived,
-    FontData* patch) const {
-
+StatusCode BrotliFontDiff::Diff(hb_subset_plan_t* base_plan, hb_blob_t* base,
+                                hb_subset_plan_t* derived_plan,
+                                hb_blob_t* derived, FontData* patch) const {
   Span<const uint8_t> base_span = TableRange::to_span(base);
   Span<const uint8_t> derived_span = TableRange::to_span(derived);
 
@@ -188,8 +185,9 @@ StatusCode BrotliFontDiff::Diff(
   hb_face_t* derived_face = hb_face_create(derived, 0);
   hb_face_t* base_face = hb_face_create(base, 0);
 
-  BrotliStream out(BrotliStream::WindowBitsFor(base_span.size(), derived_span.size()),
-                   base_span.size());
+  BrotliStream out(
+      BrotliStream::WindowBitsFor(base_span.size(), derived_span.size()),
+      base_span.size());
 
   unsigned derived_start_offset = 0;
   unsigned derived_end_offset = 0;
