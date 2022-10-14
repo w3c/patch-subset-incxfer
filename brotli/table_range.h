@@ -86,7 +86,11 @@ class TableRange {
   }
 
   void CommitExisting() {
-    out->insert_from_dictionary(base_table_offset_ + base_offset_, length_);
+    if (!out->insert_from_dictionary(base_table_offset_ + base_offset_, length_)) {
+      // 1 byte backwards refs must be inserted as literals.
+      out->insert_uncompressed(
+          absl::Span<const uint8_t>(derived_.data() + derived_offset_, length_));
+    }
     base_offset_ += length_;
     derived_offset_ += length_;
     length_ = 0;

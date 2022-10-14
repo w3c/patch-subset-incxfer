@@ -170,7 +170,7 @@ uint32_t EstimateTreeSize(uint32_t num_leaf_nodes, BranchFactor branch_factor) {
   //
   // The ratios below were chosen to match the tree sizes seen in a combination
   // of uniform random and codepoint-usage-frequency weighted random sets.
-  double geometric_sum;
+  double geometric_sum = 1.0;
   switch (branch_factor) {
     case BF2:
       // Estimate that the number of nodes divides by 1.4 going up each level.

@@ -12,12 +12,14 @@ using ::patch_subset::StatusCode;
 
 namespace brotli {
 
+/*
+  for debugging:
 void dump(const char* name, const char* data, unsigned size) {
-  // TODO remove
   FILE* f = fopen(name, "w");
   fwrite(data, size, 1, f);
   fclose(f);
 }
+*/
 
 class BrotliFontDiffTest : public ::testing::Test {
  protected:
@@ -82,8 +84,6 @@ class BrotliFontDiffTest : public ::testing::Test {
   hb_face_t* noto_sans_jp;
   hb_subset_input_t* input;
 };
-
-// TODO(grieger): update tests for loca diff?
 
 TEST_F(BrotliFontDiffTest, Diff) {
   hb_set_add_range(hb_subset_input_unicode_set(input), 0x41, 0x5A);

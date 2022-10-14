@@ -36,7 +36,7 @@ class BrotliStream {
 
   // Insert bytes into the uncompressed stream from the shared dictionary
   // from [offset, offset + length)
-  void insert_from_dictionary(unsigned offset, unsigned length);
+  [[nodiscard]] bool insert_from_dictionary(unsigned offset, unsigned length);
 
   // Insert bytes into the stream raw with no compression applied.
   void insert_uncompressed(absl::Span<const uint8_t> bytes);
