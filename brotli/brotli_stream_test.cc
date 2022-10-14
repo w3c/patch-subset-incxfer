@@ -80,13 +80,13 @@ TEST_F(BrotliStreamTest, InsertCompressedWithPartialDict) {
 
 TEST_F(BrotliStreamTest, InsertCompressedWithPartialDict_ExceedsWindow) {
   std::vector<uint8_t> dict;
-  dict.resize(2000) ;
+  dict.resize(2000);
 
   Span<const uint8_t> data = Span<const uint8_t>(dict).subspan(1, 10);
 
   BrotliStream stream(10, 2000);
   EXPECT_EQ(stream.insert_compressed_with_partial_dict(
-      data, Span<const uint8_t>(dict).subspan(0, 10)),
+                data, Span<const uint8_t>(dict).subspan(0, 10)),
             StatusCode::kInternal);
   EXPECT_EQ(stream.uncompressed_size(), 0);
 }
@@ -161,7 +161,6 @@ TEST_F(BrotliStreamTest, InsertFromDictionarySmall) {
 }
 
 TEST_F(BrotliStreamTest, InsertFromDictionaryLarge) {
-
   std::vector<uint8_t> dict;
   dict.resize(25000000);
   dict[100] = 123;
@@ -172,13 +171,11 @@ TEST_F(BrotliStreamTest, InsertFromDictionaryLarge) {
   EXPECT_TRUE(stream.insert_from_dictionary(50, 24000000));
   stream.end_stream();
 
-  CheckDecompressesTo(stream,
-                      Span<const uint8_t>(dict).subspan(50, 24000000),
+  CheckDecompressesTo(stream, Span<const uint8_t>(dict).subspan(50, 24000000),
                       dict);
 }
 
 TEST_F(BrotliStreamTest, InsertFromDictionaryLarge_AvoidsTooSmallRef) {
-
   std::vector<uint8_t> dict;
   dict.resize(25000000);
   dict[100] = 123;
@@ -189,9 +186,8 @@ TEST_F(BrotliStreamTest, InsertFromDictionaryLarge_AvoidsTooSmallRef) {
   EXPECT_TRUE(stream.insert_from_dictionary(50, (1 << 24) + 1));
   stream.end_stream();
 
-  CheckDecompressesTo(stream,
-                      Span<const uint8_t>(dict).subspan(50, (1 << 24) + 1),
-                      dict);
+  CheckDecompressesTo(
+      stream, Span<const uint8_t>(dict).subspan(50, (1 << 24) + 1), dict);
 }
 
 TEST_F(BrotliStreamTest, InsertMixed) {

@@ -128,8 +128,8 @@ bool BrotliStream::insert_from_dictionary(unsigned offset, unsigned length) {
     }
 
     return insert_from_dictionary(offset, length - remainder_length) &&
-        insert_from_dictionary(offset + (length - remainder_length),
-                               remainder_length);
+           insert_from_dictionary(offset + (length - remainder_length),
+                                  remainder_length);
   }
 
   unsigned postfix_bits = num_of_postfix_bits(distance);
