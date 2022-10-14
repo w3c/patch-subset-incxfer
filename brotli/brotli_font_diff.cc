@@ -24,8 +24,6 @@ namespace brotli {
  * shared dictionary.
  */
 class DiffDriver {
-  // TODO(garretrieger): move this too it's own file.
-
   struct RangeAndDiffer {
     RangeAndDiffer(hb_face_t* base_face, hb_face_t* derived_face, hb_tag_t tag,
                    const BrotliStream& base_stream, TableDiffer* differ_)
@@ -54,8 +52,7 @@ class DiffDriver {
     retain_gids = base_glyph_count < hb_map_get_population(base_new_to_old);
 
     // TODO(garretrieger): add these from a set of tags and in the order of the
-    // tables
-    //                     in the actual font.
+    //                     tables in the actual font.
     if (HasTable(base_face, HB_TAG('h', 'm', 't', 'x')) &&
         HasTable(base_face, HB_TAG('h', 'h', 'e', 'a')) &&
         HasTable(derived_face, HB_TAG('h', 'm', 't', 'x')) &&
@@ -160,6 +157,7 @@ class DiffDriver {
   }
 
  private:
+
   unsigned BaseToDerivedGid(unsigned gid) {
     if (retain_gids) {
       // If retain gids is set gids are equivalent in all three spaces.
@@ -181,8 +179,8 @@ class DiffDriver {
 StatusCode BrotliFontDiff::Diff(
     hb_subset_plan_t* base_plan, hb_blob_t* base,
     hb_subset_plan_t* derived_plan, hb_blob_t* derived,
-    FontData* patch) const  // TODO(garretrieger): write into sink.
-{
+    FontData* patch) const {
+
   Span<const uint8_t> base_span = TableRange::to_span(base);
   Span<const uint8_t> derived_span = TableRange::to_span(derived);
 
@@ -190,9 +188,8 @@ StatusCode BrotliFontDiff::Diff(
   hb_face_t* derived_face = hb_face_create(derived, 0);
   hb_face_t* base_face = hb_face_create(base, 0);
 
-  // TODO(garretrieger): Compute a window size based on the non-glyf + base data
-  // sizes.
-  BrotliStream out(22, base_span.size());
+  BrotliStream out(BrotliStream::WindowBitsFor(base_span.size(), derived_span.size()),
+                   base_span.size());
 
   unsigned derived_start_offset = 0;
   unsigned derived_end_offset = 0;
