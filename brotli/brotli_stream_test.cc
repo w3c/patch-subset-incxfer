@@ -78,6 +78,19 @@ TEST_F(BrotliStreamTest, InsertCompressedWithPartialDict) {
   CheckDecompressesTo(stream, data, dict);
 }
 
+TEST_F(BrotliStreamTest, InsertCompressedWithPartialDict_ExceedsWindow) {
+  std::vector<uint8_t> dict;
+  dict.resize(2000) ;
+
+  Span<const uint8_t> data = Span<const uint8_t>(dict).subspan(1, 10);
+
+  BrotliStream stream(10, 2000);
+  EXPECT_EQ(stream.insert_compressed_with_partial_dict(
+      data, Span<const uint8_t>(dict).subspan(0, 10)),
+            StatusCode::kInternal);
+  EXPECT_EQ(stream.uncompressed_size(), 0);
+}
+
 TEST_F(BrotliStreamTest, InsertMultipleCompressedWithPartialDict) {
   std::vector<uint8_t> dict;
   for (unsigned i = 0; i < 500; i++) {

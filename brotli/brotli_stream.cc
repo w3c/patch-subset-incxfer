@@ -241,13 +241,18 @@ StatusCode BrotliStream::insert_compressed_with_partial_dict(
   // dictionary_size is added to the stream offset so that static dictionary
   // references (which are window + dictionary size + static word id) will be
   // created with the right distance.
-  // TODO(garretrieger): this trick fails if stream_offset > window size since
-  // internally the brotli
-  //                     encoder uses min(stream_offset, window_size). To avoid
-  //                     this we must make sure the window size is always > dict
-  //                     + uncompressed size.
   unsigned stream_offset =
       uncompressed_size_ + dictionary_size_ - partial_dict.size();
+
+  if (stream_offset > window_size_) {
+    // this trick fails if stream_offset > window size since
+    // internally the brotli encoder uses min(stream_offset,
+    // window_size). To avoid this the window
+    // size must always be > dict + uncompressed size.
+    LOG(WARNING) << "stream offset exceeds window size.";
+    return StatusCode::kInternal;
+  }
+
   EncoderStatePointer state = create_encoder(stream_offset, dictionary.get());
   if (!state) {
     LOG(WARNING) << "Failed to create brotli encoder.";
