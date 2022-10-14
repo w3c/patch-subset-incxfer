@@ -24,6 +24,16 @@ class BrotliStream {
         dictionary_size_(dictionary_size),
         buffer_() {}
 
+  static unsigned WindowBitsFor(unsigned base_size, unsigned derived_size) {
+    for (unsigned bits = 10; bits <= 24; bits++) {
+      unsigned size = (1 << bits) - 16;
+      if (base_size + derived_size < size) {
+        return bits;
+      }
+    }
+    return 24;
+  }
+
   // Insert bytes into the uncompressed stream from the shared dictionary
   // from [offset, offset + length)
   void insert_from_dictionary(unsigned offset, unsigned length);

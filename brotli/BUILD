@@ -1,18 +1,16 @@
 cc_library(
     name = "encoding",
     srcs = [
-        # TODO "shared_brotli_encoder.cc",
         "brotli_bit_buffer.cc",
         "brotli_font_diff.cc",
         "brotli_stream.cc",
-        "table_range.h",
-        "table_differ.h",
         "glyf_differ.h",
-        "loca_differ.h",
         "hmtx_differ.h",
+        "loca_differ.h",
+        "table_differ.h",
+        "table_range.h",
     ],
     hdrs = [
-        # TODO "shared_brotli_encoder.h",
         "brotli_bit_buffer.h",
         "brotli_font_diff.h",
         "brotli_stream.h",
