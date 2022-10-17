@@ -255,50 +255,64 @@ StatusCode BrotliFontDiff::Diff(hb_subset_plan_t* base_plan, hb_blob_t* base,
   DiffDriver diff_driver(base_plan, base_face, derived_plan, derived_face,
                          custom_diff_tables_.get(), out);
 
-  hb_tag_t tag = HB_SET_VALUE_INVALID;
-  while (hb_set_next(custom_diff_tables_.get(), &tag)) {
-    if (!HasTable(derived_face, tag)) {
-      continue;
+  const hb_set_t* tag_sets[] = {immutable_tables_.get(),
+                                custom_diff_tables_.get()};
+  unsigned base_region_sizes[] = {0, 0};
+  unsigned i = 0;
+  for (const hb_set_t* set : tag_sets) {
+    hb_tag_t tag = HB_SET_VALUE_INVALID;
+    while (hb_set_next(set, &tag)) {
+      if (!HasTable(derived_face, tag)) {
+        continue;
+      }
+
+      if (HasTable(base_face, tag) != HasTable(derived_face, tag)) {
+        LOG(WARNING) << "base and derived must both have the same tables.";
+        return StatusCode::kInternal;
+      }
+
+      Span<const uint8_t> base_span =
+          TableRange::padded_table_span(TableRange::to_span(base_face, tag));
+      Span<const uint8_t> derived_span =
+          TableRange::padded_table_span(TableRange::to_span(derived_face, tag));
+
+      base_region_sizes[i] += base_span.size();
+
+      unsigned base_offset = TableRange::table_offset(base_face, tag);
+      unsigned derived_offset = TableRange::table_offset(derived_face, tag);
+
+      if (!derived_start_offset) {
+        derived_start_offset = derived_offset;
+      }
+
+      if (!base_start_offset) {
+        base_start_offset = base_offset;
+      }
+
+      if (derived_end_offset && derived_end_offset != derived_offset) {
+        LOG(WARNING) << "custom diff tables in derived are not sequential.";
+        return StatusCode::kInternal;
+      }
+
+      if (base_end_offset && base_end_offset != base_offset) {
+        LOG(WARNING) << "custom diff tables in base are not sequential.";
+        return StatusCode::kInternal;
+      }
+
+      derived_end_offset = derived_offset + derived_span.size();
+      base_end_offset = base_offset + base_span.size();
     }
-
-    if (HasTable(base_face, tag) != HasTable(derived_face, tag)) {
-      LOG(WARNING) << "base and derived must both have the same tables.";
-      return StatusCode::kInternal;
-    }
-
-    Span<const uint8_t> base_span =
-        TableRange::padded_table_span(TableRange::to_span(base_face, tag));
-    Span<const uint8_t> derived_span =
-        TableRange::padded_table_span(TableRange::to_span(derived_face, tag));
-
-    unsigned base_offset = TableRange::table_offset(base_face, tag);
-    unsigned derived_offset = TableRange::table_offset(derived_face, tag);
-
-    if (!derived_start_offset) {
-      derived_start_offset = derived_offset;
-    }
-
-    if (!base_start_offset) {
-      base_start_offset = base_offset;
-    }
-
-    if (derived_end_offset && derived_end_offset != derived_offset) {
-      LOG(WARNING) << "custom diff tables in derived are not sequential.";
-      return StatusCode::kInternal;
-    }
-
-    if (base_end_offset && base_end_offset != base_offset) {
-      LOG(WARNING) << "custom diff tables in base are not sequential.";
-      return StatusCode::kInternal;
-    }
-
-    derived_end_offset = derived_offset + derived_span.size();
-    base_end_offset = base_offset + base_span.size();
+    i++;
   }
 
   out.insert_compressed_with_partial_dict(
       derived_span.subspan(0, derived_start_offset),
       base_span.subspan(0, base_start_offset));
+
+  if (!out.insert_from_dictionary(base_start_offset, base_region_sizes[0])) {
+    LOG(WARNING) << "dict insert of immutable tables failed.";
+    return StatusCode::kInternal;
+  }
 
   diff_driver.MakeDiff();
 

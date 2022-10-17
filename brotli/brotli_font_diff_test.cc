@@ -188,4 +188,45 @@ TEST_F(BrotliFontDiffTest, LongLoca) {
   hb_blob_destroy(derived_blob);
 }
 
+TEST_F(BrotliFontDiffTest, WithImmutableTables) {
+  hb_subset_input_set_flags(input, HB_SUBSET_FLAGS_RETAIN_GIDS);
+  hb_set_add(hb_subset_input_set(input, HB_SUBSET_SETS_NO_SUBSET_TABLE_TAG),
+             HB_TAG('G', 'S', 'U', 'B'));
+  hb_set_add(hb_subset_input_set(input, HB_SUBSET_SETS_NO_SUBSET_TABLE_TAG),
+             HB_TAG('G', 'P', 'O', 'S'));
+  hb_set_add(immutable_tables.get(), HB_TAG('G', 'S', 'U', 'B'));
+  hb_set_add(immutable_tables.get(), HB_TAG('G', 'P', 'O', 'S'));
+
+  hb_set_add_range(hb_subset_input_unicode_set(input), 0x41, 0x5A);
+  hb_subset_plan_t* base_plan = hb_subset_plan_create_or_fail(roboto, input);
+  hb_face_t* base_face = hb_subset_plan_execute_or_fail(base_plan);
+  SortTables(roboto, base_face);
+  hb_blob_t* base_blob = hb_face_reference_blob(base_face);
+  FontData base = FontData::ToFontData(base_face);
+  ASSERT_TRUE(base_plan);
+
+  hb_set_add_range(hb_subset_input_unicode_set(input), 0x61, 0x7A);
+  hb_subset_plan_t* derived_plan = hb_subset_plan_create_or_fail(roboto, input);
+  hb_face_t* derived_face = hb_subset_plan_execute_or_fail(derived_plan);
+  SortTables(roboto, derived_face);
+  hb_blob_t* derived_blob = hb_face_reference_blob(derived_face);
+  FontData derived = FontData::ToFontData(derived_face);
+  ASSERT_TRUE(derived_plan);
+
+  BrotliFontDiff differ(immutable_tables.get(), custom_tables.get());
+  FontData patch;
+  ASSERT_EQ(
+      differ.Diff(base_plan, base_blob, derived_plan, derived_blob, &patch),
+      StatusCode::kOk);
+
+  Check(base, patch, derived);
+
+  hb_subset_plan_destroy(base_plan);
+  hb_subset_plan_destroy(derived_plan);
+  hb_blob_destroy(base_blob);
+  hb_blob_destroy(derived_blob);
+  hb_face_destroy(base_face);
+  hb_face_destroy(derived_face);
+}
+
 }  // namespace brotli
