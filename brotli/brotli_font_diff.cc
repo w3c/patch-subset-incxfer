@@ -6,12 +6,25 @@
 #include "brotli/hmtx_differ.h"
 #include "brotli/loca_differ.h"
 #include "brotli/table_range.h"
+#include "patch_subset/hb_set_unique_ptr.h"
 
 using ::absl::Span;
 using ::patch_subset::FontData;
+using ::patch_subset::hb_set_unique_ptr;
 using ::patch_subset::StatusCode;
 
 namespace brotli {
+
+static bool HasTable(hb_face_t* face, hb_tag_t tag) {
+  hb_blob_t* table = hb_face_reference_table(face, tag);
+  bool non_empty = (table != hb_blob_get_empty());
+  hb_blob_destroy(table);
+  return non_empty;
+}
+
+static bool HasTable(hb_face_t* base, hb_face_t* derived, hb_tag_t tag) {
+  return HasTable(base, tag) && HasTable(derived, tag);
+}
 
 /*
  * Writes out a brotli encoded copy of the 'derived' subsets glyf table using
@@ -36,7 +49,7 @@ class DiffDriver {
  public:
   DiffDriver(hb_subset_plan_t* base_plan, hb_face_t* base_face,
              hb_subset_plan_t* derived_plan, hb_face_t* derived_face,
-             BrotliStream& stream)
+             const hb_set_t* custom_diff_tables, BrotliStream& stream)
       : out(stream),
         base_new_to_old(hb_subset_plan_new_to_old_glyph_mapping(base_plan)),
         derived_old_to_new(
@@ -51,41 +64,55 @@ class DiffDriver {
     derived_glyph_count = hb_face_get_glyph_count(derived_face);
     retain_gids = base_glyph_count < hb_map_get_population(base_new_to_old);
 
-    // TODO(garretrieger): add these from a set of tags and in the order of the
-    //                     tables in the actual font.
-    if (HasTable(base_face, HB_TAG('h', 'm', 't', 'x')) &&
-        HasTable(base_face, HB_TAG('h', 'h', 'e', 'a')) &&
-        HasTable(derived_face, HB_TAG('h', 'm', 't', 'x')) &&
-        HasTable(derived_face, HB_TAG('h', 'h', 'e', 'a'))) {
-      differs.push_back(RangeAndDiffer(
-          base_face, derived_face, HB_TAG('h', 'm', 't', 'x'), stream,
-          new HmtxDiffer(
-              TableRange::to_span(base_face, HB_TAG('h', 'h', 'e', 'a')),
-              TableRange::to_span(derived_face, HB_TAG('h', 'h', 'e', 'a')))));
-    }
+    constexpr hb_tag_t HMTX = HB_TAG('h', 'm', 't', 'x');
+    constexpr hb_tag_t VMTX = HB_TAG('v', 'm', 't', 'x');
+    constexpr hb_tag_t HHEA = HB_TAG('h', 'h', 'e', 'a');
+    constexpr hb_tag_t VHEA = HB_TAG('v', 'h', 'e', 'a');
+    constexpr hb_tag_t LOCA = HB_TAG('l', 'o', 'c', 'a');
+    constexpr hb_tag_t GLYF = HB_TAG('g', 'l', 'y', 'f');
 
-    if (HasTable(base_face, HB_TAG('v', 'm', 't', 'x')) &&
-        HasTable(base_face, HB_TAG('v', 'h', 'e', 'a')) &&
-        HasTable(derived_face, HB_TAG('v', 'm', 't', 'x')) &&
-        HasTable(derived_face, HB_TAG('v', 'h', 'e', 'a'))) {
-      differs.push_back(RangeAndDiffer(
-          base_face, derived_face, HB_TAG('v', 'm', 't', 'x'), stream,
-          new HmtxDiffer(
-              TableRange::to_span(base_face, HB_TAG('v', 'h', 'e', 'a')),
-              TableRange::to_span(derived_face, HB_TAG('v', 'h', 'e', 'a')))));
-    }
+    hb_tag_t tag = HB_SET_VALUE_INVALID;
+    while (hb_set_next(custom_diff_tables, &tag)) {
+      switch (tag) {
+        case HMTX:
+          if (HasTable(base_face, derived_face, HMTX) &&
+              HasTable(base_face, derived_face, HHEA)) {
+            differs.push_back(RangeAndDiffer(
+                base_face, derived_face, HMTX, stream,
+                new HmtxDiffer(TableRange::to_span(base_face, HHEA),
+                               TableRange::to_span(derived_face, HHEA))));
+          }
+          break;
 
-    if (HasTable(base_face, HB_TAG('l', 'o', 'c', 'a')) &&
-        HasTable(base_face, HB_TAG('g', 'l', 'y', 'f'))) {
-      differs.push_back(RangeAndDiffer(base_face, derived_face,
-                                       HB_TAG('l', 'o', 'c', 'a'), stream,
-                                       new LocaDiffer(use_short_loca)));
+        case VMTX:
+          if (HasTable(base_face, derived_face, VMTX) &&
+              HasTable(base_face, derived_face, VHEA)) {
+            differs.push_back(RangeAndDiffer(
+                base_face, derived_face, VMTX, stream,
+                new HmtxDiffer(TableRange::to_span(base_face, VHEA),
+                               TableRange::to_span(derived_face, VHEA))));
+          }
+          break;
 
-      differs.push_back(RangeAndDiffer(
-          base_face, derived_face, HB_TAG('g', 'l', 'y', 'f'), stream,
-          new GlyfDiffer(
-              TableRange::to_span(derived_face, HB_TAG('l', 'o', 'c', 'a')),
-              use_short_loca)));
+        case LOCA:
+          if (HasTable(base_face, derived_face, GLYF) &&
+              HasTable(base_face, derived_face, LOCA)) {
+            differs.push_back(RangeAndDiffer(base_face, derived_face, LOCA,
+                                             stream,
+                                             new LocaDiffer(use_short_loca)));
+          }
+          break;
+
+        case GLYF:
+          if (HasTable(base_face, derived_face, GLYF) &&
+              HasTable(base_face, derived_face, LOCA)) {
+            differs.push_back(RangeAndDiffer(
+                base_face, derived_face, GLYF, stream,
+                new GlyfDiffer(TableRange::to_span(derived_face, LOCA),
+                               use_short_loca)));
+          }
+          break;
+      }
     }
   }
 
@@ -166,14 +193,45 @@ class DiffDriver {
     unsigned base_old_gid = hb_map_get(base_new_to_old, base_gid);
     return hb_map_get(derived_old_to_new, base_old_gid);
   }
-
-  bool HasTable(hb_face_t* face, hb_tag_t tag) {
-    hb_blob_t* table = hb_face_reference_table(face, tag);
-    bool non_empty = (table != hb_blob_get_empty());
-    hb_blob_destroy(table);
-    return non_empty;
-  }
 };
+
+void BrotliFontDiff::SortForDiff(const hb_set_t* immutable_tables,
+                                 const hb_set_t* custom_diff_tables,
+                                 const hb_face_t* original_face,
+                                 hb_face_t* face_builder) {
+  // Place generic diff tables,
+  // then immutable tables,
+  // then custom diff tables.
+  std::vector<hb_tag_t> table_order;
+  hb_tag_t table_tags[32];
+  unsigned offset = 0, num_tables = 32;
+  while (((void)hb_face_get_table_tags(original_face, offset, &num_tables,
+                                       table_tags),
+          num_tables)) {
+    for (unsigned i = 0; i < num_tables; ++i) {
+      hb_tag_t tag = table_tags[i];
+      if (!hb_set_has(immutable_tables, tag) &&
+          !hb_set_has(custom_diff_tables, tag)) {
+        table_order.push_back(tag);
+      }
+    }
+    offset += num_tables;
+  }
+
+  hb_codepoint_t tag = HB_SET_VALUE_INVALID;
+  while (hb_set_next(immutable_tables, &tag)) {
+    table_order.push_back(tag);
+  }
+
+  tag = HB_SET_VALUE_INVALID;
+  while (hb_set_next(custom_diff_tables, &tag)) {
+    table_order.push_back(tag);
+  }
+
+  table_order.push_back(0);
+
+  hb_face_builder_sort_tables(face_builder, table_order.data());
+}
 
 StatusCode BrotliFontDiff::Diff(hb_subset_plan_t* base_plan, hb_blob_t* base,
                                 hb_subset_plan_t* derived_plan,
@@ -194,9 +252,20 @@ StatusCode BrotliFontDiff::Diff(hb_subset_plan_t* base_plan, hb_blob_t* base,
   unsigned base_start_offset = 0;
   unsigned base_end_offset = 0;
 
-  DiffDriver diff_driver(base_plan, base_face, derived_plan, derived_face, out);
-  for (auto& differ : diff_driver.differs) {
-    hb_tag_t tag = differ.range.tag();
+  DiffDriver diff_driver(base_plan, base_face, derived_plan, derived_face,
+                         custom_diff_tables_.get(), out);
+
+  hb_tag_t tag = HB_SET_VALUE_INVALID;
+  while (hb_set_next(custom_diff_tables_.get(), &tag)) {
+    if (!HasTable(derived_face, tag)) {
+      continue;
+    }
+
+    if (HasTable(base_face, tag) != HasTable(derived_face, tag)) {
+      LOG(WARNING) << "base and derived must both have the same tables.";
+      return StatusCode::kInternal;
+    }
+
     Span<const uint8_t> base_span =
         TableRange::padded_table_span(TableRange::to_span(base_face, tag));
     Span<const uint8_t> derived_span =
@@ -215,10 +284,12 @@ StatusCode BrotliFontDiff::Diff(hb_subset_plan_t* base_plan, hb_blob_t* base,
 
     if (derived_end_offset && derived_end_offset != derived_offset) {
       LOG(WARNING) << "custom diff tables in derived are not sequential.";
+      return StatusCode::kInternal;
     }
 
     if (base_end_offset && base_end_offset != base_offset) {
       LOG(WARNING) << "custom diff tables in base are not sequential.";
+      return StatusCode::kInternal;
     }
 
     derived_end_offset = derived_offset + derived_span.size();

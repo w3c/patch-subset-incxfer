@@ -4,10 +4,13 @@
 #include "gtest/gtest.h"
 #include "hb-subset.h"
 #include "patch_subset/brotli_binary_patch.h"
+#include "patch_subset/hb_set_unique_ptr.h"
 
 using ::absl::Span;
 using ::patch_subset::BrotliBinaryPatch;
 using ::patch_subset::FontData;
+using ::patch_subset::hb_set_unique_ptr;
+using ::patch_subset::make_hb_set;
 using ::patch_subset::StatusCode;
 
 namespace brotli {
@@ -43,6 +46,11 @@ class BrotliFontDiffTest : public ::testing::Test {
     hb_blob_destroy(font_data);
 
     input = hb_subset_input_create_or_fail();
+
+    immutable_tables = make_hb_set();
+    custom_tables =
+        make_hb_set(4, HB_TAG('g', 'l', 'y', 'f'), HB_TAG('l', 'o', 'c', 'a'),
+                    HB_TAG('h', 'm', 't', 'x'), HB_TAG('v', 'm', 't', 'x'));
   }
 
   void TearDown() override {
@@ -61,26 +69,12 @@ class BrotliFontDiffTest : public ::testing::Test {
   }
 
   void SortTables(hb_face_t* face, hb_face_t* subset) {
-    std::vector<hb_tag_t> table_order;
-    unsigned count = 50;
-    hb_tag_t table_tags[50];
-    hb_face_get_table_tags(face, 0, &count, table_tags);
-    for (unsigned i = 0; i < count; i++) {
-      if (table_tags[i] == HB_TAG('g', 'l', 'y', 'f') ||
-          table_tags[i] == HB_TAG('l', 'o', 'c', 'a') ||
-          table_tags[i] == HB_TAG('h', 'm', 't', 'x') ||
-          table_tags[i] == HB_TAG('v', 'm', 't', 'x'))
-        continue;
-      table_order.push_back(table_tags[i]);
-    }
-
-    table_order.push_back(HB_TAG('h', 'm', 't', 'x'));
-    table_order.push_back(HB_TAG('v', 'm', 't', 'x'));
-    table_order.push_back(HB_TAG('l', 'o', 'c', 'a'));
-    table_order.push_back(HB_TAG('g', 'l', 'y', 'f'));
-    table_order.push_back(0);
-    hb_face_builder_sort_tables(subset, table_order.data());
+    BrotliFontDiff::SortForDiff(immutable_tables.get(), custom_tables.get(),
+                                face, subset);
   }
+
+  hb_set_unique_ptr immutable_tables = make_hb_set();
+  hb_set_unique_ptr custom_tables = make_hb_set();
 
   hb_face_t* roboto;
   hb_face_t* noto_sans_jp;
@@ -104,7 +98,7 @@ TEST_F(BrotliFontDiffTest, Diff) {
   FontData derived = FontData::ToFontData(derived_face);
   ASSERT_TRUE(derived_plan);
 
-  BrotliFontDiff differ;
+  BrotliFontDiff differ(immutable_tables.get(), custom_tables.get());
   FontData patch;
   ASSERT_EQ(
       differ.Diff(base_plan, base_blob, derived_plan, derived_blob, &patch),
@@ -139,7 +133,7 @@ TEST_F(BrotliFontDiffTest, DiffRetainGids) {
   FontData derived = FontData::ToFontData(derived_face);
   ASSERT_TRUE(derived_plan);
 
-  BrotliFontDiff differ;
+  BrotliFontDiff differ(immutable_tables.get(), custom_tables.get());
   FontData patch;
   ASSERT_EQ(
       differ.Diff(base_plan, base_blob, derived_plan, derived_blob, &patch),
@@ -178,7 +172,7 @@ TEST_F(BrotliFontDiffTest, LongLoca) {
   FontData derived = FontData::ToFontData(derived_face);
   ASSERT_TRUE(derived_plan);
 
-  BrotliFontDiff differ;
+  BrotliFontDiff differ(immutable_tables.get(), custom_tables.get());
   FontData patch;
   ASSERT_EQ(
       differ.Diff(base_plan, base_blob, derived_plan, derived_blob, &patch),

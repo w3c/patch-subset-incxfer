@@ -10,6 +10,7 @@
 #include "hb-subset.h"
 #include "patch_subset/brotli_binary_diff.h"
 #include "patch_subset/brotli_binary_patch.h"
+#include "patch_subset/hb_set_unique_ptr.h"
 
 using namespace std::chrono;
 using std::string_view;
@@ -20,6 +21,8 @@ using brotli::BrotliFontDiff;
 using patch_subset::BrotliBinaryDiff;
 using patch_subset::BrotliBinaryPatch;
 using patch_subset::FontData;
+using patch_subset::hb_set_unique_ptr;
+using patch_subset::make_hb_set;
 using patch_subset::StatusCode;
 
 constexpr bool DUMP_STATE = false;
@@ -37,6 +40,11 @@ hb_tag_t immutable_tables[] = {
     HB_TAG('G', 'P', 'O', 'S'),
     0,
 };
+
+hb_set_unique_ptr immutable_tables_set = make_hb_set();
+hb_set_unique_ptr custom_tables_set =
+    make_hb_set(4, HB_TAG('g', 'l', 'y', 'f'), HB_TAG('l', 'o', 'c', 'a'),
+                HB_TAG('h', 'm', 't', 'x'), HB_TAG('v', 'm', 't', 'x'));
 
 static void dump(const char* name, const char* data, unsigned size) {
   FILE* f = fopen(name, "w");
@@ -103,7 +111,8 @@ class Operation {
           patch);
     } else if (mode == CUSTOM_DIFF) {
       // Use custom differ
-      BrotliFontDiff differ;
+      BrotliFontDiff differ(immutable_tables_set.get(),
+                            custom_tables_set.get());
       FontData patch_data;
       differ.Diff(base_plan, base, subset_plan, subset, &patch_data);
       patch.insert(patch.end(), patch_data.str().begin(),
@@ -247,25 +256,8 @@ class Operation {
     if (mode != MUTABLE_LAYOUT && mode != CUSTOM_DIFF) {
       hb_face_builder_sort_tables(subset, immutable_tables);
     } else if (mode == CUSTOM_DIFF) {
-      // place glyf + loca last
-      std::vector<hb_tag_t> table_order;
-      unsigned count = 50;
-      hb_tag_t table_tags[50];
-      hb_face_get_table_tags(face, 0, &count, table_tags);
-      for (unsigned i = 0; i < count; i++) {
-        if (table_tags[i] == HB_TAG('g', 'l', 'y', 'f') ||
-            table_tags[i] == HB_TAG('l', 'o', 'c', 'a') ||
-            table_tags[i] == HB_TAG('h', 'm', 't', 'x') ||
-            table_tags[i] == HB_TAG('v', 'm', 't', 'x'))
-          continue;
-        table_order.push_back(table_tags[i]);
-      }
-      table_order.push_back(HB_TAG('h', 'm', 't', 'x'));
-      table_order.push_back(HB_TAG('v', 'm', 't', 'x'));
-      table_order.push_back(HB_TAG('l', 'o', 'c', 'a'));
-      table_order.push_back(HB_TAG('g', 'l', 'y', 'f'));
-      table_order.push_back(0);
-      hb_face_builder_sort_tables(subset, table_order.data());
+      BrotliFontDiff::SortForDiff(immutable_tables_set.get(),
+                                  custom_tables_set.get(), face, subset);
     }
 
     hb_blob_t* result = hb_face_reference_blob(subset);
