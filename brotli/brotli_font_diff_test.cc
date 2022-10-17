@@ -12,6 +12,8 @@ using ::patch_subset::StatusCode;
 
 namespace brotli {
 
+const std::string kTestDataDir = "patch_subset/testdata/";
+
 /*
   for debugging:
 void dump(const char* name, const char* data, unsigned size) {
@@ -29,13 +31,13 @@ class BrotliFontDiffTest : public ::testing::Test {
 
   void SetUp() override {
     hb_blob_t* font_data = hb_blob_create_from_file_or_fail(
-        "patch_subset/testdata/Roboto-Regular.ttf");
+        (kTestDataDir + "Roboto-Regular.ttf").c_str());
     ASSERT_TRUE(font_data);
     roboto = hb_face_create(font_data, 0);
     hb_blob_destroy(font_data);
 
     font_data = hb_blob_create_from_file_or_fail(
-        "patch_subset/testdata/NotoSansJP-Regular.ttf");
+        (kTestDataDir + "NotoSansJP-Regular.ttf").c_str());
     ASSERT_TRUE(font_data);
     noto_sans_jp = hb_face_create(font_data, 0);
     hb_blob_destroy(font_data);
