@@ -2,6 +2,8 @@
 #define BROTLI_TABLE_RANGE_H_
 
 #include "absl/types/span.h"
+#include "brotli/brotli_stream.h"
+#include "hb-subset.h"
 
 namespace brotli {
 
