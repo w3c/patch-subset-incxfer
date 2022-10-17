@@ -4,7 +4,6 @@
 
 #include "absl/strings/string_view.h"
 #include "brotli/shared_brotli_encoder.h"
-#include "c/enc/fast_log.h"
 #include "c/enc/prefix.h"
 #include "common/logging.h"
 
