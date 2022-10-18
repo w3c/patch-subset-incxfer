@@ -20,8 +20,7 @@ class LocaDiffer : public TableDiffer {
  public:
   // TODO(garretrieger): we need to check if both base and derived are short
   // loca. if they don't match than all entries are new.
-  LocaDiffer(bool is_base_short_loca,
-             bool is_derived_short_loca)
+  LocaDiffer(bool is_base_short_loca, bool is_derived_short_loca)
       : mismatched_loca_format_(is_base_short_loca != is_derived_short_loca),
         loca_width_(is_derived_short_loca ? 2 : 4) {}
 
@@ -31,8 +30,8 @@ class LocaDiffer : public TableDiffer {
                unsigned* derived_delta /* OUT */) override {
     *derived_delta = loca_width_;
     if (mismatched_loca_format_) {
-      // If loca format is not the same between base and derived then we can't re-use
-      // any data from the base loca.
+      // If loca format is not the same between base and derived then we can't
+      // re-use any data from the base loca.
       mode = NEW_DATA;
     }
 

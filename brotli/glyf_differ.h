@@ -19,11 +19,11 @@ class GlyfDiffer : public TableDiffer {
   bool is_derived_short_loca_;
 
  public:
-  GlyfDiffer(absl::Span<const uint8_t> loca, bool is_base_short_loca, bool is_derived_short_loca)
+  GlyfDiffer(absl::Span<const uint8_t> loca, bool is_base_short_loca,
+             bool is_derived_short_loca)
       : loca_(loca),
         is_base_short_loca_(is_base_short_loca),
-        is_derived_short_loca_(is_derived_short_loca)
-  {}
+        is_derived_short_loca_(is_derived_short_loca) {}
 
   void Process(unsigned derived_gid, unsigned base_gid,
                unsigned base_derived_gid, bool is_base_empty,
@@ -31,11 +31,12 @@ class GlyfDiffer : public TableDiffer {
                unsigned* derived_delta /* OUT */) override {
     *derived_delta = GlyphLength(derived_gid);
     if (is_base_short_loca_ != is_derived_short_loca_) {
-      // If loca's don't match then glyphs in the base may not use the same byte alignment.
-      // so we can't blindly reference them. For now just treat all glyphs as new data.
+      // If loca's don't match then glyphs in the base may not use the same byte
+      // alignment. so we can't blindly reference them. For now just treat all
+      // glyphs as new data.
       //
-      // Ideally the subsetter should ensure that a consistent loca format is used in all subsets
-      // for optimal patch performance.
+      // Ideally the subsetter should ensure that a consistent loca format is
+      // used in all subsets for optimal patch performance.
       mode = NEW_DATA;
       *base_delta = 0;
       return;

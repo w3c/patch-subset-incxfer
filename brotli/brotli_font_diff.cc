@@ -54,15 +54,13 @@ class DiffDriver {
         base_new_to_old(hb_subset_plan_new_to_old_glyph_mapping(base_plan)),
         derived_old_to_new(
             hb_subset_plan_old_to_new_glyph_mapping(derived_plan)) {
-
     hb_blob_t* head =
         hb_face_reference_table(derived_face, HB_TAG('h', 'e', 'a', 'd'));
     const char* head_data = hb_blob_get_data(head, nullptr);
     unsigned is_derived_short_loca = !head_data[51];
     hb_blob_destroy(head);
 
-    head =
-        hb_face_reference_table(base_face, HB_TAG('h', 'e', 'a', 'd'));
+    head = hb_face_reference_table(base_face, HB_TAG('h', 'e', 'a', 'd'));
     head_data = hb_blob_get_data(head, nullptr);
     unsigned is_base_short_loca = !head_data[51];
     hb_blob_destroy(head);
@@ -105,10 +103,9 @@ class DiffDriver {
         case LOCA:
           if (HasTable(base_face, derived_face, GLYF) &&
               HasTable(base_face, derived_face, LOCA)) {
-            differs.push_back(RangeAndDiffer(base_face, derived_face, LOCA,
-                                             stream,
-                                             new LocaDiffer(is_base_short_loca,
-                                                            is_derived_short_loca)));
+            differs.push_back(RangeAndDiffer(
+                base_face, derived_face, LOCA, stream,
+                new LocaDiffer(is_base_short_loca, is_derived_short_loca)));
           }
           break;
 
@@ -118,8 +115,7 @@ class DiffDriver {
             differs.push_back(RangeAndDiffer(
                 base_face, derived_face, GLYF, stream,
                 new GlyfDiffer(TableRange::to_span(derived_face, LOCA),
-                               is_base_short_loca,
-                               is_derived_short_loca)));
+                               is_base_short_loca, is_derived_short_loca)));
           }
           break;
       }
