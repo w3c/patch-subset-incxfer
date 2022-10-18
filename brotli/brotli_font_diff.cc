@@ -118,6 +118,7 @@ class DiffDriver {
             differs.push_back(RangeAndDiffer(
                 base_face, derived_face, GLYF, stream,
                 new GlyfDiffer(TableRange::to_span(derived_face, LOCA),
+                               is_base_short_loca,
                                is_derived_short_loca)));
           }
           break;
