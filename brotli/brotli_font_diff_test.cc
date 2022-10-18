@@ -64,6 +64,9 @@ class BrotliFontDiffTest : public ::testing::Test {
     BrotliBinaryPatch patcher;
     FontData patched;
     EXPECT_EQ(StatusCode::kOk, patcher.Patch(base, patch, &patched));
+    // for debugging:
+    // dump("derived.ttf", derived.data(), derived.size());
+    // dump("patched.ttf", patched.data(), patched.size());
 
     EXPECT_EQ(derived.str(), patched.str());
   }
@@ -163,6 +166,44 @@ TEST_F(BrotliFontDiffTest, LongLoca) {
   ASSERT_TRUE(base_plan);
 
   hb_set_add_range(hb_subset_input_glyph_set(input), 500, 750);
+  hb_set_add_range(hb_subset_input_glyph_set(input), 11000, 11100);
+  hb_subset_plan_t* derived_plan =
+      hb_subset_plan_create_or_fail(noto_sans_jp, input);
+  hb_face_t* derived_face = hb_subset_plan_execute_or_fail(derived_plan);
+  SortTables(noto_sans_jp, derived_face);
+  hb_blob_t* derived_blob = hb_face_reference_blob(derived_face);
+  FontData derived = FontData::ToFontData(derived_face);
+  ASSERT_TRUE(derived_plan);
+
+  BrotliFontDiff differ(immutable_tables.get(), custom_tables.get());
+  FontData patch;
+  ASSERT_EQ(
+      differ.Diff(base_plan, base_blob, derived_plan, derived_blob, &patch),
+      StatusCode::kOk);
+
+  Check(base, patch, derived);
+
+  hb_subset_plan_destroy(base_plan);
+  hb_subset_plan_destroy(derived_plan);
+  hb_face_destroy(base_face);
+  hb_face_destroy(derived_face);
+  hb_blob_destroy(base_blob);
+  hb_blob_destroy(derived_blob);
+}
+
+TEST_F(BrotliFontDiffTest, ShortToLongLoca) {
+  hb_set_add_range(hb_subset_input_glyph_set(input), 1000, 1200);
+  hb_subset_plan_t* base_plan =
+      hb_subset_plan_create_or_fail(noto_sans_jp, input);
+  hb_face_t* base_face = hb_subset_plan_execute_or_fail(base_plan);
+  SortTables(noto_sans_jp, base_face);
+  hb_blob_t* base_blob = hb_face_reference_blob(base_face);
+  FontData base = FontData::ToFontData(base_face);
+  ASSERT_TRUE(base_plan);
+
+  hb_set_add_range(hb_subset_input_glyph_set(input), 500, 750);
+  hb_set_add_range(hb_subset_input_glyph_set(input), 1000, 5000);
+  hb_set_add_range(hb_subset_input_glyph_set(input), 8000, 10000);
   hb_set_add_range(hb_subset_input_glyph_set(input), 11000, 11100);
   hb_subset_plan_t* derived_plan =
       hb_subset_plan_create_or_fail(noto_sans_jp, input);
