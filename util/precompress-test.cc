@@ -34,14 +34,10 @@ constexpr unsigned BASE_COUNT = 1000;
 constexpr unsigned TRIAL_DURATION_MS = 5000;
 
 // TODO(grieger): this should be all "No Subset Tables" in the font.
-hb_tag_t immutable_tables[] = {
-    HB_TAG('G', 'D', 'E', 'F'),
-    HB_TAG('G', 'S', 'U', 'B'),
-    HB_TAG('G', 'P', 'O', 'S'),
-    0,
-};
+hb_set_unique_ptr immutable_tables_set =
+    make_hb_set(3, HB_TAG('G', 'D', 'E', 'F'), HB_TAG('G', 'S', 'U', 'B'),
+                HB_TAG('G', 'P', 'O', 'S'));
 
-hb_set_unique_ptr immutable_tables_set = make_hb_set();
 hb_set_unique_ptr custom_tables_set =
     make_hb_set(4, HB_TAG('g', 'l', 'y', 'f'), HB_TAG('l', 'o', 'c', 'a'),
                 HB_TAG('h', 'm', 't', 'x'), HB_TAG('v', 'm', 't', 'x'));
@@ -62,8 +58,18 @@ enum Mode {
   IMMUTABLE_LAYOUT,
   MUTABLE_LAYOUT,
   CUSTOM_DIFF,
+  CUSTOM_DIFF_IMMUTABLE_LAYOUT,
   END,
 };
+
+static bool IsCustomDiff(Mode mode) {
+  return mode == CUSTOM_DIFF || mode == CUSTOM_DIFF_IMMUTABLE_LAYOUT;
+}
+
+static bool IsLayoutImmutable(Mode mode) {
+  return mode == PRECOMPRESS_LAYOUT || mode == IMMUTABLE_LAYOUT ||
+         mode == CUSTOM_DIFF_IMMUTABLE_LAYOUT;
+}
 
 class Operation {
  public:
@@ -109,10 +115,13 @@ class Operation {
       add_mutable_tables(
           table_directory_size(subset_face) + precompressed_length(subset_face),
           patch);
-    } else if (mode == CUSTOM_DIFF) {
+    } else if (IsCustomDiff(mode)) {
       // Use custom differ
-      BrotliFontDiff differ(immutable_tables_set.get(),
-                            custom_tables_set.get());
+      hb_set_unique_ptr empty_set = make_hb_set();
+      hb_set_t* immutable_tables = IsLayoutImmutable(mode)
+                                       ? immutable_tables_set.get()
+                                       : empty_set.get();
+      BrotliFontDiff differ(immutable_tables, custom_tables_set.get());
       FontData patch_data;
       differ.Diff(base_plan, base, subset_plan, subset, &patch_data);
       patch.insert(patch.end(), patch_data.str().begin(),
@@ -173,8 +182,9 @@ class Operation {
 
   unsigned precompressed_length(const hb_face_t* face) {
     unsigned total = 0;
-    for (hb_tag_t* tag = immutable_tables; *tag; tag++) {
-      total += table_length(face, *tag);
+    hb_tag_t tag = HB_SET_VALUE_INVALID;
+    while (hb_set_next(immutable_tables_set.get(), &tag)) {
+      total += table_length(face, tag);
     }
     return total;
   }
@@ -235,11 +245,13 @@ class Operation {
     hb_set_clear(hb_subset_input_set(input, HB_SUBSET_SETS_DROP_TABLE_TAG));
     hb_set_union(hb_subset_input_unicode_set(input), codepoints);
 
-    if (mode != MUTABLE_LAYOUT && mode != CUSTOM_DIFF) {
-      for (hb_tag_t* tag = immutable_tables; *tag; tag++)
+    if (IsLayoutImmutable(mode)) {
+      hb_tag_t tag = HB_SET_VALUE_INVALID;
+      while (hb_set_next(immutable_tables_set.get(), &tag)) {
         hb_set_add(
             hb_subset_input_set(input, HB_SUBSET_SETS_NO_SUBSET_TABLE_TAG),
-            *tag);
+            tag);
+      }
       hb_subset_input_set_flags(input,
                                 HB_SUBSET_FLAGS_RETAIN_GIDS |
                                     HB_SUBSET_FLAGS_PASSTHROUGH_UNRECOGNIZED);
@@ -252,12 +264,18 @@ class Operation {
     subset = hb_subset_plan_execute_or_fail(*plan);
     hb_subset_input_destroy(input);
 
-    // Reorder immutable tables to be first.
-    if (mode != MUTABLE_LAYOUT && mode != CUSTOM_DIFF) {
-      hb_face_builder_sort_tables(subset, immutable_tables);
-    } else if (mode == CUSTOM_DIFF) {
+    // Re-order font tables if so requried by the mode
+    if (IsCustomDiff(mode)) {
       BrotliFontDiff::SortForDiff(immutable_tables_set.get(),
                                   custom_tables_set.get(), face, subset);
+    } else if (IsLayoutImmutable(mode)) {
+      std::vector<hb_tag_t> immutable_tables;
+      hb_tag_t tag = HB_SET_VALUE_INVALID;
+      while (hb_set_next(immutable_tables_set.get(), &tag)) {
+        immutable_tables.push_back(tag);
+      }
+      immutable_tables.push_back(0);
+      hb_face_builder_sort_tables(subset, immutable_tables.data());
     }
 
     hb_blob_t* result = hb_face_reference_blob(subset);
@@ -302,8 +320,9 @@ class Operation {
 
 vector<uint8_t> precompress_immutable(const hb_face_t* face) {
   vector<uint8_t> table_data;
-  for (hb_tag_t* tag = immutable_tables; *tag; tag++) {
-    hb_blob_t* blob = hb_face_reference_table(face, *tag);
+  hb_tag_t tag = HB_SET_VALUE_INVALID;
+  while (hb_set_next(immutable_tables_set.get(), &tag)) {
+    hb_blob_t* blob = hb_face_reference_table(face, tag);
     unsigned int length = 0;
     const uint8_t* data =
         reinterpret_cast<const uint8_t*>(hb_blob_get_data(blob, &length));
@@ -350,6 +369,10 @@ const char* mode_to_string(Mode mode) {
       return "IMMUTABLE_LAYOUT";
     case MUTABLE_LAYOUT:
       return "MUTABLE_LAYOUT";
+    case CUSTOM_DIFF:
+      return "CUSTOM_DIFF";
+    case CUSTOM_DIFF_IMMUTABLE_LAYOUT:
+      return "CUSTOM_DIFF_IMMUTABLE_LAYOUT";
     default:
       return "UNKNOWN";
   }

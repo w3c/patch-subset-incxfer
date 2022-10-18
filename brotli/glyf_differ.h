@@ -21,15 +21,26 @@ class GlyfDiffer : public TableDiffer {
   GlyfDiffer(absl::Span<const uint8_t> loca, bool use_short_loca)
       : loca_(loca), use_short_loca_(use_short_loca) {}
 
-  unsigned Process(unsigned derived_gid, unsigned base_gid,
-                   unsigned base_derived_gid) override {
-    mode = (base_derived_gid == derived_gid) ? EXISTING_DATA : NEW_DATA;
-    return GlyphLength(derived_gid);
+  void Process(unsigned derived_gid, unsigned base_gid,
+               unsigned base_derived_gid, bool is_base_empty,
+               unsigned* base_delta, /* OUT */
+               unsigned* derived_delta /* OUT */) override {
+    *derived_delta = GlyphLength(derived_gid);
+    if (base_derived_gid == derived_gid) {
+      mode = EXISTING_DATA;
+      *base_delta = *derived_delta;
+      return;
+    }
+
+    mode = NEW_DATA;
+    *base_delta = 0;
   }
 
-  unsigned Finalize() const override {
+  void Finalize(unsigned* base_delta, /* OUT */
+                unsigned* derived_delta /* OUT */) const override {
     // noop
-    return 0;
+    *base_delta = 0;
+    *derived_delta = 0;
   }
 
   bool IsNewData() const override { return mode == NEW_DATA; }

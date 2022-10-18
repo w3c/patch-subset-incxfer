@@ -62,7 +62,8 @@ class DiffDriver {
 
     base_glyph_count = hb_face_get_glyph_count(base_face);
     derived_glyph_count = hb_face_get_glyph_count(derived_face);
-    retain_gids = base_glyph_count < hb_map_get_population(base_new_to_old);
+
+    retain_gids = base_glyph_count > hb_map_get_population(base_new_to_old);
 
     constexpr hb_tag_t HMTX = HB_TAG('h', 'm', 't', 'x');
     constexpr hb_tag_t VMTX = HB_TAG('v', 'm', 't', 'x');
@@ -141,15 +142,26 @@ class DiffDriver {
     // *_old_gid:     glyph id in the original font glyph space.
 
     while (derived_gid < derived_glyph_count) {
-      unsigned base_derived_gid = BaseToDerivedGid(base_gid);
+      bool is_base_empty = false;
+      unsigned base_derived_gid = BaseToDerivedGid(base_gid, &is_base_empty);
+      if (is_base_empty && derived_gid == base_derived_gid &&
+          hb_map_has(derived_old_to_new, derived_gid)) {
+        // base and derived are the same glyph but base is empty while
+        // derived is not. This means the gids will match but these glyphs
+        // are not the same, so set based_derived_gid to invalid to trigger
+        // the diff to treat this as new data.
+        base_derived_gid = HB_MAP_VALUE_INVALID;
+      }
 
       for (auto& range_and_differ : differs) {
         TableDiffer* differ = range_and_differ.differ.get();
         TableRange& range = range_and_differ.range;
 
         bool was_new_data = differ->IsNewData();
-        unsigned length =
-            differ->Process(derived_gid, base_gid, base_derived_gid);
+        unsigned base_length = 0;
+        unsigned derived_length = 0;
+        differ->Process(derived_gid, base_gid, base_derived_gid, is_base_empty,
+                        &base_length, &derived_length);
 
         if (derived_gid > 0 && was_new_data != differ->IsNewData()) {
           if (was_new_data) {
@@ -159,10 +171,11 @@ class DiffDriver {
           }
         }
 
-        range.Extend(length);
+        range.Extend(base_length, derived_length);
       }
 
-      if (base_derived_gid == derived_gid) {
+      if (base_derived_gid == derived_gid ||
+          (base_gid == derived_gid && is_base_empty)) {
         base_gid++;
       }
       derived_gid++;
@@ -172,7 +185,10 @@ class DiffDriver {
     for (auto& range_and_differ : differs) {
       TableDiffer* differ = range_and_differ.differ.get();
       TableRange& range = range_and_differ.range;
-      range.Extend(differ->Finalize());
+      unsigned base_length = 0;
+      unsigned derived_length = 0;
+      differ->Finalize(&base_length, &derived_length);
+      range.Extend(base_length, derived_length);
       if (differ->IsNewData()) {
         range.CommitNew();
       } else {
@@ -184,13 +200,18 @@ class DiffDriver {
   }
 
  private:
-  unsigned BaseToDerivedGid(unsigned gid) {
+  unsigned BaseToDerivedGid(unsigned gid, bool* is_base_empty) {
     if (retain_gids) {
-      // If retain gids is set gids are equivalent in all three spaces.
-      return gid < base_glyph_count ? gid : HB_MAP_VALUE_INVALID;
+      if (gid < base_glyph_count) {
+        // If retain gids is set gids are equivalent in all three spaces.
+        *is_base_empty = !hb_map_has(base_new_to_old, gid);
+        return gid;
+      }
+      return HB_MAP_VALUE_INVALID;
     }
 
-    unsigned base_old_gid = hb_map_get(base_new_to_old, base_gid);
+    *is_base_empty = false;
+    unsigned base_old_gid = hb_map_get(base_new_to_old, gid);
     return hb_map_get(derived_old_to_new, base_old_gid);
   }
 };

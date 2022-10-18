@@ -23,9 +23,14 @@ class HmtxDiffer : public TableDiffer {
       : base_number_of_metrics(GetNumberOfMetrics(base_hhea)),
         derived_number_of_metrics(GetNumberOfMetrics(derived_hhea)) {}
 
-  unsigned Process(unsigned derived_gid, unsigned base_gid,
-                   unsigned base_derived_gid) override {
+  void Process(unsigned derived_gid, unsigned base_gid,
+               unsigned base_derived_gid, bool is_base_empty,
+               unsigned* base_delta, /* OUT */
+               unsigned* derived_delta /* OUT */) override {
     mode = NEW_DATA;
+    *derived_delta = derived_gid < derived_number_of_metrics ? 4 : 2;
+    *base_delta = 0;
+
     if (derived_gid == base_derived_gid) {
       if ((derived_gid < derived_number_of_metrics &&
            base_gid < base_number_of_metrics) ||
@@ -34,15 +39,20 @@ class HmtxDiffer : public TableDiffer {
         // Can only copy existing data if both base and derived are on the same
         // side of number of metrics.
         mode = EXISTING_DATA;
+        *base_delta = base_gid < base_number_of_metrics ? 4 : 2;
       }
     }
 
-    return derived_gid < derived_number_of_metrics ? 4 : 2;
+    if (mode == NEW_DATA && is_base_empty) {
+      *base_delta = base_gid < base_number_of_metrics ? 4 : 2;
+    }
   }
 
-  unsigned Finalize() const override {
+  void Finalize(unsigned* base_delta, /* OUT */
+                unsigned* derived_delta /* OUT */) const override {
     // noop
-    return 0;
+    *base_delta = 0;
+    *derived_delta = 0;
   }
 
   bool IsNewData() const override { return mode == NEW_DATA; }
