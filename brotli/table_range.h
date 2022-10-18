@@ -65,7 +65,8 @@ class TableRange {
   unsigned base_table_offset_;
   unsigned base_offset_ = 0;
   unsigned derived_offset_ = 0;
-  unsigned length_ = 0;
+  unsigned base_length_ = 0;
+  unsigned derived_length_ = 0;
   std::unique_ptr<BrotliStream> out;
   hb_tag_t tag_;
 
@@ -78,25 +79,35 @@ class TableRange {
 
   unsigned length() { return derived_.size(); }
 
-  void Extend(unsigned length) { length_ += length; }
+  void Extend(unsigned base_length, unsigned derived_length) {
+    base_length_ += base_length;
+    derived_length_ += derived_length;
+  }
 
   void CommitNew() {
-    out->insert_compressed(
-        absl::Span<const uint8_t>(derived_.data() + derived_offset_, length_));
-    derived_offset_ += length_;
-    length_ = 0;
+    out->insert_compressed(absl::Span<const uint8_t>(
+        derived_.data() + derived_offset_, derived_length_));
+
+    derived_offset_ += derived_length_;
+    base_offset_ += base_length_;
+
+    base_length_ = 0;
+    derived_length_ = 0;
   }
 
   void CommitExisting() {
     if (!out->insert_from_dictionary(base_table_offset_ + base_offset_,
-                                     length_)) {
+                                     derived_length_)) {
       // 1 byte backwards refs must be inserted as literals.
       out->insert_uncompressed(absl::Span<const uint8_t>(
-          derived_.data() + derived_offset_, length_));
+          derived_.data() + derived_offset_, derived_length_));
     }
-    base_offset_ += length_;
-    derived_offset_ += length_;
-    length_ = 0;
+
+    derived_offset_ += derived_length_;
+    base_offset_ += base_length_;
+
+    base_length_ = 0;
+    derived_length_ = 0;
   }
 };
 

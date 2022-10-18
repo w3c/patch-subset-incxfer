@@ -10,10 +10,13 @@ class TableDiffer {
  public:
   virtual ~TableDiffer() = default;
 
-  virtual unsigned Process(unsigned derived_gid, unsigned base_gid,
-                           unsigned base_derived_gid) = 0;
+  virtual void Process(unsigned derived_gid, unsigned base_gid,
+                       unsigned base_derived_gid, bool is_base_empty,
+                       unsigned* base_delta, /* OUT */
+                       unsigned* derived_delta /* OUT */) = 0;
 
-  virtual unsigned Finalize() const = 0;
+  virtual void Finalize(unsigned* base_delta, /* OUT */
+                        unsigned* derived_delta /* OUT */) const = 0;
 
   virtual bool IsNewData() const = 0;
 };
