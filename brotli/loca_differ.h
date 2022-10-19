@@ -45,7 +45,7 @@ class LocaDiffer : public TableDiffer {
         }
 
         mode = NEW_DATA;
-        // fallthrough
+        [[fallthrough]];
       case NEW_DATA:
 
         // Once new data is encountered all remaining data must be new since
