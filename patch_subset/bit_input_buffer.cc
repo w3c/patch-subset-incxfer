@@ -15,11 +15,13 @@ static const uint32_t kBitsPerNibble = 4;
 static const uint8_t kFirstNibbleMask = 0x0F;
 static const uint8_t kFirstTwoBitsMask = 0b11;
 
-static BranchFactor DecodeBranchFactor(unsigned char first_byte);
-static uint32_t DecodeDepth(unsigned char first_byte);
+static BranchFactor DecodeBranchFactor(string_view bits);
+static uint32_t DecodeDepth(string_view bits);
 
 BitInputBuffer::BitInputBuffer(string_view bits)
-    : branch_factor(DecodeBranchFactor(bits[0])), depth(DecodeDepth(bits[0])) {
+    : branch_factor(DecodeBranchFactor(bits)),
+      depth(DecodeDepth(bits))
+{
   this->bits = bits;
   current_byte = 1;
   current_pair = 0;
@@ -78,7 +80,12 @@ bool BitInputBuffer::read(uint32_t *out) {
   return true;
 }
 
-static BranchFactor DecodeBranchFactor(unsigned char first_byte) {
+static BranchFactor DecodeBranchFactor(string_view bits) {
+  if (!bits.size()) {
+    return BF2;
+  }
+
+  unsigned char first_byte = bits[0];
   switch (first_byte & 0b11) {
     case 0b00:
       return BF2;
@@ -91,9 +98,14 @@ static BranchFactor DecodeBranchFactor(unsigned char first_byte) {
   }
 }
 
-static uint32_t DecodeDepth(unsigned char first_byte) {
+static uint32_t DecodeDepth(string_view bits) {
+  if (!bits.size()) {
+    return 1;
+  }
+
   // Only look at bits 2..5.
   // Bits 0 and 1 are branch factor. Bits 7 is reserved for future use.
+  unsigned char first_byte = bits[0];
   return ((first_byte & 0b01111100u) >> 2) + 1;
 }
 
