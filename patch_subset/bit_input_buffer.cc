@@ -19,9 +19,7 @@ static BranchFactor DecodeBranchFactor(string_view bits);
 static uint32_t DecodeDepth(string_view bits);
 
 BitInputBuffer::BitInputBuffer(string_view bits)
-    : branch_factor(DecodeBranchFactor(bits)),
-      depth(DecodeDepth(bits))
-{
+    : branch_factor(DecodeBranchFactor(bits)), depth(DecodeDepth(bits)) {
   this->bits = bits;
   current_byte = 1;
   current_pair = 0;

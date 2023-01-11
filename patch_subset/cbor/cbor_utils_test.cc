@@ -222,8 +222,8 @@ TEST_F(CborUtilsTest, GetFieldRefCount) {
   ASSERT_EQ(raw_value->refcount, 1);  // Default value. "We" own it.
   cbor_item_t* raw_map = cbor_new_definite_map(1);
   ASSERT_EQ(raw_map->refcount, 1);  // Default value. "We" own it.
-  cbor_map_add(raw_map, cbor_pair{.key = cbor_move(raw_key),
-                                  .value = cbor_move(raw_value)});
+  ASSERT_TRUE(cbor_map_add(raw_map, cbor_pair{.key = cbor_move(raw_key),
+                                              .value = cbor_move(raw_value)}));
 
   // Use of cbor_move() decremented ref count, adding to map incremented.
   ASSERT_EQ(raw_map->refcount, 1);    // No change.
@@ -255,7 +255,8 @@ TEST_F(CborUtilsTest, GetField) {
   cbor_item_unique_ptr map = make_cbor_map(1);
   cbor_item_unique_ptr key = make_cbor_int(21);
   cbor_item_unique_ptr value = make_cbor_int(42);
-  cbor_map_add(map.get(), cbor_pair{.key = key.get(), .value = value.get()});
+  ASSERT_TRUE(cbor_map_add(map.get(),
+                           cbor_pair{.key = key.get(), .value = value.get()}));
   cbor_item_unique_ptr field = empty_cbor_ptr();
 
   StatusCode sc = CborUtils::GetField(*map, 21, field);
@@ -269,7 +270,8 @@ TEST_F(CborUtilsTest, GetFieldNotFound) {
   cbor_item_unique_ptr map = make_cbor_map(1);
   cbor_item_unique_ptr key = make_cbor_int(21);
   cbor_item_unique_ptr value = make_cbor_int(42);
-  cbor_map_add(map.get(), cbor_pair{.key = key.get(), .value = value.get()});
+  ASSERT_TRUE(cbor_map_add(map.get(),
+                           cbor_pair{.key = key.get(), .value = value.get()}));
   cbor_item_unique_ptr field = empty_cbor_ptr();
 
   StatusCode sc = CborUtils::GetField(*map, 999, field);
@@ -280,14 +282,14 @@ TEST_F(CborUtilsTest, GetFieldNotFound) {
 
 TEST_F(CborUtilsTest, GetFieldSkipInvalidEntries) {
   cbor_item_unique_ptr map = make_cbor_map(2);
-  cbor_map_add(
+  ASSERT_TRUE(cbor_map_add(
       map.get(),
       cbor_pair{.key = cbor_move(CborUtils::EncodeString("bad-key")),
-                .value = cbor_move(CborUtils::EncodeString("value1"))});
-  cbor_map_add(
+                .value = cbor_move(CborUtils::EncodeString("value1"))}));
+  ASSERT_TRUE(cbor_map_add(
       map.get(),
       cbor_pair{.key = cbor_move(CborUtils::EncodeInt(42)),
-                .value = cbor_move(CborUtils::EncodeString("value2"))});
+                .value = cbor_move(CborUtils::EncodeString("value2"))}));
   cbor_item_unique_ptr field = empty_cbor_ptr();
 
   StatusCode sc = CborUtils::GetField(*map, 42, field);
@@ -313,7 +315,8 @@ TEST_F(CborUtilsTest, GetFieldNegId) {
   cbor_item_unique_ptr map = make_cbor_map(1);
   cbor_item_unique_ptr key = make_cbor_int(21);
   cbor_item_unique_ptr value = make_cbor_int(42);
-  cbor_map_add(map.get(), cbor_pair{.key = key.get(), .value = value.get()});
+  ASSERT_TRUE(cbor_map_add(map.get(),
+                           cbor_pair{.key = key.get(), .value = value.get()}));
   cbor_item_unique_ptr field = empty_cbor_ptr();
 
   StatusCode sc = CborUtils::GetField(*map, -1, field);
@@ -613,7 +616,8 @@ TEST_F(CborUtilsTest, StringsExamples) {
 
 TEST_F(CborUtilsTest, DecodeStringNotDefinate) {
   cbor_item_unique_ptr item = wrap_cbor_item(cbor_new_indefinite_string());
-  cbor_string_add_chunk(item.get(), cbor_move(CborUtils::EncodeString("foo")));
+  ASSERT_TRUE(cbor_string_add_chunk(item.get(),
+                                    cbor_move(CborUtils::EncodeString("foo"))));
   string s = "untouched";
 
   StatusCode sc = CborUtils::DecodeString(*item, s);
@@ -677,8 +681,8 @@ TEST_F(CborUtilsTest, BytesFromString) {
 
 TEST_F(CborUtilsTest, DecodeBytesNotDefinate) {
   cbor_item_unique_ptr indef = wrap_cbor_item(cbor_new_indefinite_bytestring());
-  cbor_bytestring_add_chunk(indef.get(),
-                            cbor_move(CborUtils::EncodeBytes("foo")));
+  ASSERT_TRUE(cbor_bytestring_add_chunk(
+      indef.get(), cbor_move(CborUtils::EncodeBytes("foo"))));
   string result = "untouched";
 
   StatusCode sc = CborUtils::DecodeBytes(*indef, result);
