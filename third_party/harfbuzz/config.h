@@ -8,10 +8,10 @@
 #define HAVE_ATEXIT 1
 
 /* Have cairo graphics library */
-#define HAVE_CAIRO 1
+/* #define HAVE_CAIRO */
 
 /* Have cairo-ft support in cairo graphics library */
-#define HAVE_CAIRO_FT 1
+/* #define HAVE_CAIRO_FT */
 
 /* Have Core Text backend */
 /* #undef HAVE_CORETEXT */
