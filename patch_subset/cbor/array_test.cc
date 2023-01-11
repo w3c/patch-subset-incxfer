@@ -47,9 +47,12 @@ TEST_F(ArrayTest, Encode) {
 
 TEST_F(ArrayTest, Decode) {
   cbor_item_unique_ptr bytestring = make_cbor_array(3);
-  cbor_array_push(bytestring.get(), cbor_move(CborUtils::EncodeUInt64(13)));
-  cbor_array_push(bytestring.get(), cbor_move(CborUtils::EncodeUInt64(12759)));
-  cbor_array_push(bytestring.get(), cbor_move(CborUtils::EncodeUInt64(0)));
+  ASSERT_TRUE(cbor_array_push(bytestring.get(),
+                              cbor_move(CborUtils::EncodeUInt64(13))));
+  ASSERT_TRUE(cbor_array_push(bytestring.get(),
+                              cbor_move(CborUtils::EncodeUInt64(12759))));
+  ASSERT_TRUE(
+      cbor_array_push(bytestring.get(), cbor_move(CborUtils::EncodeUInt64(0))));
 
   vector<uint64_t> expected{13, 12759, 0};
 

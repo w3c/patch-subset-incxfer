@@ -102,11 +102,13 @@ TEST_F(CompressedSetTest, DecodeNotDefinateMap) {
   cbor_item_unique_ptr ranges_bytestring = empty_cbor_ptr();
   StatusCode sc = RangeList::Encode({{0, 256}}, ranges_bytestring);
   ASSERT_EQ(sc, StatusCode::kOk);
-  cbor_map_add(map.get(),
-               cbor_pair{.key = cbor_move(CborUtils::EncodeInt(0)),
-                         .value = cbor_move(CborUtils::EncodeBytes("1010"))});
-  cbor_map_add(map.get(), cbor_pair{.key = cbor_move(CborUtils::EncodeInt(1)),
-                                    .value = move_out(ranges_bytestring)});
+  ASSERT_TRUE(cbor_map_add(
+      map.get(),
+      cbor_pair{.key = cbor_move(CborUtils::EncodeInt(0)),
+                .value = cbor_move(CborUtils::EncodeBytes("1010"))}));
+  ASSERT_TRUE(cbor_map_add(map.get(),
+                           cbor_pair{.key = cbor_move(CborUtils::EncodeInt(1)),
+                                     .value = move_out(ranges_bytestring)}));
 
   CompressedSet result{"orig", {}};
   CompressedSet expected(result);
