@@ -1,4 +1,5 @@
-load("//emscripten_toolchain:wasm_rules.bzl", "wasm_cc_binary")
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+load("@emsdk//emscripten_toolchain:wasm_rules.bzl", "wasm_cc_binary")
 
 DEFAULT_EMSCRIPTEN_LINKOPTS = [
     "--bind",  # Compiles the source code using the Embind bindings to connect C/C++ and JavaScript
@@ -11,7 +12,7 @@ DEFAULT_EMSCRIPTEN_LINKOPTS = [
 ]
 
 cc_binary(
-    name = "patch_subset_wasm.js",
+    name = "patch_subset_client",
     srcs = [
         "patch_subset_client.cc",
     ],
@@ -23,4 +24,9 @@ cc_binary(
         "@com_google_absl//absl/strings",
         "@harfbuzz",
     ],
+)
+
+wasm_cc_binary(
+    name = "patch_subset_wasm",
+    cc_target = ":patch_subset_client",
 )

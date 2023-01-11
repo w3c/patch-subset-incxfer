@@ -28,7 +28,7 @@ jobs:
 
       - name: Build Webassembly
         run: |
-          "${GITHUB_WORKSPACE}/bin/bazel" build --copt=-Os --config=wasm js_client:patch_subset_wasm.js
+          "${GITHUB_WORKSPACE}/bin/bazel" build --copt=-Os js_client:patch_subset_wasm
         env:
           CC: gcc-9
 
