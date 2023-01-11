@@ -40,9 +40,7 @@ jobs:
 
       - name: Install bazel
         run: |
-          curl -L -O "https://github.com/bazelbuild/bazel/releases/download/3.7.1/bazel-3.7.1-installer-darwin-x86_64.sh"
-          chmod a+x ./bazel-3.7.1-installer-darwin-x86_64.sh
-          ./bazel-3.7.1-installer-darwin-x86_64.sh
+          brew install bazelisk
 
       - name: Run Tests
         run: bazel test //analysis/... //common/... //patch_subset/... //util/... --test_output=all
