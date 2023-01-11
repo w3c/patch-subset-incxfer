@@ -14,9 +14,9 @@ http_archive(
 http_archive(
     name = "brotli",
     build_file = "//third_party:brotli.BUILD",
-    sha256 = "e96f58fd91ac7691e1d8299cf0c4ca734acbdc8e31b915e1697ff3d303d64e9b",
-    strip_prefix = "brotli-19d86fb9a60aa7034d4981b69a5b656f5b90017e",
-    url = "https://github.com/google/brotli/archive/19d86fb9a60aa7034d4981b69a5b656f5b90017e.zip",
+    sha256 = "3b90c83489879701c05f39b68402ab9e5c880ec26142b5447e73afdda62ce525",
+    strip_prefix = "brotli-71fe6cac061ac62c0241f410fbd43a04a6b4f303",
+    url = "https://github.com/google/brotli/archive/71fe6cac061ac62c0241f410fbd43a04a6b4f303.zip",
 )
 
 # WOFF2 Encoder/Decoder
@@ -62,13 +62,14 @@ http_archive(
 )
 
 # Proto buf generating rules
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
 http_archive(
     name = "rules_proto",
-    sha256 = "4d421d51f9ecfe9bf96ab23b55c6f2b809cbaf0eea24952683e397decfbd0dd0",
-    strip_prefix = "rules_proto-f6b8d89b90a7956f6782a4a3609b2f0eee3ce965",
+    sha256 = "dc3fb206a2cb3441b485eb1e423165b231235a1ea9b031b4433cf7bc1fa460dd",
+    strip_prefix = "rules_proto-5.3.0-21.7",
     urls = [
-        "https://mirror.bazel.build/github.com/bazelbuild/rules_proto/archive/f6b8d89b90a7956f6782a4a3609b2f0eee3ce965.tar.gz",
-        "https://github.com/bazelbuild/rules_proto/archive/f6b8d89b90a7956f6782a4a3609b2f0eee3ce965.tar.gz",
+        "https://github.com/bazelbuild/rules_proto/archive/refs/tags/5.3.0-21.7.tar.gz",
     ],
 )
 load("@rules_proto//proto:repositories.bzl", "rules_proto_dependencies", "rules_proto_toolchains")
