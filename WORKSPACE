@@ -5,9 +5,9 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 # Google Test
 http_archive(
     name = "gtest",
-    sha256 = "94c634d499558a76fa649edb13721dce6e98fb1e7018dfaeba3cd7a083945e91",
-    strip_prefix = "googletest-release-1.10.0",
-    url = "https://github.com/google/googletest/archive/release-1.10.0.zip",
+    sha256 = "24564e3b712d3eb30ac9a85d92f7d720f60cc0173730ac166f27dda7fed76cb2",
+    strip_prefix = "googletest-release-1.12.1",
+    url = "https://github.com/google/googletest/archive/release-1.12.1.zip",
 )
 
 # Brotli Encoder/Decoder
@@ -47,11 +47,18 @@ http_archive(
 )
 
 # abseil-cpp
+
 http_archive(
     name = "com_google_absl",
-    sha256 = "1a7edda1ff56967e33bc938a4f0a68bb9efc6ba73d62bb4a5f5662463698056c",
-    strip_prefix = "abseil-cpp-20210324.2",
-    urls = ["https://github.com/abseil/abseil-cpp/archive/20210324.2.zip"],
+    sha256 = "54707f411cb62a26a776dad5fd60829098c181700edcd022ea5c2ca49e9b7ef1",
+    strip_prefix = "abseil-cpp-20220623.1",
+    urls = ["https://github.com/abseil/abseil-cpp/archive/20220623.1.zip"],
+)
+
+http_archive(
+  name = "bazel_skylib",
+  urls = ["https://github.com/bazelbuild/bazel-skylib/releases/download/1.3.0/bazel-skylib-1.3.0.tar.gz"],
+  sha256 = "74d544d96f4a5bb630d465ca8bbcfe231e3594e5aae57e1edbf17a6eb3ca2506",
 )
 
 # Proto buf generating rules
@@ -95,6 +102,8 @@ npm_install(
     package_json = "@emscripten//:emscripten/package.json",
     package_lock_json = "@emscripten//:emscripten/package-lock.json",
 )
+
+### End Emscripten ###
 
 # libcbor
 http_archive(
