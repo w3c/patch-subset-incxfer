@@ -79,30 +79,22 @@ rules_proto_toolchains()
 ### Emscripten ###
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-
 http_archive(
-    name = "build_bazel_rules_nodejs",
-    sha256 = "0f2de53628e848c1691e5729b515022f5a77369c76a09fbe55611e12731c90e3",
-    urls = ["https://github.com/bazelbuild/rules_nodejs/releases/download/2.0.1/rules_nodejs-2.0.1.tar.gz"],
+    name = "emsdk",
+    sha256 = "506376d0d2a71fc3dd1a4dba6fb4cf18f0a2fa4e1936aa04ba4b59f2d435bf3f",
+    strip_prefix = "emsdk-3.1.29/bazel",
+    url = "https://github.com/emscripten-core/emsdk/archive/3.1.29.tar.gz",
 )
 
-load("@build_bazel_rules_nodejs//:index.bzl", "npm_install")
+load("@emsdk//:deps.bzl", emsdk_deps = "deps")
+emsdk_deps()
 
-# emscripten 2.0.9
-http_archive(
-    name = "emscripten",
-    sha256 = "42e06a5ad4b369fcb435db097edb8c4fb824b3125a3b8996aca6f10bc79d9dca",
-    strip_prefix = "install",
-    url = "https://storage.googleapis.com/webassembly/emscripten-releases-builds/linux/d8e430f9a9b6e87502f826c39e7684852f59624f/wasm-binaries.tbz2",
-    build_file = "//emscripten_toolchain:emscripten.BUILD",
-    type = "tar.bz2",
-)
+load("@emsdk//:emscripten_deps.bzl", emsdk_emscripten_deps = "emscripten_deps")
+emsdk_emscripten_deps(emscripten_version = "3.1.29")
 
-npm_install(
-    name = "npm",
-    package_json = "@emscripten//:emscripten/package.json",
-    package_lock_json = "@emscripten//:emscripten/package-lock.json",
-)
+load("@emsdk//:toolchains.bzl", "register_emscripten_toolchains")
+register_emscripten_toolchains()
+
 
 ### End Emscripten ###
 

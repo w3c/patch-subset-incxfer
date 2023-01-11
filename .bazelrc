@@ -38,6 +38,9 @@ test:msan --linkopt -fsanitize=memory
 
 ##### WASM #####
 
-build:wasm --crosstool_top=//emscripten_toolchain:everything
-build:wasm --cpu=wasm
-build:wasm --host_crosstool_top=@bazel_tools//tools/cpp:toolchain
+# required for building wasm, see: https://github.com/emscripten-core/emsdk/tree/main/bazel
+build --incompatible_enable_cc_toolchain_resolution
+
+# emcc is more strict and some of our deps (eg. absl) cause failures for these warnings
+build --copt -Wno-deprecated-non-prototype
+build --copt -Wno-deprecated-builtins

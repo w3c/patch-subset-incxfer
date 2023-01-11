@@ -77,7 +77,7 @@ class SharedBrotliEncoder {
 
     unsigned int source_index = 0;
     BrotliEncoderOperation current_op = BROTLI_OPERATION_PROCESS;
-    size_t available_in, available_out = 0, bytes_written = 0;
+    size_t available_in, available_out = 0;
     BROTLI_BOOL result = BROTLI_TRUE;
     while (result && (source_index < derived.size() ||
                       !IsFinished(state, current_op, is_last))) {
@@ -93,7 +93,6 @@ class SharedBrotliEncoder {
       const uint8_t* buffer = BrotliEncoderTakeOutput(state, &buffer_size);
       if (buffer_size > 0) {
         Append(buffer, buffer_size, sink);
-        bytes_written += buffer_size;
       }
       source_index += sp.size() - available_in;
     }
