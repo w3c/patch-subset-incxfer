@@ -14,7 +14,7 @@
 
 namespace patch_subset {
 
-using absl::StatusCode;
+using absl::Status;
 using absl::string_view;
 using patch_subset::cbor::ClientState;
 using patch_subset::cbor::PatchRequest;
@@ -39,7 +39,7 @@ class PatchSubsetClientTest : public ::testing::Test {
                                   std::unique_ptr<BinaryPatch>(binary_patch_),
                                   std::unique_ptr<Hasher>(hasher_))),
         font_provider_(new FileFontProvider("patch_subset/testdata/")) {
-    font_provider_->GetFont("Roboto-Regular.ab.ttf", &roboto_ab_);
+    EXPECT_TRUE(font_provider_->GetFont("Roboto-Regular.ab.ttf", &roboto_ab_).ok());
   }
 
   PatchRequest CreateRequest(const hb_set_t& codepoints) {
@@ -91,7 +91,7 @@ class PatchSubsetClientTest : public ::testing::Test {
     EXPECT_CALL(server_, Handle("roboto", Eq(expected_request), _))
         .Times(1)
         // Short circuit the response handling code.
-        .WillOnce(Return(StatusCode::kInternal));
+        .WillOnce(Return(absl::InternalError("mock error.")));
   }
 
   void ExpectChecksum(string_view data, uint64_t checksum) {
@@ -129,7 +129,7 @@ TEST_F(PatchSubsetClientTest, SendsNewRequest) {
 
   ClientState state;
   state.SetFontId("roboto");
-  client_->Extend(*codepoints, state);
+  client_->Extend(*codepoints, state).IgnoreError();
 }
 
 TEST_F(PatchSubsetClientTest, SendPatchRequest) {
@@ -144,7 +144,7 @@ TEST_F(PatchSubsetClientTest, SendPatchRequest) {
   state.SetFontId("roboto");
   state.SetFontData(roboto_ab_.string());
   state.SetOriginalFontChecksum(kOriginalChecksum);
-  client_->Extend(*codepoints_needed, state);
+  client_->Extend(*codepoints_needed, state).IgnoreError();
 }
 
 TEST_F(PatchSubsetClientTest, SendPatchRequest_WithCodepointMapping) {
@@ -181,11 +181,11 @@ TEST_F(PatchSubsetClientTest, SendPatchRequest_WithCodepointMapping) {
   state.SetFontData(roboto_ab_.string());
   state.SetOriginalFontChecksum(kOriginalChecksum);
   std::vector<int32_t> remapping;
-  map.ToVector(&remapping);
+  ASSERT_TRUE(map.ToVector(&remapping).ok());
   state.SetCodepointRemapping(remapping);
   state.SetCodepointRemappingChecksum(13);
 
-  client_->Extend(*codepoints_needed, state);
+  client_->Extend(*codepoints_needed, state).IgnoreError();
 }
 
 TEST_F(PatchSubsetClientTest, SendPatchRequest_RemovesExistingCodepoints) {
@@ -201,7 +201,7 @@ TEST_F(PatchSubsetClientTest, SendPatchRequest_RemovesExistingCodepoints) {
   state.SetFontId("roboto");
   state.SetFontData(roboto_ab_.string());
   state.SetOriginalFontChecksum(kOriginalChecksum);
-  client_->Extend(*codepoints_needed, state);
+  client_->Extend(*codepoints_needed, state).IgnoreError();
 }
 
 TEST_F(PatchSubsetClientTest, DoesntSendPatchRequest_NoNewCodepoints) {
@@ -213,7 +213,7 @@ TEST_F(PatchSubsetClientTest, DoesntSendPatchRequest_NoNewCodepoints) {
   state.SetFontId("roboto");
   state.SetFontData(roboto_ab_.string());
   state.SetOriginalFontChecksum(kOriginalChecksum);
-  EXPECT_EQ(client_->Extend(*codepoints_needed, state), StatusCode::kOk);
+  EXPECT_EQ(client_->Extend(*codepoints_needed, state), absl::OkStatus());
 }
 
 TEST_F(PatchSubsetClientTest, HandlesRebaseResponse) {
@@ -229,7 +229,7 @@ TEST_F(PatchSubsetClientTest, HandlesRebaseResponse) {
 
   ClientState state;
   state.SetFontData("roboto.base.ttf");
-  EXPECT_EQ(client_->Extend(*codepoints, state), StatusCode::kOk);
+  EXPECT_EQ(client_->Extend(*codepoints, state), absl::OkStatus());
 
   EXPECT_EQ(state.FontData(), "roboto.patched.ttf");
   EXPECT_EQ(state.OriginalFontChecksum(), kOriginalChecksum);
@@ -251,7 +251,7 @@ TEST_F(PatchSubsetClientTest, HandlesRebaseResponse_WithCodepointMapping) {
 
   ClientState state;
   state.SetFontId("roboto.base.ttf");
-  EXPECT_EQ(client_->Extend(*codepoints, state), StatusCode::kOk);
+  EXPECT_EQ(client_->Extend(*codepoints, state), absl::OkStatus());
 
   EXPECT_EQ(state.FontData(), "roboto.patched.ttf");
   EXPECT_EQ(state.OriginalFontChecksum(), kOriginalChecksum);
@@ -275,7 +275,7 @@ TEST_F(PatchSubsetClientTest, HandlesPatchResponse) {
 
   ClientState state;
   state.SetFontData("roboto.base.ttf");
-  EXPECT_EQ(client_->Extend(*codepoints, state), StatusCode::kOk);
+  EXPECT_EQ(client_->Extend(*codepoints, state), absl::OkStatus());
 
   EXPECT_EQ(state.FontData(), "roboto.patched.ttf");
   EXPECT_EQ(state.OriginalFontChecksum(), kOriginalChecksum);

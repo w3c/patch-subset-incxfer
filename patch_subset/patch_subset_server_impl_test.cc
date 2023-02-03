@@ -20,7 +20,7 @@
 
 namespace patch_subset {
 
-using absl::StatusCode;
+using absl::Status;
 using absl::string_view;
 using patch_subset::MockIntegerListChecksum;
 using patch_subset::cbor::PatchRequest;
@@ -32,23 +32,23 @@ using testing::Return;
 
 MATCHER_P(EqualsSet, other, "") { return hb_set_is_equal(arg, other); }
 
-StatusCode returnFontId(const std::string& id, FontData* out) {
+Status returnFontId(const std::string& id, FontData* out) {
   out->copy(id.c_str(), id.size());
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
-StatusCode diff(const FontData& font_base, const FontData& font_derived,
+Status diff(const FontData& font_base, const FontData& font_derived,
                 FontData* out /* OUT */) {
   if (font_base.empty()) {
     out->copy(font_derived.data(), font_derived.size());
-    return StatusCode::kOk;
+    return absl::OkStatus();
   }
 
   std::string base(font_base.data(), font_base.size());
   std::string derived(font_derived.data(), font_derived.size());
   std::string patch(derived + " - " + base);
   out->copy(patch.c_str(), patch.size());
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
 class PatchSubsetServerImplTestBase : public ::testing::Test {
@@ -171,7 +171,7 @@ TEST_F(PatchSubsetServerImplTest, NewRequest) {
   request.SetProtocolVersion(ProtocolVersion::ONE);
 
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
-            StatusCode::kOk);
+            absl::OkStatus());
   EXPECT_EQ(response.OriginalFontChecksum(), 42);
   EXPECT_TRUE(response.Patch().empty());
   EXPECT_EQ(response.Replacement(), "Roboto-Regular.ttf:abcd");
@@ -198,7 +198,7 @@ TEST_F(PatchSubsetServerImplTest, NewRequestVCDIFF) {
   request.SetProtocolVersion(ProtocolVersion::ONE);
 
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
-            StatusCode::kOk);
+            absl::OkStatus());
   EXPECT_EQ(response.OriginalFontChecksum(), 42);
   EXPECT_TRUE(response.Patch().empty());
   EXPECT_EQ(response.Replacement(), "Roboto-Regular.ttf:abcd");
@@ -225,7 +225,7 @@ TEST_F(PatchSubsetServerImplTest, PrefersBrotli) {
   request.SetProtocolVersion(ProtocolVersion::ONE);
 
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
-            StatusCode::kOk);
+            absl::OkStatus());
   EXPECT_EQ(response.OriginalFontChecksum(), 42);
   EXPECT_TRUE(response.Patch().empty());
   EXPECT_EQ(response.Replacement(), "Roboto-Regular.ttf:abcd");
@@ -254,7 +254,7 @@ TEST_F(PatchSubsetServerImplWithCodepointRemappingTest,
   request.SetProtocolVersion(ProtocolVersion::ONE);
 
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
-            StatusCode::kOk);
+            absl::OkStatus());
 
   // Check that a codepoint mapping response has been included.
   EXPECT_EQ(response.OrderingChecksum(), 44);
@@ -285,7 +285,7 @@ TEST_F(PatchSubsetServerImplTest, PatchRequest) {
   request.SetProtocolVersion(ProtocolVersion::ONE);
 
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
-            StatusCode::kOk);
+            absl::OkStatus());
   EXPECT_EQ(response.OriginalFontChecksum(), 42);
   EXPECT_EQ(response.Patch(),
             "Roboto-Regular.ttf:abcd - Roboto-Regular.ttf:ab");
@@ -323,7 +323,7 @@ TEST_F(PatchSubsetServerImplTest, PatchRequestWithCodepointPrediction) {
   request.SetProtocolVersion(ProtocolVersion::ONE);
 
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
-            StatusCode::kOk);
+            absl::OkStatus());
   EXPECT_EQ(response.OriginalFontChecksum(), 42);
   EXPECT_EQ(response.Patch(),
             "Roboto-Regular.ttf:abcde - Roboto-Regular.ttf:ab");
@@ -357,7 +357,7 @@ TEST_F(PatchSubsetServerImplWithCodepointRemappingTest,
   request.SetProtocolVersion(ProtocolVersion::ONE);
 
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
-            StatusCode::kOk);
+            absl::OkStatus());
   EXPECT_EQ(response.OriginalFontChecksum(), 42);
   EXPECT_EQ(response.Patch(),
             "Roboto-Regular.ttf:abcd - Roboto-Regular.ttf:ab");
@@ -388,7 +388,7 @@ TEST_F(PatchSubsetServerImplWithCodepointRemappingTest, BadIndexChecksum) {
   request.SetProtocolVersion(ProtocolVersion::ONE);
 
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
-            StatusCode::kOk);
+            absl::OkStatus());
 
   // Re-index should have no patch, but contain a codepoint mapping.
   EXPECT_TRUE(response.Patch().empty());
@@ -419,7 +419,7 @@ TEST_F(PatchSubsetServerImplTest, BadOriginalFontChecksum) {
   request.SetProtocolVersion(ProtocolVersion::ONE);
 
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
-            StatusCode::kOk);
+            absl::OkStatus());
   EXPECT_EQ(response.OriginalFontChecksum(), 42);
   EXPECT_EQ(response.Replacement(), "Roboto-Regular.ttf:abcd");
   EXPECT_EQ(response.PatchedChecksum(), 44);
@@ -447,7 +447,7 @@ TEST_F(PatchSubsetServerImplTest, BadBaseChecksum) {
   request.SetProtocolVersion(ProtocolVersion::ONE);
 
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
-            StatusCode::kOk);
+            absl::OkStatus());
   EXPECT_EQ(response.OriginalFontChecksum(), 42);
   EXPECT_EQ(response.Replacement(), "Roboto-Regular.ttf:abcd");
   EXPECT_EQ(response.PatchedChecksum(), 44);
@@ -457,7 +457,7 @@ TEST_F(PatchSubsetServerImplTest, BadBaseChecksum) {
 TEST_F(PatchSubsetServerImplTest, NotFound) {
   EXPECT_CALL(*font_provider_, GetFont("Roboto-Regular.ttf", _))
       .Times(1)
-      .WillRepeatedly(Return(StatusCode::kNotFound));
+      .WillRepeatedly(Return(absl::NotFoundError("not found.")));
 
   PatchRequest request;
   PatchResponse response;
@@ -467,8 +467,7 @@ TEST_F(PatchSubsetServerImplTest, NotFound) {
   request.SetAcceptFormats({PatchFormat::BROTLI_SHARED_DICT});
   request.SetProtocolVersion(ProtocolVersion::ONE);
 
-  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
-            StatusCode::kNotFound);
+  EXPECT_TRUE(absl::IsNotFound(server_.Handle("Roboto-Regular.ttf", request, response)));
 }
 
 TEST_F(PatchSubsetServerImplTest, RejectsMissingBaseChecksum) {
@@ -482,8 +481,7 @@ TEST_F(PatchSubsetServerImplTest, RejectsMissingBaseChecksum) {
   request.SetProtocolVersion(ProtocolVersion::ONE);
 
   // base checksum and original font checksum are missing.
-  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
-            StatusCode::kInvalidArgument);
+  EXPECT_TRUE(absl::IsInvalidArgument(server_.Handle("Roboto-Regular.ttf", request, response)));
 }
 
 TEST_F(PatchSubsetServerImplTest, RejectsMissingOrderingChecksum) {
@@ -496,8 +494,7 @@ TEST_F(PatchSubsetServerImplTest, RejectsMissingOrderingChecksum) {
   request.SetProtocolVersion(ProtocolVersion::ONE);
 
   // ordering checksum is missing.
-  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
-            StatusCode::kInvalidArgument);
+  EXPECT_TRUE(absl::IsInvalidArgument(server_.Handle("Roboto-Regular.ttf", request, response)));
 }
 
 }  // namespace patch_subset

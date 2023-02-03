@@ -9,10 +9,10 @@ namespace patch_subset {
 // Implementation of RequestLogger that does nothing.
 class NullRequestLogger : public RequestLogger {
  public:
-  absl::StatusCode LogRequest(const std::string& request_data,
+  absl::Status LogRequest(const std::string& request_data,
                               const std::string& response_data) override {
     // Do nothing.
-    return absl::StatusCode::kOk;
+    return absl::OkStatus();
   }
 };
 

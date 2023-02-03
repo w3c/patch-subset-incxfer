@@ -14,7 +14,7 @@
 
 namespace patch_subset {
 
-using absl::StatusCode;
+using absl::Status;
 using absl::string_view;
 using patch_subset::cbor::AxisInterval;
 using patch_subset::cbor::AxisSpace;
@@ -34,11 +34,11 @@ class PatchSubsetServerIntegrationTest : public ::testing::Test {
             std::unique_ptr<CodepointMapper>(nullptr),
             std::unique_ptr<IntegerListChecksum>(nullptr),
             std::unique_ptr<CodepointPredictor>(new NoopCodepointPredictor())) {
-    font_provider_->GetFont("Roboto-Regular.abcd.ttf", &roboto_abcd_);
-    font_provider_->GetFont("Roboto-Regular.ab.ttf", &roboto_ab_);
+    EXPECT_TRUE(font_provider_->GetFont("Roboto-Regular.abcd.ttf", &roboto_abcd_).ok());
+    EXPECT_TRUE(font_provider_->GetFont("Roboto-Regular.ab.ttf", &roboto_ab_).ok());
 
     FontData roboto_regular;
-    font_provider_->GetFont("Roboto-Regular.ttf", &roboto_regular);
+    EXPECT_TRUE(font_provider_->GetFont("Roboto-Regular.ttf", &roboto_regular).ok());
 
     FastHasher hasher;
     original_font_checksum = hasher.Checksum(roboto_regular.str());
@@ -66,14 +66,14 @@ class PatchSubsetServerIntegrationTest : public ::testing::Test {
     // and that applying patch to base produces target.
     FontData expected_patch;
     EXPECT_EQ(binary_diff->Diff(base, target, &expected_patch),
-              StatusCode::kOk);
+              absl::OkStatus());
     EXPECT_EQ(patch_string, expected_patch.str());
 
     FontData actual_target;
     FontData patch;
     patch.copy(patch_string.data(), patch_string.size());
     EXPECT_EQ(binary_patch->Patch(base, patch, &actual_target),
-              StatusCode::kOk);
+              absl::OkStatus());
     EXPECT_EQ(actual_target.str(), target.str());
   }
 
@@ -101,7 +101,7 @@ TEST_F(PatchSubsetServerIntegrationTest, NewRequest) {
 
   PatchResponse response;
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
-            StatusCode::kOk);
+            absl::OkStatus());
 
   EXPECT_EQ(response.OriginalFontChecksum(), original_font_checksum);
   EXPECT_EQ(response.PatchedChecksum(), subset_abcd_checksum);
@@ -124,7 +124,7 @@ TEST_F(PatchSubsetServerIntegrationTest, NewRequest_Variable) {
 
   PatchResponse response;
   ASSERT_EQ(server_.Handle("Roboto[wdth,wght].ttf", request, response),
-            StatusCode::kOk);
+            absl::OkStatus());
 
   AxisSpace expected;
   expected.AddInterval(HB_TAG('w', 'g', 'h', 't'), AxisInterval(100, 900));
@@ -146,7 +146,7 @@ TEST_F(PatchSubsetServerIntegrationTest, NewRequestVCDIFF) {
 
   PatchResponse response;
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
-            StatusCode::kOk);
+            absl::OkStatus());
 
   EXPECT_EQ(response.OriginalFontChecksum(), original_font_checksum);
   EXPECT_EQ(response.PatchedChecksum(), subset_abcd_checksum);
@@ -175,7 +175,7 @@ TEST_F(PatchSubsetServerIntegrationTest, PatchRequest) {
 
   PatchResponse response;
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
-            StatusCode::kOk);
+            absl::OkStatus());
 
   EXPECT_EQ(response.OriginalFontChecksum(), original_font_checksum);
   EXPECT_EQ(response.PatchedChecksum(), subset_abcd_checksum);
@@ -204,7 +204,7 @@ TEST_F(PatchSubsetServerIntegrationTest, PatchRequestVCDIFF) {
 
   PatchResponse response;
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
-            StatusCode::kOk);
+            absl::OkStatus());
 
   EXPECT_EQ(response.OriginalFontChecksum(), original_font_checksum);
   EXPECT_EQ(response.PatchedChecksum(), subset_abcd_checksum);
@@ -234,7 +234,7 @@ TEST_F(PatchSubsetServerIntegrationTest, BadOriginalChecksum) {
 
   PatchResponse response;
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
-            StatusCode::kOk);
+            absl::OkStatus());
 
   EXPECT_EQ(response.OriginalFontChecksum(), original_font_checksum);
   EXPECT_EQ(response.PatchedChecksum(), subset_abcd_checksum);
@@ -261,7 +261,7 @@ TEST_F(PatchSubsetServerIntegrationTest, BadBaseChecksum) {
 
   PatchResponse response;
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
-            StatusCode::kOk);
+            absl::OkStatus());
 
   EXPECT_EQ(response.OriginalFontChecksum(), original_font_checksum);
   EXPECT_EQ(response.PatchedChecksum(), subset_abcd_checksum);
