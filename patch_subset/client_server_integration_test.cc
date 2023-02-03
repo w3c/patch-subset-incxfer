@@ -16,10 +16,11 @@
 #include "patch_subset/simple_codepoint_mapper.h"
 #include "patch_subset/vcdiff_binary_diff.h"
 
-using ::absl::string_view;
-using patch_subset::cbor::ClientState;
-
 namespace patch_subset {
+
+using absl::StatusCode;
+using absl::string_view;
+using patch_subset::cbor::ClientState;
 
 class PatchSubsetClientServerIntegrationTest : public ::testing::Test {
  protected:

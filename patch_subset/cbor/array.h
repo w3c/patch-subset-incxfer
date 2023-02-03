@@ -5,24 +5,24 @@
 #include <vector>
 
 #include "cbor.h"
-#include "common/status.h"
+#include "absl/status/status.h"
 #include "patch_subset/cbor/cbor_item_unique_ptr.h"
 
 namespace patch_subset::cbor {
 
 class Array {
  public:
-  static StatusCode Encode(const std::vector<uint64_t>& ints,
+  static absl::StatusCode Encode(const std::vector<uint64_t>& ints,
                            cbor_item_unique_ptr& array_out);
 
-  static StatusCode Decode(const cbor_item_t& array,
+  static absl::StatusCode Decode(const cbor_item_t& array,
                            std::vector<uint64_t>& out);
 
-  static StatusCode SetArrayField(
+  static absl::StatusCode SetArrayField(
       cbor_item_t& map, int field_number,
       const std::optional<std::vector<uint64_t>>& int_list);
 
-  static StatusCode GetArrayField(const cbor_item_t& map, int field_number,
+  static absl::StatusCode GetArrayField(const cbor_item_t& map, int field_number,
                                   std::optional<std::vector<uint64_t>>& out);
 };
 

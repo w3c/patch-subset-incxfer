@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 #include "absl/strings/string_view.h"
-#include "common/logging.h"
+#include "absl/log/log.h"
 #include "hb-ot.h"
 #include "hb-subset.h"
 #include "hb.h"
@@ -13,14 +13,15 @@
 #include "patch_subset/compressed_set.h"
 #include "patch_subset/hb_set_unique_ptr.h"
 
-using ::absl::string_view;
+namespace patch_subset {
+
+using absl::StatusCode;
+using absl::string_view;
 using patch_subset::cbor::AxisInterval;
 using patch_subset::cbor::AxisSpace;
 using patch_subset::cbor::PatchRequest;
 using patch_subset::cbor::PatchResponse;
 using std::vector;
-
-namespace patch_subset {
 
 // Helper object, which holds all of the relevant state for
 // handling a single request.

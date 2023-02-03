@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "cbor.h"
-#include "common/status.h"
+#include "absl/status/status.h"
 #include "patch_subset/cbor/cbor_item_unique_ptr.h"
 
 namespace patch_subset::cbor {
@@ -21,21 +21,21 @@ namespace patch_subset::cbor {
  */
 class IntegerList {
  public:
-  static StatusCode IsEmpty(const cbor_item_t& bytestring, bool* out);
+  static absl::StatusCode IsEmpty(const cbor_item_t& bytestring, bool* out);
 
   // Create a compressed list given a list of integers.
   // Returns a cbor byte string.
-  static StatusCode Encode(const std::vector<int32_t>& ints,
+  static absl::StatusCode Encode(const std::vector<int32_t>& ints,
                            cbor_item_unique_ptr& bytestring_out);
 
   // Interpret a CBOR byte string as a compressed list of integers.
-  static StatusCode Decode(const cbor_item_t& bytestring,
+  static absl::StatusCode Decode(const cbor_item_t& bytestring,
                            std::vector<int32_t>& out);
 
-  static StatusCode SetIntegerListField(
+  static absl::StatusCode SetIntegerListField(
       cbor_item_t& map, int field_number,
       const std::optional<std::vector<int32_t>>& int_list);
-  static StatusCode GetIntegerListField(
+  static absl::StatusCode GetIntegerListField(
       const cbor_item_t& map, int field_number,
       std::optional<std::vector<int32_t>>& out);
 
@@ -43,20 +43,20 @@ class IntegerList {
   // Giving up negative numbers, and negative deltas between integers, doubles
   // the range of integers that can be encoded in 1 byte.
   // Returns a cbor byte string.
-  static StatusCode EncodeSorted(
+  static absl::StatusCode EncodeSorted(
       const std::vector<int32_t>& positive_sorted_ints,
       cbor_item_unique_ptr& bytestring_out);
 
   // Interpret a CBOR byte string as a compressed list of sorted positive
   // integers. Giving up negative numbers, and negative deltas between integers,
   // doubles the range of integers that can be encoded in 1 byte.
-  static StatusCode DecodeSorted(const cbor_item_t& bytestring,
+  static absl::StatusCode DecodeSorted(const cbor_item_t& bytestring,
                                  std::vector<int32_t>& out);
 
  private:
-  static StatusCode Decode(const cbor_item_t& bytestring, bool sorted,
+  static absl::StatusCode Decode(const cbor_item_t& bytestring, bool sorted,
                            std::vector<int32_t>& out);
-  static StatusCode Encode(const std::vector<int32_t>& ints, bool sorted,
+  static absl::StatusCode Encode(const std::vector<int32_t>& ints, bool sorted,
                            cbor_item_unique_ptr& bytestring_out);
 };
 

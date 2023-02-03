@@ -2,6 +2,7 @@
 
 namespace patch_subset::cbor {
 
+using absl::StatusCode;
 using absl::string_view;
 
 uint32_t IntUtils::ZigZagEncode(int32_t signed_int) {

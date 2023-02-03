@@ -4,10 +4,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "common/status.h"
+#include "absl/status/status.h"
 #include "hb.h"
-
-using std::vector;
 
 namespace patch_subset {
 
@@ -33,27 +31,27 @@ class CodepointMap {
 
   // Load the codepoint remapping specified in vector of ints. Replaces
   // any existing mappings currently in this object.
-  void FromVector(const vector<int32_t>& ints);
+  void FromVector(const std::vector<int32_t>& ints);
 
   // Serialize this mapping to a vector of ints.
-  StatusCode ToVector(vector<int32_t>* ints) const;
+  absl::StatusCode ToVector(std::vector<int32_t>* ints) const;
 
   // Apply the mapping transformation to all codepoints in the provided set.
   // All values in the 'codepoints' set are replaced with the transformed
   // values.
-  StatusCode Encode(hb_set_t* codepoints /* IN/OUT */) const;
+  absl::StatusCode Encode(hb_set_t* codepoints /* IN/OUT */) const;
 
   // Transform cp using the this mapping. Writes the transformed value
   // to cp.
-  StatusCode Encode(hb_codepoint_t* cp /* IN/OUT */) const;
+  absl::StatusCode Encode(hb_codepoint_t* cp /* IN/OUT */) const;
 
   // Restores a set of encoded codepoints to their original values.
   // All values in the 'codepoints' set are replaced with their decoded
   // values.
-  StatusCode Decode(hb_set_t* codepoints) const;
+  absl::StatusCode Decode(hb_set_t* codepoints) const;
 
   // Restore encoded cp to it's original value.
-  StatusCode Decode(hb_codepoint_t* cp /* IN/OUT */) const;
+  absl::StatusCode Decode(hb_codepoint_t* cp /* IN/OUT */) const;
 
   // Given a set of untransformed codepoints, intersects it
   // with the set of codepoints that this mapping can map.

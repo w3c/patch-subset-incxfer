@@ -1,7 +1,7 @@
 #ifndef PATCH_SUBSET_MOCK_PATCH_SUBSET_SERVER_H_
 #define PATCH_SUBSET_MOCK_PATCH_SUBSET_SERVER_H_
 
-#include "common/status.h"
+#include "absl/status/status.h"
 #include "gtest/gtest.h"
 #include "patch_subset/cbor/patch_request.h"
 #include "patch_subset/patch_subset_server.h"
@@ -10,7 +10,7 @@ namespace patch_subset {
 
 class MockPatchSubsetServer : public PatchSubsetServer {
  public:
-  MOCK_METHOD(StatusCode, Handle,
+  MOCK_METHOD(absl::StatusCode, Handle,
               (const std::string& font_id,
                const patch_subset::cbor::PatchRequest& request,
                patch_subset::cbor::PatchResponse& response /* OUT */),
@@ -22,11 +22,11 @@ class ReturnResponse {
   explicit ReturnResponse(const patch_subset::cbor::PatchResponse& response)
       : response_(response) {}
 
-  StatusCode operator()(const std::string& font_id,
+  absl::StatusCode operator()(const std::string& font_id,
                         const patch_subset::cbor::PatchRequest& request,
                         patch_subset::cbor::PatchResponse& response /* OUT */) {
     response_.CopyTo(response);
-    return StatusCode::kOk;
+    return absl::StatusCode::kOk;
   }
 
  private:

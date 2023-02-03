@@ -37,9 +37,10 @@ cc_library(
         "//patch_subset:__pkg__",
     ],
     deps = [
-        "//common",
         "//patch_subset:constants",
         "@com_google_absl//absl/container:btree",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
         "@harfbuzz",
         "@libcbor//:cbor",

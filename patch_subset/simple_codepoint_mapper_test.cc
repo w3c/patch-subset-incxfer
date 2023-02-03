@@ -6,6 +6,8 @@
 
 namespace patch_subset {
 
+using absl::StatusCode;
+
 class SimpleCodepointMapperTest : public ::testing::Test {
  protected:
   SimpleCodepointMapperTest() {}

@@ -5,6 +5,8 @@
 
 namespace patch_subset::cbor {
 
+using absl::StatusCode;
+
 AxisInterval::AxisInterval() : _start(std::nullopt), _end(std::nullopt) {}
 
 AxisInterval::AxisInterval(AxisInterval&& other) noexcept

@@ -1,7 +1,7 @@
 #ifndef PATCH_SUBSET_PATCH_SUBSET_SERVER_H_
 #define PATCH_SUBSET_PATCH_SUBSET_SERVER_H_
 
-#include "common/status.h"
+#include "absl/status/status.h"
 #include "patch_subset/cbor/patch_request.h"
 #include "patch_subset/cbor/patch_response.h"
 
@@ -16,7 +16,7 @@ class PatchSubsetServer {
 
   // Handle a patch request from a client. Writes the resulting response
   // into response.
-  virtual StatusCode Handle(
+  virtual absl::StatusCode Handle(
       const std::string& font_id,
       const patch_subset::cbor::PatchRequest& request,
       patch_subset::cbor::PatchResponse& response /* OUT */) = 0;

@@ -18,17 +18,17 @@
 #include "patch_subset/mock_integer_list_checksum.h"
 #include "patch_subset/simple_codepoint_mapper.h"
 
-using ::absl::string_view;
+namespace patch_subset {
 
+using absl::StatusCode;
+using absl::string_view;
 using patch_subset::MockIntegerListChecksum;
 using patch_subset::cbor::PatchRequest;
 using patch_subset::cbor::PatchResponse;
-using ::testing::_;
-using ::testing::Eq;
-using ::testing::Invoke;
-using ::testing::Return;
-
-namespace patch_subset {
+using testing::_;
+using testing::Eq;
+using testing::Invoke;
+using testing::Return;
 
 MATCHER_P(EqualsSet, other, "") { return hb_set_is_equal(arg, other); }
 
@@ -137,7 +137,7 @@ class PatchSubsetServerImplWithCodepointRemappingTest
 
   void ExpectCodepointMappingChecksum(std::vector<int> mapping_deltas,
                                       uint64_t checksum) {
-    vector<int32_t> compressed_list;
+    std::vector<int32_t> compressed_list;
     for (int delta : mapping_deltas) {
       compressed_list.push_back(delta);
     }
@@ -260,7 +260,7 @@ TEST_F(PatchSubsetServerImplWithCodepointRemappingTest,
   EXPECT_EQ(response.OrderingChecksum(), 44);
   EXPECT_EQ(response.CodepointOrdering().size(), 6);
 
-  vector<int32_t> expected{97, 98, 99, 100, 101, 102};
+  std::vector<int32_t> expected{97, 98, 99, 100, 101, 102};
   EXPECT_EQ(response.CodepointOrdering(), expected);
 }
 
@@ -395,7 +395,7 @@ TEST_F(PatchSubsetServerImplWithCodepointRemappingTest, BadIndexChecksum) {
   EXPECT_TRUE(response.Replacement().empty());
   EXPECT_EQ(response.OrderingChecksum(), 44);
 
-  vector<int32_t> expected{97, 98, 99, 100, 101, 102};
+  std::vector<int32_t> expected{97, 98, 99, 100, 101, 102};
   EXPECT_EQ(response.CodepointOrdering(), expected);
 }
 

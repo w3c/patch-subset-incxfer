@@ -6,6 +6,7 @@
 
 namespace patch_subset::cbor {
 
+using absl::StatusCode;
 using absl::string_view;
 using std::string;
 
@@ -241,7 +242,7 @@ TEST_F(CompressedSetTest, GettersAndSetters) {
 TEST_F(CompressedSetTest, SetCompressedSetFieldPresent) {
   cbor_item_unique_ptr map = make_cbor_map(1);
   CompressedSet cs("data", {});
-  optional<CompressedSet> opt(cs);
+  std::optional<CompressedSet> opt(cs);
 
   StatusCode sc = CompressedSet::SetCompressedSetField(*map, 0, cs);
   ASSERT_EQ(sc, StatusCode::kOk);
@@ -258,7 +259,7 @@ TEST_F(CompressedSetTest, SetCompressedSetFieldPresent) {
 
 TEST_F(CompressedSetTest, SetCompressedSetFieldAbsent) {
   cbor_item_unique_ptr map = make_cbor_map(1);
-  optional<CompressedSet> cs;
+  std::optional<CompressedSet> cs;
 
   StatusCode sc = CompressedSet::SetCompressedSetField(*map, 0, cs);
   ASSERT_EQ(sc, StatusCode::kOk);
@@ -272,7 +273,7 @@ TEST_F(CompressedSetTest, GetCompressedSetField) {
   ASSERT_EQ(sc, StatusCode::kOk);
   cbor_item_unique_ptr map = make_cbor_map(1);
   CborUtils::SetField(*map, 0, move_out(cs_map));
-  optional<CompressedSet> result;
+  std::optional<CompressedSet> result;
 
   sc = CompressedSet::GetCompressedSetField(*map, 0, result);
 
@@ -282,7 +283,7 @@ TEST_F(CompressedSetTest, GetCompressedSetField) {
 
 TEST_F(CompressedSetTest, GetCompressedSetFieldNotFound) {
   cbor_item_unique_ptr map = make_cbor_map(0);
-  optional<CompressedSet> result;
+  std::optional<CompressedSet> result;
 
   StatusCode sc = CompressedSet::GetCompressedSetField(*map, 0, result);
 
@@ -293,7 +294,7 @@ TEST_F(CompressedSetTest, GetCompressedSetFieldNotFound) {
 TEST_F(CompressedSetTest, GetCompressedSetFieldInvalid) {
   cbor_item_unique_ptr map = make_cbor_map(1);
   CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString("bad")));
-  optional<CompressedSet> result;
+  std::optional<CompressedSet> result;
 
   StatusCode sc = CompressedSet::GetCompressedSetField(*map, 0, result);
 

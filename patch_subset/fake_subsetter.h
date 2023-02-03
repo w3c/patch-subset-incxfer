@@ -3,7 +3,7 @@
 
 #include <algorithm>
 
-#include "common/status.h"
+#include "absl/status/status.h"
 #include "hb.h"
 #include "patch_subset/font_data.h"
 #include "patch_subset/subsetter.h"
@@ -15,15 +15,15 @@ class FakeSubsetter : public Subsetter {
  public:
   FakeSubsetter() {}
 
-  StatusCode Subset(const FontData& font, const hb_set_t& codepoints,
+  absl::StatusCode Subset(const FontData& font, const hb_set_t& codepoints,
                     FontData* subset /* OUT */) const override {
     if (font.empty()) {
-      return StatusCode::kInternal;
+      return absl::StatusCode::kInternal;
     }
 
     if (!hb_set_get_population(&codepoints)) {
       subset->reset();
-      return StatusCode::kOk;
+      return absl::StatusCode::kOk;
     }
 
     std::string result(font.data(), font.size());
@@ -34,7 +34,7 @@ class FakeSubsetter : public Subsetter {
     }
 
     subset->copy(result.c_str(), result.size());
-    return StatusCode::kOk;
+    return absl::StatusCode::kOk;
   }
 
   void CodepointsInFont(const FontData& font,

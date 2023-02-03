@@ -1,6 +1,6 @@
 #include "patch_subset/patch_subset_client.h"
 
-#include "common/status.h"
+#include "absl/status/status.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "patch_subset/codepoint_map.h"
@@ -12,18 +12,18 @@
 #include "patch_subset/mock_patch_subset_server.h"
 #include "patch_subset/null_request_logger.h"
 
-using ::absl::string_view;
+namespace patch_subset {
 
+using absl::StatusCode;
+using absl::string_view;
 using patch_subset::cbor::ClientState;
 using patch_subset::cbor::PatchRequest;
 using patch_subset::cbor::PatchResponse;
-using ::testing::_;
-using ::testing::ByRef;
-using ::testing::Eq;
-using ::testing::Invoke;
-using ::testing::Return;
-
-namespace patch_subset {
+using testing::_;
+using testing::ByRef;
+using testing::Eq;
+using testing::Invoke;
+using testing::Return;
 
 static uint64_t kOriginalChecksum = 1;
 static uint64_t kBaseChecksum = 2;
@@ -180,7 +180,7 @@ TEST_F(PatchSubsetClientTest, SendPatchRequest_WithCodepointMapping) {
   state.SetFontId("roboto");
   state.SetFontData(roboto_ab_.string());
   state.SetOriginalFontChecksum(kOriginalChecksum);
-  vector<int32_t> remapping;
+  std::vector<int32_t> remapping;
   map.ToVector(&remapping);
   state.SetCodepointRemapping(remapping);
   state.SetCodepointRemappingChecksum(13);
@@ -239,7 +239,7 @@ TEST_F(PatchSubsetClientTest, HandlesRebaseResponse_WithCodepointMapping) {
   hb_set_unique_ptr codepoints = make_hb_set(1, 0x61);
 
   PatchResponse response = CreateResponse(false);  // Rebase.
-  response.SetCodepointOrdering(vector<int32_t>{13});
+  response.SetCodepointOrdering(std::vector<int32_t>{13});
   response.SetOrderingChecksum(14);
 
   SendResponse(response);

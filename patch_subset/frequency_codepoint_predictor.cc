@@ -11,19 +11,21 @@
 #include "absl/container/btree_set.h"
 #include "absl/container/flat_hash_map.h"
 #include "analysis/pfe_methods/unicode_range_data/slicing_strategy.pb.h"
-#include "common/logging.h"
-#include "common/status.h"
+#include "absl/log/log.h"
+#include "absl/status/status.h"
 #include "patch_subset/hb_set_unique_ptr.h"
+
+namespace patch_subset {
 
 using absl::btree_map;
 using absl::btree_set;
 using absl::flat_hash_map;
+using absl::StatusCode;
 using analysis::pfe_methods::unicode_range_data::Codepoint;
 using analysis::pfe_methods::unicode_range_data::SlicingStrategy;
 using analysis::pfe_methods::unicode_range_data::Subset;
 using google::protobuf::TextFormat;
 
-namespace patch_subset {
 
 static const char* kSlicingStrategyDataDirectory =
     "analysis/pfe_methods/unicode_range_data/";

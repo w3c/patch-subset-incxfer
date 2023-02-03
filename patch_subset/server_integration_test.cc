@@ -12,13 +12,14 @@
 #include "patch_subset/vcdiff_binary_diff.h"
 #include "patch_subset/vcdiff_binary_patch.h"
 
-using ::absl::string_view;
+namespace patch_subset {
+
+using absl::StatusCode;
+using absl::string_view;
 using patch_subset::cbor::AxisInterval;
 using patch_subset::cbor::AxisSpace;
 using patch_subset::cbor::PatchRequest;
 using patch_subset::cbor::PatchResponse;
-
-namespace patch_subset {
 
 class PatchSubsetServerIntegrationTest : public ::testing::Test {
  protected:

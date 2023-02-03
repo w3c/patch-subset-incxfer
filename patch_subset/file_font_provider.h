@@ -13,7 +13,7 @@ class FileFontProvider : public FontProvider {
   explicit FileFontProvider(const std::string& base_directory)
       : base_directory_(base_directory) {}
 
-  StatusCode GetFont(const std::string& id, FontData* out) const override;
+  absl::StatusCode GetFont(const std::string& id, FontData* out) const override;
 
  private:
   std::string base_directory_;

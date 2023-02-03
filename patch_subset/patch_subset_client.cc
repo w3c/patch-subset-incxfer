@@ -1,17 +1,18 @@
 #include "patch_subset/patch_subset_client.h"
 
-#include "common/logging.h"
-#include "common/status.h"
+#include "absl/log/log.h"
+#include "absl/status/status.h"
 #include "hb.h"
 #include "patch_subset/codepoint_map.h"
 #include "patch_subset/compressed_set.h"
 #include "patch_subset/hb_set_unique_ptr.h"
 
+namespace patch_subset {
+
+using absl::StatusCode;
 using patch_subset::cbor::ClientState;
 using patch_subset::cbor::PatchRequest;
 using patch_subset::cbor::PatchResponse;
-
-namespace patch_subset {
 
 void CodepointsInFont(const std::string& font_data, hb_set_t* codepoints) {
   hb_blob_t* blob = hb_blob_create(font_data.c_str(), font_data.size(),

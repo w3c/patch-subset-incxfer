@@ -1,7 +1,7 @@
 #ifndef BROTLI_BROTLI_FONT_DIFF_H_
 #define BROTLI_BROTLI_FONT_DIFF_H_
 
-#include "common/status.h"
+#include "absl/status/status.h"
 #include "hb-subset.h"
 #include "patch_subset/font_data.h"
 #include "patch_subset/hb_set_unique_ptr.h"
@@ -26,7 +26,7 @@ class BrotliFontDiff {
       : immutable_tables_(hb_set_copy(immutable_tables), &hb_set_destroy),
         custom_diff_tables_(hb_set_copy(custom_diff_tables), &hb_set_destroy) {}
 
-  patch_subset::StatusCode Diff(hb_subset_plan_t* base_plan, hb_blob_t* base,
+  absl::StatusCode Diff(hb_subset_plan_t* base_plan, hb_blob_t* base,
                                 hb_subset_plan_t* derived_plan,
                                 hb_blob_t* derived,
                                 patch_subset::FontData* patch) const;

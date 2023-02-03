@@ -1,7 +1,7 @@
 #ifndef PATCH_SUBSET_HARFBUZZ_SUBSETTER_H_
 #define PATCH_SUBSET_HARFBUZZ_SUBSETTER_H_
 
-#include "common/status.h"
+#include "absl/status/status.h"
 #include "hb.h"
 #include "patch_subset/font_data.h"
 #include "patch_subset/subsetter.h"
@@ -13,7 +13,7 @@ class HarfbuzzSubsetter : public Subsetter {
  public:
   HarfbuzzSubsetter() {}
 
-  StatusCode Subset(const FontData& font, const hb_set_t& codepoints,
+  absl::StatusCode Subset(const FontData& font, const hb_set_t& codepoints,
                     FontData* subset /* OUT */) const override;
 
   void CodepointsInFont(const FontData& font,

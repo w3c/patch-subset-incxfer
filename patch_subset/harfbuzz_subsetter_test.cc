@@ -9,6 +9,8 @@
 
 namespace patch_subset {
 
+using absl::StatusCode;
+
 class HarfbuzzSubsetterTest : public ::testing::Test {
  protected:
   HarfbuzzSubsetterTest()

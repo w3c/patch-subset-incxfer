@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include "common/status.h"
+#include "absl/status/status.h"
 #include "patch_subset/binary_diff.h"
 #include "patch_subset/font_data.h"
 
@@ -16,11 +16,11 @@ class BrotliBinaryDiff : public BinaryDiff {
   BrotliBinaryDiff() : quality_(9) {}
   BrotliBinaryDiff(unsigned quality) : quality_(quality) {}
 
-  StatusCode Diff(const FontData& font_base, const FontData& font_derived,
+  absl::StatusCode Diff(const FontData& font_base, const FontData& font_derived,
                   FontData* patch /* OUT */) const override;
 
   // For use in stitching together a brotli patch.
-  StatusCode Diff(const FontData& font_base, ::absl::string_view data,
+  absl::StatusCode Diff(const FontData& font_base, ::absl::string_view data,
                   unsigned stream_offset, bool is_last,
                   std::vector<uint8_t>& sink) const;
 

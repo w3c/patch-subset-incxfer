@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "common/logging.h"
+#include "absl/log/log.h"
 #include "hb.h"
 #include "patch_subset/brotli_binary_patch.h"
 #include "patch_subset/cbor/client_state.h"

@@ -6,7 +6,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "brotli/encode.h"
-#include "common/logging.h"
+#include "absl/log/log.h"
 
 namespace brotli {
 

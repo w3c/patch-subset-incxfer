@@ -5,11 +5,13 @@
 #include <string>
 #include <vector>
 
-#include "common/logging.h"
-#include "common/status.h"
+#include "absl/log/log.h"
+#include "absl/status/status.h"
 #include "patch_subset/font_data.h"
 
 namespace patch_subset {
+
+using absl::StatusCode;
 
 StatusCode FileFontProvider::GetFont(const std::string& id,
                                      FontData* out) const {

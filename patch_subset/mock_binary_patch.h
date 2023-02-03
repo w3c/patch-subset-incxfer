@@ -12,7 +12,7 @@ namespace patch_subset {
 
 class MockBinaryPatch : public BinaryPatch {
  public:
-  MOCK_METHOD(StatusCode, Patch,
+  MOCK_METHOD(absl::StatusCode, Patch,
               (const FontData& font_base, const FontData& patch,
                FontData* derived /* OUT */),
               (const override));
@@ -22,10 +22,10 @@ class ApplyPatch {
  public:
   explicit ApplyPatch(::absl::string_view patched) : patched_(patched) {}
 
-  StatusCode operator()(const FontData& font_base, const FontData& patch,
+  absl::StatusCode operator()(const FontData& font_base, const FontData& patch,
                         FontData* font_derived) {
     font_derived->copy(patched_);
-    return StatusCode::kOk;
+    return absl::StatusCode::kOk;
   }
 
  private:

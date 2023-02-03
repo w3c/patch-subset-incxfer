@@ -6,6 +6,8 @@
 
 namespace patch_subset::cbor {
 
+using absl::StatusCode;
+
 class AxisIntervalTest : public ::testing::Test {};
 
 TEST_F(AxisIntervalTest, IsPoint) {

@@ -11,6 +11,7 @@ namespace patch_subset::cbor {
 
 class PatchRequestTest : public ::testing::Test {};
 
+using absl::StatusCode;
 using std::string;
 using std::vector;
 

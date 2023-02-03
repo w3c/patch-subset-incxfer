@@ -4,17 +4,18 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "common/status.h"
+#include "absl/status/status.h"
 #include "hb.h"
 #include "patch_subset/bit_input_buffer.h"
 #include "patch_subset/bit_output_buffer.h"
 
-using ::absl::string_view;
+namespace patch_subset {
+
+using absl::StatusCode;
+using absl::string_view;
 using std::string;
 using std::unordered_map;
 using std::vector;
-
-namespace patch_subset {
 
 // Finds the tree height needed to represent the codepoints in the set.
 uint32_t TreeDepthFor(const vector<uint32_t>& codepoints,

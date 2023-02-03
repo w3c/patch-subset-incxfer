@@ -6,6 +6,8 @@
 
 namespace patch_subset::cbor {
 
+using absl::StatusCode;
+
 bool AxisSpace::Has(hb_tag_t tag) const { return _space.contains(tag); }
 
 void AxisSpace::Clear(hb_tag_t tag) { _space.erase(tag); }
