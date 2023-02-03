@@ -152,14 +152,15 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
   void AddPredictedCodepoints(RequestState* state) const;
 
   absl::StatusCode ComputeSubsets(const std::string& font_id,
-                            RequestState* state) const;
+                                  RequestState* state) const;
 
   void ValidatePatchBase(uint64_t base_checksum, RequestState* state) const;
 
   void ConstructResponse(const RequestState& state,
                          patch_subset::cbor::PatchResponse& response) const;
 
-  absl::StatusCode ValidateChecksum(uint64_t checksum, const FontData& data) const;
+  absl::StatusCode ValidateChecksum(uint64_t checksum,
+                                    const FontData& data) const;
 
   void AddChecksums(const FontData& font_data, const FontData& target_subset,
                     patch_subset::cbor::PatchResponse& response) const;

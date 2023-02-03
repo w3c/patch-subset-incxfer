@@ -12,7 +12,7 @@ namespace patch_subset {
 class VCDIFFBinaryDiff : public BinaryDiff {
  public:
   absl::StatusCode Diff(const FontData& font_base, const FontData& font_derived,
-                  FontData* patch /* OUT */) const override;
+                        FontData* patch /* OUT */) const override;
 };
 
 }  // namespace patch_subset

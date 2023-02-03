@@ -3,8 +3,8 @@
 
 #include <optional>
 
-#include "cbor.h"
 #include "absl/status/status.h"
+#include "cbor.h"
 #include "patch_subset/cbor/cbor_item_unique_ptr.h"
 #include "patch_subset/cbor/range_list.h"
 
@@ -35,7 +35,8 @@ class CompressedSet {
                 const range_vector& ranges);
 
   bool empty() const;
-  static absl::StatusCode Decode(const cbor_item_t& cbor_map, CompressedSet& out);
+  static absl::StatusCode Decode(const cbor_item_t& cbor_map,
+                                 CompressedSet& out);
   absl::StatusCode Encode(cbor_item_unique_ptr& map_out) const;
 
   bool HasSparseBitSetBytes() const;
@@ -52,9 +53,9 @@ class CompressedSet {
   static absl::StatusCode SetCompressedSetField(
       cbor_item_t& map, int field_number,
       const std::optional<CompressedSet>& compressed_set);
-  static absl::StatusCode GetCompressedSetField(const cbor_item_t& map,
-                                          int field_number,
-                                          std::optional<CompressedSet>& out);
+  static absl::StatusCode GetCompressedSetField(
+      const cbor_item_t& map, int field_number,
+      std::optional<CompressedSet>& out);
 
   // Returns a human readable version of this CompressedSet.
   std::string ToString() const;

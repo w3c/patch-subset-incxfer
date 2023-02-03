@@ -4,8 +4,8 @@
 #include <optional>
 #include <vector>
 
-#include "cbor.h"
 #include "absl/status/status.h"
+#include "cbor.h"
 #include "patch_subset/cbor/cbor_item_unique_ptr.h"
 #include "patch_subset/cbor/compressed_set.h"
 #include "patch_subset/constants.h"
@@ -54,11 +54,12 @@ class PatchRequest {
                uint64_t ordering_checksum, uint64_t original_font_checksum,
                uint64_t base_checksum, ConnectionSpeed connection_speed);
 
-  static absl::StatusCode Decode(const cbor_item_t& cbor_map, PatchRequest& out);
+  static absl::StatusCode Decode(const cbor_item_t& cbor_map,
+                                 PatchRequest& out);
   absl::StatusCode Encode(cbor_item_unique_ptr& map_out) const;
 
   static absl::StatusCode ParseFromString(const std::string& buffer,
-                                    PatchRequest& out);
+                                          PatchRequest& out);
   absl::StatusCode SerializeToString(std::string& out) const;
 
   bool HasProtocolVersion() const;

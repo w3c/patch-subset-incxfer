@@ -4,8 +4,8 @@
 #include <optional>
 #include <vector>
 
-#include "cbor.h"
 #include "absl/status/status.h"
+#include "cbor.h"
 #include "patch_subset/cbor/cbor_item_unique_ptr.h"
 
 namespace patch_subset::cbor {
@@ -43,7 +43,7 @@ class ClientState {
   absl::StatusCode Encode(cbor_item_unique_ptr& out) const;
 
   static absl::StatusCode ParseFromString(const std::string& buffer,
-                                    ClientState& out);
+                                          ClientState& out);
   absl::StatusCode SerializeToString(std::string& out) const;
 
   ClientState& SetFontId(const std::string& font_id);

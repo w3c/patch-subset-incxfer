@@ -12,7 +12,7 @@ namespace patch_subset {
 class BrotliBinaryPatch : public BinaryPatch {
  public:
   absl::StatusCode Patch(const FontData& font_base, const FontData& patch,
-                   FontData* font_derived /* OUT */) const override;
+                         FontData* font_derived /* OUT */) const override;
 };
 
 }  // namespace patch_subset

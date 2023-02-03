@@ -27,9 +27,8 @@ class BrotliFontDiff {
         custom_diff_tables_(hb_set_copy(custom_diff_tables), &hb_set_destroy) {}
 
   absl::StatusCode Diff(hb_subset_plan_t* base_plan, hb_blob_t* base,
-                                hb_subset_plan_t* derived_plan,
-                                hb_blob_t* derived,
-                                patch_subset::FontData* patch) const;
+                        hb_subset_plan_t* derived_plan, hb_blob_t* derived,
+                        patch_subset::FontData* patch) const;
 
  private:
   patch_subset::hb_set_unique_ptr immutable_tables_;

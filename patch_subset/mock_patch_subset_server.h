@@ -22,9 +22,10 @@ class ReturnResponse {
   explicit ReturnResponse(const patch_subset::cbor::PatchResponse& response)
       : response_(response) {}
 
-  absl::StatusCode operator()(const std::string& font_id,
-                        const patch_subset::cbor::PatchRequest& request,
-                        patch_subset::cbor::PatchResponse& response /* OUT */) {
+  absl::StatusCode operator()(
+      const std::string& font_id,
+      const patch_subset::cbor::PatchRequest& request,
+      patch_subset::cbor::PatchResponse& response /* OUT */) {
     response_.CopyTo(response);
     return absl::StatusCode::kOk;
   }

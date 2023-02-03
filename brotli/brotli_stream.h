@@ -3,10 +3,10 @@
 
 #include <algorithm>
 
+#include "absl/status/status.h"
 #include "absl/types/span.h"
 #include "brotli/brotli_bit_buffer.h"
 #include "brotli/shared_brotli_encoder.h"
-#include "absl/status/status.h"
 
 namespace brotli {
 

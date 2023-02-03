@@ -2,9 +2,9 @@
 
 #include <vector>
 
-#include "brotli/decode.h"
 #include "absl/log/log.h"
 #include "absl/status/status.h"
+#include "brotli/decode.h"
 #include "patch_subset/binary_patch.h"
 #include "patch_subset/font_data.h"
 

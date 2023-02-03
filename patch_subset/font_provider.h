@@ -17,7 +17,8 @@ class FontProvider {
   // Load fontdata associated with it and write it into out.
   // Returns false if the id was not recognized and the font
   // failed to load.
-  virtual absl::StatusCode GetFont(const std::string& id, FontData* out) const = 0;
+  virtual absl::StatusCode GetFont(const std::string& id,
+                                   FontData* out) const = 0;
 };
 
 }  // namespace patch_subset

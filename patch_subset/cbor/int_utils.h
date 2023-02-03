@@ -1,8 +1,8 @@
 #ifndef PATCH_SUBSET_CBOR_INT_UTILS_H_
 #define PATCH_SUBSET_CBOR_INT_UTILS_H_
 
-#include "absl/strings/string_view.h"
 #include "absl/status/status.h"
+#include "absl/strings/string_view.h"
 
 namespace patch_subset::cbor {
 
@@ -18,15 +18,16 @@ class IntUtils {
   // of bytes which were required to encode the integer. In the event that
   // writing the integer would exceed size_in_out bytes, the buffer is not
   // written to - use the value set in size_in_out to expand the buffer.
-  static absl::StatusCode UIntBase128Encode(uint32_t unsigned_int, uint8_t* buffer,
-                                      size_t* size_in_out);
+  static absl::StatusCode UIntBase128Encode(uint32_t unsigned_int,
+                                            uint8_t* buffer,
+                                            size_t* size_in_out);
 
   // Reads 1..5 bytes and decodes to an unsigned 32 bit int. num_bytes_out is
   // set to the number of bytes read, or zero if the data is invalid, or the end
   // of the buffer was reached while decoding.
   static absl::StatusCode UIntBase128Decode(absl::string_view bytes,
-                                      uint32_t* uint_out,
-                                      size_t* num_bytes_out);
+                                            uint32_t* uint_out,
+                                            size_t* num_bytes_out);
 
   //  The number of bytes required to encode the unsigned 32 bit value.
   static int UIntBase128EncodedSize(uint32_t unsigned_int);

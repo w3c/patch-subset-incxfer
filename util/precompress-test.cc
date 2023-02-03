@@ -15,8 +15,8 @@
 using namespace std::chrono;
 using std::vector;
 
-using absl::string_view;
 using absl::Span;
+using absl::string_view;
 using brotli::BrotliFontDiff;
 using patch_subset::BrotliBinaryDiff;
 using patch_subset::BrotliBinaryPatch;
@@ -338,11 +338,11 @@ vector<uint8_t> precompress_immutable(const hb_face_t* face) {
   vector<uint8_t> sink;
   FontData empty;
   BrotliBinaryDiff differ(STATIC_QUALITY);
-  StatusCode sc = differ.Diff(
-      empty,
-      string_view(reinterpret_cast<const char*>(table_data.data()),
-                       table_data.size()),
-      header_size, false, sink);
+  StatusCode sc =
+      differ.Diff(empty,
+                  string_view(reinterpret_cast<const char*>(table_data.data()),
+                              table_data.size()),
+                  header_size, false, sink);
   if (sc != StatusCode::kOk) {
     printf("Precompression brotli encoding failed.\n");
     exit(-1);

@@ -3,8 +3,8 @@
 
 #include <optional>
 
-#include "cbor.h"
 #include "absl/status/status.h"
+#include "cbor.h"
 #include "patch_subset/cbor/cbor_item_unique_ptr.h"
 
 namespace patch_subset::cbor {
@@ -32,7 +32,8 @@ class AxisInterval {
   bool IsPoint() const;
   bool IsValid() const;
 
-  static absl::StatusCode Decode(const cbor_item_t& cbor_map, AxisInterval& out);
+  static absl::StatusCode Decode(const cbor_item_t& cbor_map,
+                                 AxisInterval& out);
   absl::StatusCode Encode(cbor_item_unique_ptr& map_out) const;
 
   bool HasStart() const;

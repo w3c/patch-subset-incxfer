@@ -7,8 +7,8 @@ namespace patch_subset::cbor {
 
 using absl::StatusCode;
 using absl::string_view;
-using std::string;
 using std::optional;
+using std::string;
 
 CompressedSet::CompressedSet()
     : _sparse_bit_set_bytes(std::nullopt), _ranges(std::nullopt) {}

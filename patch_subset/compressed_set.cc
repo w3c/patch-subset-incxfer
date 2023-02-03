@@ -2,8 +2,8 @@
 
 #include <cmath>
 
-#include "absl/types/optional.h"
 #include "absl/status/status.h"
+#include "absl/types/optional.h"
 #include "hb.h"
 #include "patch_subset/hb_set_unique_ptr.h"
 #include "patch_subset/sparse_bit_set.h"

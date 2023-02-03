@@ -1,5 +1,5 @@
-#include "absl/types/span.h"
 #include "absl/status/status.h"
+#include "absl/types/span.h"
 #include "gtest/gtest.h"
 #include "patch_subset/file_font_provider.h"
 #include "patch_subset/font_provider.h"
@@ -8,8 +8,8 @@
 
 namespace patch_subset {
 
-using absl::StatusCode;
 using absl::Span;
+using absl::StatusCode;
 
 class VCDIFFPatchingTest : public ::testing::Test {
  protected:

@@ -4,8 +4,8 @@
 #include <optional>
 #include <vector>
 
-#include "cbor.h"
 #include "absl/status/status.h"
+#include "cbor.h"
 #include "patch_subset/cbor/cbor_item_unique_ptr.h"
 
 namespace patch_subset::cbor {
@@ -24,13 +24,14 @@ class RangeList {
 
   // Create a compressed list given a sorted list of ranges.
   static absl::StatusCode Encode(const range_vector& ranges,
-                           cbor_item_unique_ptr& bytestring_out);
+                                 cbor_item_unique_ptr& bytestring_out);
 
   static absl::StatusCode SetRangeListField(
       cbor_item_t& map, int field_number,
       const std::optional<range_vector>& int_list);
-  static absl::StatusCode GetRangeListField(const cbor_item_t& map, int field_number,
-                                      std::optional<range_vector>& out);
+  static absl::StatusCode GetRangeListField(const cbor_item_t& map,
+                                            int field_number,
+                                            std::optional<range_vector>& out);
 };
 
 }  // namespace patch_subset::cbor

@@ -2,9 +2,9 @@
 
 #include <vector>
 
-#include "brotli/shared_brotli_encoder.h"
 #include "absl/log/log.h"
 #include "absl/status/status.h"
+#include "brotli/shared_brotli_encoder.h"
 #include "patch_subset/font_data.h"
 
 namespace patch_subset {
