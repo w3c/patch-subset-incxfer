@@ -9,21 +9,22 @@
 
 namespace patch_subset {
 
-using absl::StatusCode;
+using absl::Status;
 using absl::string_view;
 
-StatusCode VCDIFFBinaryDiff::Diff(const FontData& font_base,
-                                  const FontData& font_derived,
-                                  FontData* patch /* OUT */) const {
+Status VCDIFFBinaryDiff::Diff(const FontData& font_base,
+                              const FontData& font_derived,
+                              FontData* patch /* OUT */) const {
   open_vcdiff::VCDiffEncoder encoder(font_base.data(), font_base.size());
   encoder.SetFormatFlags(open_vcdiff::VCD_STANDARD_FORMAT);
   std::string diff;
-  if (!encoder.Encode(font_derived.data(), font_derived.size(), &diff))
-    return StatusCode::kInternal;
+  if (!encoder.Encode(font_derived.data(), font_derived.size(), &diff)) {
+    return absl::InternalError("VCDIFF encoding failed.");
+  }
 
   patch->copy(diff.c_str(), diff.size());
 
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
 }  // namespace patch_subset

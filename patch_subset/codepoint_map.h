@@ -34,24 +34,24 @@ class CodepointMap {
   void FromVector(const std::vector<int32_t>& ints);
 
   // Serialize this mapping to a vector of ints.
-  absl::StatusCode ToVector(std::vector<int32_t>* ints) const;
+  absl::Status ToVector(std::vector<int32_t>* ints) const;
 
   // Apply the mapping transformation to all codepoints in the provided set.
   // All values in the 'codepoints' set are replaced with the transformed
   // values.
-  absl::StatusCode Encode(hb_set_t* codepoints /* IN/OUT */) const;
+  absl::Status Encode(hb_set_t* codepoints /* IN/OUT */) const;
 
   // Transform cp using the this mapping. Writes the transformed value
   // to cp.
-  absl::StatusCode Encode(hb_codepoint_t* cp /* IN/OUT */) const;
+  absl::Status Encode(hb_codepoint_t* cp /* IN/OUT */) const;
 
   // Restores a set of encoded codepoints to their original values.
   // All values in the 'codepoints' set are replaced with their decoded
   // values.
-  absl::StatusCode Decode(hb_set_t* codepoints) const;
+  absl::Status Decode(hb_set_t* codepoints) const;
 
   // Restore encoded cp to it's original value.
-  absl::StatusCode Decode(hb_codepoint_t* cp /* IN/OUT */) const;
+  absl::Status Decode(hb_codepoint_t* cp /* IN/OUT */) const;
 
   // Given a set of untransformed codepoints, intersects it
   // with the set of codepoints that this mapping can map.

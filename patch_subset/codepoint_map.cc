@@ -6,7 +6,7 @@
 
 namespace patch_subset {
 
-using absl::StatusCode;
+using absl::Status;
 
 void CodepointMap::Clear() {
   encode_map.clear();
@@ -26,35 +26,34 @@ void CodepointMap::FromVector(const std::vector<int32_t>& ints) {
   }
 }
 
-StatusCode CodepointMap::ToVector(std::vector<int32_t>* ints) const {
+Status CodepointMap::ToVector(std::vector<int32_t>* ints) const {
   ints->resize(encode_map.size());
   ints->clear();
   for (unsigned int i = 0; i < encode_map.size(); i++) {
     hb_codepoint_t cp_for_index = i;
-    StatusCode result = Decode(&cp_for_index);
-    if (result != StatusCode::kOk) {
+    Status result = Decode(&cp_for_index);
+    if (!result.ok()) {
       return result;
     }
     ints->push_back(cp_for_index);
   }
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
-StatusCode ApplyMappingTo(
+Status ApplyMappingTo(
     const std::unordered_map<hb_codepoint_t, hb_codepoint_t>& mapping,
     hb_codepoint_t* cp) {
   auto new_cp = mapping.find(*cp);
   if (new_cp == mapping.end()) {
-    LOG(WARNING)
-        << "Encountered codepoint that is unspecified in the remapping: " << cp;
-    return StatusCode::kInvalidArgument;
+    return absl::InvalidArgumentError(absl::StrCat(
+        "Encountered codepoint that is unspecified in the remapping: ", *cp));
   }
 
   *cp = new_cp->second;
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
-StatusCode ApplyMappingTo(
+Status ApplyMappingTo(
     const std::unordered_map<hb_codepoint_t, hb_codepoint_t>& mapping,
     hb_set_t* codepoints) {
   hb_set_unique_ptr new_codepoints = make_hb_set();
@@ -62,8 +61,8 @@ StatusCode ApplyMappingTo(
   for (hb_codepoint_t cp = HB_SET_VALUE_INVALID;
        hb_set_next(codepoints, &cp);) {
     hb_codepoint_t new_cp = cp;
-    StatusCode result = ApplyMappingTo(mapping, &new_cp);
-    if (result != StatusCode::kOk) {
+    Status result = ApplyMappingTo(mapping, &new_cp);
+    if (!result.ok()) {
       return result;
     }
     hb_set_add(new_codepoints.get(), new_cp);
@@ -72,22 +71,22 @@ StatusCode ApplyMappingTo(
   hb_set_clear(codepoints);
   hb_set_union(codepoints, new_codepoints.get());
 
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
-StatusCode CodepointMap::Encode(hb_set_t* codepoints) const {
+Status CodepointMap::Encode(hb_set_t* codepoints) const {
   return ApplyMappingTo(encode_map, codepoints);
 }
 
-StatusCode CodepointMap::Encode(hb_codepoint_t* cp) const {
+Status CodepointMap::Encode(hb_codepoint_t* cp) const {
   return ApplyMappingTo(encode_map, cp);
 }
 
-StatusCode CodepointMap::Decode(hb_set_t* codepoints) const {
+Status CodepointMap::Decode(hb_set_t* codepoints) const {
   return ApplyMappingTo(decode_map, codepoints);
 }
 
-StatusCode CodepointMap::Decode(hb_codepoint_t* cp) const {
+Status CodepointMap::Decode(hb_codepoint_t* cp) const {
   return ApplyMappingTo(decode_map, cp);
 }
 

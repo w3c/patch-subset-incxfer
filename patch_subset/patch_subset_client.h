@@ -30,18 +30,18 @@ class PatchSubsetClient {
         binary_patch_(std::move(binary_patch)),
         hasher_(std::move(hasher)) {}
 
-  absl::StatusCode Extend(const hb_set_t& additional_codepoints,
-                          patch_subset::cbor::ClientState& state);
+  absl::Status Extend(const hb_set_t& additional_codepoints,
+                      patch_subset::cbor::ClientState& state);
 
-  absl::StatusCode CreateRequest(const hb_set_t& additional_codepoints,
-                                 const patch_subset::cbor::ClientState& state,
-                                 patch_subset::cbor::PatchRequest* request);
+  absl::Status CreateRequest(const hb_set_t& additional_codepoints,
+                             const patch_subset::cbor::ClientState& state,
+                             patch_subset::cbor::PatchRequest* request);
 
-  absl::StatusCode AmendState(const patch_subset::cbor::PatchResponse& response,
-                              patch_subset::cbor::ClientState* state);
+  absl::Status AmendState(const patch_subset::cbor::PatchResponse& response,
+                          patch_subset::cbor::ClientState* state);
 
  private:
-  absl::StatusCode EncodeCodepoints(
+  absl::Status EncodeCodepoints(
       const patch_subset::cbor::ClientState& state, hb_set_t* codepoints_have,
       hb_set_t* codepoints_needed);
 
@@ -53,7 +53,7 @@ class PatchSubsetClient {
   void LogRequest(const patch_subset::cbor::PatchRequest& request,
                   const patch_subset::cbor::PatchResponse& response);
 
-  absl::StatusCode ComputePatched(
+  absl::Status ComputePatched(
       const patch_subset::cbor::PatchResponse& response,
       const patch_subset::cbor::ClientState* state, FontData* patched);
 

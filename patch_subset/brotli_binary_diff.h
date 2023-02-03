@@ -16,13 +16,13 @@ class BrotliBinaryDiff : public BinaryDiff {
   BrotliBinaryDiff() : quality_(9) {}
   BrotliBinaryDiff(unsigned quality) : quality_(quality) {}
 
-  absl::StatusCode Diff(const FontData& font_base, const FontData& font_derived,
-                        FontData* patch /* OUT */) const override;
+  absl::Status Diff(const FontData& font_base, const FontData& font_derived,
+                    FontData* patch /* OUT */) const override;
 
   // For use in stitching together a brotli patch.
-  absl::StatusCode Diff(const FontData& font_base, ::absl::string_view data,
-                        unsigned stream_offset, bool is_last,
-                        std::vector<uint8_t>& sink) const;
+  absl::Status Diff(const FontData& font_base, ::absl::string_view data,
+                    unsigned stream_offset, bool is_last,
+                    std::vector<uint8_t>& sink) const;
 
  private:
   unsigned quality_;

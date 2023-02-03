@@ -6,7 +6,7 @@
 
 namespace patch_subset {
 
-using absl::StatusCode;
+using absl::Status;
 
 class CodepointMapTest : public ::testing::Test {
  protected:
@@ -18,13 +18,13 @@ class CodepointMapTest : public ::testing::Test {
 
   void ExpectEncodes(hb_codepoint_t from, hb_codepoint_t to) {
     hb_codepoint_t cp = from;
-    EXPECT_EQ(StatusCode::kOk, codepoint_map_.Encode(&cp));
+    EXPECT_EQ(absl::OkStatus(), codepoint_map_.Encode(&cp));
     EXPECT_EQ(cp, to);
   }
 
   void ExpectDecodes(hb_codepoint_t from, hb_codepoint_t to) {
     hb_codepoint_t cp = from;
-    EXPECT_EQ(StatusCode::kOk, codepoint_map_.Decode(&cp));
+    EXPECT_EQ(absl::OkStatus(), codepoint_map_.Decode(&cp));
     EXPECT_EQ(cp, to);
   }
 
@@ -35,22 +35,22 @@ TEST_F(CodepointMapTest, Clear) {
   codepoint_map_.Clear();
 
   hb_codepoint_t cp = 7;
-  EXPECT_EQ(StatusCode::kInvalidArgument, codepoint_map_.Encode(&cp));
+  EXPECT_TRUE(absl::IsInvalidArgument(codepoint_map_.Encode(&cp)));
   cp = 3;
-  EXPECT_EQ(StatusCode::kInvalidArgument, codepoint_map_.Encode(&cp));
+  EXPECT_TRUE(absl::IsInvalidArgument(codepoint_map_.Encode(&cp)));
   cp = 4;
-  EXPECT_EQ(StatusCode::kInvalidArgument, codepoint_map_.Encode(&cp));
+  EXPECT_TRUE(absl::IsInvalidArgument(codepoint_map_.Encode(&cp)));
 }
 
 TEST_F(CodepointMapTest, EncodeEmptySet) {
   hb_set_unique_ptr codepoints = make_hb_set();
-  EXPECT_EQ(StatusCode::kOk, codepoint_map_.Encode(codepoints.get()));
+  EXPECT_EQ(absl::OkStatus(), codepoint_map_.Encode(codepoints.get()));
   EXPECT_TRUE(hb_set_is_empty(codepoints.get()));
 }
 
 TEST_F(CodepointMapTest, EncodeSet) {
   hb_set_unique_ptr codepoints = make_hb_set(2, 4, 7);
-  EXPECT_EQ(StatusCode::kOk, codepoint_map_.Encode(codepoints.get()));
+  EXPECT_EQ(absl::OkStatus(), codepoint_map_.Encode(codepoints.get()));
 
   hb_set_unique_ptr expected = make_hb_set(2, 0, 2);
   EXPECT_TRUE(hb_set_is_equal(codepoints.get(), expected.get()));
@@ -64,16 +64,16 @@ TEST_F(CodepointMapTest, EncodeSingle) {
 
 TEST_F(CodepointMapTest, EncodeMissing) {
   hb_set_unique_ptr codepoints = make_hb_set(3, 2, 4, 7);
-  EXPECT_EQ(StatusCode::kInvalidArgument,
-            codepoint_map_.Encode(codepoints.get()));
+  EXPECT_TRUE(absl::IsInvalidArgument(
+      codepoint_map_.Encode(codepoints.get())));
 
   hb_codepoint_t missing_cp = 2;
-  EXPECT_EQ(StatusCode::kInvalidArgument, codepoint_map_.Encode(&missing_cp));
+  EXPECT_TRUE(absl::IsInvalidArgument(codepoint_map_.Encode(&missing_cp)));
 }
 
 TEST_F(CodepointMapTest, DecodeSet) {
   hb_set_unique_ptr codepoints = make_hb_set();
-  EXPECT_EQ(StatusCode::kOk, codepoint_map_.Decode(codepoints.get()));
+  EXPECT_EQ(absl::OkStatus(), codepoint_map_.Decode(codepoints.get()));
   EXPECT_TRUE(hb_set_is_empty(codepoints.get()));
 }
 
@@ -85,7 +85,7 @@ TEST_F(CodepointMapTest, DecodeSingle) {
 
 TEST_F(CodepointMapTest, DecodeEmptySet) {
   hb_set_unique_ptr codepoints = make_hb_set(2, 0, 2);
-  EXPECT_EQ(StatusCode::kOk, codepoint_map_.Decode(codepoints.get()));
+  EXPECT_EQ(absl::OkStatus(), codepoint_map_.Decode(codepoints.get()));
 
   hb_set_unique_ptr expected = make_hb_set(2, 4, 7);
   EXPECT_TRUE(hb_set_is_equal(codepoints.get(), expected.get()));
@@ -93,11 +93,11 @@ TEST_F(CodepointMapTest, DecodeEmptySet) {
 
 TEST_F(CodepointMapTest, DecodeMissing) {
   hb_set_unique_ptr codepoints = make_hb_set(3, 0, 2, 3);
-  EXPECT_EQ(StatusCode::kInvalidArgument,
-            codepoint_map_.Decode(codepoints.get()));
+  EXPECT_TRUE(absl::IsInvalidArgument(
+      codepoint_map_.Decode(codepoints.get())));
 
   hb_codepoint_t missing_cp = 3;
-  EXPECT_EQ(StatusCode::kInvalidArgument, codepoint_map_.Decode(&missing_cp));
+  EXPECT_TRUE(absl::IsInvalidArgument(codepoint_map_.Decode(&missing_cp)));
 }
 
 TEST_F(CodepointMapTest, IntersectWithMappedCodepoints) {
