@@ -18,7 +18,7 @@
 
 namespace patch_subset {
 
-using absl::StatusCode;
+using absl::Status;
 using absl::string_view;
 using patch_subset::cbor::ClientState;
 
@@ -80,14 +80,14 @@ TEST_F(PatchSubsetClientServerIntegrationTest, Session) {
   hb_set_unique_ptr set_ab = make_hb_set_from_ranges(1, 0x61, 0x62);
   ClientState state;
   state.SetFontId("Roboto-Regular.ttf");
-  EXPECT_EQ(client_.Extend(*set_ab, state), StatusCode::kOk);
+  EXPECT_EQ(client_.Extend(*set_ab, state), absl::OkStatus());
 
   EXPECT_EQ(state.FontId(), "Roboto-Regular.ttf");
   EXPECT_EQ(state.OriginalFontChecksum(), 0xC722EE0E33D3B460);
   EXPECT_EQ(state.FontData(), roboto_ab_.str());
 
   hb_set_unique_ptr set_abcd = make_hb_set_from_ranges(1, 0x61, 0x64);
-  EXPECT_EQ(client_.Extend(*set_abcd, state), StatusCode::kOk);
+  EXPECT_EQ(client_.Extend(*set_abcd, state), absl::OkStatus());
 
   EXPECT_EQ(state.FontId(), "Roboto-Regular.ttf");
   EXPECT_EQ(state.OriginalFontChecksum(), 0xC722EE0E33D3B460);
@@ -99,7 +99,7 @@ TEST_F(PatchSubsetClientServerIntegrationTest, SessionWithCodepointOrdering) {
   hb_set_unique_ptr set_ab = make_hb_set_from_ranges(1, 0x61, 0x62);
   ClientState state;
   state.SetFontId("Roboto-Regular.ttf");
-  EXPECT_EQ(client_with_mapping_.Extend(*set_ab, state), StatusCode::kOk);
+  EXPECT_EQ(client_with_mapping_.Extend(*set_ab, state), absl::OkStatus());
 
   EXPECT_EQ(state.FontId(), "Roboto-Regular.ttf");
   EXPECT_EQ(state.OriginalFontChecksum(), 0xC722EE0E33D3B460);
@@ -108,7 +108,7 @@ TEST_F(PatchSubsetClientServerIntegrationTest, SessionWithCodepointOrdering) {
   EXPECT_EQ(state.CodepointRemappingChecksum(), 0xD5BD080511DD60DD);
 
   hb_set_unique_ptr set_abcd = make_hb_set_from_ranges(1, 0x61, 0x64);
-  EXPECT_EQ(client_with_mapping_.Extend(*set_abcd, state), StatusCode::kOk);
+  EXPECT_EQ(client_with_mapping_.Extend(*set_abcd, state), absl::OkStatus());
 
   EXPECT_EQ(state.FontId(), "Roboto-Regular.ttf");
   EXPECT_EQ(state.OriginalFontChecksum(), 0xC722EE0E33D3B460);

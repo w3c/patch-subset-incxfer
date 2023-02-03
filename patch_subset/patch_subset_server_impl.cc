@@ -85,7 +85,10 @@ Status PatchSubsetServerImpl::Handle(const std::string& font_id,
   AddPredictedCodepoints(&state);
 
   if (state.IsReindex()) {
-    ConstructResponse(state, response);
+    result = ConstructResponse(state, response);
+    if (!result.ok()) {
+      return result;
+    }
     return absl::OkStatus();
   }
 
@@ -107,9 +110,7 @@ Status PatchSubsetServerImpl::Handle(const std::string& font_id,
 
   // TODO(garretrieger): handle exceptional cases (see design doc).
 
-  ConstructResponse(state, response);
-
-  return absl::OkStatus();
+  return ConstructResponse(state, response);
 }
 
 void PatchSubsetServerImpl::LoadInputCodepoints(const PatchRequest& request,
@@ -155,9 +156,9 @@ bool PatchSubsetServerImpl::RequiredFieldsPresent(
 void PatchSubsetServerImpl::CheckOriginalChecksum(uint64_t original_checksum,
                                                   RequestState* state) const {
   if (state->IsPatch() &&
-      !Check(ValidateChecksum(original_checksum, state->font_data),
-             "Client's original checksum does not match. Switching to "
-             "REBASE.")) {
+      !ValidateChecksum(original_checksum, state->font_data).ok()) {
+    LOG(WARNING) << "Client's original checksum does not match. Switching to "
+        "REBASE.";
     hb_set_clear(state->codepoints_have.get());
   }
 }
@@ -192,8 +193,11 @@ Status PatchSubsetServerImpl::ComputeCodepointRemapping(
 
   // Codepoints given to use by the client are using the computed codepoint
   // mapping, so translate the provided sets back to actual codepoints.
-  state->mapping.Decode(state->indices_have.get());
-  state->mapping.Decode(state->indices_needed.get());
+  result = state->mapping.Decode(state->indices_have.get());
+  result.Update(state->mapping.Decode(state->indices_needed.get()));
+  if (!result.ok()) {
+    return result;
+  }
 
   hb_set_union(state->codepoints_have.get(), state->indices_have.get());
   hb_set_union(state->codepoints_needed.get(), state->indices_needed.get());
@@ -244,8 +248,8 @@ Status PatchSubsetServerImpl::ComputeSubsets(const std::string& font_id,
 void PatchSubsetServerImpl::ValidatePatchBase(uint64_t base_checksum,
                                               RequestState* state) const {
   if (state->IsPatch() &&
-      !Check(ValidateChecksum(base_checksum, state->client_subset),
-             "Client's base does not match. Switching to REBASE.")) {
+      !ValidateChecksum(base_checksum, state->client_subset).ok()) {
+    LOG(WARNING) << "Client's base does not match. Switching to REBASE.";
     // Clear the client_subset since it doesn't match. The diff will then diff
     // in rebase mode.
     state->client_subset.reset();
@@ -253,12 +257,15 @@ void PatchSubsetServerImpl::ValidatePatchBase(uint64_t base_checksum,
   }
 }
 
-void PatchSubsetServerImpl::ConstructResponse(const RequestState& state,
-                                              PatchResponse& response) const {
+Status PatchSubsetServerImpl::ConstructResponse(const RequestState& state,
+                                                PatchResponse& response) const {
   response.SetProtocolVersion(ProtocolVersion::ONE);
   if ((state.IsReindex() || state.IsRebase()) && codepoint_mapper_) {
     vector<int32_t> ordering;
-    state.mapping.ToVector(&ordering);
+    Status result = state.mapping.ToVector(&ordering);
+    if (!result.ok()) {
+      return result;
+    }
     response.SetCodepointOrdering(ordering);
     response.SetOrderingChecksum(integer_list_checksum_->Checksum(ordering));
   }
@@ -266,7 +273,7 @@ void PatchSubsetServerImpl::ConstructResponse(const RequestState& state,
   if (state.IsReindex()) {
     AddChecksums(state.font_data, response);
     // Early return, no patch is needed for a re-index.
-    return;
+    return absl::OkStatus();
   }
 
   response.SetPatchFormat(state.format);
@@ -278,13 +285,14 @@ void PatchSubsetServerImpl::ConstructResponse(const RequestState& state,
 
   AddChecksums(state.font_data, state.client_target_subset, response);
   AddVariableAxesData(state.font_data, response);
+
+  return absl::OkStatus();
 }
 
 Status PatchSubsetServerImpl::ValidateChecksum(uint64_t checksum,
                                                    const FontData& data) const {
   uint64_t actual_checksum = hasher_->Checksum(data.str());
   if (actual_checksum != checksum) {
-    LOG(WARNING) << ;
     return absl::InvalidArgumentError(absl::StrCat(
         "Checksum mismatch. Expected = ", checksum,
         " Actual = ", actual_checksum, "."));

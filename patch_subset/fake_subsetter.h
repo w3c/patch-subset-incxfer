@@ -15,15 +15,15 @@ class FakeSubsetter : public Subsetter {
  public:
   FakeSubsetter() {}
 
-  absl::StatusCode Subset(const FontData& font, const hb_set_t& codepoints,
-                          FontData* subset /* OUT */) const override {
+  absl::Status Subset(const FontData& font, const hb_set_t& codepoints,
+                      FontData* subset /* OUT */) const override {
     if (font.empty()) {
-      return absl::StatusCode::kInternal;
+      return absl::InternalError("empty font");
     }
 
     if (!hb_set_get_population(&codepoints)) {
       subset->reset();
-      return absl::StatusCode::kOk;
+      return absl::OkStatus();
     }
 
     std::string result(font.data(), font.size());
@@ -34,7 +34,7 @@ class FakeSubsetter : public Subsetter {
     }
 
     subset->copy(result.c_str(), result.size());
-    return absl::StatusCode::kOk;
+    return absl::OkStatus();
   }
 
   void CodepointsInFont(const FontData& font,

@@ -156,8 +156,8 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
 
   void ValidatePatchBase(uint64_t base_checksum, RequestState* state) const;
 
-  void ConstructResponse(const RequestState& state,
-                         patch_subset::cbor::PatchResponse& response) const;
+  absl::Status ConstructResponse(const RequestState& state,
+                                 patch_subset::cbor::PatchResponse& response) const;
 
   absl::Status ValidateChecksum(uint64_t checksum,
                                 const FontData& data) const;

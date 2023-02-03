@@ -11,7 +11,7 @@ namespace patch_subset {
 
 class MockBinaryDiff : public BinaryDiff {
  public:
-  MOCK_METHOD(absl::StatusCode, Diff,
+  MOCK_METHOD(absl::Status, Diff,
               (const FontData& font_base, const FontData& font_derived,
                FontData* patch /* OUT */),
               (const override));
