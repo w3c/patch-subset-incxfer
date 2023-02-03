@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "absl/types/span.h"
-#include "common/status.h"
+#include "absl/status/status.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "hb.h"
@@ -12,12 +12,13 @@
 #include "patch_subset/hb_set_unique_ptr.h"
 #include "patch_subset/sparse_bit_set.h"
 
-using ::absl::Span;
-
-using ::testing::Eq;
-using ::testing::Pointwise;
-
 namespace patch_subset {
+
+using absl::StatusCode;
+using absl::Span;
+
+using testing::Eq;
+using testing::Pointwise;
 
 class CompressedSetTest : public ::testing::Test {
  protected:

@@ -3,9 +3,11 @@
 #include <string>
 #include <vector>
 
-#include "common/status.h"
+#include "absl/status/status.h"
 
 namespace patch_subset {
+
+using absl::StatusCode;
 
 StatusCode MemoryRequestLogger::LogRequest(const std::string& request_data,
                                            const std::string& response_data) {

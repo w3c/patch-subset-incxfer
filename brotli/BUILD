@@ -51,7 +51,6 @@ cc_test(
     ],
     deps = [
         ":encoding",
-        "//common",
         "//patch_subset:client",
         "@brotli//:brotlienc",
         "@com_google_absl//absl/types:span",

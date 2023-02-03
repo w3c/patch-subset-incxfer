@@ -3,7 +3,7 @@
 
 #include <limits.h>
 
-#include "common/status.h"
+#include "absl/status/status.h"
 #include "hb.h"
 #include "patch_subset/cbor/compressed_set.h"
 
@@ -14,7 +14,7 @@ namespace patch_subset {
 class CompressedSet {
  public:
   // Decode a CBOR CompressedSet into a Harfbuzz set.
-  static StatusCode Decode(const patch_subset::cbor::CompressedSet& set,
+  static absl::StatusCode Decode(const patch_subset::cbor::CompressedSet& set,
                            hb_set_t* out);
 
   // Encode a Harfbuzz set of integers into a CBOR CompressedSet.

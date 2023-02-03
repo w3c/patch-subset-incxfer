@@ -6,6 +6,7 @@
 
 namespace patch_subset::cbor {
 
+using absl::StatusCode;
 using absl::string_view;
 
 void delete_cbor_item(cbor_item_t* item) {

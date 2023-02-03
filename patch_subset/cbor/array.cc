@@ -3,11 +3,13 @@
 #include <vector>
 
 #include "cbor.h"
-#include "common/status.h"
+#include "absl/status/status.h"
 #include "patch_subset/cbor/cbor_item_unique_ptr.h"
 #include "patch_subset/cbor/cbor_utils.h"
 
 namespace patch_subset::cbor {
+
+using absl::StatusCode;
 
 StatusCode Array::Encode(const std::vector<uint64_t>& ints,
                          cbor_item_unique_ptr& array_out) {

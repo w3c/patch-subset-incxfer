@@ -9,6 +9,7 @@
 
 namespace patch_subset::cbor {
 
+using absl::StatusCode;
 using std::string;
 using std::vector;
 

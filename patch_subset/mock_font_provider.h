@@ -11,7 +11,7 @@ namespace patch_subset {
 // Provides fonts by loading them from a directory on the file system.
 class MockFontProvider : public FontProvider {
  public:
-  MOCK_METHOD(StatusCode, GetFont, (const std::string& id, FontData* out),
+  MOCK_METHOD(absl::StatusCode, GetFont, (const std::string& id, FontData* out),
               (const override));
 };
 

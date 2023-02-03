@@ -1,11 +1,12 @@
 #include "patch_subset/cbor/client_state.h"
 
-#include "common/status.h"
+#include "absl/status/status.h"
 #include "patch_subset/cbor/cbor_utils.h"
 #include "patch_subset/cbor/integer_list.h"
 
 namespace patch_subset::cbor {
 
+using absl::StatusCode;
 using std::string;
 using std::vector;
 

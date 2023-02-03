@@ -3,16 +3,17 @@
 #include <vector>
 
 #include "brotli/shared_brotli_encoder.h"
-#include "common/logging.h"
-#include "common/status.h"
+#include "absl/log/log.h"
+#include "absl/status/status.h"
 #include "patch_subset/font_data.h"
 
-using ::absl::string_view;
+namespace patch_subset {
+
+using absl::StatusCode;
+using absl::string_view;
 using brotli::DictionaryPointer;
 using brotli::EncoderStatePointer;
 using brotli::SharedBrotliEncoder;
-
-namespace patch_subset {
 
 StatusCode BrotliBinaryDiff::Diff(const FontData& font_base,
                                   const FontData& font_derived,

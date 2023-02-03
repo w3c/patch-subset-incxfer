@@ -1,10 +1,12 @@
 #include "patch_subset/codepoint_map.h"
 
-#include "common/logging.h"
+#include "absl/log/log.h"
 #include "hb.h"
 #include "patch_subset/hb_set_unique_ptr.h"
 
 namespace patch_subset {
+
+using absl::StatusCode;
 
 void CodepointMap::Clear() {
   encode_map.clear();
@@ -16,7 +18,7 @@ void CodepointMap::AddMapping(hb_codepoint_t from, hb_codepoint_t to) {
   decode_map[to] = from;
 }
 
-void CodepointMap::FromVector(const vector<int32_t>& ints) {
+void CodepointMap::FromVector(const std::vector<int32_t>& ints) {
   Clear();
   int index = 0;
   for (int32_t cp : ints) {
@@ -24,7 +26,7 @@ void CodepointMap::FromVector(const vector<int32_t>& ints) {
   }
 }
 
-StatusCode CodepointMap::ToVector(vector<int32_t>* ints) const {
+StatusCode CodepointMap::ToVector(std::vector<int32_t>* ints) const {
   ints->resize(encode_map.size());
   ints->clear();
   for (unsigned int i = 0; i < encode_map.size(); i++) {

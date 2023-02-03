@@ -13,9 +13,9 @@
 #include "patch_subset/hb_set_unique_ptr.h"
 
 using namespace std::chrono;
-using std::string_view;
 using std::vector;
 
+using absl::string_view;
 using absl::Span;
 using brotli::BrotliFontDiff;
 using patch_subset::BrotliBinaryDiff;
@@ -340,7 +340,7 @@ vector<uint8_t> precompress_immutable(const hb_face_t* face) {
   BrotliBinaryDiff differ(STATIC_QUALITY);
   StatusCode sc = differ.Diff(
       empty,
-      std::string_view(reinterpret_cast<const char*>(table_data.data()),
+      string_view(reinterpret_cast<const char*>(table_data.data()),
                        table_data.size()),
       header_size, false, sink);
   if (sc != StatusCode::kOk) {

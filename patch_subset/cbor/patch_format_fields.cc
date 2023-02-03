@@ -5,6 +5,7 @@
 
 namespace patch_subset::cbor {
 
+using absl::StatusCode;
 using patch_subset::PatchFormat;
 using std::optional;
 using std::vector;

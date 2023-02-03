@@ -2,15 +2,16 @@
 
 #include <vector>
 
-#include "common/logging.h"
-#include "common/status.h"
+#include "absl/log/log.h"
+#include "absl/status/status.h"
 #include "google/vcdecoder.h"
 #include "patch_subset/binary_patch.h"
 #include "patch_subset/font_data.h"
 
-using ::absl::string_view;
-
 namespace patch_subset {
+
+using absl::StatusCode;
+using absl::string_view;
 
 StatusCode VCDIFFBinaryPatch::Patch(const FontData& font_base,
                                     const FontData& patch,

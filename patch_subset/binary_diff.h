@@ -1,7 +1,7 @@
 #ifndef PATCH_SUBSET_BINARY_DIFF_H_
 #define PATCH_SUBSET_BINARY_DIFF_H_
 
-#include "common/status.h"
+#include "absl/status/status.h"
 #include "patch_subset/font_data.h"
 
 namespace patch_subset {
@@ -14,7 +14,7 @@ class BinaryDiff {
 
   // Compute a patch which can be applied to binary a to transform
   // it into binary b.
-  virtual StatusCode Diff(const FontData& font_base,
+  virtual absl::StatusCode Diff(const FontData& font_base,
                           const FontData& font_derived,
                           FontData* patch /* OUT */) const = 0;
 };

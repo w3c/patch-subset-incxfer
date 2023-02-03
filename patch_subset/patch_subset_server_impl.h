@@ -3,8 +3,8 @@
 
 #include <string>
 
-#include "common/logging.h"
-#include "common/status.h"
+#include "absl/log/log.h"
+#include "absl/status/status.h"
 #include "hb.h"
 #include "patch_subset/binary_diff.h"
 #include "patch_subset/brotli_binary_diff.h"
@@ -132,7 +132,7 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
 
   // Handle a patch request from a client. Writes the resulting response
   // into response.
-  StatusCode Handle(
+  absl::StatusCode Handle(
       const std::string& font_id,
       const patch_subset::cbor::PatchRequest& request,
       patch_subset::cbor::PatchResponse& response /* OUT */) override;
@@ -147,11 +147,11 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
   void CheckOriginalChecksum(uint64_t original_checksum,
                              RequestState* state) const;
 
-  StatusCode ComputeCodepointRemapping(RequestState* state) const;
+  absl::StatusCode ComputeCodepointRemapping(RequestState* state) const;
 
   void AddPredictedCodepoints(RequestState* state) const;
 
-  StatusCode ComputeSubsets(const std::string& font_id,
+  absl::StatusCode ComputeSubsets(const std::string& font_id,
                             RequestState* state) const;
 
   void ValidatePatchBase(uint64_t base_checksum, RequestState* state) const;
@@ -159,7 +159,7 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
   void ConstructResponse(const RequestState& state,
                          patch_subset::cbor::PatchResponse& response) const;
 
-  StatusCode ValidateChecksum(uint64_t checksum, const FontData& data) const;
+  absl::StatusCode ValidateChecksum(uint64_t checksum, const FontData& data) const;
 
   void AddChecksums(const FontData& font_data, const FontData& target_subset,
                     patch_subset::cbor::PatchResponse& response) const;
@@ -170,8 +170,8 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
   void AddVariableAxesData(const FontData& font_data,
                            patch_subset::cbor::PatchResponse& response) const;
 
-  bool Check(StatusCode result) const;
-  bool Check(StatusCode result, const std::string& message) const;
+  bool Check(absl::StatusCode result) const;
+  bool Check(absl::StatusCode result, const std::string& message) const;
 
   const BinaryDiff* DiffFor(const std::vector<PatchFormat>& formats,
                             PatchFormat& format /* OUT */) const;

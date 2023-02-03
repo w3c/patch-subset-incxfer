@@ -3,7 +3,7 @@
 #include <cmath>
 
 #include "absl/types/optional.h"
-#include "common/status.h"
+#include "absl/status/status.h"
 #include "hb.h"
 #include "patch_subset/hb_set_unique_ptr.h"
 #include "patch_subset/sparse_bit_set.h"
@@ -11,9 +11,10 @@
 typedef std::pair<hb_codepoint_t, hb_codepoint_t> range;
 typedef std::vector<range> range_vector;
 
-using ::absl::optional;
-
 namespace patch_subset {
+
+using absl::StatusCode;
+using std::optional;
 
 static const int kBitsPerByte = 8;
 

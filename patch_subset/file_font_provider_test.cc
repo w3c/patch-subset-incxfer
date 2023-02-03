@@ -7,6 +7,8 @@
 
 namespace patch_subset {
 
+using absl::StatusCode;
+
 class FileFontProviderTest : public ::testing::Test {
  protected:
   FileFontProviderTest()

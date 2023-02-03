@@ -2,6 +2,7 @@
 
 namespace patch_subset::cbor {
 
+using absl::StatusCode;
 using absl::string_view;
 using std::optional;
 using std::set;

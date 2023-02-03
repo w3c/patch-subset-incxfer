@@ -1,14 +1,15 @@
 #include "absl/types/span.h"
-#include "common/status.h"
+#include "absl/status/status.h"
 #include "gtest/gtest.h"
 #include "patch_subset/file_font_provider.h"
 #include "patch_subset/font_provider.h"
 #include "patch_subset/vcdiff_binary_diff.h"
 #include "patch_subset/vcdiff_binary_patch.h"
 
-using ::absl::Span;
-
 namespace patch_subset {
+
+using absl::StatusCode;
+using absl::Span;
 
 class VCDIFFPatchingTest : public ::testing::Test {
  protected:

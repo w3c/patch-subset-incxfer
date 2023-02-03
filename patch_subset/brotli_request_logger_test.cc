@@ -4,6 +4,8 @@
 
 namespace patch_subset {
 
+using absl::StatusCode;
+
 class BrotliRequestLoggerTest : public ::testing::Test {
  protected:
   BrotliRequestLoggerTest()

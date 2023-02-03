@@ -1,12 +1,14 @@
 #include "patch_subset/harfbuzz_subsetter.h"
 
-#include "common/logging.h"
-#include "common/status.h"
+#include "absl/log/log.h"
+#include "absl/status/status.h"
 #include "hb-subset.h"
 #include "hb_set_unique_ptr.h"
 #include "patch_subset/font_data.h"
 
 namespace patch_subset {
+
+using absl::StatusCode;
 
 static unsigned int kRetainGidsThreshold = 5000;
 

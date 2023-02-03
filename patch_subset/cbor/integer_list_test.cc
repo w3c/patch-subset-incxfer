@@ -7,6 +7,7 @@
 
 namespace patch_subset::cbor {
 
+using absl::StatusCode;
 using absl::StrFormat;
 using absl::string_view;
 using std::optional;

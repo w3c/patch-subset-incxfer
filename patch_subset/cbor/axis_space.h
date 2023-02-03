@@ -5,7 +5,7 @@
 
 #include "absl/container/btree_map.h"
 #include "cbor.h"
-#include "common/status.h"
+#include "absl/status/status.h"
 #include "hb-subset.h"
 #include "patch_subset/cbor/axis_interval.h"
 #include "patch_subset/cbor/cbor_item_unique_ptr.h"
@@ -31,13 +31,13 @@ class AxisSpace {
   void AddInterval(hb_tag_t tag, const AxisInterval& interval);
   const std::vector<AxisInterval>& IntervalsFor(hb_tag_t tag) const;
 
-  static StatusCode SetAxisSpaceField(
+  static absl::StatusCode SetAxisSpaceField(
       cbor_item_t& map, int field_number,
       const std::optional<AxisSpace>& axis_space);
-  static StatusCode GetAxisSpaceField(const cbor_item_t& map, int field_number,
+  static absl::StatusCode GetAxisSpaceField(const cbor_item_t& map, int field_number,
                                       std::optional<AxisSpace>& out);
-  static StatusCode Decode(const cbor_item_t& cbor_map, AxisSpace& out);
-  StatusCode Encode(cbor_item_unique_ptr& map_out) const;
+  static absl::StatusCode Decode(const cbor_item_t& cbor_map, AxisSpace& out);
+  absl::StatusCode Encode(cbor_item_unique_ptr& map_out) const;
 
   std::string ToString() const;
 

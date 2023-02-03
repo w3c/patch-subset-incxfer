@@ -3,18 +3,19 @@
 #include <bitset>
 #include <vector>
 
-#include "common/status.h"
+#include "absl/status/status.h"
 #include "gtest/gtest.h"
 #include "hb.h"
 #include "patch_subset/hb_set_unique_ptr.h"
 
+namespace patch_subset {
+
+using absl::StatusCode;
 using std::bitset;
 using std::pair;
 using std::string;
 using std::to_string;
 using std::vector;
-
-namespace patch_subset {
 
 class SparseBitSetTest : public ::testing::Test {
  protected:

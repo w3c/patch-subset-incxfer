@@ -9,6 +9,8 @@
 
 namespace patch_subset::cbor {
 
+using absl::StatusCode;
+
 class AxisSpaceTest : public ::testing::Test {
  public:
   AxisSpaceTest()
