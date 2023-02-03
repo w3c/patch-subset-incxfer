@@ -14,7 +14,7 @@ typedef std::unique_ptr<BrotliDecoderState,
 
 namespace patch_subset {
 
-using absl::StatusCode;
+using absl::Status;
 using absl::string_view;
 
 DecoderStatePointer CreateDecoder(const FontData& base) {
@@ -37,9 +37,9 @@ static void Append(const uint8_t* buffer, size_t buffer_size,
   sink->insert(sink->end(), buffer, buffer + buffer_size);
 }
 
-StatusCode DecompressToSink(const FontData& patch,
-                            BrotliDecoderState* state, /* OUT */
-                            std::vector<uint8_t>* sink /* OUT */) {
+Status DecompressToSink(const FontData& patch,
+                        BrotliDecoderState* state, /* OUT */
+                        std::vector<uint8_t>* sink /* OUT */) {
   unsigned int source_index = 0;
 
   size_t available_in, available_out = 0;
@@ -74,30 +74,30 @@ StatusCode DecompressToSink(const FontData& patch,
   }
 
   if (result != BROTLI_DECODER_RESULT_SUCCESS || source_index != patch.size()) {
-    return StatusCode::kInternal;
+    return absl::InternalError("Brotli decoder failed.");
   }
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
-StatusCode BrotliBinaryPatch::Patch(const FontData& font_base,
-                                    const FontData& patch,
-                                    FontData* font_derived /* OUT */) const {
+Status BrotliBinaryPatch::Patch(const FontData& font_base,
+                                const FontData& patch,
+                                FontData* font_derived /* OUT */) const {
   DecoderStatePointer state = CreateDecoder(font_base);
   if (!state) {
-    return StatusCode::kInternal;
+    return absl::InternalError("Decoder creation failed.");
   }
 
   // TODO(garretrieger): better default size calculation.
   std::vector<uint8_t> sink;
   sink.reserve(font_base.size() + patch.size());
-  StatusCode result = DecompressToSink(patch, state.get(), &sink);
-  if (result != StatusCode::kOk) {
-    return result;
+  Status sc = DecompressToSink(patch, state.get(), &sink);
+  if (!sc.ok()) {
+    return sc;
   }
 
   font_derived->copy(reinterpret_cast<const char*>(sink.data()), sink.size());
 
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
 }  // namespace patch_subset

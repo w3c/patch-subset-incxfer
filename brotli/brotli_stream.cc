@@ -8,7 +8,7 @@
 #include "c/enc/prefix.h"
 
 using absl::Span;
-using patch_subset::StatusCode;
+using absl::Status;
 
 namespace brotli {
 
@@ -203,14 +203,14 @@ void BrotliStream::insert_uncompressed(absl::Span<const uint8_t> bytes) {
   uncompressed_size_ += size;
 }
 
-StatusCode BrotliStream::insert_compressed(Span<const uint8_t> bytes) {
+Status BrotliStream::insert_compressed(Span<const uint8_t> bytes) {
   return insert_compressed_with_partial_dict(bytes, Span<const uint8_t>());
 }
 
-StatusCode BrotliStream::insert_compressed_with_partial_dict(
+Status BrotliStream::insert_compressed_with_partial_dict(
     Span<const uint8_t> bytes, Span<const uint8_t> partial_dict) {
   if (!bytes.size()) {
-    return StatusCode::kOk;
+    return absl::OkStatus();
   }
 
   if (partial_dict.size() > dictionary_size_) {
@@ -232,8 +232,7 @@ StatusCode BrotliStream::insert_compressed_with_partial_dict(
   if (partial_dict.size() > 0) {
     dictionary = SharedBrotliEncoder::CreateDictionary(partial_dict);
     if (!dictionary) {
-      LOG(WARNING) << "Failed to create brotli dictionary.";
-      return StatusCode::kInternal;
+      return absl::InternalError("Failed to create brotli dictionary.");
     }
   }
 
@@ -248,26 +247,23 @@ StatusCode BrotliStream::insert_compressed_with_partial_dict(
     // internally the brotli encoder uses min(stream_offset,
     // window_size). To avoid this the window
     // size must always be > dict + uncompressed size.
-    LOG(WARNING) << "stream offset exceeds window size.";
-    return StatusCode::kInternal;
+    return absl::InternalError("stream offset exceeds window size.");
   }
 
   EncoderStatePointer state = create_encoder(stream_offset, dictionary.get());
   if (!state) {
-    LOG(WARNING) << "Failed to create brotli encoder.";
-    return StatusCode::kInternal;
+    return absl::InternalError("Failed to create brotli encoder.");
   }
 
   bool result = SharedBrotliEncoder::CompressToSink(
       absl::string_view((const char*)bytes.data(), bytes.size()), false,
       state.get(), &buffer_.sink());
   if (!result) {
-    LOG(WARNING) << "Failed to encode brotli binary patch.";
-    return StatusCode::kInternal;
+    return absl::InternalError("Failed to encode brotli binary patch.");
   }
 
   uncompressed_size_ += bytes.size();
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
 // Align the stream to the nearest byte boundary.

@@ -10,19 +10,20 @@
 
 namespace patch_subset {
 
-using absl::StatusCode;
+using absl::Status;
 using absl::string_view;
 
-StatusCode VCDIFFBinaryPatch::Patch(const FontData& font_base,
-                                    const FontData& patch,
-                                    FontData* font_derived /* OUT */) const {
+Status VCDIFFBinaryPatch::Patch(const FontData& font_base,
+                                const FontData& patch,
+                                FontData* font_derived /* OUT */) const {
   open_vcdiff::VCDiffDecoder decoder;
   std::string result;
   if (!decoder.Decode(font_base.data(), font_base.size(), patch.string(),
-                      &result))
-    return StatusCode::kInvalidArgument;
+                      &result)) {
+    return absl::InvalidArgumentError("Unable to decode vcdiff patch.");
+  }
   font_derived->copy(result.c_str(), result.size());
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
 }  // namespace patch_subset

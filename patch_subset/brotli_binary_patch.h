@@ -11,8 +11,8 @@ namespace patch_subset {
 // with a shared dictionary.
 class BrotliBinaryPatch : public BinaryPatch {
  public:
-  absl::StatusCode Patch(const FontData& font_base, const FontData& patch,
-                         FontData* font_derived /* OUT */) const override;
+  absl::Status Patch(const FontData& font_base, const FontData& patch,
+                     FontData* font_derived /* OUT */) const override;
 };
 
 }  // namespace patch_subset

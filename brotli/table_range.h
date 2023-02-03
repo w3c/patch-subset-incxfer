@@ -84,15 +84,20 @@ class TableRange {
     derived_length_ += derived_length;
   }
 
-  void CommitNew() {
-    out->insert_compressed(absl::Span<const uint8_t>(
+  absl::Status CommitNew() {
+    absl::Status s = out->insert_compressed(absl::Span<const uint8_t>(
         derived_.data() + derived_offset_, derived_length_));
+    if (!s.ok()) {
+      return s;
+    }
 
     derived_offset_ += derived_length_;
     base_offset_ += base_length_;
 
     base_length_ = 0;
     derived_length_ = 0;
+
+    return absl::OkStatus();
   }
 
   void CommitExisting() {
