@@ -7,7 +7,7 @@
 
 namespace patch_subset {
 
-using absl::StatusCode;
+using absl::Status;
 
 class FileFontProviderTest : public ::testing::Test {
  protected:
@@ -22,7 +22,7 @@ class FileFontProviderTest : public ::testing::Test {
 TEST_F(FileFontProviderTest, LoadFont) {
   FontData font_data;
   EXPECT_EQ(font_provider_.get()->GetFont("font.txt", &font_data),
-            StatusCode::kOk);
+            absl::OkStatus());
 
   std::string data(font_data.data(), font_data.size());
   EXPECT_EQ(data, "a font\n");
@@ -30,8 +30,8 @@ TEST_F(FileFontProviderTest, LoadFont) {
 
 TEST_F(FileFontProviderTest, FontNotFound) {
   FontData font_data;
-  EXPECT_EQ(font_provider_.get()->GetFont("nothere.txt", &font_data),
-            StatusCode::kNotFound);
+  EXPECT_TRUE(
+      absl::IsNotFound(font_provider_.get()->GetFont("nothere.txt", &font_data)));
 }
 
 }  // namespace patch_subset

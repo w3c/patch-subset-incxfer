@@ -9,7 +9,7 @@
 
 namespace patch_subset {
 
-using absl::StatusCode;
+using absl::Status;
 using patch_subset::cbor::ClientState;
 using patch_subset::cbor::PatchRequest;
 using patch_subset::cbor::PatchResponse;
@@ -24,7 +24,7 @@ void CodepointsInFont(const std::string& font_data, hb_set_t* codepoints) {
   hb_face_destroy(face);
 }
 
-StatusCode PatchSubsetClient::CreateRequest(
+Status PatchSubsetClient::CreateRequest(
     const hb_set_t& additional_codepoints, const ClientState& state,
     PatchRequest* request) {
   hb_set_unique_ptr existing_codepoints = make_hb_set();
@@ -34,80 +34,77 @@ StatusCode PatchSubsetClient::CreateRequest(
   hb_set_union(new_codepoints.get(), &additional_codepoints);
   hb_set_subtract(new_codepoints.get(), existing_codepoints.get());
 
-  StatusCode result =
+  Status result =
       EncodeCodepoints(state, existing_codepoints.get(), new_codepoints.get());
-  if (result != StatusCode::kOk) {
+  if (!result.ok()) {
     return result;
   }
 
   if (!hb_set_get_population(new_codepoints.get())) {
     // No new codepoints are needed. No action needed.
-    return StatusCode::kOk;
+    return absl::OkStatus();
   }
 
   CreateRequest(*existing_codepoints, *new_codepoints, state, request);
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
-StatusCode PatchSubsetClient::Extend(const hb_set_t& additional_codepoints,
-                                     ClientState& state) {
+Status PatchSubsetClient::Extend(const hb_set_t& additional_codepoints,
+                                 ClientState& state) {
   PatchRequest request;
-  StatusCode result = CreateRequest(additional_codepoints, state, &request);
-  if (result != StatusCode::kOk ||
+  Status result = CreateRequest(additional_codepoints, state, &request);
+  if (!result.ok() ||
       (request.IndicesNeeded().empty() && request.CodepointsNeeded().empty())) {
     return result;
   }
 
   PatchResponse response;
   result = server_->Handle(state.FontId(), request, response);
-  if (result != StatusCode::kOk) {
-    LOG(WARNING) << "Got a failure from the patch subset server (code = "
-                 << result << ").";
+  if (!result.ok()) {
     return result;
   }
 
   result = AmendState(response, &state);
-  if (result != StatusCode::kOk) {
+  if (!result.ok()) {
     return result;
   }
 
   LogRequest(request, response);
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
-StatusCode PatchSubsetClient::EncodeCodepoints(const ClientState& state,
-                                               hb_set_t* codepoints_have,
-                                               hb_set_t* codepoints_needed) {
+Status PatchSubsetClient::EncodeCodepoints(const ClientState& state,
+                                           hb_set_t* codepoints_have,
+                                           hb_set_t* codepoints_needed) {
   if (state.CodepointRemapping().empty()) {
-    return StatusCode::kOk;
+    return absl::OkStatus();
   }
 
   CodepointMap map;
   map.FromVector(state.CodepointRemapping());
 
-  StatusCode result;
+  Status result;
   map.IntersectWithMappedCodepoints(codepoints_have);
-  if ((result = map.Encode(codepoints_have)) != StatusCode::kOk) {
+  if (!(result = map.Encode(codepoints_have)).ok()) {
     LOG(WARNING) << "Failed to encode codepoints_have with the mapping.";
     return result;
   }
 
   map.IntersectWithMappedCodepoints(codepoints_needed);
-  if ((result = map.Encode(codepoints_needed)) != StatusCode::kOk) {
+  if (!(result = map.Encode(codepoints_needed)).ok()) {
     LOG(WARNING) << "Failed to encode codepoints_needed with the mapping.";
     return result;
   }
 
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
-StatusCode PatchSubsetClient::ComputePatched(const PatchResponse& response,
-                                             const ClientState* state,
-                                             FontData* patched) {
+Status PatchSubsetClient::ComputePatched(const PatchResponse& response,
+                                         const ClientState* state,
+                                         FontData* patched) {
   if (response.Patch().empty() && response.Replacement().empty()) {
     // TODO(garretrieger): implement support.
-    LOG(WARNING) << "Re-indexing is not yet implemented.";
-    return StatusCode::kUnimplemented;
+    return absl::UnimplementedError("Re-indexing is not yet implemented.");
   }
 
   FontData base;
@@ -116,34 +113,36 @@ StatusCode PatchSubsetClient::ComputePatched(const PatchResponse& response,
   }
 
   if (response.GetPatchFormat() != PatchFormat::BROTLI_SHARED_DICT) {
-    LOG(WARNING) << "Unsupported patch format " << response.GetPatchFormat();
-    return StatusCode::kFailedPrecondition;
+    return absl::FailedPreconditionError(
+        absl::StrCat("Unsupported patch format ", response.GetPatchFormat()));
   }
 
   FontData patch_data;
   if (!response.Patch().empty() && !response.Replacement().empty()) {
-    return StatusCode::kUnimplemented;
+    return absl::UnimplementedError("Resend handling not implemented yet.");
   } else if (!response.Patch().empty()) {
     patch_data.copy(response.Patch());
   } else {
     patch_data.copy(response.Replacement());
   }
 
-  binary_patch_->Patch(base, patch_data, patched);
-
-  if (hasher_->Checksum(patched->str()) != response.PatchedChecksum()) {
-    LOG(WARNING) << "Patched checksum mismatch.";
-    return StatusCode::kFailedPrecondition;
+  Status s = binary_patch_->Patch(base, patch_data, patched);
+  if (!s.ok()) {
+    return s;
   }
 
-  return StatusCode::kOk;
+  if (hasher_->Checksum(patched->str()) != response.PatchedChecksum()) {
+    return absl::FailedPreconditionError("Patched checksum mismatch.");
+  }
+
+  return absl::OkStatus();
 }
 
-StatusCode PatchSubsetClient::AmendState(const PatchResponse& response,
-                                         ClientState* state) {
+Status PatchSubsetClient::AmendState(const PatchResponse& response,
+                                     ClientState* state) {
   FontData patched;
-  StatusCode result = ComputePatched(response, state, &patched);
-  if (result != StatusCode::kOk) {
+  Status result = ComputePatched(response, state, &patched);
+  if (!result.ok()) {
     return result;
   }
 
@@ -155,7 +154,7 @@ StatusCode PatchSubsetClient::AmendState(const PatchResponse& response,
     state->SetCodepointRemappingChecksum(response.OrderingChecksum());
   }
 
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
 void PatchSubsetClient::CreateRequest(const hb_set_t& codepoints_have,

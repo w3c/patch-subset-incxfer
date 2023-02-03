@@ -9,7 +9,7 @@
 
 namespace patch_subset {
 
-using absl::StatusCode;
+using absl::Status;
 
 class HarfbuzzSubsetterTest : public ::testing::Test {
  protected:
@@ -24,13 +24,13 @@ class HarfbuzzSubsetterTest : public ::testing::Test {
 TEST_F(HarfbuzzSubsetterTest, Subset) {
   FontData font_data;
   EXPECT_EQ(font_provider_->GetFont("Roboto-Regular.ttf", &font_data),
-            StatusCode::kOk);
+            absl::OkStatus());
 
   hb_set_unique_ptr codepoints = make_hb_set_from_ranges(1, 0x61, 0x64);
 
   FontData subset_data;
   EXPECT_EQ(subsetter_->Subset(font_data, *codepoints, &subset_data),
-            StatusCode::kOk);
+            absl::OkStatus());
 
   hb_blob_t* subset_blob =
       hb_blob_create(subset_data.data(), subset_data.size(),
@@ -51,13 +51,13 @@ TEST_F(HarfbuzzSubsetterTest, Subset) {
 TEST_F(HarfbuzzSubsetterTest, SubsetEmpty) {
   FontData font_data;
   EXPECT_EQ(font_provider_->GetFont("Roboto-Regular.ttf", &font_data),
-            StatusCode::kOk);
+            absl::OkStatus());
 
   hb_set_unique_ptr codepoints = make_hb_set(0);
 
   FontData subset_data;
   EXPECT_EQ(subsetter_->Subset(font_data, *codepoints, &subset_data),
-            StatusCode::kOk);
+            absl::OkStatus());
 
   hb_blob_t* subset_blob =
       hb_blob_create(subset_data.data(), subset_data.size(),
@@ -69,9 +69,9 @@ TEST_F(HarfbuzzSubsetterTest, SubsetEmpty) {
 TEST_F(HarfbuzzSubsetterTest, CodepointsInFont) {
   FontData font_data_1, font_data_2;
   EXPECT_EQ(font_provider_->GetFont("Roboto-Regular.Meows.ttf", &font_data_1),
-            StatusCode::kOk);
+            absl::OkStatus());
   EXPECT_EQ(font_provider_->GetFont("Roboto-Regular.Awesome.ttf", &font_data_2),
-            StatusCode::kOk);
+            absl::OkStatus());
 
   hb_set_unique_ptr expected = make_hb_set(5, 0x4D, 0x65, 0x6F, 0x77, 0x73);
 
@@ -98,13 +98,13 @@ TEST_F(HarfbuzzSubsetterTest, CodepointsInFont_BadFont) {
 TEST_F(HarfbuzzSubsetterTest, SubsetNoRetainGids) {
   FontData font_data;
   EXPECT_EQ(font_provider_->GetFont("NotoSansJP-Regular.otf", &font_data),
-            StatusCode::kOk);
+            absl::OkStatus());
 
   hb_set_unique_ptr codepoints = make_hb_set(1, 0xffed);
 
   FontData subset_data;
   EXPECT_EQ(subsetter_->Subset(font_data, *codepoints, &subset_data),
-            StatusCode::kOk);
+            absl::OkStatus());
 
   hb_blob_t* subset_blob =
       hb_blob_create(subset_data.data(), subset_data.size(),

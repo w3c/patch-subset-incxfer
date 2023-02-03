@@ -8,7 +8,7 @@
 
 namespace patch_subset {
 
-using absl::StatusCode;
+using absl::Status;
 
 static unsigned int kRetainGidsThreshold = 5000;
 
@@ -18,12 +18,12 @@ bool HarfbuzzSubsetter::ShouldRetainGids(const FontData& font) const {
   return hb_set_get_population(codepoints.get()) < kRetainGidsThreshold;
 }
 
-StatusCode HarfbuzzSubsetter::Subset(const FontData& font,
-                                     const hb_set_t& codepoints,
-                                     FontData* subset /* OUT */) const {
+Status HarfbuzzSubsetter::Subset(const FontData& font,
+                                 const hb_set_t& codepoints,
+                                 FontData* subset /* OUT */) const {
   if (!hb_set_get_population(&codepoints)) {
     subset->reset();
-    return StatusCode::kOk;
+    return absl::OkStatus();
   }
 
   hb_blob_t* blob = font.reference_blob();
@@ -48,8 +48,7 @@ StatusCode HarfbuzzSubsetter::Subset(const FontData& font,
 
   if (!subset_face) {
     hb_face_destroy(subset_face);
-    LOG(WARNING) << "Internal subsetting failure.";
-    return StatusCode::kInternal;
+    return absl::InternalError("Internal subsetting failure.");
   }
 
   hb_blob_t* subset_blob = hb_face_reference_blob(subset_face);
@@ -59,7 +58,7 @@ StatusCode HarfbuzzSubsetter::Subset(const FontData& font,
 
   hb_blob_destroy(subset_blob);
 
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
 void HarfbuzzSubsetter::CodepointsInFont(const FontData& font,

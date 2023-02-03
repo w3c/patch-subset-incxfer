@@ -22,12 +22,12 @@ class BrotliRequestLogger : public RequestLogger {
       : memory_request_logger_(memory_request_logger),
         brotli_diff_(new BrotliBinaryDiff()) {}
 
-  absl::StatusCode LogRequest(const std::string& request_data,
-                              const std::string& response_data) override;
+  absl::Status LogRequest(const std::string& request_data,
+                          const std::string& response_data) override;
 
  private:
-  absl::StatusCode CompressIfSmaller(const std::string& data,
-                                     std::string* output_data);
+  absl::Status CompressIfSmaller(const std::string& data,
+                                 std::string* output_data);
 
   MemoryRequestLogger* memory_request_logger_;
   std::unique_ptr<BrotliBinaryDiff> brotli_diff_;

@@ -4,7 +4,7 @@
 
 namespace patch_subset {
 
-using absl::StatusCode;
+using absl::Status;
 
 class BrotliRequestLoggerTest : public ::testing::Test {
  protected:
@@ -32,7 +32,7 @@ TEST_F(BrotliRequestLoggerTest, Compresses) {
       "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 
   EXPECT_EQ(request_logger_->LogRequest(request_data, response_data),
-            StatusCode::kOk);
+            absl::OkStatus());
 
   EXPECT_EQ(memory_request_logger_->Records().size(), 1);
   const MemoryRequestLogger::Record& record =
@@ -48,7 +48,7 @@ TEST_F(BrotliRequestLoggerTest, DoesntCompress) {
   std::string response_data = "abcdefghijk";
 
   EXPECT_EQ(request_logger_->LogRequest(request_data, response_data),
-            StatusCode::kOk);
+            absl::OkStatus());
 
   EXPECT_EQ(memory_request_logger_->Records().size(), 1);
   const MemoryRequestLogger::Record& record =

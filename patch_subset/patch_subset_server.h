@@ -16,7 +16,7 @@ class PatchSubsetServer {
 
   // Handle a patch request from a client. Writes the resulting response
   // into response.
-  virtual absl::StatusCode Handle(
+  virtual absl::Status Handle(
       const std::string& font_id,
       const patch_subset::cbor::PatchRequest& request,
       patch_subset::cbor::PatchResponse& response /* OUT */) = 0;

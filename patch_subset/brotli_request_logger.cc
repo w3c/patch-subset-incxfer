@@ -9,19 +9,15 @@
 
 namespace patch_subset {
 
-using absl::StatusCode;
+using absl::Status;
 
-StatusCode BrotliRequestLogger::LogRequest(const std::string& request_data,
-                                           const std::string& response_data) {
+Status BrotliRequestLogger::LogRequest(const std::string& request_data,
+                                       const std::string& response_data) {
   std::string compressed_request_data;
-  StatusCode result = CompressIfSmaller(request_data, &compressed_request_data);
-  if (result != StatusCode::kOk) {
-    return result;
-  }
-
   std::string compressed_response_data;
-  CompressIfSmaller(response_data, &compressed_response_data);
-  if (result != StatusCode::kOk) {
+  Status result = CompressIfSmaller(request_data, &compressed_request_data);
+  result.Update(CompressIfSmaller(response_data, &compressed_response_data));
+  if (!result.ok()) {
     return result;
   }
 
@@ -29,15 +25,15 @@ StatusCode BrotliRequestLogger::LogRequest(const std::string& request_data,
                                             compressed_response_data);
 }
 
-StatusCode BrotliRequestLogger::CompressIfSmaller(const std::string& data,
-                                                  std::string* output_data) {
+Status BrotliRequestLogger::CompressIfSmaller(const std::string& data,
+                                              std::string* output_data) {
   FontData empty;
   FontData compressed;
   FontData font_data(data);
 
-  StatusCode result = brotli_diff_->Diff(empty, font_data, &compressed);
-  if (result != StatusCode::kOk) {
-    return result;
+  Status s = brotli_diff_->Diff(empty, font_data, &compressed);
+  if (!s.ok()) {
+    return s;
   }
 
   if (compressed.size() < data.size()) {
@@ -46,7 +42,7 @@ StatusCode BrotliRequestLogger::CompressIfSmaller(const std::string& data,
     *output_data = data;
   }
 
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
 }  // namespace patch_subset

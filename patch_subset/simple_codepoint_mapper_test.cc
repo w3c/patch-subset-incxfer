@@ -17,7 +17,7 @@ class SimpleCodepointMapperTest : public ::testing::Test {
   void CheckMapping(const CodepointMap& map, hb_codepoint_t from,
                     hb_codepoint_t to) {
     hb_codepoint_t cp = from;
-    EXPECT_EQ(StatusCode::kOk, map.Encode(&cp));
+    EXPECT_EQ(absl::OkStatus(), map.Encode(&cp));
     EXPECT_EQ(cp, to);
   }
 };

@@ -15,7 +15,7 @@
 
 namespace patch_subset {
 
-using absl::StatusCode;
+using absl::Status;
 using absl::string_view;
 using patch_subset::cbor::AxisInterval;
 using patch_subset::cbor::AxisSpace;
@@ -58,27 +58,26 @@ struct RequestState {
   PatchFormat format;
 };
 
-StatusCode PatchSubsetServerImpl::Handle(const std::string& font_id,
-                                         const PatchRequest& request,
-                                         PatchResponse& response) {
+Status PatchSubsetServerImpl::Handle(const std::string& font_id,
+                                     const PatchRequest& request,
+                                     PatchResponse& response) {
   RequestState state;
 
   LoadInputCodepoints(request, &state);
 
   if (!RequiredFieldsPresent(request, state)) {
-    return StatusCode::kInvalidArgument;
+    return absl::InvalidArgumentError("Request is missing required fields.");
   }
 
-  StatusCode result;
-  if (!Check(result = font_provider_->GetFont(font_id, &state.font_data),
-             "Failed to load font (font_id = " + font_id + ").")) {
+  Status result = font_provider_->GetFont(font_id, &state.font_data);
+  if (!result.ok()) {
     return result;
   }
 
   CheckOriginalChecksum(request.OriginalFontChecksum(), &state);
 
   if (codepoint_mapper_) {
-    if (!Check(result = ComputeCodepointRemapping(&state))) {
+    if (!(result = ComputeCodepointRemapping(&state)).ok()) {
       return result;
     }
   }
@@ -87,10 +86,10 @@ StatusCode PatchSubsetServerImpl::Handle(const std::string& font_id,
 
   if (state.IsReindex()) {
     ConstructResponse(state, response);
-    return StatusCode::kOk;
+    return absl::OkStatus();
   }
 
-  if (!Check(result = ComputeSubsets(font_id, &state))) {
+  if (!(result = ComputeSubsets(font_id, &state)).ok()) {
     return result;
   }
 
@@ -99,12 +98,10 @@ StatusCode PatchSubsetServerImpl::Handle(const std::string& font_id,
   const BinaryDiff* binary_diff =
       DiffFor(request.AcceptFormats(), state.format);
   if (!binary_diff) {
-    LOG(WARNING) << "No available binary diff algorithms were specified.";
-    return StatusCode::kInvalidArgument;
+    return absl::InvalidArgumentError("No available binary diff algorithms were specified.");
   }
-  if (!Check(result = binary_diff->Diff(
-                 state.client_subset, state.client_target_subset, &state.patch),
-             "Diff computation failed (font_id = " + font_id + ").")) {
+  if (!(result = binary_diff->Diff(
+                 state.client_subset, state.client_target_subset, &state.patch)).ok()) {
     return result;
   }
 
@@ -112,7 +109,7 @@ StatusCode PatchSubsetServerImpl::Handle(const std::string& font_id,
 
   ConstructResponse(state, response);
 
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
 void PatchSubsetServerImpl::LoadInputCodepoints(const PatchRequest& request,
@@ -165,7 +162,7 @@ void PatchSubsetServerImpl::CheckOriginalChecksum(uint64_t original_checksum,
   }
 }
 
-StatusCode PatchSubsetServerImpl::ComputeCodepointRemapping(
+Status PatchSubsetServerImpl::ComputeCodepointRemapping(
     RequestState* state) const {
   hb_set_unique_ptr codepoints = make_hb_set();
   subsetter_->CodepointsInFont(state->font_data, codepoints.get());
@@ -174,14 +171,14 @@ StatusCode PatchSubsetServerImpl::ComputeCodepointRemapping(
   if (hb_set_is_empty(state->indices_have.get()) &&
       hb_set_is_empty(state->indices_needed.get())) {
     // Don't remap input codepoints if none are specified as indices.
-    return StatusCode::kOk;
+    return absl::OkStatus();
   }
 
   vector<int32_t> mapping_ints;
-  if (!Check(state->mapping.ToVector(&mapping_ints),
-             "Invalid codepoint mapping. Unable to convert to vector.")) {
+  Status result = state->mapping.ToVector(&mapping_ints);
+  if (!result.ok()) {
     // This typically shouldn't happen, so bail with internal error.
-    return StatusCode::kInternal;
+    return result;
   }
 
   uint64_t expected_checksum = integer_list_checksum_->Checksum(mapping_ints);
@@ -190,7 +187,7 @@ StatusCode PatchSubsetServerImpl::ComputeCodepointRemapping(
                  << ") does not match expected checksum (" << expected_checksum
                  << "). Sending a REINDEX response.";
     state->codepoint_mapping_invalid = true;
-    return StatusCode::kOk;
+    return absl::OkStatus();
   }
 
   // Codepoints given to use by the client are using the computed codepoint
@@ -200,7 +197,7 @@ StatusCode PatchSubsetServerImpl::ComputeCodepointRemapping(
 
   hb_set_union(state->codepoints_have.get(), state->indices_have.get());
   hb_set_union(state->codepoints_needed.get(), state->indices_needed.get());
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
 void PatchSubsetServerImpl::AddPredictedCodepoints(RequestState* state) const {
@@ -221,11 +218,11 @@ void PatchSubsetServerImpl::AddPredictedCodepoints(RequestState* state) const {
   hb_set_union(state->codepoints_needed.get(), additional_codepoints.get());
 }
 
-StatusCode PatchSubsetServerImpl::ComputeSubsets(const std::string& font_id,
+Status PatchSubsetServerImpl::ComputeSubsets(const std::string& font_id,
                                                  RequestState* state) const {
-  StatusCode result = subsetter_->Subset(
+  Status result = subsetter_->Subset(
       state->font_data, *state->codepoints_have, &state->client_subset);
-  if (result != StatusCode::kOk) {
+  if (!result.ok()) {
     LOG(WARNING) << "Subsetting for client_subset "
                  << "(font_id = " << font_id << ")"
                  << "failed.";
@@ -234,7 +231,7 @@ StatusCode PatchSubsetServerImpl::ComputeSubsets(const std::string& font_id,
 
   result = subsetter_->Subset(state->font_data, *state->codepoints_needed,
                               &state->client_target_subset);
-  if (result != StatusCode::kOk) {
+  if (!result.ok()) {
     LOG(WARNING) << "Subsetting for client_target_subset "
                  << "(font_id = " << font_id << ")"
                  << "failed.";
@@ -283,16 +280,16 @@ void PatchSubsetServerImpl::ConstructResponse(const RequestState& state,
   AddVariableAxesData(state.font_data, response);
 }
 
-StatusCode PatchSubsetServerImpl::ValidateChecksum(uint64_t checksum,
+Status PatchSubsetServerImpl::ValidateChecksum(uint64_t checksum,
                                                    const FontData& data) const {
   uint64_t actual_checksum = hasher_->Checksum(data.str());
   if (actual_checksum != checksum) {
-    LOG(WARNING) << "Checksum mismatch. "
-                 << "Expected = " << checksum << " "
-                 << "Actual = " << actual_checksum << ".";
-    return StatusCode::kInvalidArgument;
+    LOG(WARNING) << ;
+    return absl::InvalidArgumentError(absl::StrCat(
+        "Checksum mismatch. Expected = ", checksum,
+        " Actual = ", actual_checksum, "."));
   }
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
 void PatchSubsetServerImpl::AddVariableAxesData(const FontData& font_data,
@@ -341,19 +338,6 @@ void PatchSubsetServerImpl::AddChecksums(const FontData& font_data,
                                          PatchResponse& response) const {
   response.SetOriginalFontChecksum(
       hasher_->Checksum(string_view(font_data.str())));
-}
-
-bool PatchSubsetServerImpl::Check(StatusCode result) const {
-  return result == StatusCode::kOk;
-}
-
-bool PatchSubsetServerImpl::Check(StatusCode result,
-                                  const std::string& message) const {
-  if (result == StatusCode::kOk) {
-    return true;
-  }
-  LOG(WARNING) << message;
-  return false;
 }
 
 const BinaryDiff* PatchSubsetServerImpl::DiffFor(

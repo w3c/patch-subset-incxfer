@@ -11,8 +11,8 @@ namespace patch_subset {
 // (https://datatracker.ietf.org/doc/html/rfc3284)
 class VCDIFFBinaryDiff : public BinaryDiff {
  public:
-  absl::StatusCode Diff(const FontData& font_base, const FontData& font_derived,
-                        FontData* patch /* OUT */) const override;
+  absl::Status Diff(const FontData& font_base, const FontData& font_derived,
+                    FontData* patch /* OUT */) const override;
 };
 
 }  // namespace patch_subset

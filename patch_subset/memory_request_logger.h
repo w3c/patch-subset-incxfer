@@ -18,8 +18,8 @@ class MemoryRequestLogger : public RequestLogger {
     uint32_t response_size;
   };
 
-  absl::StatusCode LogRequest(const std::string& request_data,
-                              const std::string& response_data) override;
+  absl::Status LogRequest(const std::string& request_data,
+                          const std::string& response_data) override;
 
   const std::vector<Record>& Records() const;
 
