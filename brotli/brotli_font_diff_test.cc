@@ -6,14 +6,14 @@
 #include "patch_subset/brotli_binary_patch.h"
 #include "patch_subset/hb_set_unique_ptr.h"
 
-using ::absl::Span;
-using ::patch_subset::BrotliBinaryPatch;
-using ::patch_subset::FontData;
-using ::patch_subset::hb_set_unique_ptr;
-using ::patch_subset::make_hb_set;
-using ::patch_subset::StatusCode;
-
 namespace brotli {
+
+using absl::Span;
+using absl::Status;
+using patch_subset::BrotliBinaryPatch;
+using patch_subset::FontData;
+using patch_subset::hb_set_unique_ptr;
+using patch_subset::make_hb_set;
 
 const std::string kTestDataDir = "patch_subset/testdata/";
 
@@ -63,7 +63,7 @@ class BrotliFontDiffTest : public ::testing::Test {
              const FontData& derived) {
     BrotliBinaryPatch patcher;
     FontData patched;
-    EXPECT_EQ(StatusCode::kOk, patcher.Patch(base, patch, &patched));
+    EXPECT_EQ(absl::OkStatus(), patcher.Patch(base, patch, &patched));
     // for debugging:
     // dump("derived.ttf", derived.data(), derived.size());
     // dump("patched.ttf", patched.data(), patched.size());
@@ -105,7 +105,7 @@ TEST_F(BrotliFontDiffTest, Diff) {
   FontData patch;
   ASSERT_EQ(
       differ.Diff(base_plan, base_blob, derived_plan, derived_blob, &patch),
-      StatusCode::kOk);
+      absl::OkStatus());
 
   Check(base, patch, derived);
 
@@ -140,7 +140,7 @@ TEST_F(BrotliFontDiffTest, DiffRetainGids) {
   FontData patch;
   ASSERT_EQ(
       differ.Diff(base_plan, base_blob, derived_plan, derived_blob, &patch),
-      StatusCode::kOk);
+      absl::OkStatus());
 
   Check(base, patch, derived);
 
@@ -179,7 +179,7 @@ TEST_F(BrotliFontDiffTest, LongLoca) {
   FontData patch;
   ASSERT_EQ(
       differ.Diff(base_plan, base_blob, derived_plan, derived_blob, &patch),
-      StatusCode::kOk);
+      absl::OkStatus());
 
   Check(base, patch, derived);
 
@@ -217,7 +217,7 @@ TEST_F(BrotliFontDiffTest, ShortToLongLoca) {
   FontData patch;
   ASSERT_EQ(
       differ.Diff(base_plan, base_blob, derived_plan, derived_blob, &patch),
-      StatusCode::kOk);
+      absl::OkStatus());
 
   Check(base, patch, derived);
 
@@ -258,7 +258,7 @@ TEST_F(BrotliFontDiffTest, WithImmutableTables) {
   FontData patch;
   ASSERT_EQ(
       differ.Diff(base_plan, base_blob, derived_plan, derived_blob, &patch),
-      StatusCode::kOk);
+      absl::OkStatus());
 
   Check(base, patch, derived);
 

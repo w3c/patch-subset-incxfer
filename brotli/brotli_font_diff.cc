@@ -8,12 +8,12 @@
 #include "brotli/table_range.h"
 #include "patch_subset/hb_set_unique_ptr.h"
 
-using ::absl::Span;
-using ::patch_subset::FontData;
-using ::patch_subset::hb_set_unique_ptr;
-using ::patch_subset::StatusCode;
-
 namespace brotli {
+
+using absl::Span;
+using absl::Status;
+using patch_subset::FontData;
+using patch_subset::hb_set_unique_ptr;
 
 static bool HasTable(hb_face_t* face, hb_tag_t tag) {
   hb_blob_t* table = hb_face_reference_table(face, tag);
@@ -259,9 +259,9 @@ void BrotliFontDiff::SortForDiff(const hb_set_t* immutable_tables,
   hb_face_builder_sort_tables(face_builder, table_order.data());
 }
 
-StatusCode BrotliFontDiff::Diff(hb_subset_plan_t* base_plan, hb_blob_t* base,
-                                hb_subset_plan_t* derived_plan,
-                                hb_blob_t* derived, FontData* patch) const {
+Status BrotliFontDiff::Diff(hb_subset_plan_t* base_plan, hb_blob_t* base,
+                            hb_subset_plan_t* derived_plan,
+                            hb_blob_t* derived, FontData* patch) const {
   Span<const uint8_t> base_span = TableRange::to_span(base);
   Span<const uint8_t> derived_span = TableRange::to_span(derived);
 
@@ -293,8 +293,7 @@ StatusCode BrotliFontDiff::Diff(hb_subset_plan_t* base_plan, hb_blob_t* base,
       }
 
       if (HasTable(base_face, tag) != HasTable(derived_face, tag)) {
-        LOG(WARNING) << "base and derived must both have the same tables.";
-        return StatusCode::kInternal;
+        return absl::InternalError("base and derived must both have the same tables.");
       }
 
       Span<const uint8_t> base_span =
@@ -316,13 +315,11 @@ StatusCode BrotliFontDiff::Diff(hb_subset_plan_t* base_plan, hb_blob_t* base,
       }
 
       if (derived_end_offset && derived_end_offset != derived_offset) {
-        LOG(WARNING) << "custom diff tables in derived are not sequential.";
-        return StatusCode::kInternal;
+        return absl::InternalError("custom diff tables in derived are not sequential.");
       }
 
       if (base_end_offset && base_end_offset != base_offset) {
-        LOG(WARNING) << "custom diff tables in base are not sequential.";
-        return StatusCode::kInternal;
+        return absl::InternalError("custom diff tables in base are not sequential.");
       }
 
       derived_end_offset = derived_offset + derived_span.size();
@@ -336,8 +333,7 @@ StatusCode BrotliFontDiff::Diff(hb_subset_plan_t* base_plan, hb_blob_t* base,
       base_span.subspan(0, base_start_offset));
 
   if (!out.insert_from_dictionary(base_start_offset, base_region_sizes[0])) {
-    LOG(WARNING) << "dict insert of immutable tables failed.";
-    return StatusCode::kInternal;
+    return absl::InternalError("dict insert of immutable tables failed.");
   }
 
   diff_driver.MakeDiff();
@@ -355,7 +351,7 @@ StatusCode BrotliFontDiff::Diff(hb_subset_plan_t* base_plan, hb_blob_t* base,
   hb_face_destroy(base_face);
   hb_face_destroy(derived_face);
 
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
 }  // namespace brotli

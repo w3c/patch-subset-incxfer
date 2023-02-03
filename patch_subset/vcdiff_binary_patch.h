@@ -10,8 +10,8 @@ namespace patch_subset {
 // Applies a patch that was created using vcdiff.
 class VCDIFFBinaryPatch : public BinaryPatch {
  public:
-  absl::StatusCode Patch(const FontData& font_base, const FontData& patch,
-                         FontData* font_derived /* OUT */) const override;
+  absl::Status Patch(const FontData& font_base, const FontData& patch,
+                     FontData* font_derived /* OUT */) const override;
 };
 
 }  // namespace patch_subset

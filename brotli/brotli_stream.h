@@ -42,11 +42,11 @@ class BrotliStream {
   void insert_uncompressed(absl::Span<const uint8_t> bytes);
 
   // Insert bytes and compress them. No shared dictionary is used.
-  absl::StatusCode insert_compressed(absl::Span<const uint8_t> bytes);
+  absl::Status insert_compressed(absl::Span<const uint8_t> bytes);
 
   // Insert bytes and compress them uses a portion of the full dictionary.
   // Where partial_dict is the dictionary bytes from [0, partial_dict.size())
-  absl::StatusCode insert_compressed_with_partial_dict(
+  absl::Status insert_compressed_with_partial_dict(
       absl::Span<const uint8_t> bytes, absl::Span<const uint8_t> partial_dict);
 
   // Appends another stream onto this one. The other stream must have been
