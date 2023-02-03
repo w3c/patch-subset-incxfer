@@ -15,7 +15,7 @@
 namespace patch_subset {
 
 using absl::Span;
-using absl::StatusCode;
+using absl::Status;
 
 using testing::Eq;
 using testing::Pointwise;
@@ -33,7 +33,7 @@ class CompressedSetTest : public ::testing::Test {
     CompressedSet::Encode(*input, *encoded_);
 
     hb_set_unique_ptr decoded = make_hb_set();
-    EXPECT_EQ(CompressedSet::Decode(*encoded_, decoded.get()), StatusCode::kOk);
+    EXPECT_EQ(CompressedSet::Decode(*encoded_, decoded.get()), absl::OkStatus());
     EXPECT_TRUE(hb_set_is_equal(decoded.get(), input.get()));
   }
 

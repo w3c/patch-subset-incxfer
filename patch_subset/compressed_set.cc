@@ -13,22 +13,22 @@ typedef std::vector<range> range_vector;
 
 namespace patch_subset {
 
-using absl::StatusCode;
+using absl::Status;
 using std::optional;
 
 static const int kBitsPerByte = 8;
 
-StatusCode CompressedSet::Decode(const patch_subset::cbor::CompressedSet& set,
+Status CompressedSet::Decode(const patch_subset::cbor::CompressedSet& set,
                                  hb_set_t* out) {
-  StatusCode result = SparseBitSet::Decode(set.SparseBitSetBytes(), out);
-  if (result != StatusCode::kOk) {
+  Status result = SparseBitSet::Decode(set.SparseBitSetBytes(), out);
+  if (!result.ok()) {
     return result;
   }
 
   for (patch_subset::cbor::range range : set.Ranges()) {
     hb_set_add_range(out, range.first, range.second);
   }
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
 range_vector ToRanges(const hb_set_t& set) {

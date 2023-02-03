@@ -11,7 +11,7 @@
 
 namespace patch_subset {
 
-using absl::StatusCode;
+using absl::Status;
 using absl::string_view;
 using std::string;
 using std::unordered_map;
@@ -46,12 +46,12 @@ uint8_t ValuesPerBitLog2ForLayer(uint32_t layer, uint32_t tree_depth,
   return kBFNodeSizeLog2[branch_factor] * num_layers;
 }
 
-StatusCode SparseBitSet::Decode(string_view sparse_bit_set, hb_set_t* out) {
+Status SparseBitSet::Decode(string_view sparse_bit_set, hb_set_t* out) {
   if (!out) {
-    return StatusCode::kInvalidArgument;
+    return absl::InvalidArgumentError("out is null.");
   }
   if (sparse_bit_set.empty()) {
-    return StatusCode::kOk;
+    return absl::OkStatus();
   }
 
   BitInputBuffer bits(sparse_bit_set);
@@ -61,7 +61,8 @@ StatusCode SparseBitSet::Decode(string_view sparse_bit_set, hb_set_t* out) {
   // Enforce upper limits on tree sizes.
   // We only need to encode the 32 bit range 0x0 .. 0xFFFFFFFF.
   if (tree_height > kBFMaxDepth[branch_factor]) {
-    return StatusCode::kInvalidArgument;
+    return absl::InvalidArgumentError(absl::StrCat(
+        "tree_height, ", tree_height, " is larger than max ", kBFMaxDepth[branch_factor]));
   }
 
   // At each level, this is the number of leaf values a node covers.
@@ -84,8 +85,7 @@ StatusCode SparseBitSet::Decode(string_view sparse_bit_set, hb_set_t* out) {
       // This is a normal node so read a node's worth of bits.
       uint32_t current_node_bits;
       if (!bits.read(&current_node_bits)) {
-        // Ran out of node bits.
-        return StatusCode::kInvalidArgument;
+        return absl::InvalidArgumentError("ran out of node bits.");
       }
       if (current_node_bits == 0u) {
         // This is a completely filled node encoded as a zero!
@@ -126,7 +126,7 @@ StatusCode SparseBitSet::Decode(string_view sparse_bit_set, hb_set_t* out) {
     hb_set_add_sorted_array(out, pending_codepoints.data(),
                             pending_codepoints.size());
   }
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
 static void AdvanceToCp(uint32_t prev_cp, uint32_t cp,
