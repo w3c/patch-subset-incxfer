@@ -201,7 +201,10 @@ void PatchSubsetClient::LogRequest(const PatchRequest& request,
   request.SerializeToString(request_bytes);
   std::string response_bytes;
   response.SerializeToString(response_bytes);
-  request_logger_->LogRequest(request_bytes, response_bytes);
+  Status result = request_logger_->LogRequest(request_bytes, response_bytes);
+  if (!result.ok()) {
+    LOG(WARNING) << "Error logging result: " << result;
+  }
 }
 
 }  // namespace patch_subset

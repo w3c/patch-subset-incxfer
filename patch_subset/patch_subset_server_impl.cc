@@ -63,13 +63,16 @@ Status PatchSubsetServerImpl::Handle(const std::string& font_id,
                                      PatchResponse& response) {
   RequestState state;
 
-  LoadInputCodepoints(request, &state);
+  Status result = LoadInputCodepoints(request, &state);
+  if (!result.ok()) {
+    return result;
+  }
 
   if (!RequiredFieldsPresent(request, state)) {
     return absl::InvalidArgumentError("Request is missing required fields.");
   }
 
-  Status result = font_provider_->GetFont(font_id, &state.font_data);
+  result = font_provider_->GetFont(font_id, &state.font_data);
   if (!result.ok()) {
     return result;
   }
@@ -113,17 +116,24 @@ Status PatchSubsetServerImpl::Handle(const std::string& font_id,
   return ConstructResponse(state, response);
 }
 
-void PatchSubsetServerImpl::LoadInputCodepoints(const PatchRequest& request,
-                                                RequestState* state) const {
-  CompressedSet::Decode(request.CodepointsHave(), state->codepoints_have.get());
-  CompressedSet::Decode(request.CodepointsNeeded(),
-                        state->codepoints_needed.get());
-  CompressedSet::Decode(request.IndicesHave(), state->indices_have.get());
-  CompressedSet::Decode(request.IndicesNeeded(), state->indices_needed.get());
+Status PatchSubsetServerImpl::LoadInputCodepoints(const PatchRequest& request,
+                                                  RequestState* state) const {
+  Status result;
+  result.Update(CompressedSet::Decode(request.CodepointsHave(), state->codepoints_have.get()));
+  result.Update(CompressedSet::Decode(request.CodepointsNeeded(),
+                                      state->codepoints_needed.get()));
+  result.Update(CompressedSet::Decode(request.IndicesHave(), state->indices_have.get()));
+  result.Update(CompressedSet::Decode(request.IndicesNeeded(), state->indices_needed.get()));
+
+  if (!result.ok()) {
+    return result;
+  }
 
   hb_set_union(state->codepoints_needed.get(), state->codepoints_have.get());
   hb_set_union(state->indices_needed.get(), state->indices_have.get());
   state->ordering_checksum = request.OrderingChecksum();
+
+  return absl::OkStatus();
 }
 
 bool PatchSubsetServerImpl::RequiredFieldsPresent(

@@ -49,8 +49,8 @@ class SparseBitSet {
  public:
   // Decode a SparseBitSet binary blob into an actual set. The decoded set
   // items are appended to any existing items in out.
-  static absl::StatusCode Decode(absl::string_view sparse_bit_set,
-                                 hb_set_t* out);
+  static absl::Status Decode(absl::string_view sparse_bit_set,
+                             hb_set_t* out);
 
   // Encode a set of integers into a sparse bit set binary blob.
   static std::string Encode(const hb_set_t& set, BranchFactor branch_factor);

@@ -14,8 +14,8 @@ namespace patch_subset {
 class CompressedSet {
  public:
   // Decode a CBOR CompressedSet into a Harfbuzz set.
-  static absl::StatusCode Decode(const patch_subset::cbor::CompressedSet& set,
-                                 hb_set_t* out);
+  static absl::Status Decode(const patch_subset::cbor::CompressedSet& set,
+                             hb_set_t* out);
 
   // Encode a Harfbuzz set of integers into a CBOR CompressedSet.
   static void Encode(const hb_set_t& set,

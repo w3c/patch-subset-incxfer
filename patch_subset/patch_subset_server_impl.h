@@ -138,8 +138,8 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
       patch_subset::cbor::PatchResponse& response /* OUT */) override;
 
  private:
-  void LoadInputCodepoints(const patch_subset::cbor::PatchRequest& request,
-                           RequestState* state) const;
+  absl::Status LoadInputCodepoints(const patch_subset::cbor::PatchRequest& request,
+                                   RequestState* state) const;
 
   bool RequiredFieldsPresent(const patch_subset::cbor::PatchRequest& request,
                              const RequestState& state) const;
