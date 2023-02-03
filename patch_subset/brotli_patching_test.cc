@@ -1,5 +1,5 @@
-#include "absl/types/span.h"
 #include "absl/status/status.h"
+#include "absl/types/span.h"
 #include "gtest/gtest.h"
 #include "patch_subset/brotli_binary_diff.h"
 #include "patch_subset/brotli_binary_patch.h"
@@ -8,8 +8,8 @@
 
 namespace patch_subset {
 
-using absl::StatusCode;
 using absl::Span;
+using absl::StatusCode;
 
 class BrotliPatchingTest : public ::testing::Test {
  protected:

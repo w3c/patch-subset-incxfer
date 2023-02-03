@@ -16,7 +16,7 @@ class FakeSubsetter : public Subsetter {
   FakeSubsetter() {}
 
   absl::StatusCode Subset(const FontData& font, const hb_set_t& codepoints,
-                    FontData* subset /* OUT */) const override {
+                          FontData* subset /* OUT */) const override {
     if (font.empty()) {
       return absl::StatusCode::kInternal;
     }

@@ -2,10 +2,10 @@
 
 #include <utility>
 
+#include "absl/log/log.h"
 #include "absl/strings/string_view.h"
 #include "brotli/shared_brotli_encoder.h"
 #include "c/enc/prefix.h"
-#include "absl/log/log.h"
 
 using absl::Span;
 using patch_subset::StatusCode;

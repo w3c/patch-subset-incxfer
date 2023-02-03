@@ -4,8 +4,8 @@
 #include <optional>
 #include <vector>
 
-#include "cbor.h"
 #include "absl/status/status.h"
+#include "cbor.h"
 #include "patch_subset/cbor/axis_space.h"
 #include "patch_subset/cbor/cbor_item_unique_ptr.h"
 #include "patch_subset/constants.h"
@@ -51,11 +51,12 @@ class PatchResponse {
                 uint64_t ordering_checksum, AxisSpace subset_axis_space,
                 AxisSpace original_axis_space);
 
-  static absl::StatusCode Decode(const cbor_item_t& cbor_map, PatchResponse& out);
+  static absl::StatusCode Decode(const cbor_item_t& cbor_map,
+                                 PatchResponse& out);
   absl::StatusCode Encode(cbor_item_unique_ptr& map_out) const;
 
   static absl::StatusCode ParseFromString(const std::string& buffer,
-                                    PatchResponse& out);
+                                          PatchResponse& out);
   absl::StatusCode SerializeToString(std::string& out) const;
 
   void CopyTo(PatchResponse& target) const;

@@ -13,8 +13,9 @@ class BinaryPatch {
   virtual ~BinaryPatch() = default;
 
   // Apply a batch to font_base and write the results to font_derived.
-  virtual absl::StatusCode Patch(const FontData& font_base, const FontData& patch,
-                           FontData* font_derived) const = 0;
+  virtual absl::StatusCode Patch(const FontData& font_base,
+                                 const FontData& patch,
+                                 FontData* font_derived) const = 0;
 };
 
 }  // namespace patch_subset

@@ -2,8 +2,8 @@
 
 #include <stdio.h>
 
-#include "absl/strings/string_view.h"
 #include "absl/log/log.h"
+#include "absl/strings/string_view.h"
 #include "hb-ot.h"
 #include "hb-subset.h"
 #include "hb.h"

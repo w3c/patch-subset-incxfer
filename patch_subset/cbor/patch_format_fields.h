@@ -4,8 +4,8 @@
 #include <optional>
 #include <vector>
 
-#include "cbor.h"
 #include "absl/status/status.h"
+#include "cbor.h"
 #include "patch_subset/cbor/cbor_item_unique_ptr.h"
 #include "patch_subset/constants.h"
 
@@ -18,10 +18,10 @@ namespace patch_subset::cbor {
 class PatchFormatFields {
  public:
   static absl::StatusCode ToPatchFormat(uint64_t value,
-                                  patch_subset::PatchFormat* out);
+                                        patch_subset::PatchFormat* out);
 
   static absl::StatusCode Decode(const cbor_item_t& bytes,
-                           std::vector<patch_subset::PatchFormat>& out);
+                                 std::vector<patch_subset::PatchFormat>& out);
 
   static absl::StatusCode Encode(
       const std::vector<patch_subset::PatchFormat>& formats,

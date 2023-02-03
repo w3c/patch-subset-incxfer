@@ -3,8 +3,8 @@
 #include <memory>
 #include <vector>
 
-#include "absl/types/span.h"
 #include "absl/status/status.h"
+#include "absl/types/span.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "hb.h"
@@ -14,8 +14,8 @@
 
 namespace patch_subset {
 
-using absl::StatusCode;
 using absl::Span;
+using absl::StatusCode;
 
 using testing::Eq;
 using testing::Pointwise;

@@ -3,8 +3,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "absl/strings/string_view.h"
 #include "absl/status/status.h"
+#include "absl/strings/string_view.h"
 #include "hb.h"
 #include "patch_subset/bit_input_buffer.h"
 #include "patch_subset/bit_output_buffer.h"

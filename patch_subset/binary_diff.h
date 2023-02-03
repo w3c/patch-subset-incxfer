@@ -15,8 +15,8 @@ class BinaryDiff {
   // Compute a patch which can be applied to binary a to transform
   // it into binary b.
   virtual absl::StatusCode Diff(const FontData& font_base,
-                          const FontData& font_derived,
-                          FontData* patch /* OUT */) const = 0;
+                                const FontData& font_derived,
+                                FontData* patch /* OUT */) const = 0;
 };
 
 }  // namespace patch_subset

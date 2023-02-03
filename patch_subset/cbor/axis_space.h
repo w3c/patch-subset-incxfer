@@ -4,8 +4,8 @@
 #include <optional>
 
 #include "absl/container/btree_map.h"
-#include "cbor.h"
 #include "absl/status/status.h"
+#include "cbor.h"
 #include "hb-subset.h"
 #include "patch_subset/cbor/axis_interval.h"
 #include "patch_subset/cbor/cbor_item_unique_ptr.h"
@@ -34,8 +34,9 @@ class AxisSpace {
   static absl::StatusCode SetAxisSpaceField(
       cbor_item_t& map, int field_number,
       const std::optional<AxisSpace>& axis_space);
-  static absl::StatusCode GetAxisSpaceField(const cbor_item_t& map, int field_number,
-                                      std::optional<AxisSpace>& out);
+  static absl::StatusCode GetAxisSpaceField(const cbor_item_t& map,
+                                            int field_number,
+                                            std::optional<AxisSpace>& out);
   static absl::StatusCode Decode(const cbor_item_t& cbor_map, AxisSpace& out);
   absl::StatusCode Encode(cbor_item_unique_ptr& map_out) const;
 

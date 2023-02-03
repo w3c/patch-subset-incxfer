@@ -2,8 +2,8 @@
 
 #include <memory>
 
-#include "analysis/pfe_methods/unicode_range_data/slicing_strategy.pb.h"
 #include "absl/status/status.h"
+#include "analysis/pfe_methods/unicode_range_data/slicing_strategy.pb.h"
 #include "gtest/gtest.h"
 #include "patch_subset/hb_set_unique_ptr.h"
 
