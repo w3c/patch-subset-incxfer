@@ -5,7 +5,7 @@
 
 namespace patch_subset::cbor {
 
-using absl::StatusCode;
+using absl::Status;
 using std::string;
 
 class CborItemUniquePtrTest : public ::testing::Test {};
@@ -53,9 +53,9 @@ TEST_F(CborItemUniquePtrTest, MakeCborInt) {
   cbor_item_unique_ptr cint = make_cbor_int(1234);
   int32_t n;
 
-  StatusCode sc = CborUtils::DecodeInt(*cint, &n);
+  Status sc = CborUtils::DecodeInt(*cint, &n);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   EXPECT_EQ(n, 1234);
 
   // Int will be deleted automatically.
@@ -65,9 +65,9 @@ TEST_F(CborItemUniquePtrTest, MakeCborString) {
   cbor_item_unique_ptr str = make_cbor_string("abc");
   string s;
 
-  StatusCode sc = CborUtils::DecodeString(*str, s);
+  Status sc = CborUtils::DecodeString(*str, s);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   EXPECT_EQ(s, "abc");
 
   // String will be deleted automatically.
@@ -78,9 +78,9 @@ TEST_F(CborItemUniquePtrTest, MakeCborBytestring) {
   cbor_item_unique_ptr bytes = make_cbor_bytestring(buffer);
 
   string sv;
-  StatusCode sc = CborUtils::DecodeBytes(*bytes, sv);
+  Status sc = CborUtils::DecodeBytes(*bytes, sv);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   EXPECT_EQ(sv, buffer);
 
   // Bytestring will be deleted automatically.

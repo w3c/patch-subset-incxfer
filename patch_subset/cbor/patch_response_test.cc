@@ -9,7 +9,7 @@
 
 namespace patch_subset::cbor {
 
-using absl::StatusCode;
+using absl::Status;
 using std::string;
 using std::vector;
 
@@ -128,71 +128,71 @@ TEST_F(PatchResponseTest, Encode) {
                          codepoint_ordering, ordering_checksum, subset_space,
                          original_space);
   cbor_item_unique_ptr map = empty_cbor_ptr();
-  StatusCode sc = response.Encode(map);
+  Status sc = response.Encode(map);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_NE(map.get(), nullptr);
   cbor_item_unique_ptr field = empty_cbor_ptr();
 
   sc = CborUtils::GetField(*map, 0, field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   int version;
   sc = CborUtils::DecodeInt(*field, &version);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(version, response.GetProtocolVersion());
 
   sc = CborUtils::GetField(*map, 1, field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   int format;
   sc = CborUtils::DecodeInt(*field, &format);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(format, response.GetPatchFormat());
 
   sc = CborUtils::GetField(*map, 2, field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   string data;
   sc = CborUtils::DecodeBytes(*field, data);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(data, response.Patch());
 
   sc = CborUtils::GetField(*map, 3, field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   sc = CborUtils::DecodeBytes(*field, data);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(data, response.Replacement());
 
   sc = CborUtils::GetField(*map, 4, field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   uint64_t checksum;
   sc = CborUtils::DecodeUInt64(*field, &checksum);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(checksum, response.OriginalFontChecksum());
 
   sc = CborUtils::GetField(*map, 5, field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   sc = CborUtils::DecodeUInt64(*field, &checksum);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(checksum, response.PatchedChecksum());
 
   sc = CborUtils::GetField(*map, 6, field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   vector<int32_t> order;
   sc = IntegerList::Decode(*field, order);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(order, response.CodepointOrdering());
 
   sc = CborUtils::GetField(*map, 7, field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   sc = CborUtils::DecodeUInt64(*field, &checksum);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(checksum, response.OrderingChecksum());
 
   std::optional<AxisSpace> space;
-  ASSERT_EQ(AxisSpace::GetAxisSpaceField(*map, 8, space), StatusCode::kOk);
+  ASSERT_EQ(AxisSpace::GetAxisSpaceField(*map, 8, space), absl::OkStatus());
   ASSERT_TRUE(space);
   ASSERT_EQ(*space, subset_space);
 
-  ASSERT_EQ(AxisSpace::GetAxisSpaceField(*map, 9, space), StatusCode::kOk);
+  ASSERT_EQ(AxisSpace::GetAxisSpaceField(*map, 9, space), absl::OkStatus());
   ASSERT_TRUE(space);
   ASSERT_EQ(*space, original_space);
 }
@@ -232,15 +232,15 @@ TEST_F(PatchResponseTest, Decode) {
                       cbor_move(CborUtils::EncodeUInt64(ordering_checksum)));
 
   ASSERT_EQ(AxisSpace::SetAxisSpaceField(*map, 8, subset_space),
-            StatusCode::kOk);
+            absl::OkStatus());
   ASSERT_EQ(AxisSpace::SetAxisSpaceField(*map, 9, original_space),
-            StatusCode::kOk);
+            absl::OkStatus());
 
   PatchResponse response;
 
-  StatusCode sc = PatchResponse::Decode(*map, response);
+  Status sc = PatchResponse::Decode(*map, response);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   EXPECT_EQ(response, expected);
 }
 

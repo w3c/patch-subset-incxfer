@@ -20,7 +20,7 @@ namespace patch_subset {
 using absl::btree_map;
 using absl::btree_set;
 using absl::flat_hash_map;
-using absl::StatusCode;
+using absl::Status;
 using analysis::pfe_methods::unicode_range_data::Codepoint;
 using analysis::pfe_methods::unicode_range_data::SlicingStrategy;
 using analysis::pfe_methods::unicode_range_data::Subset;
@@ -38,20 +38,20 @@ struct CodepointFreqCompare {
   }
 };
 
-StatusCode LoadStrategy(const std::string& path, SlicingStrategy* out) {
+Status LoadStrategy(const std::string& path, SlicingStrategy* out) {
   static flat_hash_map<std::string, SlicingStrategy> cache;
 
   if (cache.find(path) != cache.end()) {
     *out = cache[path];
-    return StatusCode::kOk;
+    return absl::OkStatus();
   }
 
   std::ifstream input(path);
   std::string data;
 
   if (!input.is_open()) {
-    LOG(WARNING) << "Could not open strategy file: " << path;
-    return StatusCode::kNotFound;
+    return absl::NotFoundError(absl::StrCat("Could not open strategy file: ",
+                                            path));
   }
 
   input.seekg(0, std::ios::end);
@@ -61,31 +61,31 @@ StatusCode LoadStrategy(const std::string& path, SlicingStrategy* out) {
               std::istreambuf_iterator<char>());
 
   if (!TextFormat::ParseFromString(data, out)) {
-    LOG(WARNING) << "Unable to parse strategy file: " << path;
-    return StatusCode::kInternal;
+    return absl::InternalError(absl::StrCat(
+        "Unable to parse strategy file: ", path));
   }
 
   cache[path] = *out;
 
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
-StatusCode LoadAllStrategies(const std::string& directory,
-                             std::vector<SlicingStrategy>* strategies) {
+Status LoadAllStrategies(const std::string& directory,
+                         std::vector<SlicingStrategy>* strategies) {
   for (const auto& entry : std::filesystem::directory_iterator(directory)) {
     if (entry.path().extension() != std::filesystem::path(".textproto")) {
       continue;
     }
 
     SlicingStrategy strategy;
-    StatusCode result;
-    if ((result = LoadStrategy(entry.path(), &strategy)) != StatusCode::kOk) {
+    Status result;
+    if (!(result = LoadStrategy(entry.path(), &strategy)).ok()) {
       return result;
     }
     strategies->push_back(strategy);
   }
 
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
 FrequencyCodepointPredictor* FrequencyCodepointPredictor::Create(
@@ -96,8 +96,9 @@ FrequencyCodepointPredictor* FrequencyCodepointPredictor::Create(
 FrequencyCodepointPredictor* FrequencyCodepointPredictor::Create(
     float minimum_frequency, const std::string& directory) {
   std::vector<SlicingStrategy> strategies;
-  StatusCode result = LoadAllStrategies(directory, &strategies);
-  if (result != StatusCode::kOk) {
+  Status result = LoadAllStrategies(directory, &strategies);
+  if (!result.ok()) {
+    LOG(WARNING) << "Strategy loading failed: " << result;
     return nullptr;
   }
 

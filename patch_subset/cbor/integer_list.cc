@@ -6,67 +6,67 @@
 
 namespace patch_subset::cbor {
 
-using absl::StatusCode;
+using absl::Status;
 using absl::string_view;
 using std::optional;
 using std::vector;
 
-StatusCode IntegerList::IsEmpty(const cbor_item_t& bytestring, bool* out) {
+Status IntegerList::IsEmpty(const cbor_item_t& bytestring, bool* out) {
   if (!cbor_isa_bytestring(&bytestring)) {
-    return StatusCode::kInvalidArgument;
+    return absl::InvalidArgumentError("not a byte string.");
   }
   *out = cbor_bytestring_length(&bytestring) == 0;
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
-StatusCode IntegerList::Decode(const cbor_item_t& bytestring,
+Status IntegerList::Decode(const cbor_item_t& bytestring,
                                vector<int32_t>& out) {
   return Decode(bytestring, false, out);
 }
 
-StatusCode IntegerList::SetIntegerListField(
+Status IntegerList::SetIntegerListField(
     cbor_item_t& map, int field_number,
     const optional<vector<int32_t>>& int_list) {
   if (!int_list.has_value()) {
-    return StatusCode::kOk;  // Nothing to do.
+    return absl::OkStatus();  // Nothing to do.
   }
   cbor_item_unique_ptr encoded = empty_cbor_ptr();
-  StatusCode sc = Encode(int_list.value(), encoded);
-  if (sc != StatusCode::kOk) {
+  Status sc = Encode(int_list.value(), encoded);
+  if (!sc.ok()) {
     return sc;
   }
   return CborUtils::SetField(map, field_number, move_out(encoded));
 }
 
-StatusCode IntegerList::GetIntegerListField(const cbor_item_t& map,
+Status IntegerList::GetIntegerListField(const cbor_item_t& map,
                                             int field_number,
                                             optional<vector<int32_t>>& out) {
   cbor_item_unique_ptr field = empty_cbor_ptr();
-  StatusCode sc = CborUtils::GetField(map, field_number, field);
-  if (sc == StatusCode::kNotFound) {
+  Status sc = CborUtils::GetField(map, field_number, field);
+  if (absl::IsNotFound(sc)) {
     out.reset();
-    return StatusCode::kOk;
-  } else if (sc != StatusCode::kOk) {
+    return absl::OkStatus();
+  } else if (!sc.ok()) {
     return sc;
   }
   vector<int32_t> results;
   sc = Decode(*field, results);
-  if (sc != StatusCode::kOk) {
+  if (!sc.ok()) {
     return sc;
   }
   out.emplace(results);
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
-StatusCode IntegerList::DecodeSorted(const cbor_item_t& bytestring,
+Status IntegerList::DecodeSorted(const cbor_item_t& bytestring,
                                      vector<int32_t>& out) {
   return Decode(bytestring, true, out);
 }
 
-StatusCode IntegerList::Decode(const cbor_item_t& bytestring, bool sorted,
+Status IntegerList::Decode(const cbor_item_t& bytestring, bool sorted,
                                vector<int32_t>& out) {
   if (!cbor_isa_bytestring(&bytestring)) {
-    return StatusCode::kInvalidArgument;
+    return absl::InvalidArgumentError("not a bytestring.");
   }
   out.clear();
   size_t size = cbor_bytestring_length(&bytestring);
@@ -78,9 +78,9 @@ StatusCode IntegerList::Decode(const cbor_item_t& bytestring, bool sorted,
     size_t num_bytes = 0;
     string_view sv((char*)next_byte, size);
     // Read zig-zag encoded unsigned int.
-    StatusCode sc = IntUtils::UIntBase128Decode(sv, &udelta, &num_bytes);
-    if (sc != StatusCode::kOk) {
-      return StatusCode::kInvalidArgument;
+    Status sc = IntUtils::UIntBase128Decode(sv, &udelta, &num_bytes);
+    if (!sc.ok()) {
+      return absl::InvalidArgumentError("UIntBase128Decode failed.");
     }
     next_byte += num_bytes;
     size -= num_bytes;
@@ -89,26 +89,26 @@ StatusCode IntegerList::Decode(const cbor_item_t& bytestring, bool sorted,
       if (udelta <= INT32_MAX) {
         delta = (int32_t)udelta;
       } else {
-        return StatusCode::kInvalidArgument;
+        return absl::InvalidArgumentError("value out of bounds.");
       }
     } else {
       delta = IntUtils::ZigZagDecode(udelta);
     }
     int64_t current64 = (int64_t)current + (int64_t)delta;
     if (current64 < INT32_MIN || current64 > INT32_MAX) {
-      return StatusCode::kInvalidArgument;
+      return absl::InvalidArgumentError("value out of bounds.");
     }
     current = (int64_t)current64;
     out.push_back(current);
   }
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
-StatusCode IntegerList::Encode(const vector<int32_t>& ints, bool sorted,
+Status IntegerList::Encode(const vector<int32_t>& ints, bool sorted,
                                cbor_item_unique_ptr& bytestring_out) {
   if (ints.empty()) {
     bytestring_out.reset(cbor_build_bytestring(nullptr, 0));
-    return StatusCode::kOk;
+    return absl::OkStatus();
   }
   const size_t buffer_size = 5 * ints.size();
   auto buffer = std::make_unique<uint8_t[]>(buffer_size);
@@ -122,35 +122,35 @@ StatusCode IntegerList::Encode(const vector<int32_t>& ints, bool sorted,
       if (delta >= 0) {
         udelta = delta;
       } else {
-        return StatusCode::kInvalidArgument;
+        return absl::InvalidArgumentError("value out of bounds.");
       }
     } else {
       udelta = IntUtils::ZigZagEncode(delta);
     }
     size_t bytes_left = buffer_size - (next_byte - buffer_start);
     if (bytes_left < 0) {
-      return StatusCode::kInternal;  // Not expected to happen.
+      return absl::InternalError("ran out of bytes.");  // Not expected to happen.
     }
     size_t size_in_out = bytes_left;
-    StatusCode sc =
+    Status sc =
         IntUtils::UIntBase128Encode(udelta, next_byte, &size_in_out);
-    if (sc != StatusCode::kOk) {
-      return StatusCode::kInvalidArgument;
+    if (!sc.ok()) {
+      return absl::InvalidArgumentError("UIntBase128Encode failed.");
     }
     next_byte += size_in_out;
     current = n;
   }
   size_t bytes_used = next_byte - buffer_start;
   bytestring_out.reset(cbor_build_bytestring(buffer_start, bytes_used));
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
-StatusCode IntegerList::Encode(const vector<int32_t>& ints,
+Status IntegerList::Encode(const vector<int32_t>& ints,
                                cbor_item_unique_ptr& bytestring_out) {
   return Encode(ints, false, bytestring_out);
 }
 
-StatusCode IntegerList::EncodeSorted(
+Status IntegerList::EncodeSorted(
     const vector<int32_t>& positive_sorted_ints,
     cbor_item_unique_ptr& bytestring_out) {
   return Encode(positive_sorted_ints, true, bytestring_out);

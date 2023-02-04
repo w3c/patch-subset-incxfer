@@ -5,7 +5,7 @@
 
 namespace patch_subset::cbor {
 
-using absl::StatusCode;
+using absl::Status;
 
 AxisInterval::AxisInterval() : _start(std::nullopt), _end(std::nullopt) {}
 
@@ -27,55 +27,55 @@ bool AxisInterval::IsValid() const {
   return !_end;
 }
 
-StatusCode AxisInterval::Decode(const cbor_item_t& cbor_map,
+Status AxisInterval::Decode(const cbor_item_t& cbor_map,
                                 AxisInterval& out) {
   if (!cbor_isa_map(&cbor_map)) {
-    return StatusCode::kInvalidArgument;
+    return absl::InvalidArgumentError("not a map.");
   }
 
   AxisInterval result;
 
-  StatusCode sc =
+  Status sc =
       CborUtils::GetFloatField(cbor_map, kStartFieldNumber, result._start);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return sc;
   }
 
   sc = CborUtils::GetFloatField(cbor_map, kEndFieldNumber, result._end);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return sc;
   }
 
   if (!result.IsValid()) {
-    return StatusCode::kInvalidArgument;
+    return absl::InvalidArgumentError("Invalid axis interval.");
   }
 
   out = std::move(result);
   return sc;
 }
 
-StatusCode AxisInterval::Encode(cbor_item_unique_ptr& map_out) const {
+Status AxisInterval::Encode(cbor_item_unique_ptr& map_out) const {
   int size = (_start ? 1 : 0) + (_end ? 1 : 0);
   cbor_item_unique_ptr map = make_cbor_map(size);
 
   if (!IsValid()) {
-    return StatusCode::kInvalidArgument;
+    return absl::InvalidArgumentError("Invalid axis interval.");
   }
 
-  StatusCode sc = CborUtils::SetFloatField(*map, kStartFieldNumber, _start);
-  if (sc != StatusCode::kOk) {
+  Status sc = CborUtils::SetFloatField(*map, kStartFieldNumber, _start);
+  if (!sc.ok()) {
     return sc;
   }
 
   if (!IsPoint()) {
     sc = CborUtils::SetFloatField(*map, kEndFieldNumber, _end);
-    if (sc != StatusCode::kOk) {
+    if (!sc.ok()) {
       return sc;
     }
   }
 
   map_out.swap(map);
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
 bool AxisInterval::HasStart() const { return bool(_start); }

@@ -6,7 +6,7 @@
 
 namespace patch_subset::cbor {
 
-using absl::StatusCode;
+using absl::Status;
 using std::string;
 using std::vector;
 
@@ -34,104 +34,104 @@ ClientState::ClientState(ClientState&& other) noexcept
       _codepoint_remapping(std::move(other._codepoint_remapping)),
       _codepoint_remapping_checksum(other._codepoint_remapping_checksum) {}
 
-StatusCode ClientState::Decode(const cbor_item_t& cbor_map, ClientState& out) {
+Status ClientState::Decode(const cbor_item_t& cbor_map, ClientState& out) {
   ClientState result;
   if (!cbor_isa_map(&cbor_map) || cbor_map_is_indefinite(&cbor_map)) {
-    return StatusCode::kInvalidArgument;
+    return absl::InvalidArgumentError("not a map.");
   }
-  StatusCode sc =
+  Status sc =
       CborUtils::GetStringField(cbor_map, kFontIdFieldNumber, result._font_id);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field lookup failed.");
   }
   sc = CborUtils::GetBytesField(cbor_map, kFontDataFieldNumber,
                                 result._font_data);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field lookup failed.");
   }
   sc = CborUtils::GetUInt64Field(cbor_map, kOriginalFontChecksumFieldNumber,
                                  result._original_font_checksum);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field lookup failed.");
   }
   sc = IntegerList::GetIntegerListField(
       cbor_map, kCodepointRemappingFieldNumber, result._codepoint_remapping);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field lookup failed.");
   }
   sc = CborUtils::GetUInt64Field(cbor_map,
                                  kCodepointRemappingChecksumFieldNumber,
                                  result._codepoint_remapping_checksum);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field lookup failed.");
   }
   out = std::move(result);
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
-StatusCode ClientState::Encode(cbor_item_unique_ptr& out) const {
+Status ClientState::Encode(cbor_item_unique_ptr& out) const {
   int map_size = (_font_id.has_value() ? 1 : 0) +
                  (_font_data.has_value() ? 1 : 0) +
                  (_original_font_checksum.has_value() ? 1 : 0) +
                  (_codepoint_remapping.has_value() ? 1 : 0) +
                  (_codepoint_remapping_checksum.has_value() ? 1 : 0);
   cbor_item_unique_ptr map = make_cbor_map(map_size);
-  StatusCode sc = CborUtils::SetStringField(*map, kFontIdFieldNumber, _font_id);
-  if (sc != StatusCode::kOk) {
+  Status sc = CborUtils::SetStringField(*map, kFontIdFieldNumber, _font_id);
+  if (!sc.ok()) {
     return sc;
   }
   sc = CborUtils::SetBytesField(*map, kFontDataFieldNumber, _font_data);
-  if (sc != StatusCode::kOk) {
+  if (!sc.ok()) {
     return sc;
   }
   sc = CborUtils::SetUInt64Field(*map, kOriginalFontChecksumFieldNumber,
                                  _original_font_checksum);
-  if (sc != StatusCode::kOk) {
+  if (!sc.ok()) {
     return sc;
   }
   sc = IntegerList::SetIntegerListField(*map, kCodepointRemappingFieldNumber,
                                         _codepoint_remapping);
-  if (sc != StatusCode::kOk) {
+  if (!sc.ok()) {
     return sc;
   }
   sc = CborUtils::SetUInt64Field(*map, kCodepointRemappingChecksumFieldNumber,
                                  _codepoint_remapping_checksum);
-  if (sc != StatusCode::kOk) {
+  if (!sc.ok()) {
     return sc;
   }
   out.swap(map);
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
-StatusCode ClientState::ParseFromString(const std::string& buffer,
+Status ClientState::ParseFromString(const std::string& buffer,
                                         ClientState& out) {
   cbor_item_unique_ptr item = empty_cbor_ptr();
-  StatusCode sc = CborUtils::DeserializeFromBytes(buffer, item);
-  if (sc != StatusCode::kOk) {
+  Status sc = CborUtils::DeserializeFromBytes(buffer, item);
+  if (!sc.ok()) {
     return sc;
   }
   sc = Decode(*item, out);
-  if (sc != StatusCode::kOk) {
+  if (!sc.ok()) {
     return sc;
   }
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
-StatusCode ClientState::SerializeToString(std::string& out) const {
+Status ClientState::SerializeToString(std::string& out) const {
   cbor_item_unique_ptr item = empty_cbor_ptr();
-  StatusCode sc = Encode(item);
-  if (sc != StatusCode::kOk) {
+  Status sc = Encode(item);
+  if (!sc.ok()) {
     return sc;
   }
   unsigned char* buffer;
   size_t buffer_size;
   size_t written = cbor_serialize_alloc(item.get(), &buffer, &buffer_size);
   if (written == 0) {
-    return StatusCode::kInternal;
+    return absl::InternalError("cbor_serialize_alloc failed.");
   }
   out.assign(std::string((char*)buffer, written));
   free(buffer);
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
 ClientState& ClientState::SetFontId(const string& font_id) {

@@ -2,7 +2,7 @@
 
 namespace patch_subset::cbor {
 
-using absl::StatusCode;
+using absl::Status;
 using absl::string_view;
 
 uint32_t IntUtils::ZigZagEncode(int32_t signed_int) {
@@ -27,15 +27,15 @@ int32_t IntUtils::ZigZagDecode(uint32_t unsigned_int) {
   }
 }
 
-StatusCode IntUtils::UIntBase128Encode(uint32_t value, uint8_t* buffer,
+Status IntUtils::UIntBase128Encode(uint32_t value, uint8_t* buffer,
                                        size_t* size_in_out) {
   if (buffer == nullptr || size_in_out == nullptr || *size_in_out <= 0) {
-    return StatusCode::kInvalidArgument;
+    return absl::InvalidArgumentError("buffer or size_in_out is null.");
   }
 
   size_t size = IntUtils::UIntBase128EncodedSize(value);
   if (*size_in_out < size) {
-    return StatusCode::kInvalidArgument;
+    return absl::InvalidArgumentError("not enough room in buffer.");
   }
 
   for (size_t i = 0; i < size; ++i) {
@@ -46,14 +46,14 @@ StatusCode IntUtils::UIntBase128Encode(uint32_t value, uint8_t* buffer,
     buffer[i] = b;
   }
   *size_in_out = size;
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
-StatusCode IntUtils::UIntBase128Decode(string_view bytes, uint32_t* uint_out,
+Status IntUtils::UIntBase128Decode(string_view bytes, uint32_t* uint_out,
                                        size_t* num_bytes_out) {
   if (bytes.data() == nullptr || bytes.empty() || uint_out == nullptr ||
       num_bytes_out == nullptr) {
-    return StatusCode::kInvalidArgument;
+    return absl::InvalidArgumentError("invalid arguments.");
   }
 
   uint32_t result = 0;
@@ -62,12 +62,12 @@ StatusCode IntUtils::UIntBase128Decode(string_view bytes, uint32_t* uint_out,
     unsigned char uc = (unsigned char)c;
     // No leading 0’s
     if (i == 0 && uc == 0x80) {
-      return StatusCode::kInvalidArgument;
+      return absl::InvalidArgumentError("invalid leading byte.");
     }
 
     // If any of the top seven bits are set then we're about to overflow.
     if (result & 0xFE000000) {
-      return StatusCode::kInvalidArgument;
+      return absl::InvalidArgumentError("overflow.");
     }
 
     result = (result << 7) | (uc & 0x7f);
@@ -76,13 +76,13 @@ StatusCode IntUtils::UIntBase128Decode(string_view bytes, uint32_t* uint_out,
     if ((uc & 0x80) == 0) {
       *uint_out = result;
       *num_bytes_out = i + 1;
-      return StatusCode::kOk;
+      return absl::OkStatus();
     }
 
     i++;
   }
 
-  return StatusCode::kInvalidArgument;
+  return absl::InvalidArgumentError("missing final byte.");
 }
 
 int IntUtils::UIntBase128EncodedSize(uint32_t unsigned_int) {

@@ -5,7 +5,7 @@
 
 namespace patch_subset::cbor {
 
-using absl::StatusCode;
+using absl::Status;
 using absl::string_view;
 using std::optional;
 using std::string;
@@ -26,75 +26,75 @@ bool CompressedSet::empty() const {
          (!_ranges || _ranges->empty());
 }
 
-StatusCode CompressedSet::Decode(const cbor_item_t& cbor_map,
+Status CompressedSet::Decode(const cbor_item_t& cbor_map,
                                  CompressedSet& out) {
   if (!cbor_isa_map(&cbor_map) || cbor_map_is_indefinite(&cbor_map)) {
-    return StatusCode::kInvalidArgument;
+    return absl::InvalidArgumentError("not a map.");
   }
   CompressedSet result;
-  StatusCode sc = CborUtils::GetBytesField(cbor_map, kSparseBitSetFieldNumber,
+  Status sc = CborUtils::GetBytesField(cbor_map, kSparseBitSetFieldNumber,
                                            result._sparse_bit_set_bytes);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field lookup failed.");
   }
   sc = RangeList::GetRangeListField(cbor_map, kSRangeDeltasFieldNumber,
                                     result._ranges);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field lookup failed.");
   }
   out = std::move(result);
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
-StatusCode CompressedSet::Encode(cbor_item_unique_ptr& map_out) const {
+Status CompressedSet::Encode(cbor_item_unique_ptr& map_out) const {
   int size = (_sparse_bit_set_bytes.has_value() ? 1 : 0) +
              (_ranges.has_value() ? 1 : 0);
   cbor_item_unique_ptr map = make_cbor_map(size);
-  StatusCode sc = CborUtils::SetBytesField(*map, kSparseBitSetFieldNumber,
+  Status sc = CborUtils::SetBytesField(*map, kSparseBitSetFieldNumber,
                                            _sparse_bit_set_bytes);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field setting failed.");
   }
   sc = RangeList::SetRangeListField(*map, kSRangeDeltasFieldNumber, _ranges);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field setting failed.");
   }
   map_out.swap(map);
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
-StatusCode CompressedSet::SetCompressedSetField(
+Status CompressedSet::SetCompressedSetField(
     cbor_item_t& map, int field_number,
     const optional<CompressedSet>& compressed_set) {
   if (!compressed_set.has_value()) {
-    return StatusCode::kOk;  // Nothing to do.
+    return absl::OkStatus();  // Nothing to do.
   }
   cbor_item_unique_ptr field_value = empty_cbor_ptr();
-  StatusCode sc = compressed_set.value().Encode(field_value);
-  if (sc != StatusCode::kOk) {
+  Status sc = compressed_set.value().Encode(field_value);
+  if (!sc.ok()) {
     return sc;
   }
   return CborUtils::SetField(map, field_number, move_out(field_value));
 }
 
-StatusCode CompressedSet::GetCompressedSetField(const cbor_item_t& map,
+Status CompressedSet::GetCompressedSetField(const cbor_item_t& map,
                                                 int field_number,
                                                 optional<CompressedSet>& out) {
   cbor_item_unique_ptr field = empty_cbor_ptr();
-  StatusCode sc = CborUtils::GetField(map, field_number, field);
-  if (sc == StatusCode::kNotFound) {
+  Status sc = CborUtils::GetField(map, field_number, field);
+  if (absl::IsNotFound(sc)) {
     out.reset();
-    return StatusCode::kOk;
-  } else if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+    return absl::OkStatus();
+  } else if (!sc.ok()) {
+    return absl::InvalidArgumentError("field lookup failed.");
   }
   CompressedSet results;
   sc = Decode(*field, results);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("decode failed.");
   }
   out.emplace(results);
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
 bool CompressedSet::HasSparseBitSetBytes() const {

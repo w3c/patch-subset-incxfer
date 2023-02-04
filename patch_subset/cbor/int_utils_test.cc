@@ -6,7 +6,7 @@
 
 namespace patch_subset::cbor {
 
-using absl::StatusCode;
+using absl::Status;
 using absl::string_view;
 using std::string;
 using std::vector;
@@ -79,9 +79,9 @@ TEST_F(IntUtilsTest, UIntBase128Encode) {
   uint8_t expected[]{0b10000001, 0b00000011, 0, 0, 0, 0};  // 128 + 3 = 131.
   size_t size_in_out = 6;
 
-  StatusCode sc = IntUtils::UIntBase128Encode(131, buffer, &size_in_out);
+  Status sc = IntUtils::UIntBase128Encode(131, buffer, &size_in_out);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(size_in_out, 2);
   ASSERT_EQ(strncmp((char*)buffer, (char*)expected, 6), 0);
 }
@@ -113,9 +113,9 @@ TEST_F(IntUtilsTest, UIntBase128Decode) {
   uint32_t n = -1;
   size_t num_bytes;
 
-  StatusCode sc = IntUtils::UIntBase128Decode(buffer_view, &n, &num_bytes);
+  Status sc = IntUtils::UIntBase128Decode(buffer_view, &n, &num_bytes);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(n, 164);
   ASSERT_EQ(num_bytes, 2);
 }
@@ -265,14 +265,14 @@ int encoded_size(uint32_t n) {
 bool encodes_and_decodes(uint32_t n) {
   uint8_t buffer[]{0, 0, 0, 0, 0, 0};
   size_t size_in_out = 6;
-  StatusCode sc = IntUtils::UIntBase128Encode(n, buffer, &size_in_out);
-  if (sc != StatusCode::kOk || size_in_out == 0) {
+  Status sc = IntUtils::UIntBase128Encode(n, buffer, &size_in_out);
+  if (!sc.ok() || size_in_out == 0) {
     return false;
   }
   string_view buffer_view((char*)buffer, size_in_out);
   uint32_t result;
   sc = IntUtils::UIntBase128Decode(buffer_view, &result, &size_in_out);
-  if (sc != StatusCode::kOk || size_in_out == 0) {
+  if (!sc.ok() || size_in_out == 0) {
     return false;
   }
   return result == n;
@@ -286,8 +286,8 @@ bool encodes_and_decodes_vector(const vector<uint32_t>& ints) {
   uint8_t* next_byte = buffer;
   for (uint32_t n : ints) {
     size_t size_in_out = (buffer + 2000) - next_byte;
-    StatusCode sc = IntUtils::UIntBase128Encode(n, next_byte, &size_in_out);
-    if (sc != StatusCode::kOk) {
+    Status sc = IntUtils::UIntBase128Encode(n, next_byte, &size_in_out);
+    if (!sc.ok()) {
       return false;
     }
     next_byte += size_in_out;
@@ -299,8 +299,8 @@ bool encodes_and_decodes_vector(const vector<uint32_t>& ints) {
     uint32_t n;
     size_t num_bytes;
     string_view sv((char*)next_byte, (buffer + final_size) - next_byte);
-    StatusCode sc = IntUtils::UIntBase128Decode(sv, &n, &num_bytes);
-    if (sc != StatusCode::kOk) {
+    Status sc = IntUtils::UIntBase128Decode(sv, &n, &num_bytes);
+    if (!sc.ok()) {
       return false;
     }
     result_ints.push_back(n);
@@ -314,8 +314,8 @@ bool encode_avoids_buffer_overruns(uint32_t n, size_t req_bytes) {
   for (int i = 0; i < (int)req_bytes; i++) {
     auto buffer = std::make_unique<uint8_t[]>(std::max(1, i));
     size_t size_in_out = i;
-    StatusCode sc = IntUtils::UIntBase128Encode(n, buffer.get(), &size_in_out);
-    if (sc != StatusCode::kInvalidArgument) {
+    Status sc = IntUtils::UIntBase128Encode(n, buffer.get(), &size_in_out);
+    if (absl::IsInvalidArgument(sc)) {
       return false;
     }
   }
@@ -324,14 +324,14 @@ bool encode_avoids_buffer_overruns(uint32_t n, size_t req_bytes) {
     size_t buff_size = i > 0 ? i : 1;
     auto buffer = std::make_unique<uint8_t[]>(buff_size);
     size_t size_in_out = i;
-    StatusCode sc = IntUtils::UIntBase128Encode(n, buffer.get(), &size_in_out);
-    if (sc != StatusCode::kOk || size_in_out != req_bytes) {
+    Status sc = IntUtils::UIntBase128Encode(n, buffer.get(), &size_in_out);
+    if (!sc.ok() || size_in_out != req_bytes) {
       return false;
     }
     uint32_t result;
     string_view sv((char*)buffer.get(), size_in_out);
     sc = IntUtils::UIntBase128Decode(sv, &result, &size_in_out);
-    if (sc != StatusCode::kOk || result != n || size_in_out != req_bytes) {
+    if (!sc.ok() || result != n || size_in_out != req_bytes) {
       return false;
     }
   }

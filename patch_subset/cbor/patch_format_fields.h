@@ -17,27 +17,27 @@ namespace patch_subset::cbor {
  */
 class PatchFormatFields {
  public:
-  static absl::StatusCode ToPatchFormat(uint64_t value,
+  static absl::Status ToPatchFormat(uint64_t value,
                                         patch_subset::PatchFormat* out);
 
-  static absl::StatusCode Decode(const cbor_item_t& bytes,
+  static absl::Status Decode(const cbor_item_t& bytes,
                                  std::vector<patch_subset::PatchFormat>& out);
 
-  static absl::StatusCode Encode(
+  static absl::Status Encode(
       const std::vector<patch_subset::PatchFormat>& formats,
       cbor_item_unique_ptr& bytestring_out);
 
-  static absl::StatusCode SetPatchFormatsListField(
+  static absl::Status SetPatchFormatsListField(
       cbor_item_t& map, int field_number,
       const std::optional<std::vector<patch_subset::PatchFormat>>& format_list);
-  static absl::StatusCode GetPatchFormatsListField(
+  static absl::Status GetPatchFormatsListField(
       const cbor_item_t& map, int field_number,
       std::optional<std::vector<patch_subset::PatchFormat>>& out);
 
-  static absl::StatusCode SetPatchFormatField(
+  static absl::Status SetPatchFormatField(
       cbor_item_t& map, int field_number,
       const std::optional<patch_subset::PatchFormat>& format_list);
-  static absl::StatusCode GetPatchFormatField(
+  static absl::Status GetPatchFormatField(
       const cbor_item_t& map, int field_number,
       std::optional<patch_subset::PatchFormat>& out);
 };

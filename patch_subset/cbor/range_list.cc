@@ -5,37 +5,36 @@
 
 namespace patch_subset::cbor {
 
-using absl::StatusCode;
+using absl::Status;
 using std::optional;
 using std::vector;
 
-StatusCode RangeList::Decode(const cbor_item_t& array, range_vector& out) {
+Status RangeList::Decode(const cbor_item_t& array, range_vector& out) {
   vector<int32_t> ints;
-  StatusCode sc = IntegerList::DecodeSorted(array, ints);
-  if (sc != StatusCode::kOk) {
+  Status sc = IntegerList::DecodeSorted(array, ints);
+  if (!sc.ok()) {
     return sc;
   }
   size_t size = ints.size();
   if (size % 2 != 0) {
-    // Invalid number of ints! Can't make pairs.
-    return StatusCode::kInvalidArgument;
+    return absl::InvalidArgumentError("Invalid number of ints! Can't make pairs.");
   }
   out.resize(size);
   out.clear();
   for (size_t i = 0; i < size; i += 2) {
     out.push_back(range(ints[i], ints[i + 1]));
   }
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
-StatusCode RangeList::Encode(const range_vector& ranges,
+Status RangeList::Encode(const range_vector& ranges,
                              cbor_item_unique_ptr& bytestring_out) {
   size_t size = ranges.size();
   vector<int32_t> ints(2 * size);
   for (size_t i = 0; i < size; i++) {
     size_t j = 2 * i;
     if (ranges[i].first > INT32_MAX || ranges[i].second > INT32_MAX) {
-      return StatusCode::kInvalidArgument;
+      return absl::InvalidArgumentError("value is out of bounds.");
     }
     ints[j] = (int32_t)ranges[i].first;
     ints[j + 1] = (int32_t)ranges[i].second;
@@ -44,38 +43,38 @@ StatusCode RangeList::Encode(const range_vector& ranges,
   return IntegerList::EncodeSorted(ints, bytestring_out);
 }
 
-StatusCode RangeList::SetRangeListField(
+Status RangeList::SetRangeListField(
     cbor_item_t& map, int field_number,
     const optional<range_vector>& int_list) {
   if (!int_list.has_value()) {
-    return StatusCode::kOk;  // Nothing to do.
+    return absl::OkStatus();  // Nothing to do.
   }
   cbor_item_unique_ptr field_value = empty_cbor_ptr();
-  StatusCode sc = Encode(int_list.value(), field_value);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  Status sc = Encode(int_list.value(), field_value);
+  if (!sc.ok()) {
+    return sc;
   }
   return CborUtils::SetField(map, field_number, move_out(field_value));
 }
 
-StatusCode RangeList::GetRangeListField(const cbor_item_t& map,
+Status RangeList::GetRangeListField(const cbor_item_t& map,
                                         int field_number,
                                         optional<range_vector>& out) {
   cbor_item_unique_ptr field = empty_cbor_ptr();
-  StatusCode sc = CborUtils::GetField(map, field_number, field);
-  if (sc == StatusCode::kNotFound) {
+  Status sc = CborUtils::GetField(map, field_number, field);
+  if (absl::IsNotFound(sc)) {
     out.reset();
-    return StatusCode::kOk;
-  } else if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+    return absl::OkStatus();
+  } else if (!sc.ok()) {
+    return sc;
   }
   range_vector results;
   sc = Decode(*field, results);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return sc;
   }
   out.emplace(results);
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
 }  // namespace patch_subset::cbor

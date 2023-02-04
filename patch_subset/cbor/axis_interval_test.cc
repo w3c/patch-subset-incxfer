@@ -6,7 +6,7 @@
 
 namespace patch_subset::cbor {
 
-using absl::StatusCode;
+using absl::Status;
 
 class AxisIntervalTest : public ::testing::Test {};
 
@@ -88,8 +88,8 @@ TEST_F(AxisIntervalTest, EncodeInvalid) {
   interval.SetEnd(1.0f);
 
   cbor_item_unique_ptr map = empty_cbor_ptr();
-  StatusCode sc = interval.Encode(map);
-  ASSERT_EQ(sc, StatusCode::kInvalidArgument);
+  Status sc = interval.Encode(map);
+  ASSERT_TRUE(absl::IsInvalidArgument(sc));
 }
 
 TEST_F(AxisIntervalTest, Encode) {
@@ -98,24 +98,24 @@ TEST_F(AxisIntervalTest, Encode) {
   interval.SetEnd(2.0f);
 
   cbor_item_unique_ptr map = empty_cbor_ptr();
-  StatusCode sc = interval.Encode(map);
+  Status sc = interval.Encode(map);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_NE(map.get(), nullptr);
 
   cbor_item_unique_ptr field = empty_cbor_ptr();
   float value;
   sc = CborUtils::GetField(*map, 0, field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   sc = CborUtils::DecodeFloat(*field, &value);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(value, 1.0f);
 
   field = empty_cbor_ptr();
   sc = CborUtils::GetField(*map, 1, field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   sc = CborUtils::DecodeFloat(*field, &value);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(value, 2.0f);
 }
 
@@ -125,42 +125,42 @@ TEST_F(AxisIntervalTest, EncodePoint) {
   interval.SetEnd(10.0f);
 
   cbor_item_unique_ptr map = empty_cbor_ptr();
-  StatusCode sc = interval.Encode(map);
+  Status sc = interval.Encode(map);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_NE(map.get(), nullptr);
 
   cbor_item_unique_ptr field = empty_cbor_ptr();
   float value;
   sc = CborUtils::GetField(*map, 0, field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   sc = CborUtils::DecodeFloat(*field, &value);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(value, 10.0f);
 
   field = empty_cbor_ptr();
   sc = CborUtils::GetField(*map, 1, field);
-  ASSERT_EQ(sc, StatusCode::kNotFound);
+  ASSERT_TRUE(absl::IsNotFound(sc));
 }
 
 TEST_F(AxisIntervalTest, DecodeInvalid) {
   cbor_item_unique_ptr map = make_cbor_map(2);
-  CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeFloat(10.0f)));
-  CborUtils::SetField(*map, 1, cbor_move(CborUtils::EncodeFloat(5.0f)));
+  ASSERT_EQ(CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeFloat(10.0f))), absl::OkStatus());
+  ASSERT_EQ(CborUtils::SetField(*map, 1, cbor_move(CborUtils::EncodeFloat(5.0f))), absl::OkStatus());
 
   AxisInterval interval;
-  StatusCode sc = AxisInterval::Decode(*map, interval);
-  ASSERT_EQ(sc, StatusCode::kInvalidArgument);
+  Status sc = AxisInterval::Decode(*map, interval);
+  ASSERT_TRUE(absl::IsInvalidArgument(sc));
 }
 
 TEST_F(AxisIntervalTest, Decode) {
   cbor_item_unique_ptr map = make_cbor_map(2);
-  CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeFloat(5.0f)));
-  CborUtils::SetField(*map, 1, cbor_move(CborUtils::EncodeFloat(10.0f)));
+  ASSERT_EQ(CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeFloat(5.0f))), absl::OkStatus());
+  ASSERT_EQ(CborUtils::SetField(*map, 1, cbor_move(CborUtils::EncodeFloat(10.0f))), absl::OkStatus());
 
   AxisInterval interval;
-  StatusCode sc = AxisInterval::Decode(*map, interval);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  Status sc = AxisInterval::Decode(*map, interval);
+  ASSERT_EQ(sc, absl::OkStatus());
 
   AxisInterval expected(5.0f, 10.f);
   ASSERT_EQ(interval, expected);
