@@ -7,7 +7,7 @@
 
 namespace patch_subset::cbor {
 
-using absl::StatusCode;
+using absl::Status;
 using absl::StrFormat;
 using absl::string_view;
 using std::optional;
@@ -23,9 +23,9 @@ TEST_F(IntegerListTest, Encode) {
   vector<int32_t> input{2, 3, 0};
   cbor_item_unique_ptr bytestring = empty_cbor_ptr();
 
-  StatusCode sc = IntegerList::Encode(input, bytestring);
+  Status sc = IntegerList::Encode(input, bytestring);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(hex(bytestring), "04 02 05");
   // delta 2 --> 4, delta 1 --> 2, delta -3 --> 5.
 }
@@ -36,9 +36,9 @@ TEST_F(IntegerListTest, Decode) {
   // Zig zag 4, 2, 5 --> deltas 2, 1, -3 --> list 2, 3, 0.
   vector<int32_t> expected{2, 3, 0};
 
-  StatusCode sc = IntegerList::Decode(*bytestring, results);
+  Status sc = IntegerList::Decode(*bytestring, results);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(results, expected);
 }
 
@@ -52,9 +52,9 @@ TEST_F(IntegerListTest, OneBytePerInt) {
   }
   cbor_item_unique_ptr bytestring = empty_cbor_ptr();
 
-  StatusCode sc = IntegerList::Encode(input, bytestring);
+  Status sc = IntegerList::Encode(input, bytestring);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   // Exactly 1 byte per int.
   ASSERT_EQ(cbor_bytestring_length(bytestring.get()), size);
 }
@@ -71,9 +71,9 @@ TEST_F(IntegerListTest, TwoBytesPerInt) {
   }
   cbor_item_unique_ptr bytestring = empty_cbor_ptr();
 
-  StatusCode sc = IntegerList::Encode(input, bytestring);
+  Status sc = IntegerList::Encode(input, bytestring);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   // Exactly 2 bytes per int.
   ASSERT_EQ(cbor_bytestring_length(bytestring.get()), size * 2);
 }
@@ -82,9 +82,9 @@ TEST_F(IntegerListTest, SortedEncode) {
   vector<int32_t> input{2, 3, 10};
   cbor_item_unique_ptr bytestring = empty_cbor_ptr();
 
-  StatusCode sc = IntegerList::EncodeSorted(input, bytestring);
+  Status sc = IntegerList::EncodeSorted(input, bytestring);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   // Deltas without zig-zag encoding.
   ASSERT_EQ(hex(bytestring), "02 01 07");
 }
@@ -93,18 +93,18 @@ TEST_F(IntegerListTest, SortedEncodeStartsPositive) {
   vector<int32_t> input{-1, 3, 10};
   cbor_item_unique_ptr bytestring = empty_cbor_ptr();
 
-  StatusCode sc = IntegerList::EncodeSorted(input, bytestring);
+  Status sc = IntegerList::EncodeSorted(input, bytestring);
 
-  ASSERT_EQ(sc, StatusCode::kInvalidArgument);
+  ASSERT_TRUE(absl::IsInvalidArgument(sc));
 }
 
 TEST_F(IntegerListTest, SortedEncodeIncreasing) {
   vector<int32_t> input{1, 3, 10, 9};
   cbor_item_unique_ptr bytestring = empty_cbor_ptr();
 
-  StatusCode sc = IntegerList::EncodeSorted(input, bytestring);
+  Status sc = IntegerList::EncodeSorted(input, bytestring);
 
-  ASSERT_EQ(sc, StatusCode::kInvalidArgument);
+  ASSERT_TRUE(absl::IsInvalidArgument(sc));
 }
 
 TEST_F(IntegerListTest, SortedDecode) {
@@ -112,9 +112,9 @@ TEST_F(IntegerListTest, SortedDecode) {
   vector<int32_t> results;
   vector<int32_t> expected{2, 3, 10};
 
-  StatusCode sc = IntegerList::DecodeSorted(*bytestring, results);
+  Status sc = IntegerList::DecodeSorted(*bytestring, results);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(results, expected);
 }
 
@@ -123,9 +123,9 @@ TEST_F(IntegerListTest, SortedDecodeUniquePtr) {
   vector<int32_t> results;
   vector<int32_t> expected{2, 3, 10};
 
-  StatusCode sc = IntegerList::DecodeSorted(*bytestring, results);
+  Status sc = IntegerList::DecodeSorted(*bytestring, results);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(results, expected);
 }
 
@@ -139,9 +139,9 @@ TEST_F(IntegerListTest, SortedOneBytePerInt) {
   }
   cbor_item_unique_ptr bytestring = empty_cbor_ptr();
 
-  StatusCode sc = IntegerList::EncodeSorted(input, bytestring);
+  Status sc = IntegerList::EncodeSorted(input, bytestring);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   // Exactly 1 byte per int.
   ASSERT_EQ(cbor_bytestring_length(bytestring.get()), size);
 }
@@ -158,9 +158,9 @@ TEST_F(IntegerListTest, SortedTwoBytesPerInt) {
   }
   cbor_item_unique_ptr bytestring = empty_cbor_ptr();
 
-  StatusCode sc = IntegerList::EncodeSorted(input, bytestring);
+  Status sc = IntegerList::EncodeSorted(input, bytestring);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   // Exactly 2 bytes per int.
   ASSERT_EQ(cbor_bytestring_length(bytestring.get()), size * 2);
 }
@@ -169,9 +169,9 @@ TEST_F(IntegerListTest, IsEmptyTrue) {
   cbor_item_unique_ptr bytes = make_cbor_bytestring("");
   bool result;
 
-  StatusCode sc = IntegerList::IsEmpty(*bytes, &result);
+  Status sc = IntegerList::IsEmpty(*bytes, &result);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_TRUE(result);
 }
 
@@ -180,9 +180,9 @@ TEST_F(IntegerListTest, IsEmptyFalse) {
   cbor_item_unique_ptr bytes = make_cbor_bytestring(buffer);
   bool result;
 
-  StatusCode sc = IntegerList::IsEmpty(*bytes, &result);
+  Status sc = IntegerList::IsEmpty(*bytes, &result);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_FALSE(result);
 }
 
@@ -190,14 +190,14 @@ TEST_F(IntegerListTest, GetIntegerListField) {
   cbor_item_unique_ptr map = make_cbor_map(1);
   vector<int32_t> expected{101, 200, 1000, 500, 20, 0};
   cbor_item_unique_ptr value = empty_cbor_ptr();
-  StatusCode sc = IntegerList::Encode(expected, value);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  Status sc = IntegerList::Encode(expected, value);
+  ASSERT_EQ(sc, absl::OkStatus());
   CborUtils::SetField(*map, 0, move_out(value));
   optional<vector<int32_t>> result;
 
   sc = IntegerList::GetIntegerListField(*map, 0, result);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(result, expected);
 }
 
@@ -205,9 +205,9 @@ TEST_F(IntegerListTest, GetIntegerListFieldNotFound) {
   cbor_item_unique_ptr map = make_cbor_map(0);
   optional<vector<int32_t>> result({1, 2, 3});
 
-  StatusCode sc = IntegerList::GetIntegerListField(*map, 0, result);
+  Status sc = IntegerList::GetIntegerListField(*map, 0, result);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_FALSE(result.has_value());
 }
 
@@ -216,9 +216,9 @@ TEST_F(IntegerListTest, GetIntegerListFieldInvalid) {
   CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString("bad")));
   optional<vector<int32_t>> result({-1, -2});
 
-  StatusCode sc = IntegerList::GetIntegerListField(*map, 0, result);
+  Status sc = IntegerList::GetIntegerListField(*map, 0, result);
 
-  ASSERT_EQ(sc, StatusCode::kInvalidArgument);
+  ASSERT_TRUE(absl::IsInvalidArgument(sc));
   ASSERT_EQ(result, vector<int32_t>({-1, -2}));
 }
 

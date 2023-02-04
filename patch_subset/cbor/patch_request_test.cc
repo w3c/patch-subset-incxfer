@@ -11,7 +11,7 @@ namespace patch_subset::cbor {
 
 class PatchRequestTest : public ::testing::Test {};
 
-using absl::StatusCode;
+using absl::Status;
 using std::string;
 using std::vector;
 
@@ -154,9 +154,9 @@ TEST_F(PatchRequestTest, Decode) {
                       cbor_move(CborUtils::EncodeInt(1)));
   PatchRequest result;
 
-  StatusCode sc = PatchRequest::Decode(*map, result);
+  Status sc = PatchRequest::Decode(*map, result);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(result, expected);
 }
 
@@ -177,84 +177,84 @@ TEST_F(PatchRequestTest, Encode) {
                        connection_speed);
   cbor_item_unique_ptr map = empty_cbor_ptr();
 
-  StatusCode sc = request.Encode(map);
+  Status sc = request.Encode(map);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_TRUE(cbor_isa_map(map.get()));
   ASSERT_EQ(cbor_map_size(map.get()), 10);
   cbor_item_unique_ptr field = empty_cbor_ptr();
 
   sc = CborUtils::GetField(*map, 0, field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_NE(field.get(), nullptr);
   int protocol_version;
   sc = CborUtils::DecodeInt(*field, &protocol_version);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(protocol_version, ProtocolVersion::ONE);
 
   sc = CborUtils::GetField(*map, 1, field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   vector<PatchFormat> result_accept_formats;
   sc = PatchFormatFields::Decode(*field, result_accept_formats);
   // Illegal value was ignored.
   vector<PatchFormat> expected{PatchFormat::BROTLI_SHARED_DICT};
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(result_accept_formats, expected);
 
   sc = CborUtils::GetField(*map, 2, field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   CompressedSet result_codepoints_have;
   sc = CompressedSet::Decode(*field, result_codepoints_have);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(result_codepoints_have, codepoints_have);
 
   sc = CborUtils::GetField(*map, 3, field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   CompressedSet result_codepoints_needed;
   sc = CompressedSet::Decode(*field, result_codepoints_needed);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(result_codepoints_needed, codepoints_needed);
 
   sc = CborUtils::GetField(*map, 4, field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   CompressedSet result_indices_have;
   sc = CompressedSet::Decode(*field, result_indices_have);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(result_indices_have, indices_have);
 
   sc = CborUtils::GetField(*map, 5, field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   CompressedSet result_indices_needed;
   sc = CompressedSet::Decode(*field, result_indices_needed);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(result_indices_needed, indices_needed);
 
   sc = CborUtils::GetField(*map, 8, field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   uint64_t result_ordering_checksum;
   sc = CborUtils::DecodeUInt64(*field, &result_ordering_checksum);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(result_ordering_checksum, ordering_checksum);
 
   sc = CborUtils::GetField(*map, 9, field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   uint64_t result_original_font_checksum;
   sc = CborUtils::DecodeUInt64(*field, &result_original_font_checksum);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(result_original_font_checksum, original_font_checksum);
 
   sc = CborUtils::GetField(*map, 10, field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   uint64_t result_base_checksum;
   sc = CborUtils::DecodeUInt64(*field, &result_base_checksum);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(result_base_checksum, base_checksum);
 
   sc = CborUtils::GetField(*map, 11, field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   int result_speed;
   sc = CborUtils::DecodeInt(*field, &result_speed);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(result_speed, connection_speed);
 }
 
@@ -403,9 +403,9 @@ TEST_F(PatchRequestTest, Serialization) {
   string serialized_bytes;
   PatchRequest result;
 
-  EXPECT_EQ(input.SerializeToString(serialized_bytes), StatusCode::kOk);
+  EXPECT_EQ(input.SerializeToString(serialized_bytes), absl::OkStatus());
   EXPECT_EQ(PatchRequest::ParseFromString(serialized_bytes, result),
-            StatusCode::kOk);
+            absl::OkStatus());
 
   EXPECT_EQ(input, result);
 }

@@ -9,7 +9,7 @@
 
 namespace patch_subset::cbor {
 
-using absl::StatusCode;
+using absl::Status;
 using std::string;
 using std::vector;
 
@@ -93,8 +93,8 @@ TEST_F(ClientStateTest, Decode) {
   CborUtils::SetField(*map, 2,
                       cbor_move(CborUtils::EncodeUInt64(font_checksum)));
   cbor_item_unique_ptr remapping_field = empty_cbor_ptr();
-  StatusCode sc = IntegerList::Encode(remapping, remapping_field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  Status sc = IntegerList::Encode(remapping, remapping_field);
+  ASSERT_EQ(sc, absl::OkStatus());
   CborUtils::SetField(*map, 3, move_out(remapping_field));
   CborUtils::SetField(*map, 4,
                       cbor_move(CborUtils::EncodeUInt64(remapping_checksum)));
@@ -102,7 +102,7 @@ TEST_F(ClientStateTest, Decode) {
 
   sc = ClientState::Decode(*map, client_state);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(client_state.FontId(), font_id);
   ASSERT_EQ(client_state.FontData(), font_data);
   ASSERT_EQ(client_state.OriginalFontChecksum(), font_checksum);
@@ -114,9 +114,9 @@ TEST_F(ClientStateTest, DecodeNotAMap) {
   cbor_item_unique_ptr str = make_cbor_string("err");
   ClientState client_state;
 
-  StatusCode sc = ClientState::Decode(*str, client_state);
+  Status sc = ClientState::Decode(*str, client_state);
 
-  ASSERT_EQ(sc, StatusCode::kInvalidArgument);
+  ASSERT_TRUE(absl::IsInvalidArgument(sc));
 }
 
 TEST_F(ClientStateTest, DecodeFieldsOneAndTwo) {
@@ -128,9 +128,9 @@ TEST_F(ClientStateTest, DecodeFieldsOneAndTwo) {
   // No field # 2 or 3.
   ClientState client_state;
 
-  StatusCode sc = ClientState::Decode(*map, client_state);
+  Status sc = ClientState::Decode(*map, client_state);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(client_state.FontId(), font_id);
   ASSERT_EQ(client_state.FontData(), data);
   ASSERT_FALSE(client_state.HasOriginalFontChecksum());
@@ -147,15 +147,15 @@ TEST_F(ClientStateTest, DecodeFieldsThreeAndFour) {
   CborUtils::SetField(*map, 2,
                       cbor_move(CborUtils::EncodeUInt64(font_checksum)));
   cbor_item_unique_ptr remapping_field = empty_cbor_ptr();
-  StatusCode sc = IntegerList::Encode(remapping, remapping_field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  Status sc = IntegerList::Encode(remapping, remapping_field);
+  ASSERT_EQ(sc, absl::OkStatus());
   CborUtils::SetField(*map, 3, move_out(remapping_field));
   // No field # 0 or 1.
   ClientState client_state;
 
   sc = ClientState::Decode(*map, client_state);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_FALSE(client_state.HasFontId());
   ASSERT_EQ(client_state.FontId(), "");
   ASSERT_FALSE(client_state.HasFontData());
@@ -175,16 +175,16 @@ TEST_F(ClientStateTest, Encode) {
                            remapping_checksum);
   cbor_item_unique_ptr result = empty_cbor_ptr();
 
-  StatusCode sc = client_state.Encode(result);
+  Status sc = client_state.Encode(result);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_NE(result, nullptr);
   ASSERT_TRUE(cbor_isa_map(result.get()));
   ASSERT_EQ(cbor_map_size(result.get()), 5);
 
   cbor_item_unique_ptr field = empty_cbor_ptr();
   sc = CborUtils::GetField(*result, 0, field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_NE(field.get(), nullptr);
   ASSERT_TRUE(cbor_isa_string(field.get()));
   ASSERT_EQ(cbor_string_length(field.get()), 7);
@@ -192,34 +192,34 @@ TEST_F(ClientStateTest, Encode) {
   ASSERT_EQ(strncmp((char*)handle, font_id.c_str(), 7), 0);
 
   sc = CborUtils::GetField(*result, 1, field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_NE(field.get(), nullptr);
   string result_font_data;
   sc = CborUtils::DecodeBytes(*field, result_font_data);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(result_font_data, font_data);
 
   sc = CborUtils::GetField(*result, 2, field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_NE(field, nullptr);
   uint64_t n;
   sc = CborUtils::DecodeUInt64(*field, &n);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(n, font_checksum);
 
   field = nullptr;
   sc = CborUtils::GetField(*result, 3, field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_NE(field.get(), nullptr);
   vector<int32_t> v;
   sc = IntegerList::Decode(*field, v);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(v, remapping);
 
   sc = CborUtils::GetField(*result, 4, field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   sc = CborUtils::DecodeUInt64(*field, &n);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(n, remapping_checksum);
 }
 
@@ -230,35 +230,35 @@ TEST_F(ClientStateTest, EncodeFieldsTwoAndThree) {
   client_state.SetFontData(font_data).SetOriginalFontChecksum(font_checksum);
   cbor_item_unique_ptr result = empty_cbor_ptr();
 
-  StatusCode sc = client_state.Encode(result);
+  Status sc = client_state.Encode(result);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_NE(result, nullptr);
   ASSERT_TRUE(cbor_isa_map(result.get()));
   ASSERT_EQ(cbor_map_size(result.get()), 2);
 
   cbor_item_unique_ptr field = empty_cbor_ptr();
   sc = CborUtils::GetField(*result, 0, field);
-  ASSERT_EQ(sc, StatusCode::kNotFound);
+  ASSERT_TRUE(absl::IsNotFound(sc));
 
   sc = CborUtils::GetField(*result, 1, field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_NE(field.get(), nullptr);
   string result_font_data;
   sc = CborUtils::DecodeBytes(*field, result_font_data);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(result_font_data, font_data);
 
   sc = CborUtils::GetField(*result, 2, field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_NE(field, nullptr);
   uint64_t n;
   sc = CborUtils::DecodeUInt64(*field, &n);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(n, font_checksum);
 
   sc = CborUtils::GetField(*result, 3, field);
-  ASSERT_EQ(sc, StatusCode::kNotFound);
+  ASSERT_TRUE(absl::IsNotFound(sc));
 }
 
 TEST_F(ClientStateTest, EncodeFieldsOneAndFour) {
@@ -268,16 +268,16 @@ TEST_F(ClientStateTest, EncodeFieldsOneAndFour) {
   client_state.SetFontId(font_id).SetCodepointRemapping(remapping);
   cbor_item_unique_ptr result = empty_cbor_ptr();
 
-  StatusCode sc = client_state.Encode(result);
+  Status sc = client_state.Encode(result);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_NE(result, nullptr);
   ASSERT_TRUE(cbor_isa_map(result.get()));
   ASSERT_EQ(cbor_map_size(result.get()), 2);
 
   cbor_item_unique_ptr field = empty_cbor_ptr();
   sc = CborUtils::GetField(*result, 0, field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_NE(field.get(), nullptr);
   ASSERT_TRUE(cbor_isa_string(field.get()));
   ASSERT_EQ(cbor_string_length(field.get()), 7);
@@ -285,18 +285,18 @@ TEST_F(ClientStateTest, EncodeFieldsOneAndFour) {
   ASSERT_EQ(strncmp((char*)handle, font_id.c_str(), 7), 0);
 
   sc = CborUtils::GetField(*result, 1, field);
-  ASSERT_EQ(sc, StatusCode::kNotFound);
+  ASSERT_TRUE(absl::IsNotFound(sc));
 
   sc = CborUtils::GetField(*result, 2, field);
-  ASSERT_EQ(sc, StatusCode::kNotFound);
+  ASSERT_TRUE(absl::IsNotFound(sc));
 
   field = nullptr;
   sc = CborUtils::GetField(*result, 3, field);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_NE(field.get(), nullptr);
   vector<int32_t> v;
   sc = IntegerList::Decode(*field, v);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(v, remapping);
 }
 
@@ -396,9 +396,9 @@ TEST_F(ClientStateTest, Serialization) {
   string serialized_bytes;
   ClientState result;
 
-  EXPECT_EQ(input.SerializeToString(serialized_bytes), StatusCode::kOk);
+  EXPECT_EQ(input.SerializeToString(serialized_bytes), absl::OkStatus());
   EXPECT_EQ(ClientState::ParseFromString(serialized_bytes, result),
-            StatusCode::kOk);
+            absl::OkStatus());
 
   EXPECT_EQ(input, result);
 }

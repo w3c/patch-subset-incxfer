@@ -7,7 +7,7 @@
 
 namespace patch_subset::cbor {
 
-using absl::StatusCode;
+using absl::Status;
 using std::string;
 using std::vector;
 
@@ -52,70 +52,70 @@ PatchResponse::PatchResponse(
       _subset_axis_space(subset_axis_space),
       _original_axis_space(original_axis_space) {}
 
-StatusCode PatchResponse::Decode(const cbor_item_t& cbor_map,
+Status PatchResponse::Decode(const cbor_item_t& cbor_map,
                                  PatchResponse& out) {
   if (!cbor_isa_map(&cbor_map)) {
-    return StatusCode::kInvalidArgument;
+    return absl::InvalidArgumentError("not a map.");
   }
   PatchResponse result;
 
-  StatusCode sc = CborUtils::GetProtocolVersionField(
+  Status sc = CborUtils::GetProtocolVersionField(
       cbor_map, kProtocolVersionFieldNumber, result._protocol_version);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field lookup failed.");
   }
   sc = PatchFormatFields::GetPatchFormatField(cbor_map, kPatchFormatFieldNumber,
                                               result._patch_format);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field lookup failed.");
   }
   sc = CborUtils::GetBytesField(cbor_map, kPatchFieldNumber, result._patch);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field lookup failed.");
   }
   sc = CborUtils::GetBytesField(cbor_map, kReplacementFieldNumber,
                                 result._replacement);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field lookup failed.");
   }
   sc = CborUtils::GetUInt64Field(cbor_map, kOriginalFontChecksumFieldNumber,
                                  result._original_font_checksum);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field lookup failed.");
   }
   sc = CborUtils::GetUInt64Field(cbor_map, kPatchedChecksumFieldNumber,
                                  result._patched_checksum);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field lookup failed.");
   }
   sc = IntegerList::GetIntegerListField(cbor_map, kCodepointOrderingFieldNumber,
                                         result._codepoint_ordering);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field lookup failed.");
   }
   sc = CborUtils::GetUInt64Field(cbor_map, kOrderingChecksumFieldNumber,
                                  result._ordering_checksum);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field lookup failed.");
   }
 
   sc = AxisSpace::GetAxisSpaceField(cbor_map, kSubsetAxisSpace,
                                     result._subset_axis_space);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field lookup failed.");
   }
 
   sc = AxisSpace::GetAxisSpaceField(cbor_map, kOriginalAxisSpace,
                                     result._original_axis_space);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field lookup failed.");
   }
 
   out = std::move(result);
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
-StatusCode PatchResponse::Encode(cbor_item_unique_ptr& map_out) const {
+Status PatchResponse::Encode(cbor_item_unique_ptr& map_out) const {
   int size = (_protocol_version.has_value() ? 1 : 0) +
              (_patch_format.has_value() ? 1 : 0) +
              (_patch.has_value() ? 1 : 0) + (_replacement.has_value() ? 1 : 0) +
@@ -126,89 +126,88 @@ StatusCode PatchResponse::Encode(cbor_item_unique_ptr& map_out) const {
              (_subset_axis_space.has_value() ? 1 : 0) +
              (_original_axis_space.has_value() ? 1 : 0);
   cbor_item_unique_ptr map = make_cbor_map(size);
-  StatusCode sc = CborUtils::SetProtocolVersionField(
+  Status sc = CborUtils::SetProtocolVersionField(
       *map, kProtocolVersionFieldNumber, _protocol_version);
-  if (sc != StatusCode::kOk) {
+  if (!sc.ok()) {
     return sc;
   }
   sc = PatchFormatFields::SetPatchFormatField(*map, kPatchFormatFieldNumber,
                                               _patch_format);
-  if (sc != StatusCode::kOk) {
+  if (!sc.ok()) {
     return sc;
   }
   sc = CborUtils::SetBytesField(*map, kPatchFieldNumber, _patch);
-  if (sc != StatusCode::kOk) {
+  if (!sc.ok()) {
     return sc;
   }
   sc = CborUtils::SetBytesField(*map, kReplacementFieldNumber, _replacement);
-  if (sc != StatusCode::kOk) {
+  if (!sc.ok()) {
     return sc;
   }
   sc = CborUtils::SetUInt64Field(*map, kOriginalFontChecksumFieldNumber,
                                  _original_font_checksum);
-  if (sc != StatusCode::kOk) {
+  if (!sc.ok()) {
     return sc;
   }
   sc = CborUtils::SetUInt64Field(*map, kPatchedChecksumFieldNumber,
                                  _patched_checksum);
-  if (sc != StatusCode::kOk) {
+  if (!sc.ok()) {
     return sc;
   }
   sc = IntegerList::SetIntegerListField(*map, kCodepointOrderingFieldNumber,
                                         _codepoint_ordering);
-  if (sc != StatusCode::kOk) {
+  if (!sc.ok()) {
     return sc;
   }
   sc = CborUtils::SetUInt64Field(*map, kOrderingChecksumFieldNumber,
                                  _ordering_checksum);
-  if (sc != StatusCode::kOk) {
+  if (!sc.ok()) {
     return sc;
   }
 
-  if ((sc = AxisSpace::SetAxisSpaceField(
-           *map, kSubsetAxisSpace, _subset_axis_space)) != StatusCode::kOk) {
+  if (!(sc = AxisSpace::SetAxisSpaceField(
+          *map, kSubsetAxisSpace, _subset_axis_space)).ok()) {
     return sc;
   }
 
-  if ((sc = AxisSpace::SetAxisSpaceField(*map, kOriginalAxisSpace,
-                                         _original_axis_space)) !=
-      StatusCode::kOk) {
+  if (!(sc = AxisSpace::SetAxisSpaceField(*map, kOriginalAxisSpace,
+                                          _original_axis_space)).ok()) {
     return sc;
   }
 
   map_out.swap(map);
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
-StatusCode PatchResponse::ParseFromString(const std::string& buffer,
+Status PatchResponse::ParseFromString(const std::string& buffer,
                                           PatchResponse& out) {
   cbor_item_unique_ptr item = empty_cbor_ptr();
-  StatusCode sc = CborUtils::DeserializeFromBytes(buffer, item);
-  if (sc != StatusCode::kOk) {
+  Status sc = CborUtils::DeserializeFromBytes(buffer, item);
+  if (!sc.ok()) {
     return sc;
   }
   sc = Decode(*item, out);
-  if (sc != StatusCode::kOk) {
+  if (!sc.ok()) {
     return sc;
   }
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
-StatusCode PatchResponse::SerializeToString(std::string& out) const {
+Status PatchResponse::SerializeToString(std::string& out) const {
   cbor_item_unique_ptr item = empty_cbor_ptr();
-  StatusCode sc = Encode(item);
-  if (sc != StatusCode::kOk) {
+  Status sc = Encode(item);
+  if (!sc.ok()) {
     return sc;
   }
   unsigned char* buffer;
   size_t buffer_size;
   size_t written = cbor_serialize_alloc(item.get(), &buffer, &buffer_size);
   if (written == 0) {
-    return StatusCode::kInternal;
+    return absl::InternalError("cbor_serialize_alloc failed.");
   }
   out.assign(std::string((char*)buffer, written));
   free(buffer);
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
 void PatchResponse::CopyTo(PatchResponse& target) const {

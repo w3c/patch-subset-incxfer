@@ -31,14 +31,14 @@ class AxisSpace {
   void AddInterval(hb_tag_t tag, const AxisInterval& interval);
   const std::vector<AxisInterval>& IntervalsFor(hb_tag_t tag) const;
 
-  static absl::StatusCode SetAxisSpaceField(
+  static absl::Status SetAxisSpaceField(
       cbor_item_t& map, int field_number,
       const std::optional<AxisSpace>& axis_space);
-  static absl::StatusCode GetAxisSpaceField(const cbor_item_t& map,
+  static absl::Status GetAxisSpaceField(const cbor_item_t& map,
                                             int field_number,
                                             std::optional<AxisSpace>& out);
-  static absl::StatusCode Decode(const cbor_item_t& cbor_map, AxisSpace& out);
-  absl::StatusCode Encode(cbor_item_unique_ptr& map_out) const;
+  static absl::Status Decode(const cbor_item_t& cbor_map, AxisSpace& out);
+  absl::Status Encode(cbor_item_unique_ptr& map_out) const;
 
   std::string ToString() const;
 

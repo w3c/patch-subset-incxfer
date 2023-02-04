@@ -7,7 +7,7 @@
 
 namespace patch_subset::cbor {
 
-using absl::StatusCode;
+using absl::Status;
 using std::optional;
 using std::vector;
 
@@ -21,7 +21,7 @@ static void check_cbor_array_equal(const cbor_item_t& cbor_array,
     uint64_t value;
     cbor_item_unique_ptr element =
         wrap_cbor_item(cbor_array_get(&cbor_array, i));
-    ASSERT_EQ(StatusCode::kOk, CborUtils::DecodeUInt64(*element, &value));
+    ASSERT_EQ(absl::OkStatus(), CborUtils::DecodeUInt64(*element, &value));
     ASSERT_EQ(array[i], value);
   }
 }
@@ -30,9 +30,9 @@ TEST_F(ArrayTest, EncodeEmpty) {
   vector<uint64_t> input;
   cbor_item_unique_ptr array = empty_cbor_ptr();
 
-  StatusCode sc = Array::Encode(input, array);
+  Status sc = Array::Encode(input, array);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   check_cbor_array_equal(*array, input);
 }
 
@@ -40,9 +40,9 @@ TEST_F(ArrayTest, Encode) {
   vector<uint64_t> input{2, 3, 0};
   cbor_item_unique_ptr array = empty_cbor_ptr();
 
-  StatusCode sc = Array::Encode(input, array);
+  Status sc = Array::Encode(input, array);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   check_cbor_array_equal(*array, input);
 }
 
@@ -58,9 +58,9 @@ TEST_F(ArrayTest, Decode) {
   vector<uint64_t> expected{13, 12759, 0};
 
   vector<uint64_t> result;
-  StatusCode sc = Array::Decode(*bytestring, result);
+  Status sc = Array::Decode(*bytestring, result);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(result, expected);
 }
 
@@ -68,7 +68,7 @@ TEST_F(ArrayTest, SetIntegerArrayField) {
   cbor_item_unique_ptr map = make_cbor_map(1);
 
   vector<uint64_t> data{101, 200, 1000, 500, 20, 0};
-  ASSERT_EQ(StatusCode::kOk, Array::SetArrayField(*map, 42, data));
+  ASSERT_EQ(absl::OkStatus(), Array::SetArrayField(*map, 42, data));
 
   ASSERT_EQ(cbor_map_size(map.get()), 1);
   cbor_pair pair = cbor_map_handle(map.get())[0];
@@ -83,14 +83,14 @@ TEST_F(ArrayTest, GetIntegerArrayField) {
   cbor_item_unique_ptr map = make_cbor_map(1);
   vector<uint64_t> expected{101, 200, 1000, 500, 20, 0};
   cbor_item_unique_ptr value = empty_cbor_ptr();
-  StatusCode sc = Array::Encode(expected, value);
-  ASSERT_EQ(sc, StatusCode::kOk);
+  Status sc = Array::Encode(expected, value);
+  ASSERT_EQ(sc, absl::OkStatus());
   CborUtils::SetField(*map, 0, move_out(value));
 
   optional<vector<uint64_t>> result;
   sc = Array::GetArrayField(*map, 0, result);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_TRUE(result);
   ASSERT_EQ(*result, expected);
 }
@@ -99,9 +99,9 @@ TEST_F(ArrayTest, GetIntegerArrayFieldNotFound) {
   cbor_item_unique_ptr map = make_cbor_map(0);
 
   optional<vector<uint64_t>> result({1, 2, 3});
-  StatusCode sc = Array::GetArrayField(*map, 0, result);
+  Status sc = Array::GetArrayField(*map, 0, result);
 
-  ASSERT_EQ(sc, StatusCode::kOk);
+  ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_FALSE(result.has_value());
 }
 
@@ -110,9 +110,9 @@ TEST_F(ArrayTest, GetIntegerArrayFieldInvalid) {
   CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString("bad")));
   optional<vector<uint64_t>> result({1, 2});
 
-  StatusCode sc = Array::GetArrayField(*map, 0, result);
+  Status sc = Array::GetArrayField(*map, 0, result);
 
-  ASSERT_EQ(sc, StatusCode::kInvalidArgument);
+  ASSERT_TRUE(absl::IsInvalidArgument(sc));
   ASSERT_EQ(*result, vector<uint64_t>({1, 2}));
 }
 

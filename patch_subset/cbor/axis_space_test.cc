@@ -9,7 +9,7 @@
 
 namespace patch_subset::cbor {
 
-using absl::StatusCode;
+using absl::Status;
 
 class AxisSpaceTest : public ::testing::Test {
  public:
@@ -63,10 +63,10 @@ TEST_F(AxisSpaceTest, Equal) {
 
 TEST_F(AxisSpaceTest, EncodeDecode) {
   cbor_item_unique_ptr map = empty_cbor_ptr();
-  ASSERT_EQ(space.Encode(map), StatusCode::kOk);
+  ASSERT_EQ(space.Encode(map), absl::OkStatus());
 
   AxisSpace decoded;
-  ASSERT_EQ(AxisSpace::Decode(*map, decoded), StatusCode::kOk);
+  ASSERT_EQ(AxisSpace::Decode(*map, decoded), absl::OkStatus());
   EXPECT_EQ(space, decoded);
 }
 

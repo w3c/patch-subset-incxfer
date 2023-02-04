@@ -7,7 +7,7 @@
 
 namespace patch_subset::cbor {
 
-using absl::StatusCode;
+using absl::Status;
 using patch_subset::PatchFormat;
 using std::string;
 using std::vector;
@@ -53,67 +53,67 @@ PatchRequest::PatchRequest(
       _base_checksum(base_checksum),
       _connection_speed(connection_speed) {}
 
-StatusCode PatchRequest::Decode(const cbor_item_t& cbor_map,
+Status PatchRequest::Decode(const cbor_item_t& cbor_map,
                                 PatchRequest& out) {
   if (!cbor_isa_map(&cbor_map)) {
-    return StatusCode::kInvalidArgument;
+    return absl::InvalidArgumentError("not a map.");
   }
   PatchRequest result;
-  StatusCode sc = CborUtils::GetProtocolVersionField(
+  Status sc = CborUtils::GetProtocolVersionField(
       cbor_map, kProtocolVersionFieldNumber, result._protocol_version);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field lookup failed");
   }
   sc = PatchFormatFields::GetPatchFormatsListField(
       cbor_map, kAcceptPatchFormatsFieldNumber, result._accept_formats);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field lookup failed");
   }
   sc = CompressedSet::GetCompressedSetField(
       cbor_map, kCodepointsHaveFieldNumber, result._codepoints_have);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field lookup failed");
   }
   sc = CompressedSet::GetCompressedSetField(
       cbor_map, kCodepointsNeededFieldNumber, result._codepoints_needed);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field lookup failed");
   }
   sc = CompressedSet::GetCompressedSetField(cbor_map, kIndicesHaveFieldNumber,
                                             result._indices_have);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field lookup failed");
   }
   sc = CompressedSet::GetCompressedSetField(cbor_map, kIndicesNeededFieldNumber,
                                             result._indices_needed);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field lookup failed");
   }
   sc = CborUtils::GetUInt64Field(cbor_map, kOrderingChecksumFieldNumber,
                                  result._ordering_checksum);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field lookup failed");
   }
   sc = CborUtils::GetUInt64Field(cbor_map, kOriginalFontChecksumFieldNumber,
                                  result._original_font_checksum);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field lookup failed");
   }
   sc = CborUtils::GetUInt64Field(cbor_map, kBaseChecksumFieldNumber,
                                  result._base_checksum);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field lookup failed");
   }
   sc = CborUtils::GetConnectionSpeedField(cbor_map, kConnectionSpeedFieldNumber,
                                           result._connection_speed);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field lookup failed");
   }
   out = std::move(result);
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
-StatusCode PatchRequest::Encode(cbor_item_unique_ptr& map_out) const {
+Status PatchRequest::Encode(cbor_item_unique_ptr& map_out) const {
   int size = (_protocol_version.has_value() ? 1 : 0) +
              (_accept_formats.has_value() ? 1 : 0) +
              (_codepoints_have.has_value() ? 1 : 0) +
@@ -125,89 +125,89 @@ StatusCode PatchRequest::Encode(cbor_item_unique_ptr& map_out) const {
              (_base_checksum.has_value() ? 1 : 0) +
              (_connection_speed.has_value() ? 1 : 0);
   cbor_item_unique_ptr map = make_cbor_map(size);
-  StatusCode sc = CborUtils::SetProtocolVersionField(
+  Status sc = CborUtils::SetProtocolVersionField(
       *map, kProtocolVersionFieldNumber, _protocol_version);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field setting failed.");
   }
   sc = PatchFormatFields::SetPatchFormatsListField(
       *map, kAcceptPatchFormatsFieldNumber, _accept_formats);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field setting failed.");
   }
   sc = CompressedSet::SetCompressedSetField(*map, kCodepointsHaveFieldNumber,
                                             _codepoints_have);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field setting failed.");
   }
   sc = CompressedSet::SetCompressedSetField(*map, kCodepointsNeededFieldNumber,
                                             _codepoints_needed);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field setting failed.");
   }
   sc = CompressedSet::SetCompressedSetField(*map, kIndicesHaveFieldNumber,
                                             _indices_have);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field setting failed.");
   }
   sc = CompressedSet::SetCompressedSetField(*map, kIndicesNeededFieldNumber,
                                             _indices_needed);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field setting failed.");
   }
   sc = CborUtils::SetUInt64Field(*map, kOrderingChecksumFieldNumber,
                                  _ordering_checksum);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field setting failed.");
   }
   sc = CborUtils::SetUInt64Field(*map, kOriginalFontChecksumFieldNumber,
                                  _original_font_checksum);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field setting failed.");
   }
   sc =
       CborUtils::SetUInt64Field(*map, kBaseChecksumFieldNumber, _base_checksum);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field setting failed.");
   }
   sc = CborUtils::SetConnectionSpeedField(*map, kConnectionSpeedFieldNumber,
                                           _connection_speed);
-  if (sc != StatusCode::kOk) {
-    return StatusCode::kInvalidArgument;
+  if (!sc.ok()) {
+    return absl::InvalidArgumentError("field setting failed.");
   }
   map_out.swap(map);
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
-StatusCode PatchRequest::ParseFromString(const std::string& buffer,
+Status PatchRequest::ParseFromString(const std::string& buffer,
                                          PatchRequest& out) {
   cbor_item_unique_ptr item = empty_cbor_ptr();
-  StatusCode sc = CborUtils::DeserializeFromBytes(buffer, item);
-  if (sc != StatusCode::kOk) {
+  Status sc = CborUtils::DeserializeFromBytes(buffer, item);
+  if (!sc.ok()) {
     return sc;
   }
   sc = Decode(*item, out);
-  if (sc != StatusCode::kOk) {
+  if (!sc.ok()) {
     return sc;
   }
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
-StatusCode PatchRequest::SerializeToString(std::string& out) const {
+Status PatchRequest::SerializeToString(std::string& out) const {
   cbor_item_unique_ptr item = empty_cbor_ptr();
-  StatusCode sc = Encode(item);
-  if (sc != StatusCode::kOk) {
+  Status sc = Encode(item);
+  if (!sc.ok()) {
     return sc;
   }
   unsigned char* buffer;
   size_t buffer_size;
   size_t written = cbor_serialize_alloc(item.get(), &buffer, &buffer_size);
   if (written == 0) {
-    return StatusCode::kInternal;
+    return absl::InternalError("cbor_serialize_alloc failed.");
   }
   out.assign(std::string((char*)buffer, written));
   free(buffer);
-  return StatusCode::kOk;
+  return absl::OkStatus();
 }
 
 bool PatchRequest::HasProtocolVersion() const {

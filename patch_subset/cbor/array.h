@@ -12,17 +12,17 @@ namespace patch_subset::cbor {
 
 class Array {
  public:
-  static absl::StatusCode Encode(const std::vector<uint64_t>& ints,
-                                 cbor_item_unique_ptr& array_out);
+  static absl::Status Encode(const std::vector<uint64_t>& ints,
+                             cbor_item_unique_ptr& array_out);
 
-  static absl::StatusCode Decode(const cbor_item_t& array,
-                                 std::vector<uint64_t>& out);
+  static absl::Status Decode(const cbor_item_t& array,
+                             std::vector<uint64_t>& out);
 
-  static absl::StatusCode SetArrayField(
+  static absl::Status SetArrayField(
       cbor_item_t& map, int field_number,
       const std::optional<std::vector<uint64_t>>& int_list);
 
-  static absl::StatusCode GetArrayField(
+  static absl::Status GetArrayField(
       const cbor_item_t& map, int field_number,
       std::optional<std::vector<uint64_t>>& out);
 };
