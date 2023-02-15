@@ -260,8 +260,8 @@ void BrotliFontDiff::SortForDiff(const hb_set_t* immutable_tables,
 }
 
 Status BrotliFontDiff::Diff(hb_subset_plan_t* base_plan, hb_blob_t* base,
-                            hb_subset_plan_t* derived_plan,
-                            hb_blob_t* derived, FontData* patch) const {
+                            hb_subset_plan_t* derived_plan, hb_blob_t* derived,
+                            FontData* patch) const {
   Span<const uint8_t> base_span = TableRange::to_span(base);
   Span<const uint8_t> derived_span = TableRange::to_span(derived);
 
@@ -293,7 +293,8 @@ Status BrotliFontDiff::Diff(hb_subset_plan_t* base_plan, hb_blob_t* base,
       }
 
       if (HasTable(base_face, tag) != HasTable(derived_face, tag)) {
-        return absl::InternalError("base and derived must both have the same tables.");
+        return absl::InternalError(
+            "base and derived must both have the same tables.");
       }
 
       Span<const uint8_t> base_span =
@@ -315,11 +316,13 @@ Status BrotliFontDiff::Diff(hb_subset_plan_t* base_plan, hb_blob_t* base,
       }
 
       if (derived_end_offset && derived_end_offset != derived_offset) {
-        return absl::InternalError("custom diff tables in derived are not sequential.");
+        return absl::InternalError(
+            "custom diff tables in derived are not sequential.");
       }
 
       if (base_end_offset && base_end_offset != base_offset) {
-        return absl::InternalError("custom diff tables in base are not sequential.");
+        return absl::InternalError(
+            "custom diff tables in base are not sequential.");
       }
 
       derived_end_offset = derived_offset + derived_span.size();

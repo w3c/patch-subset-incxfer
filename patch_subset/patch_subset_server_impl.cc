@@ -104,10 +104,12 @@ Status PatchSubsetServerImpl::Handle(const std::string& font_id,
   const BinaryDiff* binary_diff =
       DiffFor(request.AcceptFormats(), state.format);
   if (!binary_diff) {
-    return absl::InvalidArgumentError("No available binary diff algorithms were specified.");
+    return absl::InvalidArgumentError(
+        "No available binary diff algorithms were specified.");
   }
-  if (!(result = binary_diff->Diff(
-                 state.client_subset, state.client_target_subset, &state.patch)).ok()) {
+  if (!(result = binary_diff->Diff(state.client_subset,
+                                   state.client_target_subset, &state.patch))
+           .ok()) {
     return result;
   }
 
@@ -119,11 +121,14 @@ Status PatchSubsetServerImpl::Handle(const std::string& font_id,
 Status PatchSubsetServerImpl::LoadInputCodepoints(const PatchRequest& request,
                                                   RequestState* state) const {
   Status result;
-  result.Update(CompressedSet::Decode(request.CodepointsHave(), state->codepoints_have.get()));
+  result.Update(CompressedSet::Decode(request.CodepointsHave(),
+                                      state->codepoints_have.get()));
   result.Update(CompressedSet::Decode(request.CodepointsNeeded(),
                                       state->codepoints_needed.get()));
-  result.Update(CompressedSet::Decode(request.IndicesHave(), state->indices_have.get()));
-  result.Update(CompressedSet::Decode(request.IndicesNeeded(), state->indices_needed.get()));
+  result.Update(
+      CompressedSet::Decode(request.IndicesHave(), state->indices_have.get()));
+  result.Update(CompressedSet::Decode(request.IndicesNeeded(),
+                                      state->indices_needed.get()));
 
   if (!result.ok()) {
     return result;
@@ -168,7 +173,7 @@ void PatchSubsetServerImpl::CheckOriginalChecksum(uint64_t original_checksum,
   if (state->IsPatch() &&
       !ValidateChecksum(original_checksum, state->font_data).ok()) {
     LOG(WARNING) << "Client's original checksum does not match. Switching to "
-        "REBASE.";
+                    "REBASE.";
     hb_set_clear(state->codepoints_have.get());
   }
 }
@@ -233,9 +238,9 @@ void PatchSubsetServerImpl::AddPredictedCodepoints(RequestState* state) const {
 }
 
 Status PatchSubsetServerImpl::ComputeSubsets(const std::string& font_id,
-                                                 RequestState* state) const {
-  Status result = subsetter_->Subset(
-      state->font_data, *state->codepoints_have, &state->client_subset);
+                                             RequestState* state) const {
+  Status result = subsetter_->Subset(state->font_data, *state->codepoints_have,
+                                     &state->client_subset);
   if (!result.ok()) {
     LOG(WARNING) << "Subsetting for client_subset "
                  << "(font_id = " << font_id << ")"
@@ -300,12 +305,12 @@ Status PatchSubsetServerImpl::ConstructResponse(const RequestState& state,
 }
 
 Status PatchSubsetServerImpl::ValidateChecksum(uint64_t checksum,
-                                                   const FontData& data) const {
+                                               const FontData& data) const {
   uint64_t actual_checksum = hasher_->Checksum(data.str());
   if (actual_checksum != checksum) {
-    return absl::InvalidArgumentError(absl::StrCat(
-        "Checksum mismatch. Expected = ", checksum,
-        " Actual = ", actual_checksum, "."));
+    return absl::InvalidArgumentError(
+        absl::StrCat("Checksum mismatch. Expected = ", checksum,
+                     " Actual = ", actual_checksum, "."));
   }
   return absl::OkStatus();
 }

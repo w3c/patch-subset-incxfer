@@ -26,11 +26,11 @@ class IntegerList {
   // Create a compressed list given a list of integers.
   // Returns a cbor byte string.
   static absl::Status Encode(const std::vector<int32_t>& ints,
-                                 cbor_item_unique_ptr& bytestring_out);
+                             cbor_item_unique_ptr& bytestring_out);
 
   // Interpret a CBOR byte string as a compressed list of integers.
   static absl::Status Decode(const cbor_item_t& bytestring,
-                                 std::vector<int32_t>& out);
+                             std::vector<int32_t>& out);
 
   static absl::Status SetIntegerListField(
       cbor_item_t& map, int field_number,
@@ -51,13 +51,13 @@ class IntegerList {
   // integers. Giving up negative numbers, and negative deltas between integers,
   // doubles the range of integers that can be encoded in 1 byte.
   static absl::Status DecodeSorted(const cbor_item_t& bytestring,
-                                       std::vector<int32_t>& out);
+                                   std::vector<int32_t>& out);
 
  private:
   static absl::Status Decode(const cbor_item_t& bytestring, bool sorted,
-                                 std::vector<int32_t>& out);
+                             std::vector<int32_t>& out);
   static absl::Status Encode(const std::vector<int32_t>& ints, bool sorted,
-                                 cbor_item_unique_ptr& bytestring_out);
+                             cbor_item_unique_ptr& bytestring_out);
 };
 
 }  // namespace patch_subset::cbor

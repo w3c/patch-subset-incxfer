@@ -23,7 +23,7 @@ class ApplyPatch {
   explicit ApplyPatch(::absl::string_view patched) : patched_(patched) {}
 
   absl::Status operator()(const FontData& font_base, const FontData& patch,
-                              FontData* font_derived) {
+                          FontData* font_derived) {
     font_derived->copy(patched_);
     return absl::OkStatus();
   }

@@ -181,8 +181,8 @@ TEST_F(SparseBitSetTest, DecodeInvalid) {
   string encoded{0b00000110, 0b01010101, 0b00000001, 0b00000001};
   //             ^ d2 bf8 ^
   hb_set_unique_ptr set = make_hb_set();
-  EXPECT_TRUE(absl::IsInvalidArgument(
-      SparseBitSet::Decode(encoded, set.get())));
+  EXPECT_TRUE(
+      absl::IsInvalidArgument(SparseBitSet::Decode(encoded, set.get())));
 }
 
 TEST_F(SparseBitSetTest, EncodeEmpty) { TestEncodeDecode(make_hb_set(), 0); }
@@ -474,9 +474,8 @@ TEST_F(SparseBitSetTest, DepthLimits8) {
       absl::OkStatus(),
       SparseBitSet::Decode(FromChars("01|010100  00000000"), output.get()));
   // Depth 12 is too much.
-  EXPECT_TRUE(
-      absl::IsInvalidArgument(
-          SparseBitSet::Decode(FromChars("01|110100 00000000"), output.get())));
+  EXPECT_TRUE(absl::IsInvalidArgument(
+      SparseBitSet::Decode(FromChars("01|110100 00000000"), output.get())));
 }
 
 TEST_F(SparseBitSetTest, DepthLimits32) {
@@ -487,10 +486,8 @@ TEST_F(SparseBitSetTest, DepthLimits32) {
                 FromChars("11|011000  00000000000000000000000000000000"),
                 output.get()));
   // Depth 8 is too much.
-  EXPECT_TRUE(absl::IsInvalidArgument(
-      SparseBitSet::Decode(
-          FromChars("11|111000  00000000000000000000000000000000"),
-          output.get())));
+  EXPECT_TRUE(absl::IsInvalidArgument(SparseBitSet::Decode(
+      FromChars("11|111000  00000000000000000000000000000000"), output.get())));
 }
 
 TEST_F(SparseBitSetTest, Entire32BitRange) {

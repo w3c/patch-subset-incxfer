@@ -35,8 +35,7 @@ class CompressedSet {
                 const range_vector& ranges);
 
   bool empty() const;
-  static absl::Status Decode(const cbor_item_t& cbor_map,
-                                 CompressedSet& out);
+  static absl::Status Decode(const cbor_item_t& cbor_map, CompressedSet& out);
   absl::Status Encode(cbor_item_unique_ptr& map_out) const;
 
   bool HasSparseBitSetBytes() const;
@@ -53,9 +52,9 @@ class CompressedSet {
   static absl::Status SetCompressedSetField(
       cbor_item_t& map, int field_number,
       const std::optional<CompressedSet>& compressed_set);
-  static absl::Status GetCompressedSetField(
-      const cbor_item_t& map, int field_number,
-      std::optional<CompressedSet>& out);
+  static absl::Status GetCompressedSetField(const cbor_item_t& map,
+                                            int field_number,
+                                            std::optional<CompressedSet>& out);
 
   // Returns a human readable version of this CompressedSet.
   std::string ToString() const;

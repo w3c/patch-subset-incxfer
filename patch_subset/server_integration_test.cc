@@ -34,11 +34,14 @@ class PatchSubsetServerIntegrationTest : public ::testing::Test {
             std::unique_ptr<CodepointMapper>(nullptr),
             std::unique_ptr<IntegerListChecksum>(nullptr),
             std::unique_ptr<CodepointPredictor>(new NoopCodepointPredictor())) {
-    EXPECT_TRUE(font_provider_->GetFont("Roboto-Regular.abcd.ttf", &roboto_abcd_).ok());
-    EXPECT_TRUE(font_provider_->GetFont("Roboto-Regular.ab.ttf", &roboto_ab_).ok());
+    EXPECT_TRUE(
+        font_provider_->GetFont("Roboto-Regular.abcd.ttf", &roboto_abcd_).ok());
+    EXPECT_TRUE(
+        font_provider_->GetFont("Roboto-Regular.ab.ttf", &roboto_ab_).ok());
 
     FontData roboto_regular;
-    EXPECT_TRUE(font_provider_->GetFont("Roboto-Regular.ttf", &roboto_regular).ok());
+    EXPECT_TRUE(
+        font_provider_->GetFont("Roboto-Regular.ttf", &roboto_regular).ok());
 
     FastHasher hasher;
     original_font_checksum = hasher.Checksum(roboto_regular.str());

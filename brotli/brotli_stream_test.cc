@@ -70,8 +70,10 @@ TEST_F(BrotliStreamTest, InsertCompressedWithPartialDict) {
 
   Span<const uint8_t> data = Span<const uint8_t>(dict).subspan(5, 100);
   BrotliStream stream(22, dict.size());
-  ASSERT_TRUE(stream.insert_compressed_with_partial_dict(
-      data, Span<const uint8_t>(dict).subspan(0, 200)).ok());
+  ASSERT_TRUE(stream
+                  .insert_compressed_with_partial_dict(
+                      data, Span<const uint8_t>(dict).subspan(0, 200))
+                  .ok());
   stream.end_stream();
 
   EXPECT_LT(stream.compressed_data().size(), 100);
@@ -85,9 +87,8 @@ TEST_F(BrotliStreamTest, InsertCompressedWithPartialDict_ExceedsWindow) {
   Span<const uint8_t> data = Span<const uint8_t>(dict).subspan(1, 10);
 
   BrotliStream stream(10, 2000);
-  EXPECT_TRUE(absl::IsInternal(
-      stream.insert_compressed_with_partial_dict(
-          data, Span<const uint8_t>(dict).subspan(0, 10))));
+  EXPECT_TRUE(absl::IsInternal(stream.insert_compressed_with_partial_dict(
+      data, Span<const uint8_t>(dict).subspan(0, 10))));
   EXPECT_EQ(stream.uncompressed_size(), 0);
 }
 
@@ -99,10 +100,16 @@ TEST_F(BrotliStreamTest, InsertMultipleCompressedWithPartialDict) {
 
   Span<const uint8_t> data = Span<const uint8_t>(dict).subspan(5, 150);
   BrotliStream stream(22, dict.size());
-  ASSERT_TRUE(stream.insert_compressed_with_partial_dict(
-      data.subspan(0, 75), Span<const uint8_t>(dict).subspan(0, 100)).ok());
-  ASSERT_TRUE(stream.insert_compressed_with_partial_dict(
-      data.subspan(75, 75), Span<const uint8_t>(dict).subspan(0, 200)).ok());
+  ASSERT_TRUE(
+      stream
+          .insert_compressed_with_partial_dict(
+              data.subspan(0, 75), Span<const uint8_t>(dict).subspan(0, 100))
+          .ok());
+  ASSERT_TRUE(
+      stream
+          .insert_compressed_with_partial_dict(
+              data.subspan(75, 75), Span<const uint8_t>(dict).subspan(0, 200))
+          .ok());
   stream.end_stream();
 
   EXPECT_LT(stream.compressed_data().size(), 100);

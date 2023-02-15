@@ -53,8 +53,7 @@ PatchRequest::PatchRequest(
       _base_checksum(base_checksum),
       _connection_speed(connection_speed) {}
 
-Status PatchRequest::Decode(const cbor_item_t& cbor_map,
-                                PatchRequest& out) {
+Status PatchRequest::Decode(const cbor_item_t& cbor_map, PatchRequest& out) {
   if (!cbor_isa_map(&cbor_map)) {
     return absl::InvalidArgumentError("not a map.");
   }
@@ -180,7 +179,7 @@ Status PatchRequest::Encode(cbor_item_unique_ptr& map_out) const {
 }
 
 Status PatchRequest::ParseFromString(const std::string& buffer,
-                                         PatchRequest& out) {
+                                     PatchRequest& out) {
   cbor_item_unique_ptr item = empty_cbor_ptr();
   Status sc = CborUtils::DeserializeFromBytes(buffer, item);
   if (!sc.ok()) {

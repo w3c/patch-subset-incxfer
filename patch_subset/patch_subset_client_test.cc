@@ -39,7 +39,8 @@ class PatchSubsetClientTest : public ::testing::Test {
                                   std::unique_ptr<BinaryPatch>(binary_patch_),
                                   std::unique_ptr<Hasher>(hasher_))),
         font_provider_(new FileFontProvider("patch_subset/testdata/")) {
-    EXPECT_TRUE(font_provider_->GetFont("Roboto-Regular.ab.ttf", &roboto_ab_).ok());
+    EXPECT_TRUE(
+        font_provider_->GetFont("Roboto-Regular.ab.ttf", &roboto_ab_).ok());
   }
 
   PatchRequest CreateRequest(const hb_set_t& codepoints) {

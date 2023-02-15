@@ -20,7 +20,7 @@ Status IntegerList::IsEmpty(const cbor_item_t& bytestring, bool* out) {
 }
 
 Status IntegerList::Decode(const cbor_item_t& bytestring,
-                               vector<int32_t>& out) {
+                           vector<int32_t>& out) {
   return Decode(bytestring, false, out);
 }
 
@@ -39,8 +39,8 @@ Status IntegerList::SetIntegerListField(
 }
 
 Status IntegerList::GetIntegerListField(const cbor_item_t& map,
-                                            int field_number,
-                                            optional<vector<int32_t>>& out) {
+                                        int field_number,
+                                        optional<vector<int32_t>>& out) {
   cbor_item_unique_ptr field = empty_cbor_ptr();
   Status sc = CborUtils::GetField(map, field_number, field);
   if (absl::IsNotFound(sc)) {
@@ -59,12 +59,12 @@ Status IntegerList::GetIntegerListField(const cbor_item_t& map,
 }
 
 Status IntegerList::DecodeSorted(const cbor_item_t& bytestring,
-                                     vector<int32_t>& out) {
+                                 vector<int32_t>& out) {
   return Decode(bytestring, true, out);
 }
 
 Status IntegerList::Decode(const cbor_item_t& bytestring, bool sorted,
-                               vector<int32_t>& out) {
+                           vector<int32_t>& out) {
   if (!cbor_isa_bytestring(&bytestring)) {
     return absl::InvalidArgumentError("not a bytestring.");
   }
@@ -105,7 +105,7 @@ Status IntegerList::Decode(const cbor_item_t& bytestring, bool sorted,
 }
 
 Status IntegerList::Encode(const vector<int32_t>& ints, bool sorted,
-                               cbor_item_unique_ptr& bytestring_out) {
+                           cbor_item_unique_ptr& bytestring_out) {
   if (ints.empty()) {
     bytestring_out.reset(cbor_build_bytestring(nullptr, 0));
     return absl::OkStatus();
@@ -129,11 +129,11 @@ Status IntegerList::Encode(const vector<int32_t>& ints, bool sorted,
     }
     size_t bytes_left = buffer_size - (next_byte - buffer_start);
     if (bytes_left < 0) {
-      return absl::InternalError("ran out of bytes.");  // Not expected to happen.
+      return absl::InternalError(
+          "ran out of bytes.");  // Not expected to happen.
     }
     size_t size_in_out = bytes_left;
-    Status sc =
-        IntUtils::UIntBase128Encode(udelta, next_byte, &size_in_out);
+    Status sc = IntUtils::UIntBase128Encode(udelta, next_byte, &size_in_out);
     if (!sc.ok()) {
       return absl::InvalidArgumentError("UIntBase128Encode failed.");
     }
@@ -146,13 +146,12 @@ Status IntegerList::Encode(const vector<int32_t>& ints, bool sorted,
 }
 
 Status IntegerList::Encode(const vector<int32_t>& ints,
-                               cbor_item_unique_ptr& bytestring_out) {
+                           cbor_item_unique_ptr& bytestring_out) {
   return Encode(ints, false, bytestring_out);
 }
 
-Status IntegerList::EncodeSorted(
-    const vector<int32_t>& positive_sorted_ints,
-    cbor_item_unique_ptr& bytestring_out) {
+Status IntegerList::EncodeSorted(const vector<int32_t>& positive_sorted_ints,
+                                 cbor_item_unique_ptr& bytestring_out) {
   return Encode(positive_sorted_ints, true, bytestring_out);
 }
 

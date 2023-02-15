@@ -22,9 +22,8 @@ class Array {
       cbor_item_t& map, int field_number,
       const std::optional<std::vector<uint64_t>>& int_list);
 
-  static absl::Status GetArrayField(
-      const cbor_item_t& map, int field_number,
-      std::optional<std::vector<uint64_t>>& out);
+  static absl::Status GetArrayField(const cbor_item_t& map, int field_number,
+                                    std::optional<std::vector<uint64_t>>& out);
 };
 
 }  // namespace patch_subset::cbor

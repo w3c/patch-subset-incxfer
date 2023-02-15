@@ -38,7 +38,7 @@ Status returnFontId(const std::string& id, FontData* out) {
 }
 
 Status diff(const FontData& font_base, const FontData& font_derived,
-                FontData* out /* OUT */) {
+            FontData* out /* OUT */) {
   if (font_base.empty()) {
     out->copy(font_derived.data(), font_derived.size());
     return absl::OkStatus();
@@ -467,7 +467,8 @@ TEST_F(PatchSubsetServerImplTest, NotFound) {
   request.SetAcceptFormats({PatchFormat::BROTLI_SHARED_DICT});
   request.SetProtocolVersion(ProtocolVersion::ONE);
 
-  EXPECT_TRUE(absl::IsNotFound(server_.Handle("Roboto-Regular.ttf", request, response)));
+  EXPECT_TRUE(absl::IsNotFound(
+      server_.Handle("Roboto-Regular.ttf", request, response)));
 }
 
 TEST_F(PatchSubsetServerImplTest, RejectsMissingBaseChecksum) {
@@ -481,7 +482,8 @@ TEST_F(PatchSubsetServerImplTest, RejectsMissingBaseChecksum) {
   request.SetProtocolVersion(ProtocolVersion::ONE);
 
   // base checksum and original font checksum are missing.
-  EXPECT_TRUE(absl::IsInvalidArgument(server_.Handle("Roboto-Regular.ttf", request, response)));
+  EXPECT_TRUE(absl::IsInvalidArgument(
+      server_.Handle("Roboto-Regular.ttf", request, response)));
 }
 
 TEST_F(PatchSubsetServerImplTest, RejectsMissingOrderingChecksum) {
@@ -494,7 +496,8 @@ TEST_F(PatchSubsetServerImplTest, RejectsMissingOrderingChecksum) {
   request.SetProtocolVersion(ProtocolVersion::ONE);
 
   // ordering checksum is missing.
-  EXPECT_TRUE(absl::IsInvalidArgument(server_.Handle("Roboto-Regular.ttf", request, response)));
+  EXPECT_TRUE(absl::IsInvalidArgument(
+      server_.Handle("Roboto-Regular.ttf", request, response)));
 }
 
 }  // namespace patch_subset

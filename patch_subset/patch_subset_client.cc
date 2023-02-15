@@ -24,9 +24,9 @@ void CodepointsInFont(const std::string& font_data, hb_set_t* codepoints) {
   hb_face_destroy(face);
 }
 
-Status PatchSubsetClient::CreateRequest(
-    const hb_set_t& additional_codepoints, const ClientState& state,
-    PatchRequest* request) {
+Status PatchSubsetClient::CreateRequest(const hb_set_t& additional_codepoints,
+                                        const ClientState& state,
+                                        PatchRequest* request) {
   hb_set_unique_ptr existing_codepoints = make_hb_set();
   CodepointsInFont(state.FontData(), existing_codepoints.get());
 
