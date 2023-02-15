@@ -18,7 +18,6 @@ cc_binary(
     ],
     linkopts = DEFAULT_EMSCRIPTEN_LINKOPTS,
     deps = [
-        "//common",
         "//patch_subset:client",
         "//patch_subset:common",
         "@com_google_absl//absl/strings",
