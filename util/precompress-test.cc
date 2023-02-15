@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "absl/types/span.h"
 #include "brotli/brotli_font_diff.h"
 #include "hb-subset.h"
@@ -16,6 +17,7 @@ using namespace std::chrono;
 using std::vector;
 
 using absl::Span;
+using absl::Status;
 using absl::string_view;
 using brotli::BrotliFontDiff;
 using patch_subset::BrotliBinaryDiff;
@@ -23,7 +25,6 @@ using patch_subset::BrotliBinaryPatch;
 using patch_subset::FontData;
 using patch_subset::hb_set_unique_ptr;
 using patch_subset::make_hb_set;
-using patch_subset::StatusCode;
 
 constexpr bool DUMP_STATE = false;
 constexpr unsigned STATIC_QUALITY = 11;
@@ -112,9 +113,13 @@ class Operation {
     if (!base && mode == PRECOMPRESS_LAYOUT) {
       add_compressed_table_directory(subset_face, subset, patch);
       patch.insert(patch.end(), precompressed.begin(), precompressed.end());
-      add_mutable_tables(
+      Status sc = add_mutable_tables(
           table_directory_size(subset_face) + precompressed_length(subset_face),
           patch);
+      if (!sc.ok()) {
+        std::cout << "Adding tables failed (1): " << sc << std::endl;
+        exit(-1);
+      }
     } else if (IsCustomDiff(mode)) {
       // Use custom differ
       hb_set_unique_ptr empty_set = make_hb_set();
@@ -123,11 +128,20 @@ class Operation {
                                        : empty_set.get();
       BrotliFontDiff differ(immutable_tables, custom_tables_set.get());
       FontData patch_data;
-      differ.Diff(base_plan, base, subset_plan, subset, &patch_data);
+      Status sc =
+          differ.Diff(base_plan, base, subset_plan, subset, &patch_data);
+      if (!sc.ok()) {
+        std::cout << "Patch diff generation failed: " << sc << std::endl;
+        exit(-1);
+      }
       patch.insert(patch.end(), patch_data.str().begin(),
                    patch_data.str().end());
     } else {
-      add_mutable_tables(0, patch);
+      Status sc = add_mutable_tables(0, patch);
+      if (!sc.ok()) {
+        std::cout << "Adding tables failed (2): " << sc << std::endl;
+        exit(-1);
+      }
     }
 
     if (i == 0) {
@@ -146,9 +160,9 @@ class Operation {
       }
 
       FontData derived;
-      StatusCode sc = patcher.Patch(base_font_data, font_patch, &derived);
-      if (sc != StatusCode::kOk) {
-        printf("Patch application failed.\n");
+      Status sc = patcher.Patch(base_font_data, font_patch, &derived);
+      if (!sc.ok()) {
+        std::cout << "Patch application failed: " << sc << std::endl;
         exit(-1);
       }
       if (DUMP_STATE) {
@@ -284,17 +298,17 @@ class Operation {
     return result;
   }
 
-  void add_mutable_tables(unsigned offset, vector<uint8_t>& patch) {
+  Status add_mutable_tables(unsigned offset, vector<uint8_t>& patch) {
     BrotliBinaryDiff differ(dynamic_quality);
     FontData base_font_data;
     if (base) {
       base_font_data.set(base);
     }
 
-    differ.Diff(base_font_data,
-                string_view(hb_blob_get_data(subset, nullptr) + offset,
-                            hb_blob_get_length(subset) - offset),
-                offset, true, patch);
+    return differ.Diff(base_font_data,
+                       string_view(hb_blob_get_data(subset, nullptr) + offset,
+                                   hb_blob_get_length(subset) - offset),
+                       offset, true, patch);
   }
 
  private:
@@ -338,27 +352,27 @@ vector<uint8_t> precompress_immutable(const hb_face_t* face) {
   vector<uint8_t> sink;
   FontData empty;
   BrotliBinaryDiff differ(STATIC_QUALITY);
-  StatusCode sc =
+  Status sc =
       differ.Diff(empty,
                   string_view(reinterpret_cast<const char*>(table_data.data()),
                               table_data.size()),
                   header_size, false, sink);
-  if (sc != StatusCode::kOk) {
-    printf("Precompression brotli encoding failed.\n");
+  if (!sc.ok()) {
+    std::cout << "Precompression brotli encoding failed: " << sc << std::endl;
     exit(-1);
   }
 
   return sink;
 }
 
-void add_mutable_tables(hb_blob_t* base, hb_blob_t* subset, unsigned quality,
-                        unsigned offset, vector<uint8_t>& patch) {
+Status add_mutable_tables(hb_blob_t* base, hb_blob_t* subset, unsigned quality,
+                          unsigned offset, vector<uint8_t>& patch) {
   FontData base_data(base);
   BrotliBinaryDiff differ(quality);
-  differ.Diff(base_data,
-              string_view(hb_blob_get_data(subset, nullptr) + offset,
-                          hb_blob_get_length(subset) - offset),
-              offset, true, patch);
+  return differ.Diff(base_data,
+                     string_view(hb_blob_get_data(subset, nullptr) + offset,
+                                 hb_blob_get_length(subset) - offset),
+                     offset, true, patch);
 }
 
 const char* mode_to_string(Mode mode) {
