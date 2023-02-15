@@ -6,10 +6,10 @@
 #include "patch_subset/file_font_provider.h"
 #include "patch_subset/font_data.h"
 
-using ::patch_subset::FastHasher;
-using ::patch_subset::FileFontProvider;
-using ::patch_subset::FontData;
-using ::patch_subset::StatusCode;
+using absl::Status;
+using patch_subset::FastHasher;
+using patch_subset::FileFontProvider;
+using patch_subset::FontData;
 
 int main(int argc, char** argv) {
   FileFontProvider font_provider("");
@@ -19,8 +19,10 @@ int main(int argc, char** argv) {
 
   std::string file_path(argv[1]);
   FontData file_data;
-  if (font_provider.GetFont(file_path, &file_data) != StatusCode::kOk) {
-    std::cout << "File not found: " << file_path << std::endl;
+  Status s;
+  if (!(s = font_provider.GetFont(file_path, &file_data)).ok()) {
+    std::cout << "File not found: " << file_path << " (" << s << ")"
+              << std::endl;
     return -1;
   }
 
