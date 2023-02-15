@@ -59,8 +59,9 @@ class PatchSubsetClientServerIntegrationTest : public ::testing::Test {
             std::unique_ptr<BinaryPatch>(new BrotliBinaryPatch()),
             std::unique_ptr<Hasher>(new FastHasher())) {
     FileFontProvider font_provider(kTestDataDir);
-    font_provider.GetFont("Roboto-Regular.abcd.ttf", &roboto_abcd_);
-    font_provider.GetFont("Roboto-Regular.ab.ttf", &roboto_ab_);
+    Status s = font_provider.GetFont("Roboto-Regular.abcd.ttf", &roboto_abcd_);
+    s.Update(font_provider.GetFont("Roboto-Regular.ab.ttf", &roboto_ab_));
+    assert(s.ok());
   }
 
   std::unique_ptr<Hasher> hasher_;

@@ -140,7 +140,7 @@ class DiffDriver {
   bool retain_gids;
 
  public:
-  void MakeDiff() {
+  Status MakeDiff() {
     // Notation:
     // base_gid:      glyph id in the base subset glyph space.
     // *_derived_gid: glyph id in the derived subset glyph space.
@@ -170,7 +170,10 @@ class DiffDriver {
 
         if (derived_gid > 0 && was_new_data != differ->IsNewData()) {
           if (was_new_data) {
-            range.CommitNew();
+            Status s = range.CommitNew();
+            if (!s.ok()) {
+              return s;
+            }
           } else {
             range.CommitExisting();
           }
@@ -195,13 +198,18 @@ class DiffDriver {
       differ->Finalize(&base_length, &derived_length);
       range.Extend(base_length, derived_length);
       if (differ->IsNewData()) {
-        range.CommitNew();
+        Status s = range.CommitNew();
+        if (!s.ok()) {
+          return s;
+        }
       } else {
         range.CommitExisting();
       }
       range.stream().four_byte_align_uncompressed();
       out.append(range.stream());
     }
+
+    return absl::OkStatus();
   }
 
  private:
@@ -331,19 +339,28 @@ Status BrotliFontDiff::Diff(hb_subset_plan_t* base_plan, hb_blob_t* base,
     i++;
   }
 
-  out.insert_compressed_with_partial_dict(
+  Status s = out.insert_compressed_with_partial_dict(
       derived_span.subspan(0, derived_start_offset),
       base_span.subspan(0, base_start_offset));
+  if (!s.ok()) {
+    return s;
+  }
 
   if (!out.insert_from_dictionary(base_start_offset, base_region_sizes[0])) {
     return absl::InternalError("dict insert of immutable tables failed.");
   }
 
-  diff_driver.MakeDiff();
+  s = diff_driver.MakeDiff();
+  if (!s.ok()) {
+    return s;
+  }
 
   if (derived_span.size() > derived_end_offset) {
-    out.insert_compressed(derived_span.subspan(
+    s = out.insert_compressed(derived_span.subspan(
         derived_end_offset, derived_end_offset - derived_span.size()));
+    if (!s.ok()) {
+      return s;
+    }
   }
 
   out.end_stream();

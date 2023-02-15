@@ -198,10 +198,14 @@ void PatchSubsetClient::CreateRequest(const hb_set_t& codepoints_have,
 void PatchSubsetClient::LogRequest(const PatchRequest& request,
                                    const PatchResponse& response) {
   std::string request_bytes;
-  request.SerializeToString(request_bytes);
+  Status result = request.SerializeToString(request_bytes);
   std::string response_bytes;
-  response.SerializeToString(response_bytes);
-  Status result = request_logger_->LogRequest(request_bytes, response_bytes);
+  result.Update(response.SerializeToString(response_bytes));
+
+  if (result.ok()) {
+    result.Update(request_logger_->LogRequest(request_bytes, response_bytes));
+  }
+
   if (!result.ok()) {
     LOG(WARNING) << "Error logging result: " << result;
   }

@@ -170,8 +170,9 @@ TEST_F(SparseBitSetTest, DecodeNullSet) {
 
 TEST_F(SparseBitSetTest, DecodeAppends) {
   hb_set_unique_ptr set = make_hb_set(1, 42);
-  SparseBitSet::Decode(string{0b00000001, 0b00000001}, set.get());
-  //                          ^ d1 bf8 ^
+  ASSERT_EQ(SparseBitSet::Decode(string{0b00000001, 0b00000001}, set.get()),
+            //                          ^ d1 bf8 ^
+            absl::OkStatus());
   hb_set_unique_ptr expected = make_hb_set(2, 0, 42);
   EXPECT_TRUE(hb_set_is_equal(expected.get(), set.get()));
 }

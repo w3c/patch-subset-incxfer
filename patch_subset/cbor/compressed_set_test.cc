@@ -73,11 +73,14 @@ TEST_F(CompressedSetTest, Decode) {
   string bytes("010001010");
   range_vector ranges{{0, 256}};
   cbor_item_unique_ptr map = make_cbor_map(2);
-  CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeBytes(bytes)));
+  ASSERT_EQ(
+      CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeBytes(bytes))),
+      absl::OkStatus());
   cbor_item_unique_ptr ranges_bytestring = empty_cbor_ptr();
   Status sc = RangeList::Encode(ranges, ranges_bytestring);
   ASSERT_EQ(sc, absl::OkStatus());
-  CborUtils::SetField(*map, 1, move_out(ranges_bytestring));
+  ASSERT_EQ(CborUtils::SetField(*map, 1, move_out(ranges_bytestring)),
+            absl::OkStatus());
 
   string old_bytes("9999999");
   range_vector old_ranges{{2, 4}, {4, 8}};
@@ -121,11 +124,14 @@ TEST_F(CompressedSetTest, DecodeNotDefinateMap) {
 
 TEST_F(CompressedSetTest, DecodeInvalidBytes) {
   cbor_item_unique_ptr map = make_cbor_map(2);
-  CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString("not-bytes")));
+  ASSERT_EQ(CborUtils::SetField(
+                *map, 0, cbor_move(CborUtils::EncodeString("not-bytes"))),
+            absl::OkStatus());
   cbor_item_unique_ptr ranges_bytestring = empty_cbor_ptr();
   Status sc = RangeList::Encode({{0, 256}}, ranges_bytestring);
   ASSERT_EQ(sc, absl::OkStatus());
-  CborUtils::SetField(*map, 1, move_out(ranges_bytestring));
+  ASSERT_EQ(CborUtils::SetField(*map, 1, move_out(ranges_bytestring)),
+            absl::OkStatus());
 
   CompressedSet result{"orig", {}};
   CompressedSet expected(result);
@@ -137,8 +143,12 @@ TEST_F(CompressedSetTest, DecodeInvalidBytes) {
 
 TEST_F(CompressedSetTest, DecodeInvalidRanges) {
   cbor_item_unique_ptr map = make_cbor_map(2);
-  CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeBytes("0101010")));
-  CborUtils::SetField(*map, 1, cbor_move(CborUtils::EncodeString("err")));
+  ASSERT_EQ(CborUtils::SetField(*map, 0,
+                                cbor_move(CborUtils::EncodeBytes("0101010"))),
+            absl::OkStatus());
+  ASSERT_EQ(
+      CborUtils::SetField(*map, 1, cbor_move(CborUtils::EncodeString("err"))),
+      absl::OkStatus());
 
   CompressedSet result{"orig", {}};
   CompressedSet expected(result);
@@ -272,7 +282,7 @@ TEST_F(CompressedSetTest, GetCompressedSetField) {
   Status sc = expected.Encode(cs_map);
   ASSERT_EQ(sc, absl::OkStatus());
   cbor_item_unique_ptr map = make_cbor_map(1);
-  CborUtils::SetField(*map, 0, move_out(cs_map));
+  ASSERT_EQ(CborUtils::SetField(*map, 0, move_out(cs_map)), absl::OkStatus());
   std::optional<CompressedSet> result;
 
   sc = CompressedSet::GetCompressedSetField(*map, 0, result);
@@ -293,7 +303,9 @@ TEST_F(CompressedSetTest, GetCompressedSetFieldNotFound) {
 
 TEST_F(CompressedSetTest, GetCompressedSetFieldInvalid) {
   cbor_item_unique_ptr map = make_cbor_map(1);
-  CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString("bad")));
+  ASSERT_EQ(
+      CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString("bad"))),
+      absl::OkStatus());
   std::optional<CompressedSet> result;
 
   Status sc = CompressedSet::GetCompressedSetField(*map, 0, result);

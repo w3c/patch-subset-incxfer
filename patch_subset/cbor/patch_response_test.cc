@@ -217,19 +217,32 @@ TEST_F(PatchResponseTest, Decode) {
   cbor_item_unique_ptr map = make_cbor_map(10);
   cbor_item_unique_ptr type = empty_cbor_ptr();
 
-  CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeInt(0)));
-  CborUtils::SetField(*map, 1, cbor_move(CborUtils::EncodeInt(patch_format)));
-  CborUtils::SetField(*map, 2, cbor_move(CborUtils::EncodeBytes(patch)));
-  CborUtils::SetField(*map, 3, cbor_move(CborUtils::EncodeBytes(replacement)));
-  CborUtils::SetField(
-      *map, 4, cbor_move(CborUtils::EncodeUInt64(original_font_checksum)));
-  CborUtils::SetField(*map, 5,
-                      cbor_move(CborUtils::EncodeUInt64(patched_checksum)));
+  ASSERT_EQ(CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeInt(0))),
+            absl::OkStatus());
+  ASSERT_EQ(CborUtils::SetField(*map, 1,
+                                cbor_move(CborUtils::EncodeInt(patch_format))),
+            absl::OkStatus());
+  ASSERT_EQ(
+      CborUtils::SetField(*map, 2, cbor_move(CborUtils::EncodeBytes(patch))),
+      absl::OkStatus());
+  ASSERT_EQ(CborUtils::SetField(*map, 3,
+                                cbor_move(CborUtils::EncodeBytes(replacement))),
+            absl::OkStatus());
+  ASSERT_EQ(
+      CborUtils::SetField(
+          *map, 4, cbor_move(CborUtils::EncodeUInt64(original_font_checksum))),
+      absl::OkStatus());
+  ASSERT_EQ(CborUtils::SetField(
+                *map, 5, cbor_move(CborUtils::EncodeUInt64(patched_checksum))),
+            absl::OkStatus());
   cbor_item_unique_ptr remapping = empty_cbor_ptr();
-  IntegerList::Encode(codepoint_ordering, remapping);
-  CborUtils::SetField(*map, 6, move_out(remapping));
-  CborUtils::SetField(*map, 7,
-                      cbor_move(CborUtils::EncodeUInt64(ordering_checksum)));
+  ASSERT_EQ(IntegerList::Encode(codepoint_ordering, remapping),
+            absl::OkStatus());
+  ASSERT_EQ(CborUtils::SetField(*map, 6, move_out(remapping)),
+            absl::OkStatus());
+  ASSERT_EQ(CborUtils::SetField(
+                *map, 7, cbor_move(CborUtils::EncodeUInt64(ordering_checksum))),
+            absl::OkStatus());
 
   ASSERT_EQ(AxisSpace::SetAxisSpaceField(*map, 8, subset_space),
             absl::OkStatus());

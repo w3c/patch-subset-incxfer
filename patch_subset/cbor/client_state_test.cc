@@ -88,16 +88,24 @@ TEST_F(ClientStateTest, Decode) {
   vector<int32_t> remapping{};
   uint64_t remapping_checksum = 888L;
   cbor_item_unique_ptr map = make_cbor_map(5);
-  CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString(font_id)));
-  CborUtils::SetField(*map, 1, cbor_move(CborUtils::EncodeBytes(font_data)));
-  CborUtils::SetField(*map, 2,
-                      cbor_move(CborUtils::EncodeUInt64(font_checksum)));
+  ASSERT_EQ(
+      CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString(font_id))),
+      absl::OkStatus());
+  ASSERT_EQ(CborUtils::SetField(*map, 1,
+                                cbor_move(CborUtils::EncodeBytes(font_data))),
+            absl::OkStatus());
+  ASSERT_EQ(CborUtils::SetField(
+                *map, 2, cbor_move(CborUtils::EncodeUInt64(font_checksum))),
+            absl::OkStatus());
   cbor_item_unique_ptr remapping_field = empty_cbor_ptr();
   Status sc = IntegerList::Encode(remapping, remapping_field);
   ASSERT_EQ(sc, absl::OkStatus());
-  CborUtils::SetField(*map, 3, move_out(remapping_field));
-  CborUtils::SetField(*map, 4,
-                      cbor_move(CborUtils::EncodeUInt64(remapping_checksum)));
+  ASSERT_EQ(CborUtils::SetField(*map, 3, move_out(remapping_field)),
+            absl::OkStatus());
+  ASSERT_EQ(
+      CborUtils::SetField(
+          *map, 4, cbor_move(CborUtils::EncodeUInt64(remapping_checksum))),
+      absl::OkStatus());
   ClientState client_state;
 
   sc = ClientState::Decode(*map, client_state);
@@ -123,8 +131,12 @@ TEST_F(ClientStateTest, DecodeFieldsOneAndTwo) {
   string font_id("foo.ttf");
   string data("QWERTY");
   cbor_item_unique_ptr map = make_cbor_map(2);
-  CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString(font_id)));
-  CborUtils::SetField(*map, 1, cbor_move(CborUtils::EncodeBytes(data)));
+  ASSERT_EQ(
+      CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString(font_id))),
+      absl::OkStatus());
+  ASSERT_EQ(
+      CborUtils::SetField(*map, 1, cbor_move(CborUtils::EncodeBytes(data))),
+      absl::OkStatus());
   // No field # 2 or 3.
   ClientState client_state;
 
@@ -144,12 +156,14 @@ TEST_F(ClientStateTest, DecodeFieldsThreeAndFour) {
   uint64_t font_checksum = 999L;
   vector<int32_t> remapping{};
   cbor_item_unique_ptr map = make_cbor_map(2);
-  CborUtils::SetField(*map, 2,
-                      cbor_move(CborUtils::EncodeUInt64(font_checksum)));
+  ASSERT_EQ(CborUtils::SetField(
+                *map, 2, cbor_move(CborUtils::EncodeUInt64(font_checksum))),
+            absl::OkStatus());
   cbor_item_unique_ptr remapping_field = empty_cbor_ptr();
   Status sc = IntegerList::Encode(remapping, remapping_field);
   ASSERT_EQ(sc, absl::OkStatus());
-  CborUtils::SetField(*map, 3, move_out(remapping_field));
+  ASSERT_EQ(CborUtils::SetField(*map, 3, move_out(remapping_field)),
+            absl::OkStatus());
   // No field # 0 or 1.
   ClientState client_state;
 

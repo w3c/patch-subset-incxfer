@@ -571,7 +571,6 @@ TEST_F(CborUtilsTest, GetConnectionSpeedFieldInvalidValue) {
 }
 
 TEST_F(CborUtilsTest, DecodeIntErrors) {
-  int32_t n;
   EXPECT_TRUE(absl::IsInvalidArgument(
       CborUtils::DecodeInt(*make_cbor_int(0), nullptr)));
   EXPECT_TRUE(absl::IsInvalidArgument(
@@ -848,9 +847,9 @@ bool string_transcoded(const string& s) {
 
 string bytes(const cbor_item_t& item) {
   const size_t len = 1024;
-  char buffer[len];
+  char buffer[len] = {0};
   string_view sv(buffer, len);
-  size_t num_bytes;
+  size_t num_bytes = 0;
   if (CborUtils::SerializeToBytes(item, sv, &num_bytes) != absl::OkStatus()) {
     return "Serialization error!";
   }

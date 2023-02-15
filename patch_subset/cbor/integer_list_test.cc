@@ -192,7 +192,7 @@ TEST_F(IntegerListTest, GetIntegerListField) {
   cbor_item_unique_ptr value = empty_cbor_ptr();
   Status sc = IntegerList::Encode(expected, value);
   ASSERT_EQ(sc, absl::OkStatus());
-  CborUtils::SetField(*map, 0, move_out(value));
+  ASSERT_EQ(CborUtils::SetField(*map, 0, move_out(value)), absl::OkStatus());
   optional<vector<int32_t>> result;
 
   sc = IntegerList::GetIntegerListField(*map, 0, result);
@@ -213,7 +213,9 @@ TEST_F(IntegerListTest, GetIntegerListFieldNotFound) {
 
 TEST_F(IntegerListTest, GetIntegerListFieldInvalid) {
   cbor_item_unique_ptr map = make_cbor_map(1);
-  CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString("bad")));
+  ASSERT_EQ(
+      CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString("bad"))),
+      absl::OkStatus());
   optional<vector<int32_t>> result({-1, -2});
 
   Status sc = IntegerList::GetIntegerListField(*map, 0, result);

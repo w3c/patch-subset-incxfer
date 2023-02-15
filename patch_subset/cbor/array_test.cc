@@ -74,7 +74,7 @@ TEST_F(ArrayTest, SetIntegerArrayField) {
   cbor_pair pair = cbor_map_handle(map.get())[0];
 
   int32_t key;
-  CborUtils::DecodeInt(*(pair.key), &key);
+  ASSERT_EQ(CborUtils::DecodeInt(*(pair.key), &key), absl::OkStatus());
   ASSERT_EQ(key, 42);
   check_cbor_array_equal(*(pair.value), data);
 }
@@ -85,7 +85,7 @@ TEST_F(ArrayTest, GetIntegerArrayField) {
   cbor_item_unique_ptr value = empty_cbor_ptr();
   Status sc = Array::Encode(expected, value);
   ASSERT_EQ(sc, absl::OkStatus());
-  CborUtils::SetField(*map, 0, move_out(value));
+  ASSERT_EQ(CborUtils::SetField(*map, 0, move_out(value)), absl::OkStatus());
 
   optional<vector<uint64_t>> result;
   sc = Array::GetArrayField(*map, 0, result);
@@ -107,7 +107,9 @@ TEST_F(ArrayTest, GetIntegerArrayFieldNotFound) {
 
 TEST_F(ArrayTest, GetIntegerArrayFieldInvalid) {
   cbor_item_unique_ptr map = make_cbor_map(1);
-  CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString("bad")));
+  ASSERT_EQ(
+      CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString("bad"))),
+      absl::OkStatus());
   optional<vector<uint64_t>> result({1, 2});
 
   Status sc = Array::GetArrayField(*map, 0, result);
