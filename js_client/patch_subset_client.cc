@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "absl/log/log.h"
+#include "absl/status/status.h"
 #include "hb.h"
 #include "patch_subset/brotli_binary_patch.h"
 #include "patch_subset/cbor/client_state.h"
@@ -20,12 +21,12 @@
 #include "patch_subset/null_request_logger.h"
 
 using namespace emscripten;
-using ::patch_subset::CompressedSet;
-using ::patch_subset::hb_set_unique_ptr;
-using ::patch_subset::make_hb_set;
-using ::patch_subset::NullRequestLogger;
-using ::patch_subset::PatchSubsetClient;
-using ::patch_subset::StatusCode;
+using absl::Status;
+using patch_subset::CompressedSet;
+using patch_subset::hb_set_unique_ptr;
+using patch_subset::make_hb_set;
+using patch_subset::NullRequestLogger;
+using patch_subset::PatchSubsetClient;
 using patch_subset::cbor::ClientState;
 using patch_subset::cbor::PatchRequest;
 using patch_subset::cbor::PatchResponse;
@@ -42,7 +43,7 @@ struct RequestContext {
 void RequestSucceeded(emscripten_fetch_t* fetch) {
   RequestContext* context = reinterpret_cast<RequestContext*>(fetch->userData);
   if (fetch->status == 200) {
-    StatusCode sc;
+    Status sc;
     PatchResponse response;
 
     if (fetch->numBytes > 4 && fetch->data[0] == 'I' && fetch->data[1] == 'F' &&
@@ -50,21 +51,19 @@ void RequestSucceeded(emscripten_fetch_t* fetch) {
       sc = PatchResponse::ParseFromString(
           std::string(fetch->data + 4, fetch->numBytes - 4), response);
     } else {
-      LOG(WARNING) << "Response does not have expected magic number."
-                   << std::endl;
-      sc = StatusCode::kInvalidArgument;
+      sc = absl::InvalidArgumentError(
+          "Response does not have expected magic number.");
     }
 
-    if (sc != StatusCode::kOk) {
-      LOG(WARNING) << "Failed to decode server response." << std::endl;
+    if (!sc.ok()) {
+      LOG(WARNING) << "Failed to decode server response: " << sc;
       context->callback(false);
     } else {
-      context->callback(context->client->AmendState(response, context->state) ==
-                        StatusCode::kOk);
+      context->callback(
+          context->client->AmendState(response, context->state).ok());
     }
   } else {
-    LOG(WARNING) << "Extend http request failed with code " << fetch->status
-                 << std::endl;
+    LOG(WARNING) << "Extend http request failed with code " << fetch->status;
     context->callback(false);
   }
 
@@ -92,8 +91,8 @@ class State {
     _state.SetFontId(font_id);
   }
 
-  void init_from(std::string buffer) {
-    ClientState::ParseFromString(buffer, _state);
+  Status init_from(std::string buffer) {
+    return ClientState::ParseFromString(buffer, _state);
   }
 
   val font_data() {
@@ -110,11 +109,11 @@ class State {
     }
 
     PatchRequest request;
-    StatusCode result =
+    Status result =
         _client.CreateRequest(*additional_codepoints, _state, &request);
-    if (result != StatusCode::kOk || (request.CodepointsNeeded().empty() &&
-                                      request.IndicesNeeded().empty())) {
-      callback(result == StatusCode::kOk);
+    if (!result.ok() || (request.CodepointsNeeded().empty() &&
+                         request.IndicesNeeded().empty())) {
+      callback(result.ok());
       return;
     }
 
@@ -124,9 +123,9 @@ class State {
  private:
   void DoRequest(const PatchRequest& request, val& callback) {
     std::unique_ptr<std::string> payload(new std::string());
-    StatusCode rc = request.SerializeToString(*payload);
-    if (rc != StatusCode::kOk) {
-      LOG(WARNING) << "Failed to serialize request.";
+    Status rc = request.SerializeToString(*payload);
+    if (!rc.ok()) {
+      LOG(WARNING) << "Failed to serialize request: " << rc;
       callback(false);
       return;
     }
