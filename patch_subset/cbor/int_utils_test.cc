@@ -244,7 +244,9 @@ string bits(uint32_t n) {
 string encoded_bytes(uint32_t n) {
   uint8_t buffer[]{0, 0, 0, 0, 0, 0};
   size_t size_in_out = 6;
-  IntUtils::UIntBase128Encode(n, buffer, &size_in_out);
+  if (!IntUtils::UIntBase128Encode(n, buffer, &size_in_out).ok()) {
+    return "FAIL";
+  }
   string s = bits(n) + " -> ";
   for (size_t i = 0; i < size_in_out; i++) {
     s += bits(buffer[i]);
@@ -258,7 +260,9 @@ string encoded_bytes(uint32_t n) {
 int encoded_size(uint32_t n) {
   uint8_t buffer[]{0, 0, 0, 0, 0, 0};
   size_t size_in_out = 6;
-  IntUtils::UIntBase128Encode(n, buffer, &size_in_out);
+  if (!IntUtils::UIntBase128Encode(n, buffer, &size_in_out).ok()) {
+    return -1;
+  }
   return (int)size_in_out;
 }
 
@@ -315,7 +319,7 @@ bool encode_avoids_buffer_overruns(uint32_t n, size_t req_bytes) {
     auto buffer = std::make_unique<uint8_t[]>(std::max(1, i));
     size_t size_in_out = i;
     Status sc = IntUtils::UIntBase128Encode(n, buffer.get(), &size_in_out);
-    if (absl::IsInvalidArgument(sc)) {
+    if (!absl::IsInvalidArgument(sc)) {
       return false;
     }
   }

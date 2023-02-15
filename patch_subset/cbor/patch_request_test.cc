@@ -117,41 +117,55 @@ TEST_F(PatchRequestTest, Decode) {
 
   cbor_item_unique_ptr map = make_cbor_map(10);
   cbor_item_unique_ptr field = empty_cbor_ptr();
-  CborUtils::SetField(*map, PatchRequest::kProtocolVersionFieldNumber,
-                      cbor_move(CborUtils::EncodeUInt64(0)));
+  ASSERT_EQ(CborUtils::SetField(*map, PatchRequest::kProtocolVersionFieldNumber,
+                                cbor_move(CborUtils::EncodeUInt64(0))),
+            absl::OkStatus());
 
-  PatchFormatFields::Encode(accept_formats, field);
-  CborUtils::SetField(*map, PatchRequest::kAcceptPatchFormatsFieldNumber,
-                      move_out(field));
+  ASSERT_EQ(PatchFormatFields::Encode(accept_formats, field), absl::OkStatus());
+  ASSERT_EQ(
+      CborUtils::SetField(*map, PatchRequest::kAcceptPatchFormatsFieldNumber,
+                          move_out(field)),
+      absl::OkStatus());
 
-  codepoints_have.Encode(field);
-  CborUtils::SetField(*map, PatchRequest::kCodepointsHaveFieldNumber,
-                      move_out(field));
+  ASSERT_EQ(codepoints_have.Encode(field), absl::OkStatus());
+  ASSERT_EQ(CborUtils::SetField(*map, PatchRequest::kCodepointsHaveFieldNumber,
+                                move_out(field)),
+            absl::OkStatus());
 
-  codepoints_needed.Encode(field);
-  CborUtils::SetField(*map, PatchRequest::kCodepointsNeededFieldNumber,
-                      move_out(field));
+  ASSERT_EQ(codepoints_needed.Encode(field), absl::OkStatus());
+  ASSERT_EQ(
+      CborUtils::SetField(*map, PatchRequest::kCodepointsNeededFieldNumber,
+                          move_out(field)),
+      absl::OkStatus());
 
-  indices_have.Encode(field);
-  CborUtils::SetField(*map, PatchRequest::kIndicesHaveFieldNumber,
-                      move_out(field));
+  ASSERT_EQ(indices_have.Encode(field), absl::OkStatus());
+  ASSERT_EQ(CborUtils::SetField(*map, PatchRequest::kIndicesHaveFieldNumber,
+                                move_out(field)),
+            absl::OkStatus());
 
-  indices_needed.Encode(field);
-  CborUtils::SetField(*map, PatchRequest::kIndicesNeededFieldNumber,
-                      move_out(field));
+  ASSERT_EQ(indices_needed.Encode(field), absl::OkStatus());
+  ASSERT_EQ(CborUtils::SetField(*map, PatchRequest::kIndicesNeededFieldNumber,
+                                move_out(field)),
+            absl::OkStatus());
 
-  CborUtils::SetField(*map, PatchRequest::kOrderingChecksumFieldNumber,
-                      cbor_move(CborUtils::EncodeUInt64(ordering_checksum)));
+  ASSERT_EQ(CborUtils::SetField(
+                *map, PatchRequest::kOrderingChecksumFieldNumber,
+                cbor_move(CborUtils::EncodeUInt64(ordering_checksum))),
+            absl::OkStatus());
 
-  CborUtils::SetField(
-      *map, PatchRequest::kOriginalFontChecksumFieldNumber,
-      cbor_move(CborUtils::EncodeUInt64(original_font_checksum)));
+  ASSERT_EQ(CborUtils::SetField(
+                *map, PatchRequest::kOriginalFontChecksumFieldNumber,
+                cbor_move(CborUtils::EncodeUInt64(original_font_checksum))),
+            absl::OkStatus());
 
-  CborUtils::SetField(*map, PatchRequest::kBaseChecksumFieldNumber,
-                      cbor_move(CborUtils::EncodeUInt64(base_checksum)));
+  ASSERT_EQ(
+      CborUtils::SetField(*map, PatchRequest::kBaseChecksumFieldNumber,
+                          cbor_move(CborUtils::EncodeUInt64(base_checksum))),
+      absl::OkStatus());
 
-  CborUtils::SetField(*map, PatchRequest::kConnectionSpeedFieldNumber,
-                      cbor_move(CborUtils::EncodeInt(1)));
+  ASSERT_EQ(CborUtils::SetField(*map, PatchRequest::kConnectionSpeedFieldNumber,
+                                cbor_move(CborUtils::EncodeInt(1))),
+            absl::OkStatus());
   PatchRequest result;
 
   Status sc = PatchRequest::Decode(*map, result);
