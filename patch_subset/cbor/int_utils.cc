@@ -28,7 +28,7 @@ int32_t IntUtils::ZigZagDecode(uint32_t unsigned_int) {
 }
 
 Status IntUtils::UIntBase128Encode(uint32_t value, uint8_t* buffer,
-                                       size_t* size_in_out) {
+                                   size_t* size_in_out) {
   if (buffer == nullptr || size_in_out == nullptr || *size_in_out <= 0) {
     return absl::InvalidArgumentError("buffer or size_in_out is null.");
   }
@@ -50,7 +50,7 @@ Status IntUtils::UIntBase128Encode(uint32_t value, uint8_t* buffer,
 }
 
 Status IntUtils::UIntBase128Decode(string_view bytes, uint32_t* uint_out,
-                                       size_t* num_bytes_out) {
+                                   size_t* num_bytes_out) {
   if (bytes.data() == nullptr || bytes.empty() || uint_out == nullptr ||
       num_bytes_out == nullptr) {
     return absl::InvalidArgumentError("invalid arguments.");

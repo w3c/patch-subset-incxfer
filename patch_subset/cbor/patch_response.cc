@@ -52,8 +52,7 @@ PatchResponse::PatchResponse(
       _subset_axis_space(subset_axis_space),
       _original_axis_space(original_axis_space) {}
 
-Status PatchResponse::Decode(const cbor_item_t& cbor_map,
-                                 PatchResponse& out) {
+Status PatchResponse::Decode(const cbor_item_t& cbor_map, PatchResponse& out) {
   if (!cbor_isa_map(&cbor_map)) {
     return absl::InvalidArgumentError("not a map.");
   }
@@ -165,13 +164,15 @@ Status PatchResponse::Encode(cbor_item_unique_ptr& map_out) const {
     return sc;
   }
 
-  if (!(sc = AxisSpace::SetAxisSpaceField(
-          *map, kSubsetAxisSpace, _subset_axis_space)).ok()) {
+  if (!(sc = AxisSpace::SetAxisSpaceField(*map, kSubsetAxisSpace,
+                                          _subset_axis_space))
+           .ok()) {
     return sc;
   }
 
   if (!(sc = AxisSpace::SetAxisSpaceField(*map, kOriginalAxisSpace,
-                                          _original_axis_space)).ok()) {
+                                          _original_axis_space))
+           .ok()) {
     return sc;
   }
 
@@ -180,7 +181,7 @@ Status PatchResponse::Encode(cbor_item_unique_ptr& map_out) const {
 }
 
 Status PatchResponse::ParseFromString(const std::string& buffer,
-                                          PatchResponse& out) {
+                                      PatchResponse& out) {
   cbor_item_unique_ptr item = empty_cbor_ptr();
   Status sc = CborUtils::DeserializeFromBytes(buffer, item);
   if (!sc.ok()) {

@@ -43,7 +43,7 @@ class ClientState {
   absl::Status Encode(cbor_item_unique_ptr& out) const;
 
   static absl::Status ParseFromString(const std::string& buffer,
-                                          ClientState& out);
+                                      ClientState& out);
   absl::Status SerializeToString(std::string& out) const;
 
   ClientState& SetFontId(const std::string& font_id);

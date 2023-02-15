@@ -35,8 +35,8 @@ class AxisSpace {
       cbor_item_t& map, int field_number,
       const std::optional<AxisSpace>& axis_space);
   static absl::Status GetAxisSpaceField(const cbor_item_t& map,
-                                            int field_number,
-                                            std::optional<AxisSpace>& out);
+                                        int field_number,
+                                        std::optional<AxisSpace>& out);
   static absl::Status Decode(const cbor_item_t& cbor_map, AxisSpace& out);
   absl::Status Encode(cbor_item_unique_ptr& map_out) const;
 

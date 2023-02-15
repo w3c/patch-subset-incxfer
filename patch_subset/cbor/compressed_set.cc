@@ -26,14 +26,13 @@ bool CompressedSet::empty() const {
          (!_ranges || _ranges->empty());
 }
 
-Status CompressedSet::Decode(const cbor_item_t& cbor_map,
-                                 CompressedSet& out) {
+Status CompressedSet::Decode(const cbor_item_t& cbor_map, CompressedSet& out) {
   if (!cbor_isa_map(&cbor_map) || cbor_map_is_indefinite(&cbor_map)) {
     return absl::InvalidArgumentError("not a map.");
   }
   CompressedSet result;
   Status sc = CborUtils::GetBytesField(cbor_map, kSparseBitSetFieldNumber,
-                                           result._sparse_bit_set_bytes);
+                                       result._sparse_bit_set_bytes);
   if (!sc.ok()) {
     return absl::InvalidArgumentError("field lookup failed.");
   }
@@ -51,7 +50,7 @@ Status CompressedSet::Encode(cbor_item_unique_ptr& map_out) const {
              (_ranges.has_value() ? 1 : 0);
   cbor_item_unique_ptr map = make_cbor_map(size);
   Status sc = CborUtils::SetBytesField(*map, kSparseBitSetFieldNumber,
-                                           _sparse_bit_set_bytes);
+                                       _sparse_bit_set_bytes);
   if (!sc.ok()) {
     return absl::InvalidArgumentError("field setting failed.");
   }
@@ -78,8 +77,8 @@ Status CompressedSet::SetCompressedSetField(
 }
 
 Status CompressedSet::GetCompressedSetField(const cbor_item_t& map,
-                                                int field_number,
-                                                optional<CompressedSet>& out) {
+                                            int field_number,
+                                            optional<CompressedSet>& out) {
   cbor_item_unique_ptr field = empty_cbor_ptr();
   Status sc = CborUtils::GetField(map, field_number, field);
   if (absl::IsNotFound(sc)) {

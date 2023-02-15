@@ -30,8 +30,8 @@ TEST_F(FileFontProviderTest, LoadFont) {
 
 TEST_F(FileFontProviderTest, FontNotFound) {
   FontData font_data;
-  EXPECT_TRUE(
-      absl::IsNotFound(font_provider_.get()->GetFont("nothere.txt", &font_data)));
+  EXPECT_TRUE(absl::IsNotFound(
+      font_provider_.get()->GetFont("nothere.txt", &font_data)));
 }
 
 }  // namespace patch_subset

@@ -64,8 +64,7 @@ TEST_F(CodepointMapTest, EncodeSingle) {
 
 TEST_F(CodepointMapTest, EncodeMissing) {
   hb_set_unique_ptr codepoints = make_hb_set(3, 2, 4, 7);
-  EXPECT_TRUE(absl::IsInvalidArgument(
-      codepoint_map_.Encode(codepoints.get())));
+  EXPECT_TRUE(absl::IsInvalidArgument(codepoint_map_.Encode(codepoints.get())));
 
   hb_codepoint_t missing_cp = 2;
   EXPECT_TRUE(absl::IsInvalidArgument(codepoint_map_.Encode(&missing_cp)));
@@ -93,8 +92,7 @@ TEST_F(CodepointMapTest, DecodeEmptySet) {
 
 TEST_F(CodepointMapTest, DecodeMissing) {
   hb_set_unique_ptr codepoints = make_hb_set(3, 0, 2, 3);
-  EXPECT_TRUE(absl::IsInvalidArgument(
-      codepoint_map_.Decode(codepoints.get())));
+  EXPECT_TRUE(absl::IsInvalidArgument(codepoint_map_.Decode(codepoints.get())));
 
   hb_codepoint_t missing_cp = 3;
   EXPECT_TRUE(absl::IsInvalidArgument(codepoint_map_.Decode(&missing_cp)));

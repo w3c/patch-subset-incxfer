@@ -328,7 +328,8 @@ TEST_F(CborUtilsTest, GetFieldNegId) {
 
 TEST_F(CborUtilsTest, GetUInt64Field) {
   cbor_item_unique_ptr map = make_cbor_map(1);
-  ASSERT_EQ(CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeUInt64(UINT64_MAX))),
+  ASSERT_EQ(CborUtils::SetField(*map, 0,
+                                cbor_move(CborUtils::EncodeUInt64(UINT64_MAX))),
             absl::OkStatus());
   optional<uint64_t> result;
 
@@ -350,8 +351,9 @@ TEST_F(CborUtilsTest, GetUInt64FieldNotFound) {
 
 TEST_F(CborUtilsTest, GetUInt64FieldInvalid) {
   cbor_item_unique_ptr map = make_cbor_map(1);
-  ASSERT_EQ(CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString("bad"))),
-            absl::OkStatus());
+  ASSERT_EQ(
+      CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString("bad"))),
+      absl::OkStatus());
   optional<uint64_t> result(-1);
 
   Status sc = CborUtils::GetUInt64Field(*map, 0, result);
@@ -362,8 +364,9 @@ TEST_F(CborUtilsTest, GetUInt64FieldInvalid) {
 
 TEST_F(CborUtilsTest, GetFloatField) {
   cbor_item_unique_ptr map = make_cbor_map(1);
-  ASSERT_EQ(CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeFloat(1234.56f))),
-            absl::OkStatus());
+  ASSERT_EQ(
+      CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeFloat(1234.56f))),
+      absl::OkStatus());
   optional<float> result;
 
   Status sc = CborUtils::GetFloatField(*map, 0, result);
@@ -384,8 +387,9 @@ TEST_F(CborUtilsTest, GetFloatFieldNotFound) {
 
 TEST_F(CborUtilsTest, GetFloatFieldInvalid) {
   cbor_item_unique_ptr map = make_cbor_map(1);
-  ASSERT_EQ(CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString("bad"))),
-            absl::OkStatus());
+  ASSERT_EQ(
+      CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString("bad"))),
+      absl::OkStatus());
   optional<float> result(-1);
 
   Status sc = CborUtils::GetFloatField(*map, 0, result);
@@ -396,8 +400,9 @@ TEST_F(CborUtilsTest, GetFloatFieldInvalid) {
 
 TEST_F(CborUtilsTest, GetStringField) {
   cbor_item_unique_ptr map = make_cbor_map(1);
-  ASSERT_EQ(CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString("foo"))),
-            absl::OkStatus());
+  ASSERT_EQ(
+      CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString("foo"))),
+      absl::OkStatus());
   optional<string> result;
 
   Status sc = CborUtils::GetStringField(*map, 0, result);
@@ -430,8 +435,9 @@ TEST_F(CborUtilsTest, GetStringFieldInvalid) {
 
 TEST_F(CborUtilsTest, GetBytesField) {
   cbor_item_unique_ptr map = make_cbor_map(1);
-  ASSERT_EQ(CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeBytes("foo"))),
-            absl::OkStatus());
+  ASSERT_EQ(
+      CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeBytes("foo"))),
+      absl::OkStatus());
   optional<string> result;
 
   Status sc = CborUtils::GetBytesField(*map, 0, result);
@@ -487,7 +493,8 @@ TEST_F(CborUtilsTest, GetProtocolVersionFieldNotFound) {
 
 TEST_F(CborUtilsTest, GetProtocolVersionFieldInvalid) {
   cbor_item_unique_ptr map = make_cbor_map(1);
-  ASSERT_EQ(CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString("invalid"))),
+  ASSERT_EQ(CborUtils::SetField(*map, 0,
+                                cbor_move(CborUtils::EncodeString("invalid"))),
             absl::OkStatus());
   optional<ProtocolVersion> result(ProtocolVersion::ONE);
   ASSERT_TRUE(result.has_value());
@@ -537,7 +544,8 @@ TEST_F(CborUtilsTest, GetConnectionSpeedFieldNotFound) {
 
 TEST_F(CborUtilsTest, GetConnectionSpeedFieldInvalid) {
   cbor_item_unique_ptr map = make_cbor_map(1);
-  ASSERT_EQ(CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString("invalid"))),
+  ASSERT_EQ(CborUtils::SetField(*map, 0,
+                                cbor_move(CborUtils::EncodeString("invalid"))),
             absl::OkStatus());
   optional<ConnectionSpeed> result(ConnectionSpeed::VERY_FAST);
   ASSERT_TRUE(result.has_value());
@@ -564,8 +572,10 @@ TEST_F(CborUtilsTest, GetConnectionSpeedFieldInvalidValue) {
 
 TEST_F(CborUtilsTest, DecodeIntErrors) {
   int32_t n;
-  EXPECT_TRUE(absl::IsInvalidArgument(CborUtils::DecodeInt(*make_cbor_int(0), nullptr)));
-  EXPECT_TRUE(absl::IsInvalidArgument(CborUtils::DecodeInt(*make_cbor_string("foo"), nullptr)));
+  EXPECT_TRUE(absl::IsInvalidArgument(
+      CborUtils::DecodeInt(*make_cbor_int(0), nullptr)));
+  EXPECT_TRUE(absl::IsInvalidArgument(
+      CborUtils::DecodeInt(*make_cbor_string("foo"), nullptr)));
 }
 
 TEST_F(CborUtilsTest, IntDoubleConversions) {
@@ -786,16 +796,20 @@ TEST_F(CborUtilsTest, SerializeToBytesExamples) {
   ASSERT_EQ(bytes(*map), "a1 07 09");
 
   map = make_cbor_map(2);
-  ASSERT_EQ(CborUtils::SetField(*map, 1, cbor_move(CborUtils::EncodeString("ABC"))), absl::OkStatus());
-  ASSERT_EQ(CborUtils::SetField(*map, 2,
-                                cbor_move(CborUtils::EncodeBytes({(char*)buf, 5}))), absl::OkStatus());
+  ASSERT_EQ(
+      CborUtils::SetField(*map, 1, cbor_move(CborUtils::EncodeString("ABC"))),
+      absl::OkStatus());
+  ASSERT_EQ(CborUtils::SetField(
+                *map, 2, cbor_move(CborUtils::EncodeBytes({(char*)buf, 5}))),
+            absl::OkStatus());
   ASSERT_EQ(bytes(*map), "a2 01 63 41 42 43 02 45 00 7f ff 7f 00");
 }
 
 TEST_F(CborUtilsTest, DeserializeFromBytes) {
   cbor_item_unique_ptr map = make_cbor_map(1);
-  ASSERT_EQ(CborUtils::SetField(*map, 1, cbor_move(CborUtils::EncodeString("foo"))),
-            absl::OkStatus());
+  ASSERT_EQ(
+      CborUtils::SetField(*map, 1, cbor_move(CborUtils::EncodeString("foo"))),
+      absl::OkStatus());
   const size_t len = 16;
   char buffer[len];
   string_view sv(buffer, len);

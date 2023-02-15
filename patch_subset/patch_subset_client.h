@@ -41,9 +41,9 @@ class PatchSubsetClient {
                           patch_subset::cbor::ClientState* state);
 
  private:
-  absl::Status EncodeCodepoints(
-      const patch_subset::cbor::ClientState& state, hb_set_t* codepoints_have,
-      hb_set_t* codepoints_needed);
+  absl::Status EncodeCodepoints(const patch_subset::cbor::ClientState& state,
+                                hb_set_t* codepoints_have,
+                                hb_set_t* codepoints_needed);
 
   void CreateRequest(const hb_set_t& codepoints_have,
                      const hb_set_t& codepoints_needed,
@@ -53,9 +53,9 @@ class PatchSubsetClient {
   void LogRequest(const patch_subset::cbor::PatchRequest& request,
                   const patch_subset::cbor::PatchResponse& response);
 
-  absl::Status ComputePatched(
-      const patch_subset::cbor::PatchResponse& response,
-      const patch_subset::cbor::ClientState* state, FontData* patched);
+  absl::Status ComputePatched(const patch_subset::cbor::PatchResponse& response,
+                              const patch_subset::cbor::ClientState* state,
+                              FontData* patched);
 
   PatchSubsetServer* server_;
   RequestLogger* request_logger_;

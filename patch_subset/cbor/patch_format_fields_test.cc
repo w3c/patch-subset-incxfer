@@ -97,10 +97,11 @@ TEST_F(PatchFormatFieldsTest, SetPatchFormatFieldAbsent) {
 TEST_F(PatchFormatFieldsTest, GetPatchFormatField) {
   cbor_item_unique_ptr map = make_cbor_map(1);
   cbor_item_unique_ptr field = empty_cbor_ptr();
-  ASSERT_EQ(CborUtils::SetField(
-      *map, 0,
-      cbor_move(CborUtils::EncodeInt(PatchFormat::BROTLI_SHARED_DICT))),
-            absl::OkStatus());
+  ASSERT_EQ(
+      CborUtils::SetField(
+          *map, 0,
+          cbor_move(CborUtils::EncodeInt(PatchFormat::BROTLI_SHARED_DICT))),
+      absl::OkStatus());
   optional<PatchFormat> result;
 
   Status sc = PatchFormatFields::GetPatchFormatField(*map, 0, result);
@@ -121,7 +122,9 @@ TEST_F(PatchFormatFieldsTest, GetPatchFormatFieldNotFound) {
 
 TEST_F(PatchFormatFieldsTest, GetPatchFormatFieldInvalid) {
   cbor_item_unique_ptr map = make_cbor_map(1);
-  CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString("err")));
+  ASSERT_EQ(
+      CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString("err"))),
+      absl::OkStatus());
   optional<PatchFormat> result(PatchFormat::BROTLI_SHARED_DICT);
 
   Status sc = PatchFormatFields::GetPatchFormatField(*map, 0, result);
@@ -163,8 +166,9 @@ TEST_F(PatchFormatFieldsTest, GetPatchFormatsListField) {
   vector<uint64_t> formats{PatchFormat::BROTLI_SHARED_DICT,
                            PatchFormat::VCDIFF};
   cbor_item_unique_ptr field = empty_cbor_ptr();
-  Array::Encode(formats, field);
-  CborUtils::SetField(*map, 0, move_out(field));
+  ASSERT_EQ(Array::Encode(formats, field), absl::OkStatus());
+  ASSERT_EQ(CborUtils::SetField(*map, 0, move_out(field)), absl::OkStatus());
+
   optional<vector<PatchFormat>> result;
 
   Status sc = PatchFormatFields::GetPatchFormatsListField(*map, 0, result);
@@ -188,7 +192,9 @@ TEST_F(PatchFormatFieldsTest, GetPatchFormatsListFieldNotFound) {
 
 TEST_F(PatchFormatFieldsTest, GetPatchFormatsListFieldInvalid) {
   cbor_item_unique_ptr map = make_cbor_map(1);
-  CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString("err")));
+  ASSERT_EQ(
+      CborUtils::SetField(*map, 0, cbor_move(CborUtils::EncodeString("err"))),
+      absl::OkStatus());
   vector<PatchFormat> resultv{PatchFormat::BROTLI_SHARED_DICT};
   optional<vector<PatchFormat>> result(resultv);
 

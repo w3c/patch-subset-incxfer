@@ -26,7 +26,7 @@ Status PatchFormatFields::ToPatchFormat(uint64_t value, PatchFormat* out) {
 }
 
 Status PatchFormatFields::Decode(const cbor_item_t& bytes,
-                                     vector<PatchFormat>& out) {
+                                 vector<PatchFormat>& out) {
   vector<uint64_t> int_values;
   Status sc = Array::Decode(bytes, int_values);
   if (!sc.ok()) {
@@ -45,7 +45,7 @@ Status PatchFormatFields::Decode(const cbor_item_t& bytes,
 }
 
 Status PatchFormatFields::Encode(const vector<PatchFormat>& formats,
-                                     cbor_item_unique_ptr& bytestring_out) {
+                                 cbor_item_unique_ptr& bytestring_out) {
   vector<uint64_t> int_values(formats.size());
   int_values.clear();
   for (PatchFormat format : formats) {
@@ -99,8 +99,8 @@ Status PatchFormatFields::SetPatchFormatField(
 }
 
 Status PatchFormatFields::GetPatchFormatField(const cbor_item_t& map,
-                                                  int field_number,
-                                                  optional<PatchFormat>& out) {
+                                              int field_number,
+                                              optional<PatchFormat>& out) {
   cbor_item_unique_ptr field = empty_cbor_ptr();
   Status sc = CborUtils::GetField(map, field_number, field);
   if (absl::IsNotFound(sc)) {

@@ -12,7 +12,7 @@ namespace patch_subset::cbor {
 using absl::Status;
 
 Status Array::Encode(const std::vector<uint64_t>& ints,
-                         cbor_item_unique_ptr& array_out) {
+                     cbor_item_unique_ptr& array_out) {
   cbor_item_unique_ptr out = make_cbor_array(ints.size());
   for (uint64_t i : ints) {
     if (!cbor_array_push(out.get(), cbor_move(CborUtils::EncodeUInt64(i)))) {
@@ -46,7 +46,7 @@ Status Array::SetArrayField(
     cbor_item_t& map, int field_number,
     const std::optional<std::vector<uint64_t>>& int_list) {
   if (!int_list.has_value()) {
-    return absl::OkStatus(); // Nothing to do.
+    return absl::OkStatus();  // Nothing to do.
   }
 
   cbor_item_unique_ptr encoded = empty_cbor_ptr();
@@ -58,7 +58,7 @@ Status Array::SetArrayField(
 }
 
 Status Array::GetArrayField(const cbor_item_t& map, int field_number,
-                                std::optional<std::vector<uint64_t>>& out) {
+                            std::optional<std::vector<uint64_t>>& out) {
   // TODO: update this to array
   cbor_item_unique_ptr field = empty_cbor_ptr();
   Status sc = CborUtils::GetField(map, field_number, field);

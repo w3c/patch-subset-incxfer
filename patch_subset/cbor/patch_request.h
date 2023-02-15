@@ -54,12 +54,11 @@ class PatchRequest {
                uint64_t ordering_checksum, uint64_t original_font_checksum,
                uint64_t base_checksum, ConnectionSpeed connection_speed);
 
-  static absl::Status Decode(const cbor_item_t& cbor_map,
-                                 PatchRequest& out);
+  static absl::Status Decode(const cbor_item_t& cbor_map, PatchRequest& out);
   absl::Status Encode(cbor_item_unique_ptr& map_out) const;
 
   static absl::Status ParseFromString(const std::string& buffer,
-                                          PatchRequest& out);
+                                      PatchRequest& out);
   absl::Status SerializeToString(std::string& out) const;
 
   bool HasProtocolVersion() const;

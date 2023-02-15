@@ -83,7 +83,7 @@ Status CborUtils::GetFloatField(const cbor_item_t& map, int field_number,
 
 // TODO: This method could ignore failures, returning "", if we want.
 Status CborUtils::GetStringField(const cbor_item_t& map, int field_number,
-                                     optional<string>& out) {
+                                 optional<string>& out) {
   cbor_item_unique_ptr field = empty_cbor_ptr();
   Status sc = GetField(map, field_number, field);
   if (absl::IsNotFound(sc)) {
@@ -103,7 +103,7 @@ Status CborUtils::GetStringField(const cbor_item_t& map, int field_number,
 
 // TODO: This method could ignore failures, returning "", if we want.
 Status CborUtils::GetBytesField(const cbor_item_t& map, int field_number,
-                                    optional<string>& out) {
+                                optional<string>& out) {
   cbor_item_unique_ptr field = empty_cbor_ptr();
   Status sc = GetField(map, field_number, field);
   if (absl::IsNotFound(sc)) {
@@ -147,8 +147,8 @@ Status CborUtils::GetProtocolVersionField(const cbor_item_t& map,
 }
 
 Status CborUtils::GetConnectionSpeedField(const cbor_item_t& map,
-                                              int field_number,
-                                              optional<ConnectionSpeed>& out) {
+                                          int field_number,
+                                          optional<ConnectionSpeed>& out) {
   cbor_item_unique_ptr field = empty_cbor_ptr();
   Status sc = GetField(map, field_number, field);
   if (absl::IsNotFound(sc)) {
@@ -179,7 +179,7 @@ Status CborUtils::GetConnectionSpeedField(const cbor_item_t& map,
 }
 
 Status CborUtils::SetField(cbor_item_t& cbor_map, const int field_number,
-                               cbor_item_t* field_value) {
+                           cbor_item_t* field_value) {
   if (!cbor_isa_map(&cbor_map) || cbor_map_is_indefinite(&cbor_map) ||
       field_number < 0) {
     return absl::InvalidArgumentError("Not a map.");
@@ -214,7 +214,7 @@ Status CborUtils::SetFloatField(cbor_item_t& map, int field_number,
 }
 
 Status CborUtils::SetStringField(cbor_item_t& map, int field_number,
-                                     const optional<string>& value) {
+                                 const optional<string>& value) {
   if (!value.has_value()) {
     return absl::OkStatus();  // Nothing to do.
   }
@@ -222,7 +222,7 @@ Status CborUtils::SetStringField(cbor_item_t& map, int field_number,
 }
 
 Status CborUtils::SetBytesField(cbor_item_t& map, int field_number,
-                                    const optional<string>& value) {
+                                const optional<string>& value) {
   if (!value.has_value()) {
     return absl::OkStatus();  // Nothing to do.
   }
@@ -320,8 +320,7 @@ cbor_item_t* CborUtils::EncodeUInt64(uint64_t n) {
   }
 }
 
-Status CborUtils::DecodeUInt64(const cbor_item_t& int_element,
-                               uint64_t* out) {
+Status CborUtils::DecodeUInt64(const cbor_item_t& int_element, uint64_t* out) {
   if (!cbor_is_int(&int_element) || cbor_isa_negint(&int_element) ||
       out == nullptr) {
     return absl::InvalidArgumentError("not an int.");
@@ -335,8 +334,7 @@ cbor_item_t* CborUtils::EncodeFloat(float n) {
   return cbor_build_float4(n);
 }
 
-Status CborUtils::DecodeFloat(const cbor_item_t& float_element,
-                                  float* out) {
+Status CborUtils::DecodeFloat(const cbor_item_t& float_element, float* out) {
   // Specification states all floats are single precision.
   if (!cbor_is_float(&float_element) ||
       cbor_float_get_width(&float_element) != CBOR_FLOAT_32 || out == nullptr) {
@@ -350,8 +348,7 @@ cbor_item_t* CborUtils::EncodeString(const string& s) {
   return cbor_build_stringn(s.c_str(), s.length());
 }
 
-Status CborUtils::DecodeString(const cbor_item_t& string_item,
-                               string& out) {
+Status CborUtils::DecodeString(const cbor_item_t& string_item, string& out) {
   if (!cbor_isa_string(&string_item) ||
       !cbor_string_is_definite(&string_item)) {
     return absl::InvalidArgumentError("not a string.");
@@ -388,8 +385,7 @@ set<uint64_t> CborUtils::MapKeys(const cbor_item_t& map) {
   return keys;
 }
 
-Status CborUtils::SerializeToBytes(const cbor_item_t& item,
-                                   string_view buffer,
+Status CborUtils::SerializeToBytes(const cbor_item_t& item, string_view buffer,
                                    size_t* bytes_written) {
   if (bytes_written == nullptr || buffer.empty()) {
     return absl::InvalidArgumentError("bytes_written is null.");

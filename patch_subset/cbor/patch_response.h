@@ -51,12 +51,11 @@ class PatchResponse {
                 uint64_t ordering_checksum, AxisSpace subset_axis_space,
                 AxisSpace original_axis_space);
 
-  static absl::Status Decode(const cbor_item_t& cbor_map,
-                                 PatchResponse& out);
+  static absl::Status Decode(const cbor_item_t& cbor_map, PatchResponse& out);
   absl::Status Encode(cbor_item_unique_ptr& map_out) const;
 
   static absl::Status ParseFromString(const std::string& buffer,
-                                          PatchResponse& out);
+                                      PatchResponse& out);
   absl::Status SerializeToString(std::string& out) const;
 
   void CopyTo(PatchResponse& target) const;

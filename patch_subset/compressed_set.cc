@@ -19,7 +19,7 @@ using std::optional;
 static const int kBitsPerByte = 8;
 
 Status CompressedSet::Decode(const patch_subset::cbor::CompressedSet& set,
-                                 hb_set_t* out) {
+                             hb_set_t* out) {
   Status result = SparseBitSet::Decode(set.SparseBitSetBytes(), out);
   if (!result.ok()) {
     return result;

@@ -18,10 +18,10 @@ namespace patch_subset::cbor {
 class PatchFormatFields {
  public:
   static absl::Status ToPatchFormat(uint64_t value,
-                                        patch_subset::PatchFormat* out);
+                                    patch_subset::PatchFormat* out);
 
   static absl::Status Decode(const cbor_item_t& bytes,
-                                 std::vector<patch_subset::PatchFormat>& out);
+                             std::vector<patch_subset::PatchFormat>& out);
 
   static absl::Status Encode(
       const std::vector<patch_subset::PatchFormat>& formats,

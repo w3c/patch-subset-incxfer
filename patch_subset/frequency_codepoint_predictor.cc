@@ -50,8 +50,8 @@ Status LoadStrategy(const std::string& path, SlicingStrategy* out) {
   std::string data;
 
   if (!input.is_open()) {
-    return absl::NotFoundError(absl::StrCat("Could not open strategy file: ",
-                                            path));
+    return absl::NotFoundError(
+        absl::StrCat("Could not open strategy file: ", path));
   }
 
   input.seekg(0, std::ios::end);
@@ -61,8 +61,8 @@ Status LoadStrategy(const std::string& path, SlicingStrategy* out) {
               std::istreambuf_iterator<char>());
 
   if (!TextFormat::ParseFromString(data, out)) {
-    return absl::InternalError(absl::StrCat(
-        "Unable to parse strategy file: ", path));
+    return absl::InternalError(
+        absl::StrCat("Unable to parse strategy file: ", path));
   }
 
   cache[path] = *out;

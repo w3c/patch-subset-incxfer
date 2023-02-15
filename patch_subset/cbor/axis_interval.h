@@ -32,8 +32,7 @@ class AxisInterval {
   bool IsPoint() const;
   bool IsValid() const;
 
-  static absl::Status Decode(const cbor_item_t& cbor_map,
-                                 AxisInterval& out);
+  static absl::Status Decode(const cbor_item_t& cbor_map, AxisInterval& out);
   absl::Status Encode(cbor_item_unique_ptr& map_out) const;
 
   bool HasStart() const;

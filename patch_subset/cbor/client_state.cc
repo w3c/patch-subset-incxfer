@@ -104,7 +104,7 @@ Status ClientState::Encode(cbor_item_unique_ptr& out) const {
 }
 
 Status ClientState::ParseFromString(const std::string& buffer,
-                                        ClientState& out) {
+                                    ClientState& out) {
   cbor_item_unique_ptr item = empty_cbor_ptr();
   Status sc = CborUtils::DeserializeFromBytes(buffer, item);
   if (!sc.ok()) {

@@ -61,8 +61,9 @@ Status SparseBitSet::Decode(string_view sparse_bit_set, hb_set_t* out) {
   // Enforce upper limits on tree sizes.
   // We only need to encode the 32 bit range 0x0 .. 0xFFFFFFFF.
   if (tree_height > kBFMaxDepth[branch_factor]) {
-    return absl::InvalidArgumentError(absl::StrCat(
-        "tree_height, ", tree_height, " is larger than max ", kBFMaxDepth[branch_factor]));
+    return absl::InvalidArgumentError(absl::StrCat("tree_height, ", tree_height,
+                                                   " is larger than max ",
+                                                   kBFMaxDepth[branch_factor]));
   }
 
   // At each level, this is the number of leaf values a node covers.

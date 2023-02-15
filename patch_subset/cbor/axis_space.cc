@@ -40,9 +40,8 @@ Status AxisSpace::SetAxisSpaceField(
   return CborUtils::SetField(map, field_number, move_out(field_value));
 }
 
-Status AxisSpace::GetAxisSpaceField(const cbor_item_t& map,
-                                        int field_number,
-                                        std::optional<AxisSpace>& out) {
+Status AxisSpace::GetAxisSpaceField(const cbor_item_t& map, int field_number,
+                                    std::optional<AxisSpace>& out) {
   cbor_item_unique_ptr field = empty_cbor_ptr();
   Status sc = CborUtils::GetField(map, field_number, field);
   if (absl::IsNotFound(sc)) {

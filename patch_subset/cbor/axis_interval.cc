@@ -27,8 +27,7 @@ bool AxisInterval::IsValid() const {
   return !_end;
 }
 
-Status AxisInterval::Decode(const cbor_item_t& cbor_map,
-                                AxisInterval& out) {
+Status AxisInterval::Decode(const cbor_item_t& cbor_map, AxisInterval& out) {
   if (!cbor_isa_map(&cbor_map)) {
     return absl::InvalidArgumentError("not a map.");
   }
