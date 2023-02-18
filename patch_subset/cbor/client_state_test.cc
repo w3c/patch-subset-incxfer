@@ -129,7 +129,7 @@ TEST_F(ClientStateTest, Encode) {
   ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_NE(result, nullptr);
   ASSERT_TRUE(cbor_isa_map(result.get()));
-  ASSERT_EQ(cbor_map_size(result.get()), 5);
+  ASSERT_EQ(cbor_map_size(result.get()), 4);
 
   sc = CborUtils::GetField(*result, ClientState::kOriginalFontChecksumFieldNumber, field);
   ASSERT_EQ(sc, absl::OkStatus());
@@ -195,7 +195,7 @@ TEST_F(ClientStateTest, GettersAndSetters) {
   vector<int32_t> ordering{1, 5, 10, 20};
   cs.SetCodepointOrdering(ordering);
   cs.SetSubsetAxisSpace(space_subset);
-  cs.SetSubsetAxisSpace(space_original);
+  cs.SetOriginalAxisSpace(space_original);
 
   // Still not empty.
   EXPECT_TRUE(cs.HasOriginalFontChecksum());
@@ -247,7 +247,8 @@ TEST_F(ClientStateTest, Serialization) {
 
 TEST_F(ClientStateTest, ToString) {
   EXPECT_EQ(state.ToString(),
-            "{id=font id,18 bytes,orig_cs=123456,cp_rm=[1,2,3],cprm_cs=98765}");
+            "{orig_cs=999,cp_rm=[1,5,10],subset_axis_space=a: [[10, 10]],"
+            "original_axis_space=b: [[20, 20]]}");
 }
 
 }  // namespace patch_subset::cbor
