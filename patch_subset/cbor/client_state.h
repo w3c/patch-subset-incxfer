@@ -48,7 +48,6 @@ class ClientState {
                                       ClientState& out);
   absl::Status SerializeToString(std::string& out) const;
 
-
   ClientState& SetOriginalFontChecksum(uint64_t);
   ClientState& ResetOriginalFontChecksum();
   [[nodiscard]] bool HasOriginalFontChecksum() const;
