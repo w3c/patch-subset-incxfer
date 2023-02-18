@@ -49,7 +49,6 @@ TEST_F(ClientStateTest, CopyConstructor) {
 }
 
 TEST_F(ClientStateTest, MoveConstructor) {
-
   // This should not result in the buffers being copied.
   ClientState moved = std::move(state);
 
@@ -67,33 +66,30 @@ TEST_F(ClientStateTest, Decode) {
   cbor_item_unique_ptr map = make_cbor_map(5);
 
   ASSERT_EQ(
-      CborUtils::SetField(
-          *map, ClientState::kOriginalFontChecksumFieldNumber,
-          cbor_move(CborUtils::EncodeUInt64(font_checksum))),
+      CborUtils::SetField(*map, ClientState::kOriginalFontChecksumFieldNumber,
+                          cbor_move(CborUtils::EncodeUInt64(font_checksum))),
       absl::OkStatus());
 
   cbor_item_unique_ptr ordering_field = empty_cbor_ptr();
   Status sc = IntegerList::Encode(ordering, ordering_field);
   ASSERT_EQ(sc, absl::OkStatus());
-  ASSERT_EQ(CborUtils::SetField(*map,
-                                ClientState::kCodepointOrderingFieldNumber,
-                                move_out(ordering_field)),
-            absl::OkStatus());
+  ASSERT_EQ(
+      CborUtils::SetField(*map, ClientState::kCodepointOrderingFieldNumber,
+                          move_out(ordering_field)),
+      absl::OkStatus());
 
   cbor_item_unique_ptr subset_axis_space_field = empty_cbor_ptr();
   ASSERT_EQ(space_subset.Encode(subset_axis_space_field), absl::OkStatus());
-  ASSERT_EQ(CborUtils::SetField(*map,
-                                ClientState::kSubsetAxisSpaceFieldNumber,
+  ASSERT_EQ(CborUtils::SetField(*map, ClientState::kSubsetAxisSpaceFieldNumber,
                                 move_out(subset_axis_space_field)),
             absl::OkStatus());
 
   cbor_item_unique_ptr original_axis_space_field = empty_cbor_ptr();
   ASSERT_EQ(space_original.Encode(original_axis_space_field), absl::OkStatus());
-  ASSERT_EQ(CborUtils::SetField(*map,
-                                ClientState::kOriginalAxisSpaceFieldNumber,
-                                move_out(original_axis_space_field)),
-            absl::OkStatus());
-
+  ASSERT_EQ(
+      CborUtils::SetField(*map, ClientState::kOriginalAxisSpaceFieldNumber,
+                          move_out(original_axis_space_field)),
+      absl::OkStatus());
 
   ClientState decoded;
   ASSERT_EQ(ClientState::Decode(*map, decoded), absl::OkStatus());
@@ -131,7 +127,8 @@ TEST_F(ClientStateTest, Encode) {
   ASSERT_TRUE(cbor_isa_map(result.get()));
   ASSERT_EQ(cbor_map_size(result.get()), 4);
 
-  sc = CborUtils::GetField(*result, ClientState::kOriginalFontChecksumFieldNumber, field);
+  sc = CborUtils::GetField(
+      *result, ClientState::kOriginalFontChecksumFieldNumber, field);
   ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_NE(field, nullptr);
   uint64_t n;
@@ -140,7 +137,8 @@ TEST_F(ClientStateTest, Encode) {
   ASSERT_EQ(n, font_checksum);
 
   field = nullptr;
-  sc = CborUtils::GetField(*result, ClientState::kCodepointOrderingFieldNumber, field);
+  sc = CborUtils::GetField(*result, ClientState::kCodepointOrderingFieldNumber,
+                           field);
   ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_NE(field.get(), nullptr);
   vector<int32_t> v;
@@ -148,9 +146,9 @@ TEST_F(ClientStateTest, Encode) {
   ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(v, ordering);
 
-
   field = nullptr;
-  sc = CborUtils::GetField(*result, ClientState::kSubsetAxisSpaceFieldNumber, field);
+  sc = CborUtils::GetField(*result, ClientState::kSubsetAxisSpaceFieldNumber,
+                           field);
   ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_NE(field.get(), nullptr);
   AxisSpace space;
@@ -159,14 +157,14 @@ TEST_F(ClientStateTest, Encode) {
   ASSERT_EQ(space, space_subset);
 
   field = nullptr;
-  sc = CborUtils::GetField(*result, ClientState::kOriginalAxisSpaceFieldNumber, field);
+  sc = CborUtils::GetField(*result, ClientState::kOriginalAxisSpaceFieldNumber,
+                           field);
   ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_NE(field.get(), nullptr);
   sc = AxisSpace::Decode(*field, space);
   ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(space, space_original);
 }
-
 
 TEST_F(ClientStateTest, GettersAndSetters) {
   ClientState cs;

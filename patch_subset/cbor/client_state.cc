@@ -31,21 +31,21 @@ ClientState::ClientState(ClientState&& other) noexcept
       _subset_axis_space(std::move(other._subset_axis_space)),
       _original_axis_space(std::move(other._original_axis_space)) {}
 
-
 Status ClientState::Decode(const cbor_item_t& cbor_map, ClientState& out) {
   ClientState result;
   if (!cbor_isa_map(&cbor_map) || cbor_map_is_indefinite(&cbor_map)) {
     return absl::InvalidArgumentError("not a map.");
   }
 
-  Status sc = CborUtils::GetUInt64Field(cbor_map, kOriginalFontChecksumFieldNumber,
-                                        result._original_font_checksum);
+  Status sc =
+      CborUtils::GetUInt64Field(cbor_map, kOriginalFontChecksumFieldNumber,
+                                result._original_font_checksum);
 
   sc.Update(IntegerList::GetIntegerListField(
       cbor_map, kCodepointOrderingFieldNumber, result._codepoint_ordering));
 
-  sc.Update(AxisSpace::GetAxisSpaceField(
-      cbor_map, kSubsetAxisSpaceFieldNumber, result._subset_axis_space));
+  sc.Update(AxisSpace::GetAxisSpaceField(cbor_map, kSubsetAxisSpaceFieldNumber,
+                                         result._subset_axis_space));
 
   sc.Update(AxisSpace::GetAxisSpaceField(
       cbor_map, kOriginalAxisSpaceFieldNumber, result._original_axis_space));
@@ -68,10 +68,12 @@ Status ClientState::Encode(cbor_item_unique_ptr& out) const {
 
   Status sc = CborUtils::SetUInt64Field(*map, kOriginalFontChecksumFieldNumber,
                                         _original_font_checksum);
-  sc.Update(IntegerList::SetIntegerListField(*map, kCodepointOrderingFieldNumber,
-                                             _codepoint_ordering));
-  sc.Update(AxisSpace::SetAxisSpaceField(*map, kSubsetAxisSpaceFieldNumber, _subset_axis_space));
-  sc.Update(AxisSpace::SetAxisSpaceField(*map, kOriginalAxisSpaceFieldNumber, _original_axis_space));
+  sc.Update(IntegerList::SetIntegerListField(
+      *map, kCodepointOrderingFieldNumber, _codepoint_ordering));
+  sc.Update(AxisSpace::SetAxisSpaceField(*map, kSubsetAxisSpaceFieldNumber,
+                                         _subset_axis_space));
+  sc.Update(AxisSpace::SetAxisSpaceField(*map, kOriginalAxisSpaceFieldNumber,
+                                         _original_axis_space));
 
   if (!sc.ok()) {
     return sc;
@@ -150,7 +152,7 @@ const vector<int32_t>& ClientState::CodepointOrdering() const {
 }
 
 ClientState& ClientState::SetSubsetAxisSpace(
-    const AxisSpace& subset_axis_space  ) {
+    const AxisSpace& subset_axis_space) {
   _subset_axis_space.emplace(subset_axis_space);
   return *this;
 }
@@ -171,7 +173,7 @@ const AxisSpace& ClientState::SubsetAxisSpace() const {
 }
 
 ClientState& ClientState::SetOriginalAxisSpace(
-    const AxisSpace& original_axis_space  ) {
+    const AxisSpace& original_axis_space) {
   _original_axis_space.emplace(original_axis_space);
   return *this;
 }

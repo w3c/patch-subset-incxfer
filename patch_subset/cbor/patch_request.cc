@@ -28,11 +28,13 @@ PatchRequest::PatchRequest(PatchRequest&& other) noexcept
       _original_font_checksum(other._original_font_checksum),
       _base_checksum(other._base_checksum) {}
 
-PatchRequest::PatchRequest(
-    CompressedSet codepoints_have, CompressedSet codepoints_needed,
-    CompressedSet indices_have, CompressedSet indices_needed,
-    uint64_t ordering_checksum, uint64_t original_font_checksum,
-    uint64_t base_checksum)
+PatchRequest::PatchRequest(CompressedSet codepoints_have,
+                           CompressedSet codepoints_needed,
+                           CompressedSet indices_have,
+                           CompressedSet indices_needed,
+                           uint64_t ordering_checksum,
+                           uint64_t original_font_checksum,
+                           uint64_t base_checksum)
     : _codepoints_have(codepoints_have),
       _codepoints_needed(codepoints_needed),
       _indices_have(indices_have),
@@ -96,8 +98,8 @@ Status PatchRequest::Encode(cbor_item_unique_ptr& map_out) const {
 
   cbor_item_unique_ptr map = make_cbor_map(size);
 
-  Status sc = CompressedSet::SetCompressedSetField(*map, kCodepointsHaveFieldNumber,
-                                            _codepoints_have);
+  Status sc = CompressedSet::SetCompressedSetField(
+      *map, kCodepointsHaveFieldNumber, _codepoints_have);
   if (!sc.ok()) {
     return absl::InvalidArgumentError("field setting failed.");
   }

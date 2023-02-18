@@ -35,9 +35,9 @@ TEST_F(PatchRequestTest, Constructor) {
   uint64_t original_font_checksum = 34343434L;
   uint64_t base_checksum = 12121212L;
 
-  PatchRequest request(codepoints_have,
-                       codepoints_needed, indices_have, indices_needed,
-                       ordering_checksum, original_font_checksum, base_checksum);
+  PatchRequest request(codepoints_have, codepoints_needed, indices_have,
+                       indices_needed, ordering_checksum,
+                       original_font_checksum, base_checksum);
 
   EXPECT_EQ(request.CodepointsHave(), codepoints_have);
   EXPECT_EQ(request.CodepointsNeeded(), codepoints_needed);
@@ -58,9 +58,9 @@ TEST_F(PatchRequestTest, CopyConstructor) {
   uint64_t ordering_checksum = 98989898L;
   uint64_t original_font_checksum = 34343434L;
   uint64_t base_checksum = 12121212L;
-  PatchRequest request(codepoints_have,
-                       codepoints_needed, indices_have, indices_needed,
-                       ordering_checksum, original_font_checksum, base_checksum);
+  PatchRequest request(codepoints_have, codepoints_needed, indices_have,
+                       indices_needed, ordering_checksum,
+                       original_font_checksum, base_checksum);
 
   EXPECT_EQ(PatchRequest(request), request);
 }
@@ -74,10 +74,9 @@ TEST_F(PatchRequestTest, MoveConstructor) {
   uint64_t original_font_checksum = 34343434L;
   uint64_t base_checksum = 12121212L;
 
-  PatchRequest origional(codepoints_have,
-                         codepoints_needed, indices_have, indices_needed,
-                         ordering_checksum, original_font_checksum,
-                         base_checksum);
+  PatchRequest origional(codepoints_have, codepoints_needed, indices_have,
+                         indices_needed, ordering_checksum,
+                         original_font_checksum, base_checksum);
   PatchRequest copy(origional);
 
   PatchRequest moved = std::move(origional);
@@ -94,10 +93,9 @@ TEST_F(PatchRequestTest, Decode) {
   uint64_t original_font_checksum = 5678;
   uint64_t base_checksum = 6789;
 
-  PatchRequest expected(codepoints_have,
-                        codepoints_needed, indices_have, indices_needed,
-                        ordering_checksum, original_font_checksum,
-                        base_checksum);
+  PatchRequest expected(codepoints_have, codepoints_needed, indices_have,
+                        indices_needed, ordering_checksum,
+                        original_font_checksum, base_checksum);
 
   cbor_item_unique_ptr map = make_cbor_map(10);
   cbor_item_unique_ptr field = empty_cbor_ptr();
@@ -155,9 +153,9 @@ TEST_F(PatchRequestTest, Encode) {
   uint64_t original_font_checksum = 12121212L;
   uint64_t base_checksum = 98989898L;
 
-  PatchRequest request(codepoints_have,
-                       codepoints_needed, indices_have, indices_needed,
-                       ordering_checksum, original_font_checksum, base_checksum);
+  PatchRequest request(codepoints_have, codepoints_needed, indices_have,
+                       indices_needed, ordering_checksum,
+                       original_font_checksum, base_checksum);
   cbor_item_unique_ptr map = empty_cbor_ptr();
 
   Status sc = request.Encode(map);
@@ -167,14 +165,16 @@ TEST_F(PatchRequestTest, Encode) {
   ASSERT_EQ(cbor_map_size(map.get()), 7);
   cbor_item_unique_ptr field = empty_cbor_ptr();
 
-  sc = CborUtils::GetField(*map, PatchRequest::kCodepointsHaveFieldNumber, field);
+  sc = CborUtils::GetField(*map, PatchRequest::kCodepointsHaveFieldNumber,
+                           field);
   ASSERT_EQ(sc, absl::OkStatus());
   CompressedSet result_codepoints_have;
   sc = CompressedSet::Decode(*field, result_codepoints_have);
   ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(result_codepoints_have, codepoints_have);
 
-  sc = CborUtils::GetField(*map, PatchRequest::kCodepointsNeededFieldNumber, field);
+  sc = CborUtils::GetField(*map, PatchRequest::kCodepointsNeededFieldNumber,
+                           field);
   ASSERT_EQ(sc, absl::OkStatus());
   CompressedSet result_codepoints_needed;
   sc = CompressedSet::Decode(*field, result_codepoints_needed);
@@ -188,21 +188,24 @@ TEST_F(PatchRequestTest, Encode) {
   ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(result_indices_have, indices_have);
 
-  sc = CborUtils::GetField(*map, PatchRequest::kIndicesNeededFieldNumber, field);
+  sc =
+      CborUtils::GetField(*map, PatchRequest::kIndicesNeededFieldNumber, field);
   ASSERT_EQ(sc, absl::OkStatus());
   CompressedSet result_indices_needed;
   sc = CompressedSet::Decode(*field, result_indices_needed);
   ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(result_indices_needed, indices_needed);
 
-  sc = CborUtils::GetField(*map, PatchRequest::kOrderingChecksumFieldNumber, field);
+  sc = CborUtils::GetField(*map, PatchRequest::kOrderingChecksumFieldNumber,
+                           field);
   ASSERT_EQ(sc, absl::OkStatus());
   uint64_t result_ordering_checksum;
   sc = CborUtils::DecodeUInt64(*field, &result_ordering_checksum);
   ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(result_ordering_checksum, ordering_checksum);
 
-  sc = CborUtils::GetField(*map, PatchRequest::kOriginalFontChecksumFieldNumber, field);
+  sc = CborUtils::GetField(*map, PatchRequest::kOriginalFontChecksumFieldNumber,
+                           field);
   ASSERT_EQ(sc, absl::OkStatus());
   uint64_t result_original_font_checksum;
   sc = CborUtils::DecodeUInt64(*field, &result_original_font_checksum);
@@ -305,12 +308,11 @@ TEST_F(PatchRequestTest, EqualsAndNotEquals) {
 }
 
 TEST_F(PatchRequestTest, Serialization) {
-  PatchRequest input(
-      CompressedSet{"bit-set-bytes1", range_vector{{1, 10}}},
-      CompressedSet{"bit-set-bytes2", range_vector{{11, 12}}},
-      CompressedSet{"bit-set-bytes3", range_vector{{5, 6}}},
-      CompressedSet{"bit-set-bytes4", range_vector{{7, 8}}}, 12345L, 23456L,
-      34567L);
+  PatchRequest input(CompressedSet{"bit-set-bytes1", range_vector{{1, 10}}},
+                     CompressedSet{"bit-set-bytes2", range_vector{{11, 12}}},
+                     CompressedSet{"bit-set-bytes3", range_vector{{5, 6}}},
+                     CompressedSet{"bit-set-bytes4", range_vector{{7, 8}}},
+                     12345L, 23456L, 34567L);
   string serialized_bytes;
   PatchRequest result;
 
@@ -322,11 +324,11 @@ TEST_F(PatchRequestTest, Serialization) {
 }
 
 TEST_F(PatchRequestTest, ToString) {
-  PatchRequest input(
-      CompressedSet{"bit-set-bytes1", range_vector{{1, 10}}},
-      CompressedSet{"", range_vector{{11, 12}}},
-      CompressedSet{"", range_vector{{5, 6}}},
-      CompressedSet{"", range_vector{{7, 8}}}, 12345L, 23456L, 34567L);
+  PatchRequest input(CompressedSet{"bit-set-bytes1", range_vector{{1, 10}}},
+                     CompressedSet{"", range_vector{{11, 12}}},
+                     CompressedSet{"", range_vector{{5, 6}}},
+                     CompressedSet{"", range_vector{{7, 8}}}, 12345L, 23456L,
+                     34567L);
   ASSERT_EQ(input.ToString(),
             "{cp_have={[1-10],bitset=14b},"
             "cp_need={[11-12]},i_have={[5-6]},"

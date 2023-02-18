@@ -8,9 +8,7 @@ namespace patch_subset::cbor {
 
 using absl::Status;
 
-bool AxisSpace::Empty() const {
-  return _space.empty();
-}
+bool AxisSpace::Empty() const { return _space.empty(); }
 
 bool AxisSpace::Has(hb_tag_t tag) const { return _space.contains(tag); }
 
