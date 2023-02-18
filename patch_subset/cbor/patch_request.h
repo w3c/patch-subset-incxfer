@@ -8,7 +8,6 @@
 #include "cbor.h"
 #include "patch_subset/cbor/cbor_item_unique_ptr.h"
 #include "patch_subset/cbor/compressed_set.h"
-#include "patch_subset/constants.h"
 
 namespace patch_subset::cbor {
 
@@ -18,8 +17,6 @@ namespace patch_subset::cbor {
  */
 class PatchRequest {
  private:
-  std::optional<ProtocolVersion> _protocol_version;
-  std::optional<std::vector<patch_subset::PatchFormat>> _accept_formats;
   std::optional<CompressedSet> _codepoints_have;
   std::optional<CompressedSet> _codepoints_needed;
   std::optional<CompressedSet> _indices_have;
@@ -27,32 +24,28 @@ class PatchRequest {
   std::optional<uint64_t> _ordering_checksum;
   std::optional<uint64_t> _original_font_checksum;
   std::optional<uint64_t> _base_checksum;
-  std::optional<ConnectionSpeed> _connection_speed;
 
  public:
-  static const int kProtocolVersionFieldNumber = 0;
-  static const int kAcceptPatchFormatsFieldNumber = 1;
-  static const int kCodepointsHaveFieldNumber = 2;
-  static const int kCodepointsNeededFieldNumber = 3;
-  static const int kIndicesHaveFieldNumber = 4;
-  static const int kIndicesNeededFieldNumber = 5;
+  static const int kCodepointsHaveFieldNumber = 0;
+  static const int kCodepointsNeededFieldNumber = 1;
+  static const int kIndicesHaveFieldNumber = 2;
+  static const int kIndicesNeededFieldNumber = 3;
+  static const int kFeaturesHaveFieldNumber = 4;
+  static const int kFeaturesNeededFieldNumber = 5;
   static const int kAxisSpaceHave = 6;
   static const int kAxisSpaceNeeded = 7;
   static const int kOrderingChecksumFieldNumber = 8;
   static const int kOriginalFontChecksumFieldNumber = 9;
   static const int kBaseChecksumFieldNumber = 10;
-  static const int kConnectionSpeedFieldNumber = 11;
 
  public:
   PatchRequest();
   PatchRequest(const PatchRequest& other) = default;
   PatchRequest(PatchRequest&& other) noexcept;
-  PatchRequest(ProtocolVersion protocol_version,
-               std::vector<patch_subset::PatchFormat> accept_formats,
-               CompressedSet codepoints_have, CompressedSet codepoints_needed,
+  PatchRequest(CompressedSet codepoints_have, CompressedSet codepoints_needed,
                CompressedSet indices_have, CompressedSet indices_needed,
                uint64_t ordering_checksum, uint64_t original_font_checksum,
-               uint64_t base_checksum, ConnectionSpeed connection_speed);
+               uint64_t base_checksum);
 
   static absl::Status Decode(const cbor_item_t& cbor_map, PatchRequest& out);
   absl::Status Encode(cbor_item_unique_ptr& map_out) const;
@@ -60,18 +53,6 @@ class PatchRequest {
   static absl::Status ParseFromString(const std::string& buffer,
                                       PatchRequest& out);
   absl::Status SerializeToString(std::string& out) const;
-
-  bool HasProtocolVersion() const;
-  ProtocolVersion GetProtocolVersion() const;
-  PatchRequest& SetProtocolVersion(ProtocolVersion version);
-  PatchRequest& ResetProtocolVersion();
-
-  bool HasAcceptFormats() const;
-  const std::vector<patch_subset::PatchFormat>& AcceptFormats() const;
-  PatchRequest& SetAcceptFormats(
-      const std::vector<patch_subset::PatchFormat>& formats);
-  PatchRequest& AddAcceptFormat(patch_subset::PatchFormat);
-  PatchRequest& ResetAcceptFormats();
 
   bool HasCodepointsHave() const;
   const CompressedSet& CodepointsHave() const;
@@ -107,11 +88,6 @@ class PatchRequest {
   uint64_t BaseChecksum() const;
   PatchRequest& SetBaseChecksum(uint64_t checksum);
   PatchRequest& ResetBaseChecksum();
-
-  bool HasConnectionSpeed() const;
-  ConnectionSpeed GetConnectionSpeed() const;
-  PatchRequest& SetConnectionSpeed(ConnectionSpeed connection_speed);
-  PatchRequest& ResetConnectionSpeed();
 
   // Returns a human readable version of this PatchRequest.
   std::string ToString() const;

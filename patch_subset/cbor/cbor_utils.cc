@@ -121,63 +121,6 @@ Status CborUtils::GetBytesField(const cbor_item_t& map, int field_number,
   return absl::OkStatus();
 }
 
-Status CborUtils::GetProtocolVersionField(const cbor_item_t& map,
-                                          int field_number,
-                                          optional<ProtocolVersion>& out) {
-  cbor_item_unique_ptr field = empty_cbor_ptr();
-  Status sc = GetField(map, field_number, field);
-  if (absl::IsNotFound(sc)) {
-    out.reset();
-    return absl::OkStatus();
-  } else if (!sc.ok()) {
-    return sc;
-  }
-  int version_int;
-  sc = DecodeInt(*field, &version_int);
-  if (!sc.ok()) {
-    return sc;
-  }
-  if (version_int == ProtocolVersion::ONE) {
-    // Initially only version 1 is supported.
-    out.emplace(ProtocolVersion::ONE);
-  } else {
-    out.reset();
-  }
-  return absl::OkStatus();
-}
-
-Status CborUtils::GetConnectionSpeedField(const cbor_item_t& map,
-                                          int field_number,
-                                          optional<ConnectionSpeed>& out) {
-  cbor_item_unique_ptr field = empty_cbor_ptr();
-  Status sc = GetField(map, field_number, field);
-  if (absl::IsNotFound(sc)) {
-    out.reset();
-    return absl::OkStatus();
-  } else if (!sc.ok()) {
-    return sc;
-  }
-  int speed_int;
-  sc = DecodeInt(*field, &speed_int);
-  if (!sc.ok()) {
-    return sc;
-  }
-  switch (speed_int) {
-    case ConnectionSpeed::VERY_SLOW:
-    case ConnectionSpeed::SLOW:
-    case ConnectionSpeed::AVERAGE:
-    case ConnectionSpeed::FAST:
-    case ConnectionSpeed::VERY_FAST:
-    case ConnectionSpeed::EXTREMELY_FAST: {
-      out.emplace(static_cast<ConnectionSpeed>(speed_int));
-      break;
-    }
-    default:
-      out.reset();
-  }
-  return absl::OkStatus();
-}
-
 Status CborUtils::SetField(cbor_item_t& cbor_map, const int field_number,
                            cbor_item_t* field_value) {
   if (!cbor_isa_map(&cbor_map) || cbor_map_is_indefinite(&cbor_map) ||
@@ -227,24 +170,6 @@ Status CborUtils::SetBytesField(cbor_item_t& map, int field_number,
     return absl::OkStatus();  // Nothing to do.
   }
   return SetField(map, field_number, cbor_move(EncodeBytes(value.value())));
-}
-
-Status CborUtils::SetProtocolVersionField(
-    cbor_item_t& map, int field_number,
-    const optional<ProtocolVersion>& value) {
-  if (!value.has_value()) {
-    return absl::OkStatus();  // Nothing to do.
-  }
-  return SetField(map, field_number, cbor_move(EncodeInt(value.value())));
-}
-
-Status CborUtils::SetConnectionSpeedField(
-    cbor_item_t& map, int field_number,
-    const optional<ConnectionSpeed>& value) {
-  if (!value.has_value()) {
-    return absl::OkStatus();  // Nothing to do.
-  }
-  return SetField(map, field_number, cbor_move(EncodeInt(value.value())));
 }
 
 // TODO INT UTILS

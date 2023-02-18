@@ -11,94 +11,72 @@ using std::string;
 using std::vector;
 
 ClientState::ClientState()
-    : _font_id(std::nullopt),
-      _font_data(std::nullopt),
-      _original_font_checksum(std::nullopt),
-      _codepoint_remapping(std::nullopt),
-      _codepoint_remapping_checksum(std::nullopt) {}
+    : _original_font_checksum(std::nullopt),
+      _codepoint_ordering(std::nullopt),
+      _subset_axis_space(std::nullopt),
+      _original_axis_space(std::nullopt) {}
 
-ClientState::ClientState(const string& font_id, const string& font_data,
-                         uint64_t original_font_checksum,
-                         const vector<int32_t>& codepoint_remapping,
-                         uint64_t codepoint_remapping_checksum)
-    : _font_id(font_id),
-      _font_data(font_data),
-      _original_font_checksum(original_font_checksum),
-      _codepoint_remapping(codepoint_remapping),
-      _codepoint_remapping_checksum(codepoint_remapping_checksum) {}
+ClientState::ClientState(uint64_t original_font_checksum,
+                         const std::vector<int32_t>& codepoint_ordering,
+                         const AxisSpace& subset_axis_space,
+                         const AxisSpace& original_axis_space)
+    : _original_font_checksum(original_font_checksum),
+      _codepoint_ordering(codepoint_ordering),
+      _subset_axis_space(subset_axis_space),
+      _original_axis_space(original_axis_space) {}
 
 ClientState::ClientState(ClientState&& other) noexcept
-    : _font_id(std::move(other._font_id)),
-      _font_data(std::move(other._font_data)),
-      _original_font_checksum(other._original_font_checksum),
-      _codepoint_remapping(std::move(other._codepoint_remapping)),
-      _codepoint_remapping_checksum(other._codepoint_remapping_checksum) {}
+    : _original_font_checksum(other._original_font_checksum),
+      _codepoint_ordering(std::move(other._codepoint_ordering)),
+      _subset_axis_space(std::move(other._subset_axis_space)),
+      _original_axis_space(std::move(other._original_axis_space)) {}
+
 
 Status ClientState::Decode(const cbor_item_t& cbor_map, ClientState& out) {
   ClientState result;
   if (!cbor_isa_map(&cbor_map) || cbor_map_is_indefinite(&cbor_map)) {
     return absl::InvalidArgumentError("not a map.");
   }
-  Status sc =
-      CborUtils::GetStringField(cbor_map, kFontIdFieldNumber, result._font_id);
+
+  Status sc = CborUtils::GetUInt64Field(cbor_map, kOriginalFontChecksumFieldNumber,
+                                        result._original_font_checksum);
+
+  sc.Update(IntegerList::GetIntegerListField(
+      cbor_map, kCodepointOrderingFieldNumber, result._codepoint_ordering));
+
+  sc.Update(AxisSpace::GetAxisSpaceField(
+      cbor_map, kSubsetAxisSpaceFieldNumber, result._subset_axis_space));
+
+  sc.Update(AxisSpace::GetAxisSpaceField(
+      cbor_map, kOriginalAxisSpaceFieldNumber, result._original_axis_space));
+
   if (!sc.ok()) {
-    return absl::InvalidArgumentError("field lookup failed.");
+    return sc;
   }
-  sc = CborUtils::GetBytesField(cbor_map, kFontDataFieldNumber,
-                                result._font_data);
-  if (!sc.ok()) {
-    return absl::InvalidArgumentError("field lookup failed.");
-  }
-  sc = CborUtils::GetUInt64Field(cbor_map, kOriginalFontChecksumFieldNumber,
-                                 result._original_font_checksum);
-  if (!sc.ok()) {
-    return absl::InvalidArgumentError("field lookup failed.");
-  }
-  sc = IntegerList::GetIntegerListField(
-      cbor_map, kCodepointRemappingFieldNumber, result._codepoint_remapping);
-  if (!sc.ok()) {
-    return absl::InvalidArgumentError("field lookup failed.");
-  }
-  sc = CborUtils::GetUInt64Field(cbor_map,
-                                 kCodepointRemappingChecksumFieldNumber,
-                                 result._codepoint_remapping_checksum);
-  if (!sc.ok()) {
-    return absl::InvalidArgumentError("field lookup failed.");
-  }
+
   out = std::move(result);
   return absl::OkStatus();
 }
 
 Status ClientState::Encode(cbor_item_unique_ptr& out) const {
-  int map_size = (_font_id.has_value() ? 1 : 0) +
-                 (_font_data.has_value() ? 1 : 0) +
-                 (_original_font_checksum.has_value() ? 1 : 0) +
-                 (_codepoint_remapping.has_value() ? 1 : 0) +
-                 (_codepoint_remapping_checksum.has_value() ? 1 : 0);
+  int map_size = (_original_font_checksum.has_value() ? 1 : 0) +
+                 (_codepoint_ordering.has_value() ? 1 : 0) +
+                 (_subset_axis_space.has_value() ? 1 : 0) +
+                 (_original_axis_space.has_value() ? 1 : 0);
+
   cbor_item_unique_ptr map = make_cbor_map(map_size);
-  Status sc = CborUtils::SetStringField(*map, kFontIdFieldNumber, _font_id);
+
+  Status sc = CborUtils::SetUInt64Field(*map, kOriginalFontChecksumFieldNumber,
+                                        _original_font_checksum);
+  sc.Update(IntegerList::SetIntegerListField(*map, kCodepointOrderingFieldNumber,
+                                             _codepoint_ordering));
+  sc.Update(AxisSpace::SetAxisSpaceField(*map, kSubsetAxisSpaceFieldNumber, _subset_axis_space));
+  sc.Update(AxisSpace::SetAxisSpaceField(*map, kOriginalAxisSpaceFieldNumber, _original_axis_space));
+
   if (!sc.ok()) {
     return sc;
   }
-  sc = CborUtils::SetBytesField(*map, kFontDataFieldNumber, _font_data);
-  if (!sc.ok()) {
-    return sc;
-  }
-  sc = CborUtils::SetUInt64Field(*map, kOriginalFontChecksumFieldNumber,
-                                 _original_font_checksum);
-  if (!sc.ok()) {
-    return sc;
-  }
-  sc = IntegerList::SetIntegerListField(*map, kCodepointRemappingFieldNumber,
-                                        _codepoint_remapping);
-  if (!sc.ok()) {
-    return sc;
-  }
-  sc = CborUtils::SetUInt64Field(*map, kCodepointRemappingChecksumFieldNumber,
-                                 _codepoint_remapping_checksum);
-  if (!sc.ok()) {
-    return sc;
-  }
+
   out.swap(map);
   return absl::OkStatus();
 }
@@ -134,41 +112,6 @@ Status ClientState::SerializeToString(std::string& out) const {
   return absl::OkStatus();
 }
 
-ClientState& ClientState::SetFontId(const string& font_id) {
-  _font_id.emplace(font_id);
-  return *this;
-}
-ClientState& ClientState::ResetFontId() {
-  _font_id.reset();
-  return *this;
-}
-bool ClientState::HasFontId() const { return _font_id.has_value(); }
-const string kEmptyString;
-const string& ClientState::FontId() const {
-  if (_font_id.has_value()) {
-    return _font_id.value();
-  } else {
-    return kEmptyString;
-  }
-}
-
-ClientState& ClientState::SetFontData(const string& font_data) {
-  _font_data.emplace(font_data);
-  return *this;
-}
-ClientState& ClientState::ResetFontData() {
-  _font_data.reset();
-  return *this;
-}
-bool ClientState::HasFontData() const { return _font_data.has_value(); }
-const string& ClientState::FontData() const {
-  if (_font_data.has_value()) {
-    return _font_data.value();
-  } else {
-    return kEmptyString;
-  }
-}
-
 ClientState& ClientState::SetOriginalFontChecksum(uint64_t checksum) {
   _original_font_checksum.emplace(checksum);
   return *this;
@@ -185,68 +128,83 @@ uint64_t ClientState::OriginalFontChecksum() const {
                                              : 0;
 }
 
-ClientState& ClientState::SetCodepointRemapping(
-    const vector<int32_t>& codepoint_remapping) {
-  _codepoint_remapping.emplace(codepoint_remapping);
+ClientState& ClientState::SetCodepointOrdering(
+    const vector<int32_t>& codepoint_ordering) {
+  _codepoint_ordering.emplace(codepoint_ordering);
   return *this;
 }
-ClientState& ClientState::ResetCodepointRemapping() {
-  _codepoint_remapping.reset();
+ClientState& ClientState::ResetCodepointOrdering() {
+  _codepoint_ordering.reset();
   return *this;
 }
-bool ClientState::HasCodepointRemapping() const {
-  return _codepoint_remapping.has_value();
+bool ClientState::HasCodepointOrdering() const {
+  return _codepoint_ordering.has_value();
 }
-static const vector<int32_t> kEmptyRemappings;
-const vector<int32_t>& ClientState::CodepointRemapping() const {
-  if (_codepoint_remapping.has_value()) {
-    return _codepoint_remapping.value();
+static const vector<int32_t> kEmptyOrderings;
+const vector<int32_t>& ClientState::CodepointOrdering() const {
+  if (_codepoint_ordering.has_value()) {
+    return _codepoint_ordering.value();
   } else {
-    return kEmptyRemappings;
+    return kEmptyOrderings;
   }
 }
 
-ClientState& ClientState::SetCodepointRemappingChecksum(uint64_t checksum) {
-  _codepoint_remapping_checksum.emplace(checksum);
+ClientState& ClientState::SetSubsetAxisSpace(
+    const AxisSpace& subset_axis_space  ) {
+  _subset_axis_space.emplace(subset_axis_space);
   return *this;
 }
-ClientState& ClientState::ResetCodepointRemappingChecksum() {
-  _codepoint_remapping_checksum.reset();
+ClientState& ClientState::ResetSubsetAxisSpace() {
+  _subset_axis_space.reset();
   return *this;
 }
-bool ClientState::HasCodepointRemappingChecksum() const {
-  return _codepoint_remapping_checksum.has_value();
+bool ClientState::HasSubsetAxisSpace() const {
+  return _subset_axis_space.has_value();
 }
-uint64_t ClientState::CodepointRemappingChecksum() const {
-  return _codepoint_remapping_checksum.has_value()
-             ? _codepoint_remapping_checksum.value()
-             : 0;
+static const AxisSpace kEmptyAxisSpace;
+const AxisSpace& ClientState::SubsetAxisSpace() const {
+  if (_subset_axis_space.has_value()) {
+    return _subset_axis_space.value();
+  } else {
+    return kEmptyAxisSpace;
+  }
+}
+
+ClientState& ClientState::SetOriginalAxisSpace(
+    const AxisSpace& original_axis_space  ) {
+  _original_axis_space.emplace(original_axis_space);
+  return *this;
+}
+ClientState& ClientState::ResetOriginalAxisSpace() {
+  _original_axis_space.reset();
+  return *this;
+}
+bool ClientState::HasOriginalAxisSpace() const {
+  return _original_axis_space.has_value();
+}
+const AxisSpace& ClientState::OriginalAxisSpace() const {
+  if (_original_axis_space.has_value()) {
+    return _original_axis_space.value();
+  } else {
+    return kEmptyAxisSpace;
+  }
 }
 
 string ClientState::ToString() const {
   string s;
-  if (HasFontId()) {
-    s += "id=" + FontId();
-  }
-  if (HasFontData()) {
-    if (!s.empty()) {
-      s += ",";
-    }
-    s += std::to_string(FontData().size()) + " bytes";
-  }
   if (HasOriginalFontChecksum()) {
     if (!s.empty()) {
       s += ",";
     }
     s += "orig_cs=" + std::to_string(OriginalFontChecksum());
   }
-  if (HasCodepointRemapping()) {
+  if (HasCodepointOrdering()) {
     if (!s.empty()) {
       s += ",";
     }
     s += "cp_rm=[";
     int i = 0;
-    for (int32_t n : CodepointRemapping()) {
+    for (int32_t n : CodepointOrdering()) {
       if (i > 0) {
         s += ",";
       }
@@ -255,29 +213,37 @@ string ClientState::ToString() const {
     }
     s += "]";
   }
-  if (HasCodepointRemappingChecksum()) {
+
+  if (HasSubsetAxisSpace()) {
     if (!s.empty()) {
       s += ",";
     }
-    s += "cprm_cs=" + std::to_string(CodepointRemappingChecksum());
+    s += "subset_axis_space=" + SubsetAxisSpace().ToString();
   }
+
+  if (HasOriginalAxisSpace()) {
+    if (!s.empty()) {
+      s += ",";
+    }
+    s += "original_axis_space=" + OriginalAxisSpace().ToString();
+  }
+
   return "{" + s + "}";
 }
 
 ClientState& ClientState::operator=(ClientState&& other) noexcept {
-  _font_id = std::move(other._font_id);
-  _font_data = std::move(other._font_data);
   _original_font_checksum = other._original_font_checksum;
-  _codepoint_remapping = std::move(other._codepoint_remapping);
-  _codepoint_remapping_checksum = other._codepoint_remapping_checksum;
+  _codepoint_ordering = std::move(other._codepoint_ordering);
+  _subset_axis_space = std::move(other._subset_axis_space);
+  _original_axis_space = std::move(other._original_axis_space);
   return *this;
 }
 
 bool ClientState::operator==(const ClientState& other) const {
-  return _font_id == other._font_id && _font_data == other._font_data &&
-         _original_font_checksum == other._original_font_checksum &&
-         _codepoint_remapping == other._codepoint_remapping &&
-         _codepoint_remapping_checksum == other._codepoint_remapping_checksum;
+  return _original_font_checksum == other._original_font_checksum &&
+         _codepoint_ordering == other._codepoint_ordering &&
+         _subset_axis_space == other._subset_axis_space &&
+         _original_axis_space == other._original_axis_space;
 }
 bool ClientState::operator!=(const ClientState& other) const {
   return !(*this == other);
