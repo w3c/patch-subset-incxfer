@@ -12,9 +12,7 @@ cc_library(
         "compressed_set.cc",
         "int_utils.cc",
         "integer_list.cc",
-        "patch_format_fields.cc",
         "patch_request.cc",
-        "patch_response.cc",
         "range_list.cc",
     ],
     hdrs = [
@@ -27,9 +25,7 @@ cc_library(
         "compressed_set.h",
         "int_utils.h",
         "integer_list.h",
-        "patch_format_fields.h",
         "patch_request.h",
-        "patch_response.h",
         "range_list.h",
     ],
     visibility = [
@@ -37,7 +33,6 @@ cc_library(
         "//patch_subset:__pkg__",
     ],
     deps = [
-        "//patch_subset:constants",
         "@com_google_absl//absl/container:btree",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
@@ -60,9 +55,7 @@ cc_test(
         "compressed_set_test.cc",
         "int_utils_test.cc",
         "integer_list_test.cc",
-        "patch_format_fields_test.cc",
         "patch_request_test.cc",
-        "patch_response_test.cc",
         "range_list_test.cc",
     ],
     deps = [

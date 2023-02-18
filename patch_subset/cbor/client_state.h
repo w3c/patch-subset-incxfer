@@ -6,6 +6,7 @@
 
 #include "absl/status/status.h"
 #include "cbor.h"
+#include "patch_subset/cbor/axis_space.h"
 #include "patch_subset/cbor/cbor_item_unique_ptr.h"
 
 namespace patch_subset::cbor {
@@ -18,26 +19,27 @@ namespace patch_subset::cbor {
  */
 class ClientState {
  private:
-  std::optional<std::string> _font_id;
-  std::optional<std::string> _font_data;
   std::optional<uint64_t> _original_font_checksum;
-  std::optional<std::vector<int32_t>> _codepoint_remapping;
-  std::optional<uint64_t> _codepoint_remapping_checksum;
+  std::optional<std::vector<int32_t>> _codepoint_ordering;
+  std::optional<AxisSpace> _subset_axis_space;
+  std::optional<AxisSpace> _original_axis_space;
 
-  static const int kFontIdFieldNumber = 0;
-  static const int kFontDataFieldNumber = 1;
-  static const int kOriginalFontChecksumFieldNumber = 2;
-  static const int kCodepointRemappingFieldNumber = 3;
-  static const int kCodepointRemappingChecksumFieldNumber = 4;
+  // See: https://w3c.github.io/IFT/Overview.html#ClientState
+  static const int kOriginalFontChecksumFieldNumber = 0;
+  static const int kCodepointOrderingFieldNumber = 1;
+  static const int kSubsetAxisSpaceFieldNumber = 2;
+  static const int kOriginalAxisSpaceFieldNumber = 3;
+  // TODO(garretrieger): add (kOriginalFeaturesFieldNumber = 4).
 
  public:
   ClientState();
   ClientState(const ClientState& other) = default;
   ClientState(ClientState&& other) noexcept;
-  ClientState(const std::string& font_id, const std::string& font_data,
-              uint64_t original_font_checksum,
-              const std::vector<int32_t>& codepoint_remapping,
-              uint64_t codepoint_remapping_checksum);
+
+  ClientState(uint64_t original_font_checksum,
+              const std::vector<int32_t>& codepoint_ordering,
+              const AxisSpace& subset_axis_space,
+              const AxisSpace& original_axis_space);
 
   static absl::Status Decode(const cbor_item_t& cbor_map, ClientState& out);
   absl::Status Encode(cbor_item_unique_ptr& out) const;
@@ -46,31 +48,27 @@ class ClientState {
                                       ClientState& out);
   absl::Status SerializeToString(std::string& out) const;
 
-  ClientState& SetFontId(const std::string& font_id);
-  ClientState& ResetFontId();
-  [[nodiscard]] bool HasFontId() const;
-  [[nodiscard]] const std::string& FontId() const;
-
-  ClientState& SetFontData(const std::string& font_data);
-  ClientState& ResetFontData();
-  [[nodiscard]] bool HasFontData() const;
-  [[nodiscard]] const std::string& FontData() const;
 
   ClientState& SetOriginalFontChecksum(uint64_t);
   ClientState& ResetOriginalFontChecksum();
   [[nodiscard]] bool HasOriginalFontChecksum() const;
   [[nodiscard]] uint64_t OriginalFontChecksum() const;
 
-  ClientState& SetCodepointRemapping(
-      const std::vector<int32_t>& codepoint_remapping);
-  ClientState& ResetCodepointRemapping();
-  [[nodiscard]] bool HasCodepointRemapping() const;
-  [[nodiscard]] const std::vector<int32_t>& CodepointRemapping() const;
+  ClientState& SetCodepointOrdering(
+      const std::vector<int32_t>& codepoint_ordering);
+  ClientState& ResetCodepointOrdering();
+  [[nodiscard]] bool HasCodepointOrdering() const;
+  [[nodiscard]] const std::vector<int32_t>& CodepointOrdering() const;
 
-  ClientState& SetCodepointRemappingChecksum(uint64_t);
-  ClientState& ResetCodepointRemappingChecksum();
-  [[nodiscard]] bool HasCodepointRemappingChecksum() const;
-  [[nodiscard]] uint64_t CodepointRemappingChecksum() const;
+  ClientState& SetSubsetAxisSpace(const AxisSpace& space);
+  ClientState& ResetSubsetAxisSpace();
+  [[nodiscard]] bool HasSubsetAxisSpace() const;
+  [[nodiscard]] const AxisSpace& SubsetAxisSpace() const;
+
+  ClientState& SetOriginalAxisSpace(const AxisSpace& patch);
+  ClientState& ResetOriginalAxisSpace();
+  [[nodiscard]] bool HasOriginalAxisSpace() const;
+  [[nodiscard]] const AxisSpace& OriginalAxisSpace() const;
 
   // Returns a human readable version of this ClientState.
   std::string ToString() const;

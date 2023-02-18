@@ -9,7 +9,6 @@
 #include "absl/strings/string_view.h"
 #include "cbor.h"
 #include "patch_subset/cbor/cbor_item_unique_ptr.h"
-#include "patch_subset/constants.h"
 
 namespace patch_subset::cbor {
 
@@ -28,12 +27,6 @@ class CborUtils {
                                      std::optional<std::string>& out);
   static absl::Status GetBytesField(const cbor_item_t& map, int field_number,
                                     std::optional<std::string>& out);
-  static absl::Status GetProtocolVersionField(
-      const cbor_item_t& map, int field_number,
-      std::optional<ProtocolVersion>& out);
-  static absl::Status GetConnectionSpeedField(
-      const cbor_item_t& map, int field_number,
-      std::optional<ConnectionSpeed>& out);
 
   // Sets a field in a map.
   // Note: field_value must be a pointer, to work with CBOR library.
@@ -48,12 +41,6 @@ class CborUtils {
                                      const std::optional<std::string>& value);
   static absl::Status SetBytesField(cbor_item_t& map, int field_number,
                                     const std::optional<std::string>& value);
-  static absl::Status SetProtocolVersionField(
-      cbor_item_t& map, int field_number,
-      const std::optional<ProtocolVersion>& value);
-  static absl::Status SetConnectionSpeedField(
-      cbor_item_t& map, int field_number,
-      const std::optional<ConnectionSpeed>& value);
 
   static cbor_item_t* EncodeInt(int32_t n);
   static absl::Status DecodeInt(const cbor_item_t& int_element, int32_t* out);
