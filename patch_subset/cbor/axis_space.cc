@@ -144,10 +144,14 @@ std::string AxisSpace::ToString() const {
   for (auto const& e : _space) {
     result += e.first;
     result += ": [";
+    int j = 0;
     for (auto const& i : e.second) {
-      result += i.ToString() + ", ";
+      if (j++ > 0) {
+        result += ", ";
+      }
+      result += i.ToString();
     }
-    result += "]\n";
+    result += "]";
   }
   return result;
 }

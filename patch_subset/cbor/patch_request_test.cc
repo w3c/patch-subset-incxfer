@@ -164,7 +164,7 @@ TEST_F(PatchRequestTest, Encode) {
 
   ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_TRUE(cbor_isa_map(map.get()));
-  ASSERT_EQ(cbor_map_size(map.get()), 10);
+  ASSERT_EQ(cbor_map_size(map.get()), 7);
   cbor_item_unique_ptr field = empty_cbor_ptr();
 
   sc = CborUtils::GetField(*map, PatchRequest::kCodepointsHaveFieldNumber, field);
