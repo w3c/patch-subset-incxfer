@@ -5,7 +5,6 @@
 #include "gtest/gtest.h"
 #include "patch_subset/cbor/cbor_item_unique_ptr.h"
 #include "patch_subset/cbor/cbor_utils.h"
-#include "patch_subset/cbor/patch_format_fields.h"
 
 namespace patch_subset::cbor {
 
@@ -18,8 +17,6 @@ using std::vector;
 TEST_F(PatchRequestTest, EmptyConstructor) {
   PatchRequest request;
 
-  EXPECT_EQ(request.GetProtocolVersion(), ProtocolVersion::ONE);
-  EXPECT_TRUE(request.AcceptFormats().empty());
   EXPECT_TRUE(request.CodepointsHave().empty());
   EXPECT_TRUE(request.CodepointsNeeded().empty());
   EXPECT_TRUE(request.IndicesHave().empty());
@@ -27,11 +24,9 @@ TEST_F(PatchRequestTest, EmptyConstructor) {
   EXPECT_EQ(request.OrderingChecksum(), 0);
   EXPECT_EQ(request.OriginalFontChecksum(), 0);
   EXPECT_EQ(request.BaseChecksum(), 0);
-  EXPECT_EQ(request.GetConnectionSpeed(), ConnectionSpeed::AVERAGE);
 }
 
 TEST_F(PatchRequestTest, Constructor) {
-  vector<PatchFormat> accept_formats{PatchFormat::BROTLI_SHARED_DICT};
   CompressedSet codepoints_have(string{"data1"}, range_vector{{1, 10}});
   CompressedSet codepoints_needed(string{"data2"}, range_vector{{2, 20}});
   CompressedSet indices_have(string{"data3"}, range_vector{});
@@ -39,15 +34,11 @@ TEST_F(PatchRequestTest, Constructor) {
   uint64_t ordering_checksum = 98989898L;
   uint64_t original_font_checksum = 34343434L;
   uint64_t base_checksum = 12121212L;
-  ConnectionSpeed speed = ConnectionSpeed::VERY_FAST;
 
-  PatchRequest request(ProtocolVersion::ONE, accept_formats, codepoints_have,
+  PatchRequest request(codepoints_have,
                        codepoints_needed, indices_have, indices_needed,
-                       ordering_checksum, original_font_checksum, base_checksum,
-                       speed);
+                       ordering_checksum, original_font_checksum, base_checksum);
 
-  EXPECT_EQ(request.GetProtocolVersion(), ProtocolVersion::ONE);
-  EXPECT_EQ(request.AcceptFormats(), accept_formats);
   EXPECT_EQ(request.CodepointsHave(), codepoints_have);
   EXPECT_EQ(request.CodepointsNeeded(), codepoints_needed);
   EXPECT_EQ(request.IndicesHave(), indices_have);
@@ -55,13 +46,11 @@ TEST_F(PatchRequestTest, Constructor) {
   EXPECT_EQ(request.OrderingChecksum(), ordering_checksum);
   EXPECT_EQ(request.OriginalFontChecksum(), original_font_checksum);
   EXPECT_EQ(request.BaseChecksum(), base_checksum);
-  EXPECT_EQ(request.GetConnectionSpeed(), speed);
 
   EXPECT_EQ(PatchRequest(request), request);
 }
 
 TEST_F(PatchRequestTest, CopyConstructor) {
-  vector<PatchFormat> accept_formats{PatchFormat::BROTLI_SHARED_DICT};
   CompressedSet codepoints_have(string{"data1"}, range_vector{{1, 10}});
   CompressedSet codepoints_needed(string{"data2"}, range_vector{{2, 20}});
   CompressedSet indices_have(string{"data3"}, range_vector{});
@@ -69,17 +58,14 @@ TEST_F(PatchRequestTest, CopyConstructor) {
   uint64_t ordering_checksum = 98989898L;
   uint64_t original_font_checksum = 34343434L;
   uint64_t base_checksum = 12121212L;
-  ConnectionSpeed speed = ConnectionSpeed::VERY_FAST;
-  PatchRequest request(ProtocolVersion::ONE, accept_formats, codepoints_have,
+  PatchRequest request(codepoints_have,
                        codepoints_needed, indices_have, indices_needed,
-                       ordering_checksum, original_font_checksum, base_checksum,
-                       speed);
+                       ordering_checksum, original_font_checksum, base_checksum);
 
   EXPECT_EQ(PatchRequest(request), request);
 }
 
 TEST_F(PatchRequestTest, MoveConstructor) {
-  vector<PatchFormat> accept_formats{PatchFormat::BROTLI_SHARED_DICT};
   CompressedSet codepoints_have(string{"data1"}, range_vector{{1, 10}});
   CompressedSet codepoints_needed(string{"data2"}, range_vector{{2, 20}});
   CompressedSet indices_have(string{"data3"}, range_vector{});
@@ -87,11 +73,11 @@ TEST_F(PatchRequestTest, MoveConstructor) {
   uint64_t ordering_checksum = 98989898L;
   uint64_t original_font_checksum = 34343434L;
   uint64_t base_checksum = 12121212L;
-  ConnectionSpeed speed = ConnectionSpeed::VERY_FAST;
-  PatchRequest origional(ProtocolVersion::ONE, accept_formats, codepoints_have,
+
+  PatchRequest origional(codepoints_have,
                          codepoints_needed, indices_have, indices_needed,
                          ordering_checksum, original_font_checksum,
-                         base_checksum, speed);
+                         base_checksum);
   PatchRequest copy(origional);
 
   PatchRequest moved = std::move(origional);
@@ -100,7 +86,6 @@ TEST_F(PatchRequestTest, MoveConstructor) {
 }
 
 TEST_F(PatchRequestTest, Decode) {
-  vector<PatchFormat> accept_formats{PatchFormat::BROTLI_SHARED_DICT};
   CompressedSet codepoints_have(string{"data1"}, range_vector{{1, 10}});
   CompressedSet codepoints_needed(string{"data2"}, range_vector{{2, 20}});
   CompressedSet indices_have(string{"data3"}, range_vector{});
@@ -108,24 +93,14 @@ TEST_F(PatchRequestTest, Decode) {
   uint64_t ordering_checksum = 4567;
   uint64_t original_font_checksum = 5678;
   uint64_t base_checksum = 6789;
-  ConnectionSpeed connection_speed = ConnectionSpeed::VERY_SLOW;
 
-  PatchRequest expected(ProtocolVersion::ONE, accept_formats, codepoints_have,
+  PatchRequest expected(codepoints_have,
                         codepoints_needed, indices_have, indices_needed,
                         ordering_checksum, original_font_checksum,
-                        base_checksum, connection_speed);
+                        base_checksum);
 
   cbor_item_unique_ptr map = make_cbor_map(10);
   cbor_item_unique_ptr field = empty_cbor_ptr();
-  ASSERT_EQ(CborUtils::SetField(*map, PatchRequest::kProtocolVersionFieldNumber,
-                                cbor_move(CborUtils::EncodeUInt64(0))),
-            absl::OkStatus());
-
-  ASSERT_EQ(PatchFormatFields::Encode(accept_formats, field), absl::OkStatus());
-  ASSERT_EQ(
-      CborUtils::SetField(*map, PatchRequest::kAcceptPatchFormatsFieldNumber,
-                          move_out(field)),
-      absl::OkStatus());
 
   ASSERT_EQ(codepoints_have.Encode(field), absl::OkStatus());
   ASSERT_EQ(CborUtils::SetField(*map, PatchRequest::kCodepointsHaveFieldNumber,
@@ -163,9 +138,6 @@ TEST_F(PatchRequestTest, Decode) {
                           cbor_move(CborUtils::EncodeUInt64(base_checksum))),
       absl::OkStatus());
 
-  ASSERT_EQ(CborUtils::SetField(*map, PatchRequest::kConnectionSpeedFieldNumber,
-                                cbor_move(CborUtils::EncodeInt(1))),
-            absl::OkStatus());
   PatchRequest result;
 
   Status sc = PatchRequest::Decode(*map, result);
@@ -175,8 +147,6 @@ TEST_F(PatchRequestTest, Decode) {
 }
 
 TEST_F(PatchRequestTest, Encode) {
-  vector<PatchFormat> accept_formats{PatchFormat::BROTLI_SHARED_DICT,
-                                     static_cast<PatchFormat>(-1)};
   CompressedSet codepoints_have(string{"data1"}, range_vector{{1, 10}});
   CompressedSet codepoints_needed(string{"data2"}, range_vector{{2, 20}});
   CompressedSet indices_have(string{"data3"}, range_vector{});
@@ -184,11 +154,10 @@ TEST_F(PatchRequestTest, Encode) {
   uint64_t ordering_checksum = 34343434L;
   uint64_t original_font_checksum = 12121212L;
   uint64_t base_checksum = 98989898L;
-  ConnectionSpeed connection_speed = ConnectionSpeed::FAST;
-  PatchRequest request(ProtocolVersion::ONE, accept_formats, codepoints_have,
+
+  PatchRequest request(codepoints_have,
                        codepoints_needed, indices_have, indices_needed,
-                       ordering_checksum, original_font_checksum, base_checksum,
-                       connection_speed);
+                       ordering_checksum, original_font_checksum, base_checksum);
   cbor_item_unique_ptr map = empty_cbor_ptr();
 
   Status sc = request.Encode(map);
@@ -198,98 +167,58 @@ TEST_F(PatchRequestTest, Encode) {
   ASSERT_EQ(cbor_map_size(map.get()), 10);
   cbor_item_unique_ptr field = empty_cbor_ptr();
 
-  sc = CborUtils::GetField(*map, 0, field);
-  ASSERT_EQ(sc, absl::OkStatus());
-  ASSERT_NE(field.get(), nullptr);
-  int protocol_version;
-  sc = CborUtils::DecodeInt(*field, &protocol_version);
-  ASSERT_EQ(sc, absl::OkStatus());
-  ASSERT_EQ(protocol_version, ProtocolVersion::ONE);
-
-  sc = CborUtils::GetField(*map, 1, field);
-  ASSERT_EQ(sc, absl::OkStatus());
-  vector<PatchFormat> result_accept_formats;
-  sc = PatchFormatFields::Decode(*field, result_accept_formats);
-  // Illegal value was ignored.
-  vector<PatchFormat> expected{PatchFormat::BROTLI_SHARED_DICT};
-  ASSERT_EQ(sc, absl::OkStatus());
-  ASSERT_EQ(result_accept_formats, expected);
-
-  sc = CborUtils::GetField(*map, 2, field);
+  sc = CborUtils::GetField(*map, PatchRequest::kCodepointsHaveFieldNumber, field);
   ASSERT_EQ(sc, absl::OkStatus());
   CompressedSet result_codepoints_have;
   sc = CompressedSet::Decode(*field, result_codepoints_have);
   ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(result_codepoints_have, codepoints_have);
 
-  sc = CborUtils::GetField(*map, 3, field);
+  sc = CborUtils::GetField(*map, PatchRequest::kCodepointsNeededFieldNumber, field);
   ASSERT_EQ(sc, absl::OkStatus());
   CompressedSet result_codepoints_needed;
   sc = CompressedSet::Decode(*field, result_codepoints_needed);
   ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(result_codepoints_needed, codepoints_needed);
 
-  sc = CborUtils::GetField(*map, 4, field);
+  sc = CborUtils::GetField(*map, PatchRequest::kIndicesHaveFieldNumber, field);
   ASSERT_EQ(sc, absl::OkStatus());
   CompressedSet result_indices_have;
   sc = CompressedSet::Decode(*field, result_indices_have);
   ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(result_indices_have, indices_have);
 
-  sc = CborUtils::GetField(*map, 5, field);
+  sc = CborUtils::GetField(*map, PatchRequest::kIndicesNeededFieldNumber, field);
   ASSERT_EQ(sc, absl::OkStatus());
   CompressedSet result_indices_needed;
   sc = CompressedSet::Decode(*field, result_indices_needed);
   ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(result_indices_needed, indices_needed);
 
-  sc = CborUtils::GetField(*map, 8, field);
+  sc = CborUtils::GetField(*map, PatchRequest::kOrderingChecksumFieldNumber, field);
   ASSERT_EQ(sc, absl::OkStatus());
   uint64_t result_ordering_checksum;
   sc = CborUtils::DecodeUInt64(*field, &result_ordering_checksum);
   ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(result_ordering_checksum, ordering_checksum);
 
-  sc = CborUtils::GetField(*map, 9, field);
+  sc = CborUtils::GetField(*map, PatchRequest::kOriginalFontChecksumFieldNumber, field);
   ASSERT_EQ(sc, absl::OkStatus());
   uint64_t result_original_font_checksum;
   sc = CborUtils::DecodeUInt64(*field, &result_original_font_checksum);
   ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(result_original_font_checksum, original_font_checksum);
 
-  sc = CborUtils::GetField(*map, 10, field);
+  sc = CborUtils::GetField(*map, PatchRequest::kBaseChecksumFieldNumber, field);
   ASSERT_EQ(sc, absl::OkStatus());
   uint64_t result_base_checksum;
   sc = CborUtils::DecodeUInt64(*field, &result_base_checksum);
   ASSERT_EQ(sc, absl::OkStatus());
   ASSERT_EQ(result_base_checksum, base_checksum);
-
-  sc = CborUtils::GetField(*map, 11, field);
-  ASSERT_EQ(sc, absl::OkStatus());
-  int result_speed;
-  sc = CborUtils::DecodeInt(*field, &result_speed);
-  ASSERT_EQ(sc, absl::OkStatus());
-  ASSERT_EQ(result_speed, connection_speed);
 }
 
 TEST_F(PatchRequestTest, GettersAndSetters) {
   PatchRequest request;
-
-  EXPECT_FALSE(request.HasProtocolVersion());
-  EXPECT_EQ(request.GetProtocolVersion(), ProtocolVersion::ONE);
-  request.SetProtocolVersion(ProtocolVersion::ONE);
-  EXPECT_TRUE(request.HasProtocolVersion());
-  EXPECT_EQ(request.GetProtocolVersion(), ProtocolVersion::ONE);
-  request.ResetProtocolVersion();
-  EXPECT_FALSE(request.HasProtocolVersion());
-
-  EXPECT_FALSE(request.HasAcceptFormats());
-  EXPECT_TRUE(request.AcceptFormats().empty());
-  request.SetAcceptFormats({PatchFormat::VCDIFF});
-  EXPECT_TRUE(request.HasAcceptFormats());
-  EXPECT_EQ(request.AcceptFormats(), vector<PatchFormat>{PatchFormat::VCDIFF});
-  request.ResetAcceptFormats();
-  EXPECT_FALSE(request.HasAcceptFormats());
 
   EXPECT_FALSE(request.HasCodepointsHave());
   EXPECT_EQ(request.CodepointsHave(), CompressedSet());
@@ -346,30 +275,15 @@ TEST_F(PatchRequestTest, GettersAndSetters) {
   EXPECT_EQ(request.BaseChecksum(), 42);
   request.ResetBaseChecksum();
   EXPECT_FALSE(request.HasBaseChecksum());
-
-  EXPECT_FALSE(request.HasConnectionSpeed());
-  EXPECT_EQ(request.GetConnectionSpeed(), ConnectionSpeed::AVERAGE);
-  request.SetConnectionSpeed(ConnectionSpeed::FAST);
-  EXPECT_TRUE(request.HasConnectionSpeed());
-  EXPECT_EQ(request.GetConnectionSpeed(), ConnectionSpeed::FAST);
-  request.ResetConnectionSpeed();
-  EXPECT_FALSE(request.HasConnectionSpeed());
 }
 
 TEST_F(PatchRequestTest, EqualsAndNotEquals) {
   PatchRequest request(
-      ProtocolVersion::ONE, {PatchFormat::BROTLI_SHARED_DICT},
       CompressedSet("data1", {{1, 10}}), CompressedSet("data2", {{2, 20}}),
       CompressedSet("data3", {{3, 30}}), CompressedSet("data4", {{4, 40}}),
-      98989898L, 34343434L, 12121212L, ConnectionSpeed::VERY_FAST);
+      98989898L, 34343434L, 12121212L);
 
   ASSERT_EQ(request, PatchRequest(request));
-  ASSERT_NE(request, PatchRequest(request).SetProtocolVersion(
-                         static_cast<ProtocolVersion>(-1)));
-  ASSERT_NE(request, PatchRequest(request).ResetProtocolVersion());
-  ASSERT_NE(request,
-            PatchRequest(request).SetAcceptFormats({PatchFormat::VCDIFF}));
-  ASSERT_NE(request, PatchRequest(request).ResetAcceptFormats());
   ASSERT_NE(request, PatchRequest(request).SetCodepointsHave(
                          CompressedSet("other", {})));
   ASSERT_NE(request, PatchRequest(request).ResetCodepointsHave());
@@ -388,32 +302,15 @@ TEST_F(PatchRequestTest, EqualsAndNotEquals) {
   ASSERT_NE(request, PatchRequest(request).ResetOriginalFontChecksum());
   ASSERT_NE(request, PatchRequest(request).SetBaseChecksum(42));
   ASSERT_NE(request, PatchRequest(request).ResetBaseChecksum());
-  ASSERT_NE(request, PatchRequest(request).SetConnectionSpeed(
-                         ConnectionSpeed::VERY_SLOW));
-  ASSERT_NE(request, PatchRequest(request).ResetConnectionSpeed());
-}
-
-TEST_F(PatchRequestTest, AddAcceptFormat) {
-  PatchRequest request;
-  vector<PatchFormat> expected;
-  ASSERT_EQ(request.AcceptFormats(), expected);
-  request.AddAcceptFormat(PatchFormat::VCDIFF);
-  expected.push_back(PatchFormat::VCDIFF);
-  ASSERT_EQ(request.AcceptFormats(), expected);
-  request.AddAcceptFormat(PatchFormat::BROTLI_SHARED_DICT);
-  expected.push_back(PatchFormat::BROTLI_SHARED_DICT);
-  ASSERT_EQ(request.AcceptFormats(), expected);
 }
 
 TEST_F(PatchRequestTest, Serialization) {
   PatchRequest input(
-      ProtocolVersion::ONE,
-      std::vector<patch_subset::PatchFormat>{PatchFormat::VCDIFF},
       CompressedSet{"bit-set-bytes1", range_vector{{1, 10}}},
       CompressedSet{"bit-set-bytes2", range_vector{{11, 12}}},
       CompressedSet{"bit-set-bytes3", range_vector{{5, 6}}},
       CompressedSet{"bit-set-bytes4", range_vector{{7, 8}}}, 12345L, 23456L,
-      34567L, ConnectionSpeed::AVERAGE);
+      34567L);
   string serialized_bytes;
   PatchRequest result;
 
@@ -426,18 +323,15 @@ TEST_F(PatchRequestTest, Serialization) {
 
 TEST_F(PatchRequestTest, ToString) {
   PatchRequest input(
-      ProtocolVersion::ONE,
-      std::vector<patch_subset::PatchFormat>{PatchFormat::VCDIFF},
       CompressedSet{"bit-set-bytes1", range_vector{{1, 10}}},
       CompressedSet{"", range_vector{{11, 12}}},
       CompressedSet{"", range_vector{{5, 6}}},
-      CompressedSet{"", range_vector{{7, 8}}}, 12345L, 23456L, 34567L,
-      ConnectionSpeed::AVERAGE);
+      CompressedSet{"", range_vector{{7, 8}}}, 12345L, 23456L, 34567L);
   ASSERT_EQ(input.ToString(),
-            "{accept=[0],cp_have={[1-10],bitset=14b},"
+            "{cp_have={[1-10],bitset=14b},"
             "cp_need={[11-12]},i_have={[5-6]},"
             "i_need={[7-8]},orig_cs=23456,ord_cs=12345,"
-            "base_cs=34567,speed=0}");
+            "base_cs=34567}");
 }
 
 }  // namespace patch_subset::cbor

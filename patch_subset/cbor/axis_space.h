@@ -26,6 +26,7 @@ class AxisSpace {
   AxisSpace(const AxisSpace& other) = default;
   AxisSpace(AxisSpace&& other) noexcept : _space(std::move(other._space)) {}
 
+  bool Empty() const;
   bool Has(hb_tag_t tag) const;
   void Clear(hb_tag_t tag);
   void AddInterval(hb_tag_t tag, const AxisInterval& interval);

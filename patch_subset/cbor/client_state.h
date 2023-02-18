@@ -24,6 +24,7 @@ class ClientState {
   std::optional<AxisSpace> _subset_axis_space;
   std::optional<AxisSpace> _original_axis_space;
 
+ public:
   // See: https://w3c.github.io/IFT/Overview.html#ClientState
   static const int kOriginalFontChecksumFieldNumber = 0;
   static const int kCodepointOrderingFieldNumber = 1;
@@ -31,7 +32,6 @@ class ClientState {
   static const int kOriginalAxisSpaceFieldNumber = 3;
   // TODO(garretrieger): add (kOriginalFeaturesFieldNumber = 4).
 
- public:
   ClientState();
   ClientState(const ClientState& other) = default;
   ClientState(ClientState&& other) noexcept;
