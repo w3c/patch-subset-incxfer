@@ -8,9 +8,11 @@
 #include "hb-subset.h"
 #include "hb.h"
 #include "patch_subset/cbor/axis_space.h"
+#include "patch_subset/cbor/client_state.h"
 #include "patch_subset/codepoint_map.h"
 #include "patch_subset/codepoint_mapper.h"
 #include "patch_subset/compressed_set.h"
+#include "patch_subset/encodings.h"
 #include "patch_subset/hb_set_unique_ptr.h"
 
 namespace patch_subset {
@@ -19,8 +21,8 @@ using absl::Status;
 using absl::string_view;
 using patch_subset::cbor::AxisInterval;
 using patch_subset::cbor::AxisSpace;
+using patch_subset::cbor::ClientState;
 using patch_subset::cbor::PatchRequest;
-using patch_subset::cbor::PatchResponse;
 using std::vector;
 
 // Helper object, which holds all of the relevant state for
@@ -33,15 +35,15 @@ struct RequestState {
         indices_needed(make_hb_set()),
         mapping(),
         codepoint_mapping_invalid(false),
-        format(PatchFormat::VCDIFF) {}
+        encoding(Encodings::kIdentityEncoding) {}
 
   bool IsPatch() const {
-    return !IsReindex() && !hb_set_is_empty(codepoints_have.get());
+    return !IsFallback() && !hb_set_is_empty(codepoints_have.get());
   }
 
-  bool IsRebase() const { return !IsReindex() && !IsPatch(); }
+  bool IsRebase() const { return !IsFallback() && !IsPatch(); }
 
-  bool IsReindex() const { return codepoint_mapping_invalid; }
+  bool IsFallback() const { return codepoint_mapping_invalid; }
 
   hb_set_unique_ptr codepoints_have;
   hb_set_unique_ptr codepoints_needed;
@@ -55,12 +57,13 @@ struct RequestState {
   FontData client_target_subset;
   FontData patch;
   bool codepoint_mapping_invalid;
-  PatchFormat format;
+  std::string encoding;
 };
 
-Status PatchSubsetServerImpl::Handle(const std::string& font_id,
-                                     const PatchRequest& request,
-                                     PatchResponse& response) {
+Status PatchSubsetServerImpl::Handle(
+    const std::string& font_id, const std::vector<std::string>& accept_encoding,
+    const PatchRequest& request, FontData& response,
+    std::string& content_encoding) {
   RequestState state;
 
   Status result = LoadInputCodepoints(request, &state);
@@ -87,22 +90,17 @@ Status PatchSubsetServerImpl::Handle(const std::string& font_id,
 
   AddPredictedCodepoints(&state);
 
-  if (state.IsReindex()) {
-    result = ConstructResponse(state, response);
-    if (!result.ok()) {
-      return result;
-    }
-    return absl::OkStatus();
+  if (state.IsFallback()) {
+    return ConstructResponse(state, response, content_encoding);
   }
 
-  if (!(result = ComputeSubsets(font_id, &state)).ok()) {
+  if (!(result = ComputeSubsets(font_id, state)).ok()) {
     return result;
   }
 
   ValidatePatchBase(request.BaseChecksum(), &state);
 
-  const BinaryDiff* binary_diff =
-      DiffFor(request.AcceptFormats(), state.format);
+  const BinaryDiff* binary_diff = DiffFor(accept_encoding, state.encoding);
   if (!binary_diff) {
     return absl::InvalidArgumentError(
         "No available binary diff algorithms were specified.");
@@ -115,7 +113,7 @@ Status PatchSubsetServerImpl::Handle(const std::string& font_id,
 
   // TODO(garretrieger): handle exceptional cases (see design doc).
 
-  return ConstructResponse(state, response);
+  return ConstructResponse(state, response, content_encoding);
 }
 
 Status PatchSubsetServerImpl::LoadInputCodepoints(const PatchRequest& request,
@@ -156,12 +154,6 @@ bool PatchSubsetServerImpl::RequiredFieldsPresent(
       !request.HasOrderingChecksum()) {
     LOG(WARNING) << "Request requires a codepoint remapping but does not "
                  << "provide an ordering checksum.";
-    return false;
-  }
-
-  if (!request.HasProtocolVersion() ||
-      request.GetProtocolVersion() != ProtocolVersion::ONE) {
-    LOG(WARNING) << "Protocol version must be 0.";
     return false;
   }
 
@@ -238,9 +230,16 @@ void PatchSubsetServerImpl::AddPredictedCodepoints(RequestState* state) const {
 }
 
 Status PatchSubsetServerImpl::ComputeSubsets(const std::string& font_id,
-                                             RequestState* state) const {
-  Status result = subsetter_->Subset(state->font_data, *state->codepoints_have,
-                                     &state->client_subset);
+                                             RequestState& state) const {
+  // TODO(garretrieger): inject client state table in the before/after fonts.
+  ClientState client_state;
+  Status result = CreateClientState(state, client_state);
+  if (!result.ok()) {
+    return result;
+  }
+
+  result = subsetter_->Subset(state.font_data, *state.codepoints_have,
+                              &state.client_subset);
   if (!result.ok()) {
     LOG(WARNING) << "Subsetting for client_subset "
                  << "(font_id = " << font_id << ")"
@@ -248,8 +247,8 @@ Status PatchSubsetServerImpl::ComputeSubsets(const std::string& font_id,
     return result;
   }
 
-  result = subsetter_->Subset(state->font_data, *state->codepoints_needed,
-                              &state->client_target_subset);
+  result = subsetter_->Subset(state.font_data, *state.codepoints_needed,
+                              &state.client_target_subset);
   if (!result.ok()) {
     LOG(WARNING) << "Subsetting for client_target_subset "
                  << "(font_id = " << font_id << ")"
@@ -272,34 +271,19 @@ void PatchSubsetServerImpl::ValidatePatchBase(uint64_t base_checksum,
   }
 }
 
-Status PatchSubsetServerImpl::ConstructResponse(const RequestState& state,
-                                                PatchResponse& response) const {
-  response.SetProtocolVersion(ProtocolVersion::ONE);
-  if ((state.IsReindex() || state.IsRebase()) && codepoint_mapper_) {
-    vector<int32_t> ordering;
-    Status result = state.mapping.ToVector(&ordering);
-    if (!result.ok()) {
-      return result;
-    }
-    response.SetCodepointOrdering(ordering);
-    response.SetOrderingChecksum(integer_list_checksum_->Checksum(ordering));
-  }
-
-  if (state.IsReindex()) {
-    AddChecksums(state.font_data, response);
-    // Early return, no patch is needed for a re-index.
+Status PatchSubsetServerImpl::ConstructResponse(
+    const RequestState& state, FontData& response,
+    std::string& content_encoding) const {
+  if (state.IsFallback()) {
+    // Just send back the whole font.
+    // TODO(garretrieger): do a regular brotli compression.
+    content_encoding = Encodings::kIdentityEncoding;
+    response.shallow_copy(state.font_data);
     return absl::OkStatus();
   }
 
-  response.SetPatchFormat(state.format);
-  if (state.IsPatch()) {
-    response.SetPatch(state.patch.string());
-  } else if (state.IsRebase()) {
-    response.SetReplacement(state.patch.string());
-  }
-
-  AddChecksums(state.font_data, state.client_target_subset, response);
-  AddVariableAxesData(state.font_data, response);
+  content_encoding = state.encoding;
+  response.shallow_copy(state.patch);
 
   return absl::OkStatus();
 }
@@ -315,8 +299,8 @@ Status PatchSubsetServerImpl::ValidateChecksum(uint64_t checksum,
   return absl::OkStatus();
 }
 
-void PatchSubsetServerImpl::AddVariableAxesData(const FontData& font_data,
-                                                PatchResponse& response) const {
+void PatchSubsetServerImpl::AddVariableAxesData(
+    const FontData& font_data, ClientState& client_state) const {
   hb_blob_t* blob = font_data.reference_blob();
   hb_face_t* face = hb_face_create(blob, 0);
   hb_blob_destroy(blob);
@@ -342,41 +326,49 @@ void PatchSubsetServerImpl::AddVariableAxesData(const FontData& font_data,
     offset += num_axes;
   }
 
-  response.SetSubsetAxisSpace(space);
-  response.SetOriginalAxisSpace(space);
+  client_state.SetSubsetAxisSpace(space);
+  client_state.SetOriginalAxisSpace(space);
 
   hb_face_destroy(face);
 }
 
-void PatchSubsetServerImpl::AddChecksums(const FontData& font_data,
-                                         const FontData& target_subset,
-                                         PatchResponse& response) const {
-  response.SetOriginalFontChecksum(
-      hasher_->Checksum(string_view(font_data.str())));
-  response.SetPatchedChecksum(
-      hasher_->Checksum(string_view(target_subset.str())));
-}
+Status PatchSubsetServerImpl::CreateClientState(
+    const RequestState& state, ClientState& client_state) const {
+  client_state.SetOriginalFontChecksum(
+      hasher_->Checksum(string_view(state.font_data.str())));
 
-void PatchSubsetServerImpl::AddChecksums(const FontData& font_data,
-                                         PatchResponse& response) const {
-  response.SetOriginalFontChecksum(
-      hasher_->Checksum(string_view(font_data.str())));
+  if (codepoint_mapper_) {
+    vector<int32_t> ordering;
+    Status result = state.mapping.ToVector(&ordering);
+    if (!result.ok()) {
+      return result;
+    }
+    client_state.SetCodepointOrdering(ordering);
+  }
+
+  AddVariableAxesData(state.font_data, client_state);
+
+  return absl::OkStatus();
 }
 
 const BinaryDiff* PatchSubsetServerImpl::DiffFor(
-    const std::vector<PatchFormat>& formats,
-    PatchFormat& format /* OUT */) const {
-  if (std::find(formats.begin(), formats.end(), BROTLI_SHARED_DICT) !=
-      formats.end()) {
+    const std::vector<std::string>& accept_encoding,
+    std::string& encoding /* OUT */) const {
+  if (std::find(accept_encoding.begin(), accept_encoding.end(),
+                Encodings::kBrotliDiffEncoding) != accept_encoding.end()) {
     // Brotli is preferred, so always pick it, if it's accepted by the client.
-    format = BROTLI_SHARED_DICT;
+    encoding = Encodings::kBrotliDiffEncoding;
     return brotli_binary_diff_.get();
   }
-  if (std::find(formats.begin(), formats.end(), VCDIFF) != formats.end()) {
-    format = VCDIFF;
+  if (std::find(accept_encoding.begin(), accept_encoding.end(),
+                Encodings::kVCDIFFEncoding) != accept_encoding.end()) {
+    encoding = Encodings::kVCDIFFEncoding;
     return vcdiff_binary_diff_.get();
   }
 
+  // TODO(garretrieger): fallback to br or gzip if patching is not supported.
+  // TODO(garretrieger): use br or gzip if rebasing and brdiff is not supported
+  // (instead of VCDIFF).
   return nullptr;
 }
 

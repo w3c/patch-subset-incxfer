@@ -93,6 +93,8 @@ class FontData {
     buffer_ = hb_blob_reference(blob);
   }
 
+  void shallow_copy(const FontData& other) { set(other.buffer_); }
+
   // TODO(garretrieger): copy method which takes vector<uint8_t>.
   // TODO(garretgrieger): method which takes ownership of a vector<uint8_t>
 
