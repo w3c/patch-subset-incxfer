@@ -8,11 +8,10 @@
 #include "hb.h"
 #include "patch_subset/binary_diff.h"
 #include "patch_subset/brotli_binary_diff.h"
+#include "patch_subset/cbor/client_state.h"
 #include "patch_subset/cbor/patch_request.h"
-#include "patch_subset/cbor/patch_response.h"
 #include "patch_subset/codepoint_mapper.h"
 #include "patch_subset/codepoint_predictor.h"
-#include "patch_subset/constants.h"
 #include "patch_subset/fast_hasher.h"
 #include "patch_subset/file_font_provider.h"
 #include "patch_subset/font_provider.h"
@@ -132,10 +131,11 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
 
   // Handle a patch request from a client. Writes the resulting response
   // into response.
-  absl::Status Handle(
-      const std::string& font_id,
-      const patch_subset::cbor::PatchRequest& request,
-      patch_subset::cbor::PatchResponse& response /* OUT */) override;
+  absl::Status Handle(const std::string& font_id,
+                      const std::vector<std::string>& accept_encoding,
+                      const patch_subset::cbor::PatchRequest& request,
+                      patch_subset::FontData& response, /* OUT */
+                      std::string& content_encoding /* OUT */) override;
 
  private:
   absl::Status LoadInputCodepoints(
@@ -153,27 +153,25 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
   void AddPredictedCodepoints(RequestState* state) const;
 
   absl::Status ComputeSubsets(const std::string& font_id,
-                              RequestState* state) const;
+                              RequestState& state) const;
 
   void ValidatePatchBase(uint64_t base_checksum, RequestState* state) const;
 
-  absl::Status ConstructResponse(
-      const RequestState& state,
-      patch_subset::cbor::PatchResponse& response) const;
+  absl::Status ConstructResponse(const RequestState& state,
+                                 patch_subset::FontData& response,
+                                 std::string& content_encoding) const;
 
   absl::Status ValidateChecksum(uint64_t checksum, const FontData& data) const;
 
-  void AddChecksums(const FontData& font_data, const FontData& target_subset,
-                    patch_subset::cbor::PatchResponse& response) const;
-
-  void AddChecksums(const FontData& font_data,
-                    patch_subset::cbor::PatchResponse& response) const;
+  absl::Status CreateClientState(
+      const RequestState& state,
+      patch_subset::cbor::ClientState& client_state) const;
 
   void AddVariableAxesData(const FontData& font_data,
-                           patch_subset::cbor::PatchResponse& response) const;
+                           patch_subset::cbor::ClientState& client_state) const;
 
-  const BinaryDiff* DiffFor(const std::vector<PatchFormat>& formats,
-                            PatchFormat& format /* OUT */) const;
+  const BinaryDiff* DiffFor(const std::vector<std::string>& accept_encoding,
+                            std::string& encoding /* OUT */) const;
 
   int max_predicted_codepoints_;
   std::unique_ptr<FontProvider> font_provider_;

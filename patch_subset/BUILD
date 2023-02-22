@@ -5,7 +5,6 @@ cc_library(
     srcs = [
         "frequency_codepoint_predictor.cc",
         "harfbuzz_subsetter.cc",
-        "integer_list_checksum_impl.cc",
         "noop_codepoint_predictor.h",
         "patch_subset_server_impl.cc",
         "simple_codepoint_mapper.cc",
@@ -15,8 +14,6 @@ cc_library(
         "codepoint_predictor.h",
         "frequency_codepoint_predictor.h",
         "harfbuzz_subsetter.h",
-        "integer_list_checksum.h",
-        "integer_list_checksum_impl.h",
         "patch_subset_server_impl.h",
         "simple_codepoint_mapper.h",
         "subsetter.h",
@@ -69,9 +66,30 @@ cc_library(
         "@brotli//:brotlidec",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@harfbuzz",
         "@open-vcdiff//:vcddec",
+    ],
+)
+
+cc_library(
+    name = "simulation",
+    srcs = [
+        "simulation.cc",
+    ],
+    hdrs = [
+        "simulation.h",
+    ],
+    visibility = [
+        "//visibility:public",
+    ],
+    deps = [
+        ":client",
+        ":common",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
     ],
 )
 
@@ -86,6 +104,7 @@ cc_library(
         "fast_hasher.cc",
         "file_font_provider.cc",
         "hb_set_unique_ptr.cc",
+        "integer_list_checksum_impl.cc",
         "sparse_bit_set.cc",
         "vcdiff_binary_diff.cc",
     ],
@@ -97,12 +116,15 @@ cc_library(
         "brotli_binary_diff.h",
         "codepoint_map.h",
         "compressed_set.h",
+        "encodings.h",
         "fast_hasher.h",
         "file_font_provider.h",
         "font_data.h",
         "font_provider.h",
         "hasher.h",
         "hb_set_unique_ptr.h",
+        "integer_list_checksum.h",
+        "integer_list_checksum_impl.h",
         "patch_subset_server.h",
         "sparse_bit_set.h",
         "vcdiff_binary_diff.h",
