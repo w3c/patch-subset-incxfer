@@ -2,12 +2,11 @@
 #define PATCH_SUBSET_SIMULATION_H_
 
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "hb.h"
-#include "patch_subset/binary_patch.h"
-#include "patch_subset/cbor/client_state.h"
 #include "patch_subset/cbor/patch_request.h"
 #include "patch_subset/font_data.h"
-#include "patch_subset/hasher.h"
+#include "patch_subset/patch_subset_client.h"
 #include "patch_subset/patch_subset_server.h"
 #include "patch_subset/request_logger.h"
 
@@ -23,12 +22,13 @@ class Simulation {
                       RequestLogger* request_logger)
       : client_(client), server_(server), request_logger_(request_logger) {}
 
-  absl::StatusOr<FontData> Extend(const hb_set_t& additional_codepoints,
+  absl::StatusOr<FontData> Extend(const std::string& font_id,
+                                  const hb_set_t& additional_codepoints,
                                   const FontData& font_subset);
 
  private:
   void LogRequest(const patch_subset::cbor::PatchRequest& request,
-                  const patch_subset::cbor::PatchResponse& response);
+                  const FontData& response);
 
   PatchSubsetClient* client_;
   PatchSubsetServer* server_;
