@@ -11,35 +11,39 @@
 namespace patch_subset {
 
 using absl::Status;
+using absl::StatusOr;
 using patch_subset::cbor::PatchRequest;
 
-StatusOr<FontData> Simulation::Extend(const hb_set_t& additional_codepoints,
+StatusOr<FontData> Simulation::Extend(const std::string& font_id,
+                                      const hb_set_t& additional_codepoints,
                                       const FontData& font_subset) {
   auto request = client_->CreateRequest(additional_codepoints, font_subset);
   if (!request.ok()) {
     return request.status();
   }
 
+  FontData result;
   if (request->IndicesNeeded().empty() && request->CodepointsNeeded().empty()) {
-    return font_subset;
+    result.shallow_copy(font_subset);
+    return result;
   }
 
   FontData response;
   std::string encoding;
-  auto status =
-      server_->Handle(state.FontId(), {Encodings::kBrotliDiffEncoding},
-                      *request, response, encoding);
+  auto status = server_->Handle(font_id, {Encodings::kBrotliDiffEncoding},
+                                *request, response, encoding);
   if (!status.ok()) {
     return status;
   }
 
-  auto new_subset =
-      client_->DecodeResponse(response, encoding) if (!new_subset.ok()) {
+  auto new_subset = client_->DecodeResponse(font_subset, response, encoding);
+  if (!new_subset.ok()) {
     return new_subset.status();
   }
 
-  LogRequest(request, response);
-  return *new_subset;
+  result.shallow_copy(*new_subset);
+  LogRequest(*request, response);
+  return result;
 }
 
 void Simulation::LogRequest(const PatchRequest& request,
