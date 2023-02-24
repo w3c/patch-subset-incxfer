@@ -29,7 +29,7 @@ TEST_F(HarfbuzzSubsetterTest, Subset) {
   hb_set_unique_ptr codepoints = make_hb_set_from_ranges(1, 0x61, 0x64);
 
   FontData subset_data;
-  EXPECT_EQ(subsetter_->Subset(font_data, *codepoints, &subset_data),
+  EXPECT_EQ(subsetter_->Subset(font_data, *codepoints, "", &subset_data),
             absl::OkStatus());
 
   hb_blob_t* subset_blob =
@@ -48,6 +48,40 @@ TEST_F(HarfbuzzSubsetterTest, Subset) {
   EXPECT_TRUE(hb_set_is_equal(codepoints.get(), subset_codepoints.get()));
 }
 
+TEST_F(HarfbuzzSubsetterTest, SubsetAddStateTable) {
+  FontData font_data;
+  EXPECT_EQ(font_provider_->GetFont("Roboto-Regular.ttf", &font_data),
+            absl::OkStatus());
+
+  hb_set_unique_ptr codepoints = make_hb_set_from_ranges(1, 0x61, 0x64);
+
+  FontData subset_data;
+  EXPECT_EQ(subsetter_->Subset(font_data, *codepoints, "abcd", &subset_data),
+            absl::OkStatus());
+
+  hb_blob_t* subset_blob =
+      hb_blob_create(subset_data.data(), subset_data.size(),
+                     HB_MEMORY_MODE_READONLY, nullptr, nullptr);
+  hb_face_t* subset_face = hb_face_create(subset_blob, 0);
+  hb_blob_destroy(subset_blob);
+
+  hb_set_unique_ptr subset_codepoints = make_hb_set();
+  hb_face_collect_unicodes(subset_face, subset_codepoints.get());
+
+  EXPECT_GT(hb_face_get_glyph_count(subset_face), 10);
+
+  hb_blob_t* state_blob = hb_face_reference_table(subset_face, HB_TAG('I', 'F', 'T', 'P'));
+  ASSERT_NE(state_blob, nullptr);
+  FontData state(state_blob);
+  EXPECT_EQ(state.str(), "abcd");
+
+  hb_blob_destroy(state_blob);
+  hb_face_destroy(subset_face);
+
+  EXPECT_TRUE(hb_set_is_equal(codepoints.get(), subset_codepoints.get()));
+}
+
+
 TEST_F(HarfbuzzSubsetterTest, SubsetEmpty) {
   FontData font_data;
   EXPECT_EQ(font_provider_->GetFont("Roboto-Regular.ttf", &font_data),
@@ -56,7 +90,7 @@ TEST_F(HarfbuzzSubsetterTest, SubsetEmpty) {
   hb_set_unique_ptr codepoints = make_hb_set(0);
 
   FontData subset_data;
-  EXPECT_EQ(subsetter_->Subset(font_data, *codepoints, &subset_data),
+  EXPECT_EQ(subsetter_->Subset(font_data, *codepoints, "", &subset_data),
             absl::OkStatus());
 
   hb_blob_t* subset_blob =
@@ -103,7 +137,7 @@ TEST_F(HarfbuzzSubsetterTest, SubsetNoRetainGids) {
   hb_set_unique_ptr codepoints = make_hb_set(1, 0xffed);
 
   FontData subset_data;
-  EXPECT_EQ(subsetter_->Subset(font_data, *codepoints, &subset_data),
+  EXPECT_EQ(subsetter_->Subset(font_data, *codepoints, "", &subset_data),
             absl::OkStatus());
 
   hb_blob_t* subset_blob =

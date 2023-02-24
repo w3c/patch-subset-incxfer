@@ -16,6 +16,7 @@ class FakeSubsetter : public Subsetter {
   FakeSubsetter() {}
 
   absl::Status Subset(const FontData& font, const hb_set_t& codepoints,
+                      const std::string& state_table,
                       FontData* subset /* OUT */) const override {
     if (font.empty()) {
       return absl::InternalError("empty font");

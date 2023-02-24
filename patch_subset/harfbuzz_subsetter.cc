@@ -20,6 +20,7 @@ bool HarfbuzzSubsetter::ShouldRetainGids(const FontData& font) const {
 
 Status HarfbuzzSubsetter::Subset(const FontData& font,
                                  const hb_set_t& codepoints,
+                                 const std::string& client_state_table,
                                  FontData* subset /* OUT */) const {
   if (!hb_set_get_population(&codepoints)) {
     subset->reset();
@@ -49,6 +50,19 @@ Status HarfbuzzSubsetter::Subset(const FontData& font,
   if (!subset_face) {
     hb_face_destroy(subset_face);
     return absl::InternalError("Internal subsetting failure.");
+  }
+
+  if (!client_state_table.empty()) {
+    hb_blob_t* state_blob = hb_blob_create(client_state_table.data(),
+                                           client_state_table.size(),
+                                           HB_MEMORY_MODE_READONLY, nullptr, nullptr);
+
+    if (!hb_face_builder_add_table(subset_face, HB_TAG('I', 'F', 'T', 'P'), state_blob)) {
+      hb_blob_destroy(state_blob);
+      hb_face_destroy(subset_face);
+      return absl::InternalError("Failed to add IFTP table to subset.");
+    }
+    hb_blob_destroy(state_blob);
   }
 
   hb_blob_t* subset_blob = hb_face_reference_blob(subset_face);
