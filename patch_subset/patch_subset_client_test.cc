@@ -1,6 +1,7 @@
 #include "patch_subset/patch_subset_client.h"
 
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "patch_subset/codepoint_map.h"
@@ -15,10 +16,10 @@
 namespace patch_subset {
 
 using absl::Status;
+using absl::StatusOr;
 using absl::string_view;
 using patch_subset::cbor::ClientState;
 using patch_subset::cbor::PatchRequest;
-using patch_subset::cbor::PatchResponse;
 using testing::_;
 using testing::ByRef;
 using testing::Eq;
@@ -35,12 +36,55 @@ class PatchSubsetClientTest : public ::testing::Test {
       : binary_patch_(new MockBinaryPatch()),
         hasher_(new MockHasher()),
         client_(
-            new PatchSubsetClient(&server_, &request_logger_,
-                                  std::unique_ptr<BinaryPatch>(binary_patch_),
+            new PatchSubsetClient(std::unique_ptr<BinaryPatch>(binary_patch_),
                                   std::unique_ptr<Hasher>(hasher_))),
         font_provider_(new FileFontProvider("patch_subset/testdata/")) {
     EXPECT_TRUE(
         font_provider_->GetFont("Roboto-Regular.ab.ttf", &roboto_ab_).ok());
+  }
+
+  StatusOr<FontData> AddStateToSubset(const FontData& font, const ClientState& state) {
+    hb_face_t* face = font.reference_face();
+
+    hb_subset_input_t* input = hb_subset_input_create_or_fail();
+    if (!input) {
+      return absl::InternalError("Failed to create subset input.");
+    }
+    hb_subset_input_keep_everything(input);
+
+    hb_face_t* subset = hb_subset_or_fail(face, input);
+    hb_face_destroy(face);
+    hb_subset_input_destroy(input);
+
+    if (!subset) {
+      return absl::InternalError("Subsetting operation failed.");
+    }
+
+    std::string state_raw;
+    Status sc = state.SerializeToString(state_raw);
+    if (!sc.ok()) {
+      hb_face_destroy(subset);
+      return sc;
+    }
+
+    hb_blob_t* state_blob = hb_blob_create(state_raw.data(), state_raw.size(),
+                                           HB_MEMORY_MODE_READONLY, nullptr, nullptr);
+
+
+    if (!hb_face_builder_add_table(subset, HB_TAG('I', 'F', 'T', 'P'), state_blob)) {
+      hb_face_destroy(subset);
+      hb_blob_destroy(state_blob);
+      return absl::InternalError("Adding IFTP table to face failed.");
+    }
+    hb_blob_destroy(state_blob);
+
+    hb_blob_t* subset_blob = hb_face_reference_blob(subset);
+    FontData subset_data(subset_blob);
+
+    hb_face_destroy(subset);
+    hb_blob_destroy(subset_blob);
+
+    return subset_data;
   }
 
   PatchRequest CreateRequest(const hb_set_t& codepoints) {
@@ -48,15 +92,12 @@ class PatchSubsetClientTest : public ::testing::Test {
     patch_subset::cbor::CompressedSet codepoints_needed;
     CompressedSet::Encode(codepoints, codepoints_needed);
     request.SetCodepointsNeeded(codepoints_needed);
-    request.AddAcceptFormat(PatchFormat::BROTLI_SHARED_DICT);
-    request.SetProtocolVersion(ProtocolVersion::ONE);
     return request;
   }
 
   PatchRequest CreateRequest(const hb_set_t& codepoints_have,
                              const hb_set_t& codepoints_needed) {
     PatchRequest request;
-    request.SetProtocolVersion(ProtocolVersion::ONE);
     if (!hb_set_is_empty(&codepoints_have)) {
       patch_subset::cbor::CompressedSet codepoints_have2;
       CompressedSet::Encode(codepoints_have, codepoints_have2);
@@ -69,51 +110,15 @@ class PatchSubsetClientTest : public ::testing::Test {
       request.SetCodepointsNeeded(codepoints_needed2);
     }
 
-    request.AddAcceptFormat(PatchFormat::BROTLI_SHARED_DICT);
     request.SetOriginalFontChecksum(kOriginalChecksum);
     request.SetBaseChecksum(kBaseChecksum);
     return request;
-  }
-
-  PatchResponse CreateResponse(bool patch) {
-    PatchResponse response;
-    response.SetOriginalFontChecksum(kOriginalChecksum);
-    response.SetPatchFormat(PatchFormat::BROTLI_SHARED_DICT);
-    if (patch) {
-      response.SetPatch("roboto.patch.ttf");
-    } else {
-      response.SetReplacement("roboto.patch.ttf");
-    }
-    response.SetPatchedChecksum(kPatchedChecksum);
-    return response;
-  }
-
-  void ExpectRequest(const PatchRequest& expected_request) {
-    EXPECT_CALL(server_, Handle("roboto", Eq(expected_request), _))
-        .Times(1)
-        // Short circuit the response handling code.
-        .WillOnce(Return(absl::InternalError("mock error.")));
   }
 
   void ExpectChecksum(string_view data, uint64_t checksum) {
     EXPECT_CALL(*hasher_, Checksum(data)).WillRepeatedly(Return(checksum));
   }
 
-  void SendResponse(const PatchResponse& response) {
-    EXPECT_CALL(server_, Handle(_, _, _))
-        .Times(1)
-        .WillOnce(Invoke(ReturnResponse(response)));
-  }
-
-  void ExpectPatch(const FontData& base, const FontData& patch,
-                   string_view patched) {
-    EXPECT_CALL(*binary_patch_, Patch(Eq(ByRef(base)), Eq(ByRef(patch)), _))
-        .Times(1)
-        .WillOnce(Invoke(ApplyPatch(patched)));
-  }
-
-  MockPatchSubsetServer server_;
-  NullRequestLogger request_logger_;
   MockBinaryPatch* binary_patch_;
   MockHasher* hasher_;
 
@@ -123,29 +128,36 @@ class PatchSubsetClientTest : public ::testing::Test {
   FontData roboto_ab_;
 };
 
-TEST_F(PatchSubsetClientTest, SendsNewRequest) {
+TEST_F(PatchSubsetClientTest, CreateNewRequest) {
   hb_set_unique_ptr codepoints = make_hb_set_from_ranges(1, 0x61, 0x64);
-  PatchRequest expected_request = CreateRequest(*codepoints);
-  ExpectRequest(expected_request);
 
-  ClientState state;
-  state.SetFontId("roboto");
-  client_->Extend(*codepoints, state).IgnoreError();
+  FontData empty;
+  auto request = client_->CreateRequest(*codepoints, empty);
+  ASSERT_TRUE(request.ok()) << request.status();
+
+  PatchRequest expected_request = CreateRequest(*codepoints);
+  EXPECT_EQ(expected_request, *request);
 }
+
 
 TEST_F(PatchSubsetClientTest, SendPatchRequest) {
   hb_set_unique_ptr codepoints_have = make_hb_set_from_ranges(1, 0x61, 0x62);
   hb_set_unique_ptr codepoints_needed = make_hb_set_from_ranges(1, 0x63, 0x64);
   PatchRequest expected_request =
       CreateRequest(*codepoints_have, *codepoints_needed);
-  ExpectRequest(expected_request);
-  ExpectChecksum(roboto_ab_.str(), kBaseChecksum);
 
   ClientState state;
-  state.SetFontId("roboto");
-  state.SetFontData(roboto_ab_.string());
   state.SetOriginalFontChecksum(kOriginalChecksum);
-  client_->Extend(*codepoints_needed, state).IgnoreError();
+
+  auto subset = AddStateToSubset(roboto_ab_, state);
+  ASSERT_TRUE(subset.ok()) << subset.status();
+
+  ExpectChecksum(subset->str(), kBaseChecksum);
+
+  auto request = client_->CreateRequest(*codepoints_needed, *subset);
+  ASSERT_TRUE(request.ok()) << request.status();
+
+  EXPECT_EQ(expected_request, *request);
 }
 
 TEST_F(PatchSubsetClientTest, SendPatchRequest_WithCodepointMapping) {
@@ -168,7 +180,6 @@ TEST_F(PatchSubsetClientTest, SendPatchRequest_WithCodepointMapping) {
 
   expected_request.SetOrderingChecksum(13);
 
-  ExpectRequest(expected_request);
   ExpectChecksum(roboto_ab_.str(), kBaseChecksum);
 
   CodepointMap map;
@@ -178,15 +189,19 @@ TEST_F(PatchSubsetClientTest, SendPatchRequest_WithCodepointMapping) {
   map.AddMapping(0x64, 3);
 
   ClientState state;
-  state.SetFontId("roboto");
-  state.SetFontData(roboto_ab_.string());
   state.SetOriginalFontChecksum(kOriginalChecksum);
   std::vector<int32_t> remapping;
   ASSERT_TRUE(map.ToVector(&remapping).ok());
-  state.SetCodepointRemapping(remapping);
-  state.SetCodepointRemappingChecksum(13);
+  state.SetCodepointOrdering(remapping);
 
-  client_->Extend(*codepoints_needed, state).IgnoreError();
+  auto subset = AddStateToSubset(roboto_ab_, state);
+  ASSERT_TRUE(subset.ok()) << subset.status();
+
+
+  auto request = client_->CreateRequest(*codepoints_needed, *subset);
+  ASSERT_TRUE(request.ok()) << request.status();
+
+  EXPECT_EQ(expected_request, *request);
 }
 
 TEST_F(PatchSubsetClientTest, SendPatchRequest_RemovesExistingCodepoints) {
@@ -194,28 +209,41 @@ TEST_F(PatchSubsetClientTest, SendPatchRequest_RemovesExistingCodepoints) {
   hb_set_unique_ptr codepoints_needed = make_hb_set_from_ranges(1, 0x63, 0x64);
   PatchRequest expected_request =
       CreateRequest(*codepoints_have, *codepoints_needed);
-  ExpectRequest(expected_request);
   ExpectChecksum(roboto_ab_.str(), kBaseChecksum);
 
   hb_set_union(codepoints_needed.get(), codepoints_have.get());
   ClientState state;
-  state.SetFontId("roboto");
-  state.SetFontData(roboto_ab_.string());
   state.SetOriginalFontChecksum(kOriginalChecksum);
-  client_->Extend(*codepoints_needed, state).IgnoreError();
+
+  auto subset = AddStateToSubset(roboto_ab_, state);
+  ASSERT_TRUE(subset.ok()) << subset.status();
+
+  auto request = client_->CreateRequest(*codepoints_needed, *subset);
+  ASSERT_TRUE(request.ok()) << request.status();
+  EXPECT_EQ(expected_request, *request);
 }
+
 
 TEST_F(PatchSubsetClientTest, DoesntSendPatchRequest_NoNewCodepoints) {
   hb_set_unique_ptr codepoints_needed = make_hb_set_from_ranges(1, 0x61, 0x62);
 
-  EXPECT_CALL(server_, Handle(_, _, _)).Times(0);
-
   ClientState state;
-  state.SetFontId("roboto");
-  state.SetFontData(roboto_ab_.string());
   state.SetOriginalFontChecksum(kOriginalChecksum);
-  EXPECT_EQ(client_->Extend(*codepoints_needed, state), absl::OkStatus());
+
+  auto subset = AddStateToSubset(roboto_ab_, state);
+  ASSERT_TRUE(subset.ok()) << subset.status();
+
+  auto request = client_->CreateRequest(*codepoints_needed, *subset);
+  ASSERT_TRUE(request.ok()) << request.status();
+
+  PatchRequest expected_request;
+  EXPECT_EQ(expected_request, *request);
 }
+
+// TODO(garretrieger): add tests for DecodeResponse.
+// TODO(garretrieger): convert below to tests of DecodeResponse.
+
+/*
 
 TEST_F(PatchSubsetClientTest, HandlesRebaseResponse) {
   hb_set_unique_ptr codepoints = make_hb_set(1, 0x61);
@@ -281,6 +309,7 @@ TEST_F(PatchSubsetClientTest, HandlesPatchResponse) {
   EXPECT_EQ(state.FontData(), "roboto.patched.ttf");
   EXPECT_EQ(state.OriginalFontChecksum(), kOriginalChecksum);
 }
+    */
 
 // TODO(garretrieger): add more response handling tests:
 //   - checksum mismatch.
