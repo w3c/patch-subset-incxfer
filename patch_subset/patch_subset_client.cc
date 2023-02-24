@@ -23,9 +23,12 @@ StatusOr<PatchRequest> PatchSubsetClient::CreateRequest(
   hb_set_unique_ptr existing_codepoints = make_hb_set();
   hb_face_collect_unicodes(subset_face, existing_codepoints.get());
 
-  auto client_state = ClientState::FromFont(subset_face);
-  if (!client_state.ok()) {
-    return client_state.status();
+  StatusOr<ClientState> client_state = ClientState();
+  if (!font_subset.empty()) {
+    client_state = ClientState::FromFont(subset_face);
+    if (!client_state.ok()) {
+      return client_state.status();
+    }
   }
 
   hb_face_destroy(subset_face);

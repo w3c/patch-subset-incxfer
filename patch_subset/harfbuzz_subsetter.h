@@ -14,6 +14,7 @@ class HarfbuzzSubsetter : public Subsetter {
   HarfbuzzSubsetter() {}
 
   absl::Status Subset(const FontData& font, const hb_set_t& codepoints,
+                      const std::string& client_state_table,
                       FontData* subset /* OUT */) const override;
 
   void CodepointsInFont(const FontData& font,

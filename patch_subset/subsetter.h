@@ -16,6 +16,7 @@ class Subsetter {
   // render any combination of 'codepoints'. Result is wrtitten to
   // 'subset'.
   virtual absl::Status Subset(const FontData& font, const hb_set_t& codepoints,
+                              const std::string& client_state_table,
                               FontData* subset /* OUT */) const = 0;
 
   // Writes the set of all unicode codepoints that are in font to
