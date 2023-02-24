@@ -31,6 +31,27 @@ ClientState::ClientState(ClientState&& other) noexcept
       _subset_axis_space(std::move(other._subset_axis_space)),
       _original_axis_space(std::move(other._original_axis_space)) {}
 
+absl::StatusOr<ClientState> ClientState::FromFont(hb_face_t* face) {
+  // TODO(garretrieger): add test.
+  hb_blob_t* state_table =
+      hb_face_reference_table(face, HB_TAG('I', 'F', 'T', 'P'));
+  if (state_table == hb_blob_get_empty()) {
+    return absl::InvalidArgumentError("IFTP table not found in face.");
+  }
+
+  unsigned length;
+  const char* data = hb_blob_get_data(state_table, &length);
+  std::string data_string(data, length);
+  hb_blob_destroy(state_table);
+
+  ClientState state;
+  Status s = ClientState::ParseFromString(data_string, state);
+  if (s.ok()) {
+    return state;
+  }
+  return s;
+}
+
 Status ClientState::Decode(const cbor_item_t& cbor_map, ClientState& out) {
   ClientState result;
   if (!cbor_isa_map(&cbor_map) || cbor_map_is_indefinite(&cbor_map)) {
