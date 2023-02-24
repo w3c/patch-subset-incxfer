@@ -23,7 +23,7 @@ StatusOr<PatchRequest> PatchSubsetClient::CreateRequest(
   hb_set_unique_ptr existing_codepoints = make_hb_set();
   hb_face_collect_unicodes(subset_face, existing_codepoints.get());
 
-  auto client_state = GetStateTable(subset_face);
+  auto client_state = ClientState::FromFont(subset_face);
   if (!client_state.ok()) {
     return client_state.status();
   }
@@ -64,31 +64,6 @@ StatusOr<FontData> PatchSubsetClient::DecodeResponse(
   }
 
   return patched;
-}
-
-StatusOr<ClientState> PatchSubsetClient::GetStateTable(const FontData& face) {
-  return GetStateTable(face.reference_face());
-}
-
-StatusOr<ClientState> PatchSubsetClient::GetStateTable(
-    const hb_face_t* face) {
-  hb_blob_t* state_table =
-      hb_face_reference_table(face, HB_TAG('I', 'F', 'T', 'P'));
-  if (state_table == hb_blob_get_empty()) {
-    return absl::InvalidArgumentError("IFTP table not found in face.");
-  }
-
-  unsigned length;
-  const char* data = hb_blob_get_data(state_table, &length);
-  std::string data_string(data, length);
-  hb_blob_destroy(state_table);
-
-  ClientState state;
-  Status s = ClientState::ParseFromString(data_string, state);
-  if (s.ok()) {
-    return state;
-  }
-  return s;
 }
 
 Status PatchSubsetClient::EncodeCodepoints(const ClientState& state,

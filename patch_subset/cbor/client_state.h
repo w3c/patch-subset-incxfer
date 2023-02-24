@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "cbor.h"
 #include "patch_subset/cbor/axis_space.h"
 #include "patch_subset/cbor/cbor_item_unique_ptr.h"
@@ -41,6 +42,7 @@ class ClientState {
               const AxisSpace& subset_axis_space,
               const AxisSpace& original_axis_space);
 
+  static absl::StatusOr<ClientState> FromFont(hb_face_t* face);
   static absl::Status Decode(const cbor_item_t& cbor_map, ClientState& out);
   absl::Status Encode(cbor_item_unique_ptr& out) const;
 

@@ -62,6 +62,13 @@ class PatchSubsetClientServerIntegrationTest : public ::testing::Test {
     assert(s.ok());
   }
 
+  absl::StatusOr<ClientState> GetStateTable(const FontData& font) {
+    hb_face_t* face = font.reference_face();
+    auto state = ClientState::FromFont(face);
+    hb_face_destroy(face);
+    return state;
+  }
+
   std::unique_ptr<Hasher> hasher_;
   NullRequestLogger request_logger_;
 
@@ -85,7 +92,7 @@ TEST_F(PatchSubsetClientServerIntegrationTest, Session) {
                                   empty_);
   ASSERT_TRUE(result.ok()) << result.status();
 
-  auto state = PatchSubsetClient::GetStateTable(*result);
+  auto state = GetStateTable(*result);
   ASSERT_TRUE(state.ok()) << state.status();
 
   EXPECT_EQ(state->OriginalFontChecksum(), 0xC722EE0E33D3B460);
@@ -97,7 +104,7 @@ TEST_F(PatchSubsetClientServerIntegrationTest, Session) {
                              *result);
   ASSERT_TRUE(result.ok()) << result.status();
 
-  state = PatchSubsetClient::GetStateTable(*result);
+  state = GetStateTable(*result);
   ASSERT_TRUE(state.ok()) << state.status();
 
 
@@ -115,7 +122,7 @@ TEST_F(PatchSubsetClientServerIntegrationTest, SessionWithCodepointOrdering) {
   auto result = simulation.Extend("Roboto-Regular.ttf", *set_ab, empty_);
   ASSERT_TRUE(result.ok()) << result.status();
 
-  auto state = PatchSubsetClient::GetStateTable(*result);
+  auto state = GetStateTable(*result);
   ASSERT_TRUE(state.ok()) << state.status();
 
   EXPECT_EQ(state->OriginalFontChecksum(), 0xC722EE0E33D3B460);
@@ -128,7 +135,7 @@ TEST_F(PatchSubsetClientServerIntegrationTest, SessionWithCodepointOrdering) {
   result = simulation.Extend("Roboto-Regular.ttf", *set_abcd, *result);
   ASSERT_TRUE(result.ok()) << result.status();
 
-  state = PatchSubsetClient::GetStateTable(*result);
+  state = GetStateTable(*result);
   ASSERT_TRUE(state.ok()) << state.status();
 
   EXPECT_EQ(state->OriginalFontChecksum(), 0xC722EE0E33D3B460);
