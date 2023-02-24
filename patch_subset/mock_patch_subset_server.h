@@ -14,27 +14,32 @@ class MockPatchSubsetServer : public PatchSubsetServer {
               (const std::string& font_id,
                const std::vector<std::string>& accept_encoding,
                const patch_subset::cbor::PatchRequest& request,
-               FontData& response /* OUT */),
-              // TODO encoding
+               FontData& response /* OUT */,
+               std::string& encoding /* OUT */),
               (override));
 };
 
 class ReturnResponse {
  public:
-  explicit ReturnResponse(const patch_subset::cbor::PatchResponse& response)
-      : response_(response) {}
+  explicit ReturnResponse(const FontData& response)
+      : response_() {
+    response_.copy(response.str());
+  }
 
   absl::Status operator()(
       const std::string& font_id,
       const std::vector<std::string>& accept_encoding,
       const patch_subset::cbor::PatchRequest& request,
-      FontData& response /* OUT */) {
-    response_.copy(response);
+      FontData& response, /* OUT */
+      std::string encoding /* OUT */) {
+    response_.copy(response.str());
+    encoding_ = encoding;
     return absl::OkStatus();
   }
 
  private:
-  const FontData response_;
+  FontData response_;
+  std::string encoding_;
 };
 
 }  // namespace patch_subset
