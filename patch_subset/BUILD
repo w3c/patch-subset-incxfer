@@ -186,6 +186,7 @@ cc_test(
         ":client",
         ":common",
         ":server",
+        ":simulation",
         "//patch_subset/cbor",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",

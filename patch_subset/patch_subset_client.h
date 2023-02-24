@@ -30,9 +30,14 @@ class PatchSubsetClient {
                                           const FontData& encoded_response,
                                           const std::string& encoding) const;
 
+
+  // TODO(garretrieger): move to a common file?
+  static absl::StatusOr<patch_subset::cbor::ClientState> GetStateTable(
+      const FontData& face);
+
  private:
-  absl::StatusOr<patch_subset::cbor::ClientState> GetStateTable(
-      const hb_face_t* face) const;
+  static absl::StatusOr<patch_subset::cbor::ClientState> GetStateTable(
+      const hb_face_t* face);
 
   absl::Status EncodeCodepoints(const patch_subset::cbor::ClientState& state,
                                 hb_set_t* codepoints_have,

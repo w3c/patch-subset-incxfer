@@ -16,23 +16,18 @@ using absl::StatusOr;
 using patch_subset::cbor::ClientState;
 using patch_subset::cbor::PatchRequest;
 
-hb_face_t* ToFace(const FontData& font_subset) {
-  hb_blob_t* blob = hb_blob_create(font_subset.data(), font_subset.size(),
-                                   HB_MEMORY_MODE_READONLY, nullptr, nullptr);
-  hb_face_t* face = hb_face_create(blob, 0);
-  hb_blob_destroy(blob);
-
-  return face;
-}
-
 StatusOr<PatchRequest> PatchSubsetClient::CreateRequest(
     const hb_set_t& additional_codepoints, const FontData& font_subset) const {
-  hb_face_t* subset_face = ToFace(font_subset);
+  hb_face_t* subset_face = font_subset.reference_face();
 
   hb_set_unique_ptr existing_codepoints = make_hb_set();
   hb_face_collect_unicodes(subset_face, existing_codepoints.get());
 
   auto client_state = GetStateTable(subset_face);
+  if (!client_state.ok()) {
+    return client_state.status();
+  }
+
   hb_face_destroy(subset_face);
 
   hb_set_unique_ptr new_codepoints = make_hb_set();
@@ -71,8 +66,12 @@ StatusOr<FontData> PatchSubsetClient::DecodeResponse(
   return patched;
 }
 
+StatusOr<ClientState> PatchSubsetClient::GetStateTable(const FontData& face) {
+  return GetStateTable(face.reference_face());
+}
+
 StatusOr<ClientState> PatchSubsetClient::GetStateTable(
-    const hb_face_t* face) const {
+    const hb_face_t* face) {
   hb_blob_t* state_table =
       hb_face_reference_table(face, HB_TAG('I', 'F', 'T', 'P'));
   if (state_table == hb_blob_get_empty()) {
