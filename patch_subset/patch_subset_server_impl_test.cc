@@ -8,7 +8,6 @@
 #include "hb.h"
 #include "patch_subset/codepoint_mapper.h"
 #include "patch_subset/compressed_set.h"
-#include "patch_subset/constants.h"
 #include "patch_subset/fake_subsetter.h"
 #include "patch_subset/hb_set_unique_ptr.h"
 #include "patch_subset/mock_binary_diff.h"

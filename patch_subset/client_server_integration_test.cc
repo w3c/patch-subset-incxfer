@@ -14,6 +14,7 @@
 #include "patch_subset/patch_subset_client.h"
 #include "patch_subset/patch_subset_server_impl.h"
 #include "patch_subset/simple_codepoint_mapper.h"
+#include "patch_subset/simulation.h"
 #include "patch_subset/vcdiff_binary_diff.h"
 
 namespace patch_subset {
@@ -39,8 +40,8 @@ class PatchSubsetClientServerIntegrationTest : public ::testing::Test {
             std::unique_ptr<CodepointMapper>(nullptr),
             std::unique_ptr<IntegerListChecksum>(nullptr),
             std::unique_ptr<CodepointPredictor>(new NoopCodepointPredictor())),
-        client_(&server_, &request_logger_,
-                std::unique_ptr<BinaryPatch>(new BrotliBinaryPatch()),
+
+        client_(std::unique_ptr<BinaryPatch>(new BrotliBinaryPatch()),
                 std::unique_ptr<Hasher>(new FastHasher())),
 
         server_with_mapping_(
@@ -53,11 +54,8 @@ class PatchSubsetClientServerIntegrationTest : public ::testing::Test {
             std::unique_ptr<CodepointMapper>(new SimpleCodepointMapper()),
             std::unique_ptr<IntegerListChecksum>(
                 new IntegerListChecksumImpl(hasher_.get())),
-            std::unique_ptr<CodepointPredictor>(new NoopCodepointPredictor())),
-        client_with_mapping_(
-            &server_with_mapping_, &request_logger_,
-            std::unique_ptr<BinaryPatch>(new BrotliBinaryPatch()),
-            std::unique_ptr<Hasher>(new FastHasher())) {
+            std::unique_ptr<CodepointPredictor>(new NoopCodepointPredictor()))
+  {
     FileFontProvider font_provider(kTestDataDir);
     Status s = font_provider.GetFont("Roboto-Regular.abcd.ttf", &roboto_abcd_);
     s.Update(font_provider.GetFont("Roboto-Regular.ab.ttf", &roboto_ab_));
@@ -71,51 +69,72 @@ class PatchSubsetClientServerIntegrationTest : public ::testing::Test {
   PatchSubsetClient client_;
 
   PatchSubsetServerImpl server_with_mapping_;
-  PatchSubsetClient client_with_mapping_;
 
+  FontData empty_;
   FontData roboto_abcd_;
   FontData roboto_ab_;
 };
 
 TEST_F(PatchSubsetClientServerIntegrationTest, Session) {
-  hb_set_unique_ptr set_ab = make_hb_set_from_ranges(1, 0x61, 0x62);
-  ClientState state;
-  state.SetFontId("Roboto-Regular.ttf");
-  EXPECT_EQ(client_.Extend(*set_ab, state), absl::OkStatus());
+  Simulation simulation(&client_, &server_, &request_logger_);
 
-  EXPECT_EQ(state.FontId(), "Roboto-Regular.ttf");
-  EXPECT_EQ(state.OriginalFontChecksum(), 0xC722EE0E33D3B460);
-  EXPECT_EQ(state.FontData(), roboto_ab_.str());
+  hb_set_unique_ptr set_ab = make_hb_set_from_ranges(1, 0x61, 0x62);
+
+  auto result = simulation.Extend("Roboto-Regular.ttf",
+                                  *set_ab,
+                                  empty_);
+  ASSERT_TRUE(result.ok()) << result.status();
+
+  auto state = PatchSubsetClient::GetStateTable(*result);
+  ASSERT_TRUE(state.ok()) << state.status();
+
+  EXPECT_EQ(state->OriginalFontChecksum(), 0xC722EE0E33D3B460);
+  EXPECT_EQ(result->str(), roboto_ab_.str());
 
   hb_set_unique_ptr set_abcd = make_hb_set_from_ranges(1, 0x61, 0x64);
-  EXPECT_EQ(client_.Extend(*set_abcd, state), absl::OkStatus());
+  result = simulation.Extend("Roboto-Regular.ttf",
+                             *set_abcd,
+                             *result);
+  ASSERT_TRUE(result.ok()) << result.status();
 
-  EXPECT_EQ(state.FontId(), "Roboto-Regular.ttf");
-  EXPECT_EQ(state.OriginalFontChecksum(), 0xC722EE0E33D3B460);
-  EXPECT_EQ(state.FontData(), roboto_abcd_.string());
-  EXPECT_TRUE(state.CodepointRemapping().empty());
+  state = PatchSubsetClient::GetStateTable(*result);
+  ASSERT_TRUE(state.ok()) << state.status();
+
+
+  EXPECT_EQ(state->OriginalFontChecksum(), 0xC722EE0E33D3B460);
+  EXPECT_EQ(result->str(), roboto_abcd_.string());
+  EXPECT_TRUE(state->CodepointOrdering().empty());
 }
 
 TEST_F(PatchSubsetClientServerIntegrationTest, SessionWithCodepointOrdering) {
-  hb_set_unique_ptr set_ab = make_hb_set_from_ranges(1, 0x61, 0x62);
-  ClientState state;
-  state.SetFontId("Roboto-Regular.ttf");
-  EXPECT_EQ(client_with_mapping_.Extend(*set_ab, state), absl::OkStatus());
+  Simulation simulation(&client_, &server_with_mapping_, &request_logger_);
+  IntegerListChecksumImpl checksummer(hasher_.get());
 
-  EXPECT_EQ(state.FontId(), "Roboto-Regular.ttf");
-  EXPECT_EQ(state.OriginalFontChecksum(), 0xC722EE0E33D3B460);
-  EXPECT_EQ(state.FontData(), roboto_ab_.string());
-  EXPECT_FALSE(state.CodepointRemapping().empty());
-  EXPECT_EQ(state.CodepointRemappingChecksum(), 0xD5BD080511DD60DD);
+  hb_set_unique_ptr set_ab = make_hb_set_from_ranges(1, 0x61, 0x62);
+
+  auto result = simulation.Extend("Roboto-Regular.ttf", *set_ab, empty_);
+  ASSERT_TRUE(result.ok()) << result.status();
+
+  auto state = PatchSubsetClient::GetStateTable(*result);
+  ASSERT_TRUE(state.ok()) << state.status();
+
+  EXPECT_EQ(state->OriginalFontChecksum(), 0xC722EE0E33D3B460);
+  EXPECT_EQ(result->str(), roboto_ab_.string());
+  EXPECT_FALSE(state->CodepointOrdering().empty());
+  EXPECT_EQ(checksummer.Checksum(state->CodepointOrdering()),
+            0xD5BD080511DD60DD);
 
   hb_set_unique_ptr set_abcd = make_hb_set_from_ranges(1, 0x61, 0x64);
-  EXPECT_EQ(client_with_mapping_.Extend(*set_abcd, state), absl::OkStatus());
+  result = simulation.Extend("Roboto-Regular.ttf", *set_abcd, *result);
+  ASSERT_TRUE(result.ok()) << result.status();
 
-  EXPECT_EQ(state.FontId(), "Roboto-Regular.ttf");
-  EXPECT_EQ(state.OriginalFontChecksum(), 0xC722EE0E33D3B460);
-  EXPECT_EQ(state.FontData(), roboto_abcd_.string());
-  EXPECT_FALSE(state.CodepointRemapping().empty());
-  EXPECT_EQ(state.CodepointRemappingChecksum(), 0xD5BD080511DD60DD);
+  state = PatchSubsetClient::GetStateTable(*result);
+  ASSERT_TRUE(state.ok()) << state.status();
+
+  EXPECT_EQ(state->OriginalFontChecksum(), 0xC722EE0E33D3B460);
+  EXPECT_EQ(result->str(), roboto_abcd_.string());
+  EXPECT_FALSE(state->CodepointOrdering().empty());
+  EXPECT_EQ(checksummer.Checksum(state->CodepointOrdering()), 0xD5BD080511DD60DD);
 }
 
 }  // namespace patch_subset
