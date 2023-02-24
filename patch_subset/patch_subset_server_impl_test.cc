@@ -8,6 +8,7 @@
 #include "hb.h"
 #include "patch_subset/codepoint_mapper.h"
 #include "patch_subset/compressed_set.h"
+#include "patch_subset/encodings.h"
 #include "patch_subset/fake_subsetter.h"
 #include "patch_subset/hb_set_unique_ptr.h"
 #include "patch_subset/mock_binary_diff.h"
@@ -23,7 +24,7 @@ using absl::Status;
 using absl::string_view;
 using patch_subset::MockIntegerListChecksum;
 using patch_subset::cbor::PatchRequest;
-using patch_subset::cbor::PatchResponse;
+using patch_subset::cbor::ClientState;
 using testing::_;
 using testing::Eq;
 using testing::Invoke;
@@ -152,6 +153,13 @@ class PatchSubsetServerImplWithCodepointRemappingTest
   hb_set_unique_ptr set_ab_encoded_;
 };
 
+absl::StatusOr<ClientState> GetStateTable(const FontData& font) {
+  hb_face_t* face = font.reference_face();
+  auto state = ClientState::FromFont(face);
+  hb_face_destroy(face);
+  return state;
+}
+
 // TODO(garretrieger): subsetter failure test.
 
 TEST_F(PatchSubsetServerImplTest, NewRequest) {
@@ -162,24 +170,25 @@ TEST_F(PatchSubsetServerImplTest, NewRequest) {
   ExpectChecksum("Roboto-Regular.ttf:abcd", 43);
 
   PatchRequest request;
-  PatchResponse response;
+  FontData response;
+  std::string encoding;
   patch_subset::cbor::CompressedSet codepoints_needed;
   CompressedSet::Encode(*set_abcd_, codepoints_needed);
   request.SetCodepointsNeeded(codepoints_needed);
-  request.SetAcceptFormats({PatchFormat::BROTLI_SHARED_DICT});
-  request.SetProtocolVersion(ProtocolVersion::ONE);
 
-  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
+  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
+                           request, response, encoding),
             absl::OkStatus());
-  EXPECT_EQ(response.OriginalFontChecksum(), 42);
-  EXPECT_TRUE(response.Patch().empty());
-  EXPECT_EQ(response.Replacement(), "Roboto-Regular.ttf:abcd");
-  EXPECT_EQ(response.PatchedChecksum(), 43);
-  EXPECT_EQ(response.GetPatchFormat(), PatchFormat::BROTLI_SHARED_DICT);
-  EXPECT_EQ(response.GetProtocolVersion(), ProtocolVersion::ONE);
 
-  EXPECT_FALSE(response.HasCodepointOrdering());
+  auto state = GetStateTable(response);
+  ASSERT_TRUE(state.ok()) << state.status();
+
+  EXPECT_EQ(state->OriginalFontChecksum(), 42);
+  EXPECT_FALSE(state->HasCodepointOrdering());
+  EXPECT_EQ(response.str(), "Roboto-Regular.ttf:abcd");
+  EXPECT_EQ(encoding, Encodings::kBrotliDiffEncoding);
 }
+
 
 TEST_F(PatchSubsetServerImplTest, NewRequestVCDIFF) {
   ExpectRoboto();
@@ -189,22 +198,23 @@ TEST_F(PatchSubsetServerImplTest, NewRequestVCDIFF) {
   ExpectChecksum("Roboto-Regular.ttf:abcd", 43);
 
   PatchRequest request;
-  PatchResponse response;
+  FontData response;
+  std::string encoding;
   patch_subset::cbor::CompressedSet codepoints_needed;
   CompressedSet::Encode(*set_abcd_, codepoints_needed);
   request.SetCodepointsNeeded(codepoints_needed);
-  request.SetAcceptFormats({PatchFormat::VCDIFF});
-  request.SetProtocolVersion(ProtocolVersion::ONE);
 
-  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
+  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", {Encodings::kVCDIFFEncoding},
+                           request, response, encoding),
             absl::OkStatus());
-  EXPECT_EQ(response.OriginalFontChecksum(), 42);
-  EXPECT_TRUE(response.Patch().empty());
-  EXPECT_EQ(response.Replacement(), "Roboto-Regular.ttf:abcd");
-  EXPECT_EQ(response.PatchedChecksum(), 43);
-  EXPECT_EQ(response.GetPatchFormat(), PatchFormat::VCDIFF);
 
-  EXPECT_FALSE(response.HasCodepointOrdering());
+  auto state = GetStateTable(response);
+  ASSERT_TRUE(state.ok()) << state.status();
+
+  EXPECT_EQ(state->OriginalFontChecksum(), 42);
+  EXPECT_FALSE(state->HasCodepointOrdering());
+  EXPECT_EQ(response.str(), "Roboto-Regular.ttf:abcd");
+  EXPECT_EQ(encoding, Encodings::kVCDIFFEncoding);
 }
 
 TEST_F(PatchSubsetServerImplTest, PrefersBrotli) {
@@ -215,23 +225,24 @@ TEST_F(PatchSubsetServerImplTest, PrefersBrotli) {
   ExpectChecksum("Roboto-Regular.ttf:abcd", 43);
 
   PatchRequest request;
-  PatchResponse response;
+  FontData response;
+  std::string encoding;
   patch_subset::cbor::CompressedSet codepoints_needed;
   CompressedSet::Encode(*set_abcd_, codepoints_needed);
   request.SetCodepointsNeeded(codepoints_needed);
-  request.SetAcceptFormats(
-      {PatchFormat::BROTLI_SHARED_DICT, PatchFormat::VCDIFF});
-  request.SetProtocolVersion(ProtocolVersion::ONE);
 
-  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
+  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf",
+                           {Encodings::kBrotliDiffEncoding, Encodings::kVCDIFFEncoding},
+                           request, response, encoding),
             absl::OkStatus());
-  EXPECT_EQ(response.OriginalFontChecksum(), 42);
-  EXPECT_TRUE(response.Patch().empty());
-  EXPECT_EQ(response.Replacement(), "Roboto-Regular.ttf:abcd");
-  EXPECT_EQ(response.PatchedChecksum(), 43);
-  EXPECT_EQ(response.GetPatchFormat(), PatchFormat::BROTLI_SHARED_DICT);
 
-  EXPECT_FALSE(response.HasCodepointOrdering());
+  auto state = GetStateTable(response);
+  ASSERT_TRUE(state.ok()) << state.status();
+
+  EXPECT_EQ(state->OriginalFontChecksum(), 42);
+  EXPECT_FALSE(state->HasCodepointOrdering());
+  EXPECT_EQ(response.str(), "Roboto-Regular.ttf:abcd");
+  EXPECT_EQ(encoding, Encodings::kBrotliDiffEncoding);
 }
 
 TEST_F(PatchSubsetServerImplWithCodepointRemappingTest,
@@ -245,22 +256,23 @@ TEST_F(PatchSubsetServerImplWithCodepointRemappingTest,
   ExpectCodepointMappingChecksum({97, 98, 99, 100, 101, 102}, 44);
 
   PatchRequest request;
-  PatchResponse response;
+  FontData response;
+  std::string encoding;
   patch_subset::cbor::CompressedSet codepoints_needed;
   CompressedSet::Encode(*set_abcd_, codepoints_needed);
   request.SetCodepointsNeeded(codepoints_needed);
-  request.SetAcceptFormats({PatchFormat::BROTLI_SHARED_DICT});
-  request.SetProtocolVersion(ProtocolVersion::ONE);
 
-  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
+  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
+                           request, response, encoding),
             absl::OkStatus());
 
-  // Check that a codepoint mapping response has been included.
-  EXPECT_EQ(response.OrderingChecksum(), 44);
-  EXPECT_EQ(response.CodepointOrdering().size(), 6);
+  auto state = GetStateTable(response);
+  ASSERT_TRUE(state.ok()) << state.status();
 
+  // Check that a codepoint mapping response has been included.
+  EXPECT_EQ(state->CodepointOrdering().size(), 6);
   std::vector<int32_t> expected{97, 98, 99, 100, 101, 102};
-  EXPECT_EQ(response.CodepointOrdering(), expected);
+  EXPECT_EQ(state->CodepointOrdering(), expected);
 }
 
 TEST_F(PatchSubsetServerImplTest, PatchRequest) {
@@ -271,27 +283,29 @@ TEST_F(PatchSubsetServerImplTest, PatchRequest) {
   ExpectChecksum("Roboto-Regular.ttf:abcd", 44);
 
   PatchRequest request;
-  PatchResponse response;
+  FontData response;
+  std::string encoding;
   patch_subset::cbor::CompressedSet codepoints_have;
   CompressedSet::Encode(*set_ab_, codepoints_have);
   request.SetCodepointsHave(codepoints_have);
   patch_subset::cbor::CompressedSet codepoints_needed;
   CompressedSet::Encode(*set_abcd_, codepoints_needed);
   request.SetCodepointsNeeded(codepoints_needed);
-  request.SetAcceptFormats({PatchFormat::BROTLI_SHARED_DICT});
   request.SetOriginalFontChecksum(42);
   request.SetBaseChecksum(43);
-  request.SetProtocolVersion(ProtocolVersion::ONE);
 
-  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
+  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
+                           request, response, encoding),
             absl::OkStatus());
-  EXPECT_EQ(response.OriginalFontChecksum(), 42);
-  EXPECT_EQ(response.Patch(),
-            "Roboto-Regular.ttf:abcd - Roboto-Regular.ttf:ab");
-  EXPECT_EQ(response.PatchedChecksum(), 44);
-  EXPECT_EQ(response.GetPatchFormat(), PatchFormat::BROTLI_SHARED_DICT);
 
-  EXPECT_FALSE(response.HasCodepointOrdering());
+  auto state = GetStateTable(response);
+  ASSERT_TRUE(state.ok()) << state.status();
+
+  EXPECT_EQ(state->OriginalFontChecksum(), 42);
+  EXPECT_FALSE(state->HasCodepointOrdering());
+  EXPECT_EQ(response.str(),
+            "Roboto-Regular.ttf:abcd - Roboto-Regular.ttf:ab");
+  EXPECT_EQ(encoding, Encodings::kBrotliDiffEncoding);
 }
 
 TEST_F(PatchSubsetServerImplTest, PatchRequestWithCodepointPrediction) {
@@ -309,27 +323,28 @@ TEST_F(PatchSubsetServerImplTest, PatchRequestWithCodepointPrediction) {
                          requested_codepoints.get(), codepoints_to_add.get());
 
   PatchRequest request;
-  PatchResponse response;
+  FontData response;
+  std::string encoding;
   patch_subset::cbor::CompressedSet codepoints_have;
   CompressedSet::Encode(*set_ab_, codepoints_have);
   request.SetCodepointsHave(codepoints_have);
   patch_subset::cbor::CompressedSet codepoints_needed;
   CompressedSet::Encode(*set_abcd_, codepoints_needed);
   request.SetCodepointsNeeded(codepoints_needed);
-  request.SetAcceptFormats({PatchFormat::BROTLI_SHARED_DICT});
   request.SetOriginalFontChecksum(42);
   request.SetBaseChecksum(43);
-  request.SetProtocolVersion(ProtocolVersion::ONE);
 
-  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
+  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
+                           request, response, encoding),
             absl::OkStatus());
-  EXPECT_EQ(response.OriginalFontChecksum(), 42);
-  EXPECT_EQ(response.Patch(),
-            "Roboto-Regular.ttf:abcde - Roboto-Regular.ttf:ab");
-  EXPECT_EQ(response.PatchedChecksum(), 44);
-  EXPECT_EQ(response.GetPatchFormat(), PatchFormat::BROTLI_SHARED_DICT);
+  auto state = GetStateTable(response);
+  ASSERT_TRUE(state.ok()) << state.status();
 
-  EXPECT_FALSE(response.HasCodepointOrdering());
+  EXPECT_EQ(state->OriginalFontChecksum(), 42);
+  EXPECT_FALSE(state->HasCodepointOrdering());
+  EXPECT_EQ(response.str(),
+            "Roboto-Regular.ttf:abcde - Roboto-Regular.ttf:ab");
+  EXPECT_EQ(encoding, Encodings::kBrotliDiffEncoding);
 }
 
 TEST_F(PatchSubsetServerImplWithCodepointRemappingTest,
@@ -342,29 +357,31 @@ TEST_F(PatchSubsetServerImplWithCodepointRemappingTest,
   ExpectCodepointMappingChecksum({97, 98, 99, 100, 101, 102}, 44);
 
   PatchRequest request;
-  PatchResponse response;
+  FontData response;
+  std::string encoding;
   patch_subset::cbor::CompressedSet codepoints_have;
   CompressedSet::Encode(*set_ab_encoded_, codepoints_have);
   request.SetIndicesHave(codepoints_have);
   patch_subset::cbor::CompressedSet codepoints_needed;
   CompressedSet::Encode(*set_abcd_encoded_, codepoints_needed);
   request.SetIndicesNeeded(codepoints_needed);
-  request.SetAcceptFormats({PatchFormat::BROTLI_SHARED_DICT});
   request.SetOriginalFontChecksum(42);
   request.SetBaseChecksum(43);
   request.SetOrderingChecksum(44);
-  request.SetProtocolVersion(ProtocolVersion::ONE);
 
-  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
+  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
+                           request, response, encoding),
             absl::OkStatus());
-  EXPECT_EQ(response.OriginalFontChecksum(), 42);
-  EXPECT_EQ(response.Patch(),
+  auto state = GetStateTable(response);
+  ASSERT_TRUE(state.ok()) << state.status();
+
+  EXPECT_EQ(state->OriginalFontChecksum(), 42);
+  EXPECT_EQ(response.str(),
             "Roboto-Regular.ttf:abcd - Roboto-Regular.ttf:ab");
-  EXPECT_EQ(response.PatchedChecksum(), 44);
-  EXPECT_EQ(response.GetPatchFormat(), PatchFormat::BROTLI_SHARED_DICT);
+  EXPECT_EQ(encoding, Encodings::kBrotliDiffEncoding);
 
   // Patch request should not send back a codepoint remapping.
-  EXPECT_FALSE(response.HasCodepointOrdering());
+  EXPECT_FALSE(state->HasCodepointOrdering());
 }
 
 TEST_F(PatchSubsetServerImplWithCodepointRemappingTest, BadIndexChecksum) {
@@ -373,29 +390,29 @@ TEST_F(PatchSubsetServerImplWithCodepointRemappingTest, BadIndexChecksum) {
   ExpectCodepointMappingChecksum({97, 98, 99, 100, 101, 102}, 44);
 
   PatchRequest request;
-  PatchResponse response;
+  FontData response;
+  std::string encoding;
   patch_subset::cbor::CompressedSet codepoints_have;
   CompressedSet::Encode(*set_ab_, codepoints_have);
   request.SetIndicesHave(codepoints_have);
   patch_subset::cbor::CompressedSet codepoints_needed;
   CompressedSet::Encode(*set_abcd_, codepoints_needed);
   request.SetIndicesNeeded(codepoints_needed);
-  request.SetAcceptFormats({PatchFormat::BROTLI_SHARED_DICT});
   request.SetOriginalFontChecksum(42);
   request.SetBaseChecksum(43);
   request.SetOrderingChecksum(123);
-  request.SetProtocolVersion(ProtocolVersion::ONE);
 
-  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
+  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
+                           request, response, encoding),
             absl::OkStatus());
+  auto state = GetStateTable(response);
+  ASSERT_TRUE(state.ok()) << state.status();
 
   // Re-index should have no patch, but contain a codepoint mapping.
-  EXPECT_TRUE(response.Patch().empty());
-  EXPECT_TRUE(response.Replacement().empty());
-  EXPECT_EQ(response.OrderingChecksum(), 44);
+  EXPECT_TRUE(response.empty());
 
   std::vector<int32_t> expected{97, 98, 99, 100, 101, 102};
-  EXPECT_EQ(response.CodepointOrdering(), expected);
+  EXPECT_EQ(state->CodepointOrdering(), expected);
 }
 
 TEST_F(PatchSubsetServerImplTest, BadOriginalFontChecksum) {
@@ -405,24 +422,26 @@ TEST_F(PatchSubsetServerImplTest, BadOriginalFontChecksum) {
   ExpectChecksum("Roboto-Regular.ttf:abcd", 44);
 
   PatchRequest request;
-  PatchResponse response;
+  FontData response;
+  std::string encoding;
   patch_subset::cbor::CompressedSet codepoints_have;
   CompressedSet::Encode(*set_ab_, codepoints_have);
   request.SetCodepointsHave(codepoints_have);
   patch_subset::cbor::CompressedSet codepoints_needed;
   CompressedSet::Encode(*set_abcd_, codepoints_needed);
   request.SetCodepointsNeeded(codepoints_needed);
-  request.SetAcceptFormats({PatchFormat::BROTLI_SHARED_DICT});
   request.SetOriginalFontChecksum(100);
   request.SetBaseChecksum(43);
-  request.SetProtocolVersion(ProtocolVersion::ONE);
 
-  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
+  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
+                           request, response, encoding),
             absl::OkStatus());
-  EXPECT_EQ(response.OriginalFontChecksum(), 42);
-  EXPECT_EQ(response.Replacement(), "Roboto-Regular.ttf:abcd");
-  EXPECT_EQ(response.PatchedChecksum(), 44);
-  EXPECT_EQ(response.GetPatchFormat(), PatchFormat::BROTLI_SHARED_DICT);
+  auto state = GetStateTable(response);
+  ASSERT_TRUE(state.ok()) << state.status();
+
+  EXPECT_EQ(state->OriginalFontChecksum(), 42);
+  EXPECT_EQ(response.str(), "Roboto-Regular.ttf:abcd");
+  EXPECT_EQ(encoding, Encodings::kBrotliDiffEncoding);
 }
 
 TEST_F(PatchSubsetServerImplTest, BadBaseChecksum) {
@@ -433,24 +452,26 @@ TEST_F(PatchSubsetServerImplTest, BadBaseChecksum) {
   ExpectChecksum("Roboto-Regular.ttf:abcd", 44);
 
   PatchRequest request;
-  PatchResponse response;
+  FontData response;
+  std::string encoding;
   patch_subset::cbor::CompressedSet codepoints_have;
   CompressedSet::Encode(*set_ab_, codepoints_have);
   request.SetCodepointsHave(codepoints_have);
   patch_subset::cbor::CompressedSet codepoints_needed;
   CompressedSet::Encode(*set_abcd_, codepoints_needed);
   request.SetCodepointsNeeded(codepoints_needed);
-  request.SetAcceptFormats({PatchFormat::BROTLI_SHARED_DICT});
   request.SetOriginalFontChecksum(42);
   request.SetBaseChecksum(100);
-  request.SetProtocolVersion(ProtocolVersion::ONE);
 
-  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", request, response),
+  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
+                           request, response, encoding),
             absl::OkStatus());
-  EXPECT_EQ(response.OriginalFontChecksum(), 42);
-  EXPECT_EQ(response.Replacement(), "Roboto-Regular.ttf:abcd");
-  EXPECT_EQ(response.PatchedChecksum(), 44);
-  EXPECT_EQ(response.GetPatchFormat(), PatchFormat::BROTLI_SHARED_DICT);
+  auto state = GetStateTable(response);
+  ASSERT_TRUE(state.ok()) << state.status();
+
+  EXPECT_EQ(state->OriginalFontChecksum(), 42);
+  EXPECT_EQ(response.str(), "Roboto-Regular.ttf:abcd");
+  EXPECT_EQ(encoding, Encodings::kBrotliDiffEncoding);
 }
 
 TEST_F(PatchSubsetServerImplTest, NotFound) {
@@ -459,44 +480,44 @@ TEST_F(PatchSubsetServerImplTest, NotFound) {
       .WillRepeatedly(Return(absl::NotFoundError("not found.")));
 
   PatchRequest request;
-  PatchResponse response;
+  FontData response;
+  std::string encoding;
   patch_subset::cbor::CompressedSet codepoints_needed;
   CompressedSet::Encode(*set_abcd_, codepoints_needed);
   request.SetCodepointsNeeded(codepoints_needed);
-  request.SetAcceptFormats({PatchFormat::BROTLI_SHARED_DICT});
-  request.SetProtocolVersion(ProtocolVersion::ONE);
 
   EXPECT_TRUE(absl::IsNotFound(
-      server_.Handle("Roboto-Regular.ttf", request, response)));
+      server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
+                     request, response, encoding)));
 }
 
 TEST_F(PatchSubsetServerImplTest, RejectsMissingBaseChecksum) {
   PatchRequest request;
-  PatchResponse response;
+  FontData response;
+  std::string encoding;
   patch_subset::cbor::CompressedSet codepoints_needed;
   CompressedSet::Encode(*set_abcd_, codepoints_needed);
   request.SetCodepointsNeeded(codepoints_needed);
   request.SetCodepointsHave(codepoints_needed);
-  request.SetAcceptFormats({PatchFormat::BROTLI_SHARED_DICT});
-  request.SetProtocolVersion(ProtocolVersion::ONE);
 
   // base checksum and original font checksum are missing.
   EXPECT_TRUE(absl::IsInvalidArgument(
-      server_.Handle("Roboto-Regular.ttf", request, response)));
+      server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
+                     request, response, encoding)));
 }
 
 TEST_F(PatchSubsetServerImplTest, RejectsMissingOrderingChecksum) {
   PatchRequest request;
-  PatchResponse response;
+  FontData response;
+  std::string encoding;
   patch_subset::cbor::CompressedSet codepoints_needed;
   CompressedSet::Encode(*set_abcd_, codepoints_needed);
   request.SetIndicesNeeded(codepoints_needed);
-  request.SetAcceptFormats({PatchFormat::BROTLI_SHARED_DICT});
-  request.SetProtocolVersion(ProtocolVersion::ONE);
 
   // ordering checksum is missing.
   EXPECT_TRUE(absl::IsInvalidArgument(
-      server_.Handle("Roboto-Regular.ttf", request, response)));
+      server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
+                     request, response, encoding)));
 }
 
 }  // namespace patch_subset
