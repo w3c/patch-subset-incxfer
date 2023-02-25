@@ -3,6 +3,7 @@
 #include "patch_subset/brotli_binary_patch.h"
 #include "patch_subset/codepoint_mapper.h"
 #include "patch_subset/compressed_set.h"
+
 #include "patch_subset/fast_hasher.h"
 #include "patch_subset/file_font_provider.h"
 #include "patch_subset/harfbuzz_subsetter.h"
@@ -57,8 +58,19 @@ class PatchSubsetClientServerIntegrationTest : public ::testing::Test {
             std::unique_ptr<CodepointPredictor>(new NoopCodepointPredictor()))
   {
     FileFontProvider font_provider(kTestDataDir);
-    Status s = font_provider.GetFont("Roboto-Regular.abcd.ttf", &roboto_abcd_);
-    s.Update(font_provider.GetFont("Roboto-Regular.ab.ttf", &roboto_ab_));
+    Status s = font_provider.GetFont("Roboto-Regular.ttf", &roboto_);
+    assert(s.ok());
+
+    hb_set_unique_ptr set_ab = make_hb_set_from_ranges(1, 0x61, 0x62);
+    hb_set_unique_ptr set_abcd = make_hb_set_from_ranges(1, 0x61, 0x64);
+
+    state_.SetOriginalFontChecksum(0xC722EE0E33D3B460);
+
+    std::string state_string;
+    s.Update(state_.SerializeToString(state_string));
+    s.Update(subsetter_.Subset(roboto_, *set_ab, state_string, &roboto_ab_));
+    s.Update(subsetter_.Subset(roboto_, *set_abcd, state_string, &roboto_abcd_));
+
     assert(s.ok());
   }
 
@@ -77,7 +89,11 @@ class PatchSubsetClientServerIntegrationTest : public ::testing::Test {
 
   PatchSubsetServerImpl server_with_mapping_;
 
+  HarfbuzzSubsetter subsetter_;
+
+  ClientState state_;
   FontData empty_;
+  FontData roboto_;
   FontData roboto_abcd_;
   FontData roboto_ab_;
 };
@@ -118,6 +134,7 @@ TEST_F(PatchSubsetClientServerIntegrationTest, SessionWithCodepointOrdering) {
   IntegerListChecksumImpl checksummer(hasher_.get());
 
   hb_set_unique_ptr set_ab = make_hb_set_from_ranges(1, 0x61, 0x62);
+  hb_set_unique_ptr set_abcd = make_hb_set_from_ranges(1, 0x61, 0x64);
 
   auto result = simulation.Extend("Roboto-Regular.ttf", *set_ab, empty_);
   ASSERT_TRUE(result.ok()) << result.status();
@@ -125,18 +142,25 @@ TEST_F(PatchSubsetClientServerIntegrationTest, SessionWithCodepointOrdering) {
   auto state = GetStateTable(*result);
   ASSERT_TRUE(state.ok()) << state.status();
 
+  Status s;
+  std::string state_string;
+  s.Update(state->SerializeToString(state_string));
+  s.Update(subsetter_.Subset(roboto_, *set_ab, state_string, &roboto_ab_));
+  s.Update(subsetter_.Subset(roboto_, *set_abcd, state_string, &roboto_abcd_));
+  ASSERT_EQ(s, absl::OkStatus());
+
   EXPECT_EQ(state->OriginalFontChecksum(), 0xC722EE0E33D3B460);
   EXPECT_EQ(result->str(), roboto_ab_.string());
   EXPECT_FALSE(state->CodepointOrdering().empty());
   EXPECT_EQ(checksummer.Checksum(state->CodepointOrdering()),
             0xD5BD080511DD60DD);
 
-  hb_set_unique_ptr set_abcd = make_hb_set_from_ranges(1, 0x61, 0x64);
   result = simulation.Extend("Roboto-Regular.ttf", *set_abcd, *result);
   ASSERT_TRUE(result.ok()) << result.status();
 
   state = GetStateTable(*result);
   ASSERT_TRUE(state.ok()) << state.status();
+
 
   EXPECT_EQ(state->OriginalFontChecksum(), 0xC722EE0E33D3B460);
   EXPECT_EQ(result->str(), roboto_abcd_.string());
