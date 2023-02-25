@@ -36,23 +36,18 @@ class PatchSubsetServerIntegrationTest : public ::testing::Test {
             std::unique_ptr<IntegerListChecksum>(nullptr),
             std::unique_ptr<CodepointPredictor>(new NoopCodepointPredictor())) {
     EXPECT_TRUE(
-        font_provider_->GetFont("Roboto-Regular.abcd.ttf", &roboto_abcd_).ok());
+        font_provider_->GetFont("Roboto-Regular.ttf", &roboto_).ok());
     EXPECT_TRUE(
-        font_provider_->GetFont("Roboto-Regular.ab.ttf", &roboto_ab_).ok());
+        font_provider_->GetFont("Roboto[wdth,wght].ttf", &roboto_variable_).ok());
 
-    FontData roboto_regular;
-    EXPECT_TRUE(
-        font_provider_->GetFont("Roboto-Regular.ttf", &roboto_regular).ok());
 
-    FastHasher hasher;
-    original_font_checksum = hasher.Checksum(roboto_regular.str());
-    subset_ab_checksum = hasher.Checksum(roboto_ab_.str());
-    subset_abcd_checksum = hasher.Checksum(roboto_abcd_.str());
+    original_font_checksum = hasher_.Checksum(roboto_.str());
+    variable_original_font_checksum = hasher_.Checksum(roboto_variable_.str());
   }
 
-  void CheckPatch(const FontData& base, const FontData& target,
-                  string_view patch_string,
-                  std::string encoding = Encodings::kBrotliDiffEncoding) {
+  FontData CheckPatch(const FontData& base, const FontData& target,
+                      string_view patch_string,
+                      std::string encoding = Encodings::kBrotliDiffEncoding) {
 
     std::unique_ptr<BinaryDiff> binary_diff;
     std::unique_ptr<BinaryPatch> binary_patch;
@@ -64,19 +59,36 @@ class PatchSubsetServerIntegrationTest : public ::testing::Test {
       binary_patch = std::unique_ptr<BinaryPatch>(new VCDIFFBinaryPatch());
     }
 
-    // Check that diff base and target produces patch,
-    // and that applying patch to base produces target.
-    FontData expected_patch;
-    EXPECT_EQ(binary_diff->Diff(base, target, &expected_patch),
-              absl::OkStatus());
-    EXPECT_EQ(patch_string, expected_patch.str());
-
     FontData actual_target;
     FontData patch;
     patch.copy(patch_string.data(), patch_string.size());
     EXPECT_EQ(binary_patch->Patch(base, patch, &actual_target),
               absl::OkStatus());
     EXPECT_EQ(actual_target.str(), target.str());
+
+    return actual_target;
+  }
+
+  absl::StatusOr<FontData> MakeSubset(const hb_set_t& codepoints,
+                                      const ClientState& client_state,
+                                      const FontData* base = nullptr) {
+    std::string client_state_table;
+    Status sc = client_state.SerializeToString(client_state_table);
+    if (!sc.ok()) {
+      return sc;
+    }
+
+    if (!base) {
+      base = &roboto_;
+    }
+
+    FontData subset;
+    sc = subsetter_.Subset(roboto_, codepoints, client_state_table, &subset);
+    if (!sc.ok()) {
+      return sc;
+    }
+
+    return subset;
   }
 
   absl::StatusOr<ClientState> GetStateTable(const FontData& font) {
@@ -88,18 +100,25 @@ class PatchSubsetServerIntegrationTest : public ::testing::Test {
 
   FontProvider* font_provider_;
   PatchSubsetServerImpl server_;
+  HarfbuzzSubsetter subsetter_;
+  FastHasher hasher_;
 
   FontData empty_;
-  FontData roboto_abcd_;
-  FontData roboto_ab_;
+  FontData roboto_;
+  FontData roboto_variable_;
 
   uint64_t original_font_checksum;
-  uint64_t subset_ab_checksum;
-  uint64_t subset_abcd_checksum;
+  uint64_t variable_original_font_checksum;
 };
 
 TEST_F(PatchSubsetServerIntegrationTest, NewRequest) {
   hb_set_unique_ptr set_abcd = make_hb_set_from_ranges(1, 0x61, 0x64);
+
+  ClientState expected_state;
+  expected_state.SetOriginalFontChecksum(original_font_checksum);
+
+  auto expected = MakeSubset(*set_abcd, expected_state);
+  ASSERT_TRUE(expected.ok()) << expected.status();
 
   PatchRequest request;
   patch_subset::cbor::CompressedSet codepoints_needed;
@@ -115,20 +134,26 @@ TEST_F(PatchSubsetServerIntegrationTest, NewRequest) {
                            encoding),
             absl::OkStatus());
 
+  ASSERT_EQ(encoding, Encodings::kBrotliDiffEncoding);
+  response = CheckPatch(empty_, *expected, response.str());
 
   auto state = GetStateTable(response);
   ASSERT_TRUE(state.ok()) << state.status();
-
-  EXPECT_EQ(state->OriginalFontChecksum(), original_font_checksum);
-  EXPECT_EQ(encoding, Encodings::kBrotliDiffEncoding);
-  EXPECT_FALSE(state->HasSubsetAxisSpace());
-  EXPECT_FALSE(state->HasOriginalAxisSpace());
-
-  CheckPatch(empty_, roboto_abcd_, response.str());
+  EXPECT_EQ(*state, expected_state);
 }
+
 
 TEST_F(PatchSubsetServerIntegrationTest, NewRequest_Variable) {
   hb_set_unique_ptr set_abcd = make_hb_set_from_ranges(1, 0x61, 0x64);
+
+  ClientState expected_state;
+  expected_state.SetOriginalFontChecksum(variable_original_font_checksum);
+
+  AxisSpace expected_space;
+  expected_space.AddInterval(HB_TAG('w', 'g', 'h', 't'), AxisInterval(100, 900));
+  expected_space.AddInterval(HB_TAG('w', 'd', 't', 'h'), AxisInterval(75, 100));
+  expected_state.SetSubsetAxisSpace(expected_space);
+  expected_state.SetOriginalAxisSpace(expected_space);
 
   PatchRequest request;
   patch_subset::cbor::CompressedSet codepoints_needed;
@@ -144,19 +169,23 @@ TEST_F(PatchSubsetServerIntegrationTest, NewRequest_Variable) {
                            encoding),
             absl::OkStatus());
 
-  AxisSpace expected;
-  expected.AddInterval(HB_TAG('w', 'g', 'h', 't'), AxisInterval(100, 900));
-  expected.AddInterval(HB_TAG('w', 'd', 't', 'h'), AxisInterval(75, 100));
+  BrotliBinaryPatch patcher;
+  FontData subset;
+  EXPECT_EQ(patcher.Patch(empty_, response, &subset), absl::OkStatus());
 
-  auto state = GetStateTable(response);
+  auto state = GetStateTable(subset);
   ASSERT_TRUE(state.ok()) << state.status();
-
-  EXPECT_EQ(state->SubsetAxisSpace(), expected);
-  EXPECT_EQ(state->OriginalAxisSpace(), expected);
+  EXPECT_EQ(*state, expected_state);
 }
 
 TEST_F(PatchSubsetServerIntegrationTest, NewRequestVCDIFF) {
   hb_set_unique_ptr set_abcd = make_hb_set_from_ranges(1, 0x61, 0x64);
+
+  ClientState expected_state;
+  expected_state.SetOriginalFontChecksum(original_font_checksum);
+
+  auto expected = MakeSubset(*set_abcd, expected_state);
+  ASSERT_TRUE(expected.ok()) << expected.status();
 
   PatchRequest request;
   patch_subset::cbor::CompressedSet codepoints_needed;
@@ -170,18 +199,25 @@ TEST_F(PatchSubsetServerIntegrationTest, NewRequestVCDIFF) {
                            request, response, encoding),
             absl::OkStatus());
 
+  EXPECT_EQ(encoding, Encodings::kVCDIFFEncoding);
+  response = CheckPatch(empty_, *expected, response.str(), Encodings::kVCDIFFEncoding);
+
   auto state = GetStateTable(response);
   ASSERT_TRUE(state.ok()) << state.status();
-
-  EXPECT_EQ(state->OriginalFontChecksum(), original_font_checksum);
-  EXPECT_EQ(encoding, Encodings::kVCDIFFEncoding);
-
-  CheckPatch(empty_, roboto_abcd_, response.str(), Encodings::kVCDIFFEncoding);
+  EXPECT_EQ(*state, expected_state);
 }
 
 TEST_F(PatchSubsetServerIntegrationTest, PatchRequest) {
   hb_set_unique_ptr set_ab = make_hb_set_from_ranges(1, 0x61, 0x62);
   hb_set_unique_ptr set_abcd = make_hb_set_from_ranges(1, 0x61, 0x64);
+
+  ClientState expected_state;
+  expected_state.SetOriginalFontChecksum(original_font_checksum);
+
+  auto base = MakeSubset(*set_ab, expected_state);
+  auto expected = MakeSubset(*set_abcd, expected_state);
+  ASSERT_TRUE(expected.ok()) << expected.status();
+  ASSERT_TRUE(base.ok()) << base.status();
 
   PatchRequest request;
   patch_subset::cbor::CompressedSet codepoints_have;
@@ -193,7 +229,7 @@ TEST_F(PatchSubsetServerIntegrationTest, PatchRequest) {
   request.SetCodepointsNeeded(codepoints_needed);
 
   request.SetOriginalFontChecksum(original_font_checksum);
-  request.SetBaseChecksum(subset_ab_checksum);
+  request.SetBaseChecksum(hasher_.Checksum(base->str()));
 
   FontData response;
   std::string encoding;
@@ -201,18 +237,25 @@ TEST_F(PatchSubsetServerIntegrationTest, PatchRequest) {
                            request, response, encoding),
             absl::OkStatus());
 
+  EXPECT_EQ(encoding, Encodings::kBrotliDiffEncoding);
+  response = CheckPatch(*base, *expected, response.str());
+
   auto state = GetStateTable(response);
   ASSERT_TRUE(state.ok()) << state.status();
-
-  EXPECT_EQ(state->OriginalFontChecksum(), original_font_checksum);
-  EXPECT_EQ(encoding, Encodings::kBrotliDiffEncoding);
-
-  CheckPatch(roboto_ab_, roboto_abcd_, response.str());
+  EXPECT_EQ(*state, expected_state);
 }
 
 TEST_F(PatchSubsetServerIntegrationTest, PatchRequestVCDIFF) {
   hb_set_unique_ptr set_ab = make_hb_set_from_ranges(1, 0x61, 0x62);
   hb_set_unique_ptr set_abcd = make_hb_set_from_ranges(1, 0x61, 0x64);
+
+  ClientState expected_state;
+  expected_state.SetOriginalFontChecksum(original_font_checksum);
+
+  auto base = MakeSubset(*set_ab, expected_state);
+  auto expected = MakeSubset(*set_abcd, expected_state);
+  ASSERT_TRUE(expected.ok()) << expected.status();
+  ASSERT_TRUE(base.ok()) << base.status();
 
   PatchRequest request;
   patch_subset::cbor::CompressedSet codepoints_have;
@@ -224,7 +267,7 @@ TEST_F(PatchSubsetServerIntegrationTest, PatchRequestVCDIFF) {
   request.SetCodepointsNeeded(codepoints_needed);
 
   request.SetOriginalFontChecksum(original_font_checksum);
-  request.SetBaseChecksum(subset_ab_checksum);
+  request.SetBaseChecksum(hasher_.Checksum(base->str()));
 
   FontData response;
   std::string encoding;
@@ -232,18 +275,26 @@ TEST_F(PatchSubsetServerIntegrationTest, PatchRequestVCDIFF) {
                            request, response, encoding),
             absl::OkStatus());
 
+  EXPECT_EQ(encoding, Encodings::kVCDIFFEncoding);
+  response = CheckPatch(*base, *expected, response.str(), Encodings::kVCDIFFEncoding);
+
   auto state = GetStateTable(response);
   ASSERT_TRUE(state.ok()) << state.status();
 
-  EXPECT_EQ(state->OriginalFontChecksum(), original_font_checksum);
-  EXPECT_EQ(encoding, Encodings::kVCDIFFEncoding);
-
-  CheckPatch(roboto_ab_, roboto_abcd_, response.str(), Encodings::kVCDIFFEncoding);
+  EXPECT_EQ(*state, expected_state);
 }
 
 TEST_F(PatchSubsetServerIntegrationTest, BadOriginalChecksum) {
   hb_set_unique_ptr set_ab = make_hb_set_from_ranges(1, 0x61, 0x62);
   hb_set_unique_ptr set_abcd = make_hb_set_from_ranges(1, 0x61, 0x64);
+
+  ClientState expected_state;
+  expected_state.SetOriginalFontChecksum(original_font_checksum);
+
+  auto base = MakeSubset(*set_ab, expected_state);
+  auto expected = MakeSubset(*set_abcd, expected_state);
+  ASSERT_TRUE(expected.ok()) << expected.status();
+  ASSERT_TRUE(base.ok()) << base.status();
 
   PatchRequest request;
 
@@ -256,7 +307,7 @@ TEST_F(PatchSubsetServerIntegrationTest, BadOriginalChecksum) {
   request.SetCodepointsNeeded(codepoints_needed);
 
   request.SetOriginalFontChecksum(0);
-  request.SetBaseChecksum(subset_ab_checksum);
+  request.SetBaseChecksum(hasher_.Checksum(base->str()));
 
   FontData response;
   std::string encoding;
@@ -264,18 +315,26 @@ TEST_F(PatchSubsetServerIntegrationTest, BadOriginalChecksum) {
                            request, response, encoding),
             absl::OkStatus());
 
+  EXPECT_EQ(encoding, Encodings::kBrotliDiffEncoding);
+  CheckPatch(empty_, *expected, response.str()); // Verify this is a replacement
+  response = CheckPatch(*base, *expected, response.str());
+
   auto state = GetStateTable(response);
   ASSERT_TRUE(state.ok()) << state.status();
-
-  EXPECT_EQ(state->OriginalFontChecksum(), original_font_checksum);
-  EXPECT_EQ(encoding, Encodings::kBrotliDiffEncoding);
-
-  CheckPatch(empty_, roboto_abcd_, response.str());
+  EXPECT_EQ(*state, expected_state);
 }
 
 TEST_F(PatchSubsetServerIntegrationTest, BadBaseChecksum) {
   hb_set_unique_ptr set_ab = make_hb_set_from_ranges(1, 0x61, 0x62);
   hb_set_unique_ptr set_abcd = make_hb_set_from_ranges(1, 0x61, 0x64);
+
+  ClientState expected_state;
+  expected_state.SetOriginalFontChecksum(original_font_checksum);
+
+  auto base = MakeSubset(*set_ab, expected_state);
+  auto expected = MakeSubset(*set_abcd, expected_state);
+  ASSERT_TRUE(expected.ok()) << expected.status();
+  ASSERT_TRUE(base.ok()) << base.status();
 
   PatchRequest request;
   patch_subset::cbor::CompressedSet codepoints_have;
@@ -293,13 +352,13 @@ TEST_F(PatchSubsetServerIntegrationTest, BadBaseChecksum) {
                            request, response, encoding),
             absl::OkStatus());
 
+  EXPECT_EQ(encoding, Encodings::kBrotliDiffEncoding);
+  CheckPatch(empty_, *expected, response.str()); // Verify this is a replacement
+  response = CheckPatch(*base, *expected, response.str());
+
   auto state = GetStateTable(response);
   ASSERT_TRUE(state.ok()) << state.status();
-
-  EXPECT_EQ(state->OriginalFontChecksum(), original_font_checksum);
-  EXPECT_EQ(encoding, Encodings::kBrotliDiffEncoding);
-
-  CheckPatch(empty_, roboto_abcd_, response.str());
+  EXPECT_EQ(*state, expected_state);
 }
 
 }  // namespace patch_subset
