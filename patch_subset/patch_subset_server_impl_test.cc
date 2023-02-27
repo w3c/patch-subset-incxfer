@@ -180,12 +180,7 @@ TEST_F(PatchSubsetServerImplTest, NewRequest) {
                            request, response, encoding),
             absl::OkStatus());
 
-  auto state = GetStateTable(response);
-  ASSERT_TRUE(state.ok()) << state.status();
-
-  EXPECT_EQ(state->OriginalFontChecksum(), 42);
-  EXPECT_FALSE(state->HasCodepointOrdering());
-  EXPECT_EQ(response.str(), "Roboto-Regular.ttf:abcd");
+  EXPECT_EQ(response.str(), "Roboto-Regular.ttf:abcd, {orig_cs=42}");
   EXPECT_EQ(encoding, Encodings::kBrotliDiffEncoding);
 }
 
@@ -208,12 +203,7 @@ TEST_F(PatchSubsetServerImplTest, NewRequestVCDIFF) {
                            request, response, encoding),
             absl::OkStatus());
 
-  auto state = GetStateTable(response);
-  ASSERT_TRUE(state.ok()) << state.status();
-
-  EXPECT_EQ(state->OriginalFontChecksum(), 42);
-  EXPECT_FALSE(state->HasCodepointOrdering());
-  EXPECT_EQ(response.str(), "Roboto-Regular.ttf:abcd");
+  EXPECT_EQ(response.str(), "Roboto-Regular.ttf:abcd, {orig_cs=42}");
   EXPECT_EQ(encoding, Encodings::kVCDIFFEncoding);
 }
 
@@ -236,12 +226,7 @@ TEST_F(PatchSubsetServerImplTest, PrefersBrotli) {
                            request, response, encoding),
             absl::OkStatus());
 
-  auto state = GetStateTable(response);
-  ASSERT_TRUE(state.ok()) << state.status();
-
-  EXPECT_EQ(state->OriginalFontChecksum(), 42);
-  EXPECT_FALSE(state->HasCodepointOrdering());
-  EXPECT_EQ(response.str(), "Roboto-Regular.ttf:abcd");
+  EXPECT_EQ(response.str(), "Roboto-Regular.ttf:abcd, {orig_cs=42}");
   EXPECT_EQ(encoding, Encodings::kBrotliDiffEncoding);
 }
 
@@ -266,21 +251,15 @@ TEST_F(PatchSubsetServerImplWithCodepointRemappingTest,
                            request, response, encoding),
             absl::OkStatus());
 
-  auto state = GetStateTable(response);
-  ASSERT_TRUE(state.ok()) << state.status();
-
-  // Check that a codepoint mapping response has been included.
-  EXPECT_EQ(state->CodepointOrdering().size(), 6);
-  std::vector<int32_t> expected{97, 98, 99, 100, 101, 102};
-  EXPECT_EQ(state->CodepointOrdering(), expected);
+  EXPECT_EQ(response.str(), "Roboto-Regular.ttf:abcd, {orig_cs=42,cp_rm=[97,98,99,100,101,102]}");
 }
 
 TEST_F(PatchSubsetServerImplTest, PatchRequest) {
   ExpectRoboto();
   ExpectBrotliDiff();
   ExpectChecksum("Roboto-Regular.ttf", 42);
-  ExpectChecksum("Roboto-Regular.ttf:ab", 43);
-  ExpectChecksum("Roboto-Regular.ttf:abcd", 44);
+  ExpectChecksum("Roboto-Regular.ttf:ab, {orig_cs=42}", 43);
+  ExpectChecksum("Roboto-Regular.ttf:abcd, {orig_cs=42}", 44);
 
   PatchRequest request;
   FontData response;
@@ -298,13 +277,8 @@ TEST_F(PatchSubsetServerImplTest, PatchRequest) {
                            request, response, encoding),
             absl::OkStatus());
 
-  auto state = GetStateTable(response);
-  ASSERT_TRUE(state.ok()) << state.status();
-
-  EXPECT_EQ(state->OriginalFontChecksum(), 42);
-  EXPECT_FALSE(state->HasCodepointOrdering());
   EXPECT_EQ(response.str(),
-            "Roboto-Regular.ttf:abcd - Roboto-Regular.ttf:ab");
+            "Roboto-Regular.ttf:abcd, {orig_cs=42} - Roboto-Regular.ttf:ab, {orig_cs=42}");
   EXPECT_EQ(encoding, Encodings::kBrotliDiffEncoding);
 }
 
@@ -312,8 +286,8 @@ TEST_F(PatchSubsetServerImplTest, PatchRequestWithCodepointPrediction) {
   ExpectRoboto();
   ExpectBrotliDiff();
   ExpectChecksum("Roboto-Regular.ttf", 42);
-  ExpectChecksum("Roboto-Regular.ttf:ab", 43);
-  ExpectChecksum("Roboto-Regular.ttf:abcde", 44);
+  ExpectChecksum("Roboto-Regular.ttf:ab, {orig_cs=42}", 43);
+  ExpectChecksum("Roboto-Regular.ttf:abcde, {orig_cs=42}", 44);
 
   hb_set_unique_ptr font_codepoints = make_hb_set_from_ranges(1, 0x61, 0x66);
   hb_set_unique_ptr have_codepoints = make_hb_set(2, 0x61, 0x62);
@@ -337,13 +311,9 @@ TEST_F(PatchSubsetServerImplTest, PatchRequestWithCodepointPrediction) {
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
                            request, response, encoding),
             absl::OkStatus());
-  auto state = GetStateTable(response);
-  ASSERT_TRUE(state.ok()) << state.status();
 
-  EXPECT_EQ(state->OriginalFontChecksum(), 42);
-  EXPECT_FALSE(state->HasCodepointOrdering());
   EXPECT_EQ(response.str(),
-            "Roboto-Regular.ttf:abcde - Roboto-Regular.ttf:ab");
+            "Roboto-Regular.ttf:abcde, {orig_cs=42} - Roboto-Regular.ttf:ab, {orig_cs=42}");
   EXPECT_EQ(encoding, Encodings::kBrotliDiffEncoding);
 }
 
@@ -352,8 +322,8 @@ TEST_F(PatchSubsetServerImplWithCodepointRemappingTest,
   ExpectRoboto();
   ExpectBrotliDiff();
   ExpectChecksum("Roboto-Regular.ttf", 42);
-  ExpectChecksum("Roboto-Regular.ttf:ab", 43);
-  ExpectChecksum("Roboto-Regular.ttf:abcd", 44);
+  ExpectChecksum("Roboto-Regular.ttf:ab, {orig_cs=42,cp_rm=[97,98,99,100,101,102]}", 43);
+  ExpectChecksum("Roboto-Regular.ttf:abcd, {orig_cs=42,cp_rm=[97,98,99,100,101,102]}", 44);
   ExpectCodepointMappingChecksum({97, 98, 99, 100, 101, 102}, 44);
 
   PatchRequest request;
@@ -372,16 +342,11 @@ TEST_F(PatchSubsetServerImplWithCodepointRemappingTest,
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
                            request, response, encoding),
             absl::OkStatus());
-  auto state = GetStateTable(response);
-  ASSERT_TRUE(state.ok()) << state.status();
 
-  EXPECT_EQ(state->OriginalFontChecksum(), 42);
   EXPECT_EQ(response.str(),
-            "Roboto-Regular.ttf:abcd - Roboto-Regular.ttf:ab");
+            "Roboto-Regular.ttf:abcd, {orig_cs=42,cp_rm=[97,98,99,100,101,102]} - "
+            "Roboto-Regular.ttf:ab, {orig_cs=42,cp_rm=[97,98,99,100,101,102]}");
   EXPECT_EQ(encoding, Encodings::kBrotliDiffEncoding);
-
-  // Patch request should not send back a codepoint remapping.
-  EXPECT_FALSE(state->HasCodepointOrdering());
 }
 
 TEST_F(PatchSubsetServerImplWithCodepointRemappingTest, BadIndexChecksum) {
@@ -405,21 +370,17 @@ TEST_F(PatchSubsetServerImplWithCodepointRemappingTest, BadIndexChecksum) {
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
                            request, response, encoding),
             absl::OkStatus());
-  auto state = GetStateTable(response);
-  ASSERT_TRUE(state.ok()) << state.status();
 
-  // Re-index should have no patch, but contain a codepoint mapping.
-  EXPECT_TRUE(response.empty());
-
-  std::vector<int32_t> expected{97, 98, 99, 100, 101, 102};
-  EXPECT_EQ(state->CodepointOrdering(), expected);
+  // If the codepoint ordering is not understood, then the server will respond with an unsubsetted
+  // font.
+  EXPECT_EQ(response.str(), "Roboto-Regular.ttf");
 }
 
 TEST_F(PatchSubsetServerImplTest, BadOriginalFontChecksum) {
   ExpectRoboto();
   ExpectBrotliDiff();
   ExpectChecksum("Roboto-Regular.ttf", 42);
-  ExpectChecksum("Roboto-Regular.ttf:abcd", 44);
+  ExpectChecksum("Roboto-Regular.ttf:abcd, {orig_cs=42}", 44);
 
   PatchRequest request;
   FontData response;
@@ -436,11 +397,8 @@ TEST_F(PatchSubsetServerImplTest, BadOriginalFontChecksum) {
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
                            request, response, encoding),
             absl::OkStatus());
-  auto state = GetStateTable(response);
-  ASSERT_TRUE(state.ok()) << state.status();
 
-  EXPECT_EQ(state->OriginalFontChecksum(), 42);
-  EXPECT_EQ(response.str(), "Roboto-Regular.ttf:abcd");
+  EXPECT_EQ(response.str(), "Roboto-Regular.ttf:abcd, {orig_cs=42}");
   EXPECT_EQ(encoding, Encodings::kBrotliDiffEncoding);
 }
 
@@ -448,8 +406,8 @@ TEST_F(PatchSubsetServerImplTest, BadBaseChecksum) {
   ExpectRoboto();
   ExpectBrotliDiff();
   ExpectChecksum("Roboto-Regular.ttf", 42);
-  ExpectChecksum("Roboto-Regular.ttf:ab", 43);
-  ExpectChecksum("Roboto-Regular.ttf:abcd", 44);
+  ExpectChecksum("Roboto-Regular.ttf:ab, {orig_cs=42}", 43);
+  ExpectChecksum("Roboto-Regular.ttf:abcd, {orig_cs=42}", 44);
 
   PatchRequest request;
   FontData response;
@@ -466,11 +424,8 @@ TEST_F(PatchSubsetServerImplTest, BadBaseChecksum) {
   EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
                            request, response, encoding),
             absl::OkStatus());
-  auto state = GetStateTable(response);
-  ASSERT_TRUE(state.ok()) << state.status();
 
-  EXPECT_EQ(state->OriginalFontChecksum(), 42);
-  EXPECT_EQ(response.str(), "Roboto-Regular.ttf:abcd");
+  EXPECT_EQ(response.str(), "Roboto-Regular.ttf:abcd, {orig_cs=42}");
   EXPECT_EQ(encoding, Encodings::kBrotliDiffEncoding);
 }
 
