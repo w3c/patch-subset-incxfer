@@ -4,11 +4,14 @@
 #include <algorithm>
 
 #include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "hb.h"
 #include "patch_subset/font_data.h"
-#include "patch_subset/subsetter.h"
+#include "patch_subset/cbor/client_state.h"
 
 namespace patch_subset {
+
+using patch_subset::cbor::ClientState;
 
 // Fake implementation of Subsetter for use in testing.
 class FakeSubsetter : public Subsetter {
@@ -33,6 +36,10 @@ class FakeSubsetter : public Subsetter {
          hb_set_next(&codepoints, &cp);) {
       result.push_back(static_cast<char>(cp));
     }
+
+    ClientState state;
+    assert(ClientState::ParseFromString(state_table, state).ok());
+    result = absl::StrCat(result, ", ", state.ToString());
 
     subset->copy(result.c_str(), result.size());
     return absl::OkStatus();
