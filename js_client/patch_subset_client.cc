@@ -18,25 +18,28 @@
 #include "patch_subset/compressed_set.h"
 #include "patch_subset/fast_hasher.h"
 #include "patch_subset/hb_set_unique_ptr.h"
-#include "patch_subset/null_request_logger.h"
+#include "patch_subset/integer_list_checksum_impl.h"
 
 using namespace emscripten;
 using absl::Status;
 using patch_subset::CompressedSet;
+using patch_subset::FastHasher;
+using patch_subset::FontData;
 using patch_subset::hb_set_unique_ptr;
+using patch_subset::IntegerListChecksum;
+using patch_subset::IntegerListChecksumImpl;
 using patch_subset::make_hb_set;
-using patch_subset::NullRequestLogger;
 using patch_subset::PatchSubsetClient;
 using patch_subset::cbor::ClientState;
 using patch_subset::cbor::PatchRequest;
-using patch_subset::cbor::PatchResponse;
 
 struct RequestContext {
   RequestContext(val& _callback, std::unique_ptr<std::string> _payload)
       : callback(std::move(_callback)), payload(std::move(_payload)) {}
   val callback;
+
   std::unique_ptr<std::string> payload;
-  ClientState* state;
+  FontData* subset;
   PatchSubsetClient* client;
 };
 
@@ -44,24 +47,17 @@ void RequestSucceeded(emscripten_fetch_t* fetch) {
   RequestContext* context = reinterpret_cast<RequestContext*>(fetch->userData);
   if (fetch->status == 200) {
     Status sc;
-    PatchResponse response;
+    FontData response(absl::string_view(fetch->data, fetch->numBytes));
 
-    if (fetch->numBytes > 4 && fetch->data[0] == 'I' && fetch->data[1] == 'F' &&
-        fetch->data[2] == 'T' && fetch->data[3] == ' ') {
-      sc = PatchResponse::ParseFromString(
-          std::string(fetch->data + 4, fetch->numBytes - 4), response);
-    } else {
-      sc = absl::InvalidArgumentError(
-          "Response does not have expected magic number.");
+    // TODO: get content encoding from the response.
+    auto result =
+        context->client->DecodeResponse(*(context->subset), response, "brdiff");
+    if (result.ok()) {
+      context->subset = &(*result);
     }
 
-    if (!sc.ok()) {
-      LOG(WARNING) << "Failed to decode server response: " << sc;
-      context->callback(false);
-    } else {
-      context->callback(
-          context->client->AmendState(response, context->state).ok());
-    }
+    // TODO: memory management for the subset memory?
+    context->callback(result.ok());
   } else {
     LOG(WARNING) << "Extend http request failed with code " << fetch->status;
     context->callback(false);
@@ -81,23 +77,20 @@ void RequestFailed(emscripten_fetch_t* fetch) {
 class State {
  public:
   State(const std::string& font_id)
-      : _state(),
-        _logger(),
-        _client(nullptr, &_logger,
-                std::unique_ptr<patch_subset::BinaryPatch>(
+      : _font_id(font_id),
+        _hasher(),
+        _subset(),
+        _client(std::unique_ptr<patch_subset::BinaryPatch>(
                     new patch_subset::BrotliBinaryPatch()),
                 std::unique_ptr<patch_subset::Hasher>(
-                    new patch_subset::FastHasher())) {
-    _state.SetFontId(font_id);
-  }
+                    new patch_subset::FastHasher()),
+                std::unique_ptr<patch_subset::IntegerListChecksum>(
+                    new patch_subset::IntegerListChecksumImpl(&_hasher))) {}
 
-  Status init_from(std::string buffer) {
-    return ClientState::ParseFromString(buffer, _state);
-  }
+  void init_from(std::string buffer) { _subset.copy(buffer); }
 
   val font_data() {
-    return val(typed_memory_view(_state.FontData().length(),
-                                 _state.FontData().data()));
+    return val(typed_memory_view(_subset.size(), _subset.data()));
   }
 
   void extend(val codepoints_js, val callback) {
@@ -108,16 +101,14 @@ class State {
       hb_set_add(additional_codepoints.get(), cp);
     }
 
-    PatchRequest request;
-    Status result =
-        _client.CreateRequest(*additional_codepoints, _state, &request);
-    if (!result.ok() || (request.CodepointsNeeded().empty() &&
-                         request.IndicesNeeded().empty())) {
-      callback(result.ok());
+    auto request = _client.CreateRequest(*additional_codepoints, _subset);
+    if (!request.ok() || (request->CodepointsNeeded().empty() &&
+                          request->IndicesNeeded().empty())) {
+      callback(request.ok());
       return;
     }
 
-    DoRequest(request, callback);
+    DoRequest(*request, callback);
   }
 
  private:
@@ -139,19 +130,20 @@ class State {
     attr.requestDataSize = payload->size();
 
     RequestContext* context = new RequestContext(callback, std::move(payload));
-    context->state = &_state;
+    context->subset = &_subset;
     context->client = &_client;
     attr.userData = context;
     attr.onsuccess = RequestSucceeded;
     attr.onerror = RequestFailed;
 
-    std::string url = "https://fonts.gstatic.com/experimental/patch_subset/" +
-                      _state.FontId();
+    std::string url =
+        "https://fonts.gstatic.com/experimental/patch_subset/" + _font_id;
     emscripten_fetch(&attr, url.c_str());
   }
 
-  ClientState _state;
-  NullRequestLogger _logger;
+  std::string _font_id;
+  FastHasher _hasher;
+  FontData _subset;
   PatchSubsetClient _client;
 };
 
