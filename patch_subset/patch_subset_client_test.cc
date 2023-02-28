@@ -10,6 +10,7 @@
 #include "patch_subset/hb_set_unique_ptr.h"
 #include "patch_subset/mock_binary_patch.h"
 #include "patch_subset/mock_hasher.h"
+#include "patch_subset/mock_integer_list_checksum.h"
 #include "patch_subset/mock_patch_subset_server.h"
 #include "patch_subset/null_request_logger.h"
 
@@ -35,9 +36,11 @@ class PatchSubsetClientTest : public ::testing::Test {
   PatchSubsetClientTest()
       : binary_patch_(new MockBinaryPatch()),
         hasher_(new MockHasher()),
+        integer_list_checksum_(new MockIntegerListChecksum()),
         client_(
             new PatchSubsetClient(std::unique_ptr<BinaryPatch>(binary_patch_),
-                                  std::unique_ptr<Hasher>(hasher_))),
+                                  std::unique_ptr<Hasher>(hasher_),
+                                  std::unique_ptr<IntegerListChecksum>(integer_list_checksum_))),
         font_provider_(new FileFontProvider("patch_subset/testdata/")) {
     EXPECT_TRUE(
         font_provider_->GetFont("Roboto-Regular.ab.ttf", &roboto_ab_).ok());
@@ -119,8 +122,13 @@ class PatchSubsetClientTest : public ::testing::Test {
     EXPECT_CALL(*hasher_, Checksum(data)).WillRepeatedly(Return(checksum));
   }
 
+  void ExpectChecksum(const std::vector<int32_t>& data, uint64_t checksum) {
+    EXPECT_CALL(*integer_list_checksum_, Checksum(data)).WillRepeatedly(Return(checksum));
+  }
+
   MockBinaryPatch* binary_patch_;
   MockHasher* hasher_;
+  MockIntegerListChecksum* integer_list_checksum_;
 
   std::unique_ptr<PatchSubsetClient> client_;
 
@@ -180,8 +188,6 @@ TEST_F(PatchSubsetClientTest, SendPatchRequest_WithCodepointMapping) {
 
   expected_request.SetOrderingChecksum(13);
 
-  ExpectChecksum(roboto_ab_.str(), kBaseChecksum);
-
   CodepointMap map;
   map.AddMapping(0x61, 0);
   map.AddMapping(0x62, 1);
@@ -197,6 +203,8 @@ TEST_F(PatchSubsetClientTest, SendPatchRequest_WithCodepointMapping) {
   auto subset = AddStateToSubset(roboto_ab_, state);
   ASSERT_TRUE(subset.ok()) << subset.status();
 
+  ExpectChecksum(subset->str(), kBaseChecksum);
+  ExpectChecksum(remapping, 13);
 
   auto request = client_->CreateRequest(*codepoints_needed, *subset);
   ASSERT_TRUE(request.ok()) << request.status();
@@ -209,7 +217,6 @@ TEST_F(PatchSubsetClientTest, SendPatchRequest_RemovesExistingCodepoints) {
   hb_set_unique_ptr codepoints_needed = make_hb_set_from_ranges(1, 0x63, 0x64);
   PatchRequest expected_request =
       CreateRequest(*codepoints_have, *codepoints_needed);
-  ExpectChecksum(roboto_ab_.str(), kBaseChecksum);
 
   hb_set_union(codepoints_needed.get(), codepoints_have.get());
   ClientState state;
@@ -217,6 +224,8 @@ TEST_F(PatchSubsetClientTest, SendPatchRequest_RemovesExistingCodepoints) {
 
   auto subset = AddStateToSubset(roboto_ab_, state);
   ASSERT_TRUE(subset.ok()) << subset.status();
+
+  ExpectChecksum(subset->str(), kBaseChecksum);
 
   auto request = client_->CreateRequest(*codepoints_needed, *subset);
   ASSERT_TRUE(request.ok()) << request.status();
