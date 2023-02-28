@@ -53,10 +53,9 @@ void RequestSucceeded(emscripten_fetch_t* fetch) {
     auto result =
         context->client->DecodeResponse(*(context->subset), response, "brdiff");
     if (result.ok()) {
-      context->subset = &(*result);
+      context->subset->shallow_copy(*result);
     }
 
-    // TODO: memory management for the subset memory?
     context->callback(result.ok());
   } else {
     LOG(WARNING) << "Extend http request failed with code " << fetch->status;
@@ -128,6 +127,7 @@ class State {
 
     attr.requestData = payload->data();
     attr.requestDataSize = payload->size();
+    // TODO: set content encoding.
 
     RequestContext* context = new RequestContext(callback, std::move(payload));
     context->subset = &_subset;
