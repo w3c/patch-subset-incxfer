@@ -7,7 +7,6 @@
 #include "patch_subset/compressed_set.h"
 #include "patch_subset/encodings.h"
 #include "patch_subset/hb_set_unique_ptr.h"
-#include "patch_subset/integer_list_checksum_impl.h"
 
 namespace patch_subset {
 
@@ -129,8 +128,7 @@ PatchRequest PatchSubsetClient::CreateRequest(const hb_set_t& codepoints_have,
   }
 
   if (!state.CodepointOrdering().empty()) {
-    IntegerListChecksumImpl checksum(hasher_.get());
-    request.SetOrderingChecksum(checksum.Checksum(state.CodepointOrdering()));
+    request.SetOrderingChecksum(ordering_hasher_->Checksum(state.CodepointOrdering()));
   }
 
   return request;

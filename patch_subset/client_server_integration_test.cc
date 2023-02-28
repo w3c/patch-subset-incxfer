@@ -43,7 +43,9 @@ class PatchSubsetClientServerIntegrationTest : public ::testing::Test {
             std::unique_ptr<CodepointPredictor>(new NoopCodepointPredictor())),
 
         client_(std::unique_ptr<BinaryPatch>(new BrotliBinaryPatch()),
-                std::unique_ptr<Hasher>(new FastHasher())),
+                std::unique_ptr<Hasher>(new FastHasher()),
+                std::unique_ptr<IntegerListChecksum>(new IntegerListChecksumImpl(hasher_.get()))
+                ),
 
         server_with_mapping_(
             0,
