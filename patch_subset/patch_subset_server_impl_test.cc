@@ -23,8 +23,8 @@ namespace patch_subset {
 using absl::Status;
 using absl::string_view;
 using patch_subset::MockIntegerListChecksum;
-using patch_subset::cbor::PatchRequest;
 using patch_subset::cbor::ClientState;
+using patch_subset::cbor::PatchRequest;
 using testing::_;
 using testing::Eq;
 using testing::Invoke;
@@ -176,14 +176,14 @@ TEST_F(PatchSubsetServerImplTest, NewRequest) {
   CompressedSet::Encode(*set_abcd_, codepoints_needed);
   request.SetCodepointsNeeded(codepoints_needed);
 
-  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
-                           request, response, encoding),
-            absl::OkStatus());
+  EXPECT_EQ(
+      server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
+                     request, response, encoding),
+      absl::OkStatus());
 
   EXPECT_EQ(response.str(), "Roboto-Regular.ttf:abcd, {orig_cs=42}");
   EXPECT_EQ(encoding, Encodings::kBrotliDiffEncoding);
 }
-
 
 TEST_F(PatchSubsetServerImplTest, NewRequestVCDIFF) {
   ExpectRoboto();
@@ -221,9 +221,10 @@ TEST_F(PatchSubsetServerImplTest, PrefersBrotli) {
   CompressedSet::Encode(*set_abcd_, codepoints_needed);
   request.SetCodepointsNeeded(codepoints_needed);
 
-  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf",
-                           {Encodings::kBrotliDiffEncoding, Encodings::kVCDIFFEncoding},
-                           request, response, encoding),
+  EXPECT_EQ(server_.Handle(
+                "Roboto-Regular.ttf",
+                {Encodings::kBrotliDiffEncoding, Encodings::kVCDIFFEncoding},
+                request, response, encoding),
             absl::OkStatus());
 
   EXPECT_EQ(response.str(), "Roboto-Regular.ttf:abcd, {orig_cs=42}");
@@ -247,11 +248,14 @@ TEST_F(PatchSubsetServerImplWithCodepointRemappingTest,
   CompressedSet::Encode(*set_abcd_, codepoints_needed);
   request.SetCodepointsNeeded(codepoints_needed);
 
-  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
-                           request, response, encoding),
-            absl::OkStatus());
+  EXPECT_EQ(
+      server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
+                     request, response, encoding),
+      absl::OkStatus());
 
-  EXPECT_EQ(response.str(), "Roboto-Regular.ttf:abcd, {orig_cs=42,cp_rm=[97,98,99,100,101,102]}");
+  EXPECT_EQ(
+      response.str(),
+      "Roboto-Regular.ttf:abcd, {orig_cs=42,cp_rm=[97,98,99,100,101,102]}");
 }
 
 TEST_F(PatchSubsetServerImplTest, PatchRequest) {
@@ -273,12 +277,14 @@ TEST_F(PatchSubsetServerImplTest, PatchRequest) {
   request.SetOriginalFontChecksum(42);
   request.SetBaseChecksum(43);
 
-  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
-                           request, response, encoding),
-            absl::OkStatus());
+  EXPECT_EQ(
+      server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
+                     request, response, encoding),
+      absl::OkStatus());
 
   EXPECT_EQ(response.str(),
-            "Roboto-Regular.ttf:abcd, {orig_cs=42} - Roboto-Regular.ttf:ab, {orig_cs=42}");
+            "Roboto-Regular.ttf:abcd, {orig_cs=42} - Roboto-Regular.ttf:ab, "
+            "{orig_cs=42}");
   EXPECT_EQ(encoding, Encodings::kBrotliDiffEncoding);
 }
 
@@ -308,12 +314,14 @@ TEST_F(PatchSubsetServerImplTest, PatchRequestWithCodepointPrediction) {
   request.SetOriginalFontChecksum(42);
   request.SetBaseChecksum(43);
 
-  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
-                           request, response, encoding),
-            absl::OkStatus());
+  EXPECT_EQ(
+      server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
+                     request, response, encoding),
+      absl::OkStatus());
 
   EXPECT_EQ(response.str(),
-            "Roboto-Regular.ttf:abcde, {orig_cs=42} - Roboto-Regular.ttf:ab, {orig_cs=42}");
+            "Roboto-Regular.ttf:abcde, {orig_cs=42} - Roboto-Regular.ttf:ab, "
+            "{orig_cs=42}");
   EXPECT_EQ(encoding, Encodings::kBrotliDiffEncoding);
 }
 
@@ -322,8 +330,10 @@ TEST_F(PatchSubsetServerImplWithCodepointRemappingTest,
   ExpectRoboto();
   ExpectBrotliDiff();
   ExpectChecksum("Roboto-Regular.ttf", 42);
-  ExpectChecksum("Roboto-Regular.ttf:ab, {orig_cs=42,cp_rm=[97,98,99,100,101,102]}", 43);
-  ExpectChecksum("Roboto-Regular.ttf:abcd, {orig_cs=42,cp_rm=[97,98,99,100,101,102]}", 44);
+  ExpectChecksum(
+      "Roboto-Regular.ttf:ab, {orig_cs=42,cp_rm=[97,98,99,100,101,102]}", 43);
+  ExpectChecksum(
+      "Roboto-Regular.ttf:abcd, {orig_cs=42,cp_rm=[97,98,99,100,101,102]}", 44);
   ExpectCodepointMappingChecksum({97, 98, 99, 100, 101, 102}, 44);
 
   PatchRequest request;
@@ -339,13 +349,15 @@ TEST_F(PatchSubsetServerImplWithCodepointRemappingTest,
   request.SetBaseChecksum(43);
   request.SetOrderingChecksum(44);
 
-  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
-                           request, response, encoding),
-            absl::OkStatus());
+  EXPECT_EQ(
+      server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
+                     request, response, encoding),
+      absl::OkStatus());
 
-  EXPECT_EQ(response.str(),
-            "Roboto-Regular.ttf:abcd, {orig_cs=42,cp_rm=[97,98,99,100,101,102]} - "
-            "Roboto-Regular.ttf:ab, {orig_cs=42,cp_rm=[97,98,99,100,101,102]}");
+  EXPECT_EQ(
+      response.str(),
+      "Roboto-Regular.ttf:abcd, {orig_cs=42,cp_rm=[97,98,99,100,101,102]} - "
+      "Roboto-Regular.ttf:ab, {orig_cs=42,cp_rm=[97,98,99,100,101,102]}");
   EXPECT_EQ(encoding, Encodings::kBrotliDiffEncoding);
 }
 
@@ -367,12 +379,13 @@ TEST_F(PatchSubsetServerImplWithCodepointRemappingTest, BadIndexChecksum) {
   request.SetBaseChecksum(43);
   request.SetOrderingChecksum(123);
 
-  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
-                           request, response, encoding),
-            absl::OkStatus());
+  EXPECT_EQ(
+      server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
+                     request, response, encoding),
+      absl::OkStatus());
 
-  // If the codepoint ordering is not understood, then the server will respond with an unsubsetted
-  // font.
+  // If the codepoint ordering is not understood, then the server will respond
+  // with an unsubsetted font.
   EXPECT_EQ(response.str(), "Roboto-Regular.ttf");
 }
 
@@ -394,9 +407,10 @@ TEST_F(PatchSubsetServerImplTest, BadOriginalFontChecksum) {
   request.SetOriginalFontChecksum(100);
   request.SetBaseChecksum(43);
 
-  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
-                           request, response, encoding),
-            absl::OkStatus());
+  EXPECT_EQ(
+      server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
+                     request, response, encoding),
+      absl::OkStatus());
 
   EXPECT_EQ(response.str(), "Roboto-Regular.ttf:abcd, {orig_cs=42}");
   EXPECT_EQ(encoding, Encodings::kBrotliDiffEncoding);
@@ -421,9 +435,10 @@ TEST_F(PatchSubsetServerImplTest, BadBaseChecksum) {
   request.SetOriginalFontChecksum(42);
   request.SetBaseChecksum(100);
 
-  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
-                           request, response, encoding),
-            absl::OkStatus());
+  EXPECT_EQ(
+      server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
+                     request, response, encoding),
+      absl::OkStatus());
 
   EXPECT_EQ(response.str(), "Roboto-Regular.ttf:abcd, {orig_cs=42}");
   EXPECT_EQ(encoding, Encodings::kBrotliDiffEncoding);
@@ -441,9 +456,9 @@ TEST_F(PatchSubsetServerImplTest, NotFound) {
   CompressedSet::Encode(*set_abcd_, codepoints_needed);
   request.SetCodepointsNeeded(codepoints_needed);
 
-  EXPECT_TRUE(absl::IsNotFound(
-      server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
-                     request, response, encoding)));
+  EXPECT_TRUE(absl::IsNotFound(server_.Handle("Roboto-Regular.ttf",
+                                              {Encodings::kBrotliDiffEncoding},
+                                              request, response, encoding)));
 }
 
 TEST_F(PatchSubsetServerImplTest, RejectsMissingBaseChecksum) {

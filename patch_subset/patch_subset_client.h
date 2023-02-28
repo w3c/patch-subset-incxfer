@@ -20,9 +20,9 @@ class PatchSubsetClient {
  public:
   // TODO(garretrieger): take a map of encoding to BinaryPatch instead of just
   // one encoding.
-  explicit PatchSubsetClient(std::unique_ptr<BinaryPatch> binary_patch,
-                             std::unique_ptr<Hasher> hasher,
-                             std::unique_ptr<IntegerListChecksum> ordering_hasher)
+  explicit PatchSubsetClient(
+      std::unique_ptr<BinaryPatch> binary_patch, std::unique_ptr<Hasher> hasher,
+      std::unique_ptr<IntegerListChecksum> ordering_hasher)
       : binary_patch_(std::move(binary_patch)),
         hasher_(std::move(hasher)),
         ordering_hasher_(std::move(ordering_hasher)) {}

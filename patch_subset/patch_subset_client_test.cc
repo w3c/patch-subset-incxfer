@@ -37,16 +37,17 @@ class PatchSubsetClientTest : public ::testing::Test {
       : binary_patch_(new MockBinaryPatch()),
         hasher_(new MockHasher()),
         integer_list_checksum_(new MockIntegerListChecksum()),
-        client_(
-            new PatchSubsetClient(std::unique_ptr<BinaryPatch>(binary_patch_),
-                                  std::unique_ptr<Hasher>(hasher_),
-                                  std::unique_ptr<IntegerListChecksum>(integer_list_checksum_))),
+        client_(new PatchSubsetClient(
+            std::unique_ptr<BinaryPatch>(binary_patch_),
+            std::unique_ptr<Hasher>(hasher_),
+            std::unique_ptr<IntegerListChecksum>(integer_list_checksum_))),
         font_provider_(new FileFontProvider("patch_subset/testdata/")) {
     EXPECT_TRUE(
         font_provider_->GetFont("Roboto-Regular.ab.ttf", &roboto_ab_).ok());
   }
 
-  StatusOr<FontData> AddStateToSubset(const FontData& font, const ClientState& state) {
+  StatusOr<FontData> AddStateToSubset(const FontData& font,
+                                      const ClientState& state) {
     hb_face_t* face = font.reference_face();
 
     hb_subset_input_t* input = hb_subset_input_create_or_fail();
@@ -70,11 +71,12 @@ class PatchSubsetClientTest : public ::testing::Test {
       return sc;
     }
 
-    hb_blob_t* state_blob = hb_blob_create(state_raw.data(), state_raw.size(),
-                                           HB_MEMORY_MODE_READONLY, nullptr, nullptr);
+    hb_blob_t* state_blob =
+        hb_blob_create(state_raw.data(), state_raw.size(),
+                       HB_MEMORY_MODE_READONLY, nullptr, nullptr);
 
-
-    if (!hb_face_builder_add_table(subset, HB_TAG('I', 'F', 'T', 'P'), state_blob)) {
+    if (!hb_face_builder_add_table(subset, HB_TAG('I', 'F', 'T', 'P'),
+                                   state_blob)) {
       hb_face_destroy(subset);
       hb_blob_destroy(state_blob);
       return absl::InternalError("Adding IFTP table to face failed.");
@@ -123,7 +125,8 @@ class PatchSubsetClientTest : public ::testing::Test {
   }
 
   void ExpectChecksum(const std::vector<int32_t>& data, uint64_t checksum) {
-    EXPECT_CALL(*integer_list_checksum_, Checksum(data)).WillRepeatedly(Return(checksum));
+    EXPECT_CALL(*integer_list_checksum_, Checksum(data))
+        .WillRepeatedly(Return(checksum));
   }
 
   MockBinaryPatch* binary_patch_;
@@ -146,7 +149,6 @@ TEST_F(PatchSubsetClientTest, CreateNewRequest) {
   PatchRequest expected_request = CreateRequest(*codepoints);
   EXPECT_EQ(expected_request, *request);
 }
-
 
 TEST_F(PatchSubsetClientTest, SendPatchRequest) {
   hb_set_unique_ptr codepoints_have = make_hb_set_from_ranges(1, 0x61, 0x62);
@@ -231,7 +233,6 @@ TEST_F(PatchSubsetClientTest, SendPatchRequest_RemovesExistingCodepoints) {
   ASSERT_TRUE(request.ok()) << request.status();
   EXPECT_EQ(expected_request, *request);
 }
-
 
 TEST_F(PatchSubsetClientTest, DoesntSendPatchRequest_NoNewCodepoints) {
   hb_set_unique_ptr codepoints_needed = make_hb_set_from_ranges(1, 0x61, 0x62);
