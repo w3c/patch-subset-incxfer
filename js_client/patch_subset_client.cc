@@ -92,7 +92,6 @@ void RequestSucceeded(emscripten_fetch_t* fetch) {
 
     auto encoding = GetContentEncoding(fetch);
     if (encoding.ok()) {
-      LOG(INFO) << "Response encoding is " << *encoding;
       auto result = context->client->DecodeResponse(*(context->subset),
                                                     response, *encoding);
       if (result.ok()) {
