@@ -29,7 +29,7 @@ using testing::Return;
 
 static uint64_t kOriginalChecksum = 1;
 static uint64_t kBaseChecksum = 2;
-static uint64_t kPatchedChecksum = 3;
+// static uint64_t kPatchedChecksum = 3;
 
 class PatchSubsetClientTest : public ::testing::Test {
  protected:
