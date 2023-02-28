@@ -53,11 +53,12 @@ Status HarfbuzzSubsetter::Subset(const FontData& font,
   }
 
   if (!client_state_table.empty()) {
-    hb_blob_t* state_blob = hb_blob_create(client_state_table.data(),
-                                           client_state_table.size(),
-                                           HB_MEMORY_MODE_READONLY, nullptr, nullptr);
+    hb_blob_t* state_blob =
+        hb_blob_create(client_state_table.data(), client_state_table.size(),
+                       HB_MEMORY_MODE_READONLY, nullptr, nullptr);
 
-    if (!hb_face_builder_add_table(subset_face, HB_TAG('I', 'F', 'T', 'P'), state_blob)) {
+    if (!hb_face_builder_add_table(subset_face, HB_TAG('I', 'F', 'T', 'P'),
+                                   state_blob)) {
       hb_blob_destroy(state_blob);
       hb_face_destroy(subset_face);
       return absl::InternalError("Failed to add IFTP table to subset.");

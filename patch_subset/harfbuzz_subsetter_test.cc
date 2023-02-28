@@ -70,7 +70,8 @@ TEST_F(HarfbuzzSubsetterTest, SubsetAddStateTable) {
 
   EXPECT_GT(hb_face_get_glyph_count(subset_face), 10);
 
-  hb_blob_t* state_blob = hb_face_reference_table(subset_face, HB_TAG('I', 'F', 'T', 'P'));
+  hb_blob_t* state_blob =
+      hb_face_reference_table(subset_face, HB_TAG('I', 'F', 'T', 'P'));
   ASSERT_NE(state_blob, nullptr);
   FontData state(state_blob);
   EXPECT_EQ(state.str(), "abcd");
@@ -80,7 +81,6 @@ TEST_F(HarfbuzzSubsetterTest, SubsetAddStateTable) {
 
   EXPECT_TRUE(hb_set_is_equal(codepoints.get(), subset_codepoints.get()));
 }
-
 
 TEST_F(HarfbuzzSubsetterTest, SubsetEmpty) {
   FontData font_data;

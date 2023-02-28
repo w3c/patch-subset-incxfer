@@ -243,8 +243,8 @@ Status PatchSubsetServerImpl::ComputeSubsets(const std::string& font_id,
     return result;
   }
 
-  result = subsetter_->Subset(state.font_data, *state.codepoints_have, client_state_table,
-                              &state.client_subset);
+  result = subsetter_->Subset(state.font_data, *state.codepoints_have,
+                              client_state_table, &state.client_subset);
   if (!result.ok()) {
     LOG(WARNING) << "Subsetting for client_subset "
                  << "(font_id = " << font_id << ")"
@@ -252,8 +252,8 @@ Status PatchSubsetServerImpl::ComputeSubsets(const std::string& font_id,
     return result;
   }
 
-  result = subsetter_->Subset(state.font_data, *state.codepoints_needed, client_state_table,
-                              &state.client_target_subset);
+  result = subsetter_->Subset(state.font_data, *state.codepoints_needed,
+                              client_state_table, &state.client_target_subset);
   if (!result.ok()) {
     LOG(WARNING) << "Subsetting for client_target_subset "
                  << "(font_id = " << font_id << ")"

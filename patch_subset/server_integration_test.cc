@@ -19,8 +19,8 @@ using absl::Status;
 using absl::string_view;
 using patch_subset::cbor::AxisInterval;
 using patch_subset::cbor::AxisSpace;
-using patch_subset::cbor::PatchRequest;
 using patch_subset::cbor::ClientState;
+using patch_subset::cbor::PatchRequest;
 
 class PatchSubsetServerIntegrationTest : public ::testing::Test {
  protected:
@@ -35,11 +35,10 @@ class PatchSubsetServerIntegrationTest : public ::testing::Test {
             std::unique_ptr<CodepointMapper>(nullptr),
             std::unique_ptr<IntegerListChecksum>(nullptr),
             std::unique_ptr<CodepointPredictor>(new NoopCodepointPredictor())) {
+    EXPECT_TRUE(font_provider_->GetFont("Roboto-Regular.ttf", &roboto_).ok());
     EXPECT_TRUE(
-        font_provider_->GetFont("Roboto-Regular.ttf", &roboto_).ok());
-    EXPECT_TRUE(
-        font_provider_->GetFont("Roboto[wdth,wght].ttf", &roboto_variable_).ok());
-
+        font_provider_->GetFont("Roboto[wdth,wght].ttf", &roboto_variable_)
+            .ok());
 
     original_font_checksum = hasher_.Checksum(roboto_.str());
     variable_original_font_checksum = hasher_.Checksum(roboto_variable_.str());
@@ -48,7 +47,6 @@ class PatchSubsetServerIntegrationTest : public ::testing::Test {
   FontData CheckPatch(const FontData& base, const FontData& target,
                       string_view patch_string,
                       std::string encoding = Encodings::kBrotliDiffEncoding) {
-
     std::unique_ptr<BinaryDiff> binary_diff;
     std::unique_ptr<BinaryPatch> binary_patch;
     if (encoding == Encodings::kBrotliDiffEncoding) {
@@ -127,12 +125,10 @@ TEST_F(PatchSubsetServerIntegrationTest, NewRequest) {
 
   FontData response;
   std::string encoding;
-  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf",
-                           {Encodings::kBrotliDiffEncoding},
-                           request,
-                           response,
-                           encoding),
-            absl::OkStatus());
+  EXPECT_EQ(
+      server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
+                     request, response, encoding),
+      absl::OkStatus());
 
   ASSERT_EQ(encoding, Encodings::kBrotliDiffEncoding);
   response = CheckPatch(empty_, *expected, response.str());
@@ -142,7 +138,6 @@ TEST_F(PatchSubsetServerIntegrationTest, NewRequest) {
   EXPECT_EQ(*state, expected_state);
 }
 
-
 TEST_F(PatchSubsetServerIntegrationTest, NewRequest_Variable) {
   hb_set_unique_ptr set_abcd = make_hb_set_from_ranges(1, 0x61, 0x64);
 
@@ -150,7 +145,8 @@ TEST_F(PatchSubsetServerIntegrationTest, NewRequest_Variable) {
   expected_state.SetOriginalFontChecksum(variable_original_font_checksum);
 
   AxisSpace expected_space;
-  expected_space.AddInterval(HB_TAG('w', 'g', 'h', 't'), AxisInterval(100, 900));
+  expected_space.AddInterval(HB_TAG('w', 'g', 'h', 't'),
+                             AxisInterval(100, 900));
   expected_space.AddInterval(HB_TAG('w', 'd', 't', 'h'), AxisInterval(75, 100));
   expected_state.SetSubsetAxisSpace(expected_space);
   expected_state.SetOriginalAxisSpace(expected_space);
@@ -162,12 +158,10 @@ TEST_F(PatchSubsetServerIntegrationTest, NewRequest_Variable) {
 
   FontData response;
   std::string encoding;
-  ASSERT_EQ(server_.Handle("Roboto[wdth,wght].ttf",
-                           {Encodings::kBrotliDiffEncoding},
-                           request,
-                           response,
-                           encoding),
-            absl::OkStatus());
+  ASSERT_EQ(
+      server_.Handle("Roboto[wdth,wght].ttf", {Encodings::kBrotliDiffEncoding},
+                     request, response, encoding),
+      absl::OkStatus());
 
   BrotliBinaryPatch patcher;
   FontData subset;
@@ -194,13 +188,13 @@ TEST_F(PatchSubsetServerIntegrationTest, NewRequestVCDIFF) {
 
   FontData response;
   std::string encoding;
-  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf",
-                           {Encodings::kVCDIFFEncoding},
+  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", {Encodings::kVCDIFFEncoding},
                            request, response, encoding),
             absl::OkStatus());
 
   EXPECT_EQ(encoding, Encodings::kVCDIFFEncoding);
-  response = CheckPatch(empty_, *expected, response.str(), Encodings::kVCDIFFEncoding);
+  response =
+      CheckPatch(empty_, *expected, response.str(), Encodings::kVCDIFFEncoding);
 
   auto state = GetStateTable(response);
   ASSERT_TRUE(state.ok()) << state.status();
@@ -233,9 +227,10 @@ TEST_F(PatchSubsetServerIntegrationTest, PatchRequest) {
 
   FontData response;
   std::string encoding;
-  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
-                           request, response, encoding),
-            absl::OkStatus());
+  EXPECT_EQ(
+      server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
+                     request, response, encoding),
+      absl::OkStatus());
 
   EXPECT_EQ(encoding, Encodings::kBrotliDiffEncoding);
   response = CheckPatch(*base, *expected, response.str());
@@ -276,7 +271,8 @@ TEST_F(PatchSubsetServerIntegrationTest, PatchRequestVCDIFF) {
             absl::OkStatus());
 
   EXPECT_EQ(encoding, Encodings::kVCDIFFEncoding);
-  response = CheckPatch(*base, *expected, response.str(), Encodings::kVCDIFFEncoding);
+  response =
+      CheckPatch(*base, *expected, response.str(), Encodings::kVCDIFFEncoding);
 
   auto state = GetStateTable(response);
   ASSERT_TRUE(state.ok()) << state.status();
@@ -311,12 +307,14 @@ TEST_F(PatchSubsetServerIntegrationTest, BadOriginalChecksum) {
 
   FontData response;
   std::string encoding;
-  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
-                           request, response, encoding),
-            absl::OkStatus());
+  EXPECT_EQ(
+      server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
+                     request, response, encoding),
+      absl::OkStatus());
 
   EXPECT_EQ(encoding, Encodings::kBrotliDiffEncoding);
-  CheckPatch(empty_, *expected, response.str()); // Verify this is a replacement
+  CheckPatch(empty_, *expected,
+             response.str());  // Verify this is a replacement
   response = CheckPatch(*base, *expected, response.str());
 
   auto state = GetStateTable(response);
@@ -348,12 +346,14 @@ TEST_F(PatchSubsetServerIntegrationTest, BadBaseChecksum) {
 
   FontData response;
   std::string encoding;
-  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
-                           request, response, encoding),
-            absl::OkStatus());
+  EXPECT_EQ(
+      server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliDiffEncoding},
+                     request, response, encoding),
+      absl::OkStatus());
 
   EXPECT_EQ(encoding, Encodings::kBrotliDiffEncoding);
-  CheckPatch(empty_, *expected, response.str()); // Verify this is a replacement
+  CheckPatch(empty_, *expected,
+             response.str());  // Verify this is a replacement
   response = CheckPatch(*base, *expected, response.str());
 
   auto state = GetStateTable(response);

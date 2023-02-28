@@ -128,7 +128,8 @@ PatchRequest PatchSubsetClient::CreateRequest(const hb_set_t& codepoints_have,
   }
 
   if (!state.CodepointOrdering().empty()) {
-    request.SetOrderingChecksum(ordering_hasher_->Checksum(state.CodepointOrdering()));
+    request.SetOrderingChecksum(
+        ordering_hasher_->Checksum(state.CodepointOrdering()));
   }
 
   return request;

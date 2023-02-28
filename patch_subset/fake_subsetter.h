@@ -6,8 +6,8 @@
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "hb.h"
-#include "patch_subset/font_data.h"
 #include "patch_subset/cbor/client_state.h"
+#include "patch_subset/font_data.h"
 
 namespace patch_subset {
 
