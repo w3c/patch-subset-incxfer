@@ -21,6 +21,8 @@ cc_binary(
         "//patch_subset:client",
         "//patch_subset:common",
         "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
         "@harfbuzz",
     ],
 )

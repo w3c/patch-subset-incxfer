@@ -4,6 +4,7 @@
 #include <emscripten/fetch.h>
 #include <emscripten/val.h>
 #include <stdio.h>
+#include <strings.h>
 
 #include <iostream>
 #include <string>
@@ -11,6 +12,7 @@
 
 #include "absl/log/log.h"
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "hb.h"
 #include "patch_subset/brotli_binary_patch.h"
 #include "patch_subset/cbor/client_state.h"
@@ -22,6 +24,7 @@
 
 using namespace emscripten;
 using absl::Status;
+using absl::StatusOr;
 using patch_subset::CompressedSet;
 using patch_subset::FastHasher;
 using patch_subset::FontData;
@@ -43,20 +46,52 @@ struct RequestContext {
   PatchSubsetClient* client;
 };
 
+StatusOr<std::string> GetContentEncoding(emscripten_fetch_t* fetch) {
+  size_t size = emscripten_fetch_get_response_headers_length(fetch) + 1;
+  char* buffer = (char*)calloc(1, size);
+  if (!buffer) {
+    return absl::InternalError("Header buffer allocation failed.");
+  }
+
+  emscripten_fetch_get_response_headers(fetch, buffer, size);
+  char** headers = emscripten_fetch_unpack_response_headers(buffer);
+  if (!headers) {
+    return absl::InternalError("Headers buffer allocation failed.");
+  }
+
+  while (*headers) {
+    if (!strncasecmp("content-encoding", headers[0], 16)) {
+      emscripten_fetch_free_unpacked_response_headers(headers);
+      return std::string(headers[1]);
+    }
+    headers += 2;
+  }
+
+  emscripten_fetch_free_unpacked_response_headers(headers);
+  return "identity";
+}
+
 void RequestSucceeded(emscripten_fetch_t* fetch) {
   RequestContext* context = reinterpret_cast<RequestContext*>(fetch->userData);
   if (fetch->status == 200) {
-    Status sc;
     FontData response(absl::string_view(fetch->data, fetch->numBytes));
 
-    // TODO: get content encoding from the response.
-    auto result =
-        context->client->DecodeResponse(*(context->subset), response, "brdiff");
-    if (result.ok()) {
-      context->subset->shallow_copy(*result);
-    }
+    auto encoding = GetContentEncoding(fetch);
+    if (encoding.ok()) {
+      LOG(INFO) << "Response encoding is " << *encoding;
+      auto result = context->client->DecodeResponse(*(context->subset),
+                                                    response, *encoding);
+      if (result.ok()) {
+        context->subset->shallow_copy(*result);
+      } else {
+        LOG(WARNING) << "Response decoding failed. " << result.status();
+      }
 
-    context->callback(result.ok());
+      context->callback(result.ok());
+    } else {
+      LOG(WARNING) << "Failed to get Content-Encoding. " << encoding.status();
+      context->callback(false);
+    }
   } else {
     LOG(WARNING) << "Extend http request failed with code " << fetch->status;
     context->callback(false);
