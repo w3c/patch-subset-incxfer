@@ -3,6 +3,7 @@
 
 #include "absl/status/status.h"
 #include "patch_subset/cbor/patch_request.h"
+#include "patch_subset/font_data.h"
 
 namespace patch_subset {
 
