@@ -250,16 +250,15 @@ TEST_F(ClientStateTest, ToString) {
 }
 
 TEST_F(ClientStateTest, FromFont) {
-
   std::string state_raw;
   EXPECT_EQ(state.SerializeToString(state_raw), absl::OkStatus());
 
-  hb_blob_t* state_blob = hb_blob_create(state_raw.data(), state_raw.size(),
-                                         HB_MEMORY_MODE_READONLY, nullptr, nullptr);
+  hb_blob_t* state_blob =
+      hb_blob_create(state_raw.data(), state_raw.size(),
+                     HB_MEMORY_MODE_READONLY, nullptr, nullptr);
   hb_face_t* face_builder = hb_face_builder_create();
 
-  hb_face_builder_add_table(face_builder,
-                            HB_TAG('I', 'F', 'T', 'P'),
+  hb_face_builder_add_table(face_builder, HB_TAG('I', 'F', 'T', 'P'),
                             state_blob);
   hb_blob_destroy(state_blob);
 
@@ -267,7 +266,6 @@ TEST_F(ClientStateTest, FromFont) {
   hb_face_t* face = hb_face_create(face_blob, 0);
   hb_blob_destroy(face_blob);
   hb_face_destroy(face_builder);
-
 
   auto state_result = ClientState::FromFont(face);
   ASSERT_TRUE(state_result.ok()) << state_result.status();
@@ -277,16 +275,15 @@ TEST_F(ClientStateTest, FromFont) {
 }
 
 TEST_F(ClientStateTest, FromFont_NoTable) {
-
   std::string state_raw;
   EXPECT_EQ(state.SerializeToString(state_raw), absl::OkStatus());
 
-  hb_blob_t* state_blob = hb_blob_create(state_raw.data(), state_raw.size(),
-                                         HB_MEMORY_MODE_READONLY, nullptr, nullptr);
+  hb_blob_t* state_blob =
+      hb_blob_create(state_raw.data(), state_raw.size(),
+                     HB_MEMORY_MODE_READONLY, nullptr, nullptr);
   hb_face_t* face_builder = hb_face_builder_create();
 
-  hb_face_builder_add_table(face_builder,
-                            HB_TAG('I', 'F', 'T', 'A'),
+  hb_face_builder_add_table(face_builder, HB_TAG('I', 'F', 'T', 'A'),
                             state_blob);
   hb_blob_destroy(state_blob);
 
@@ -295,21 +292,20 @@ TEST_F(ClientStateTest, FromFont_NoTable) {
   hb_blob_destroy(face_blob);
   hb_face_destroy(face_builder);
 
-
   auto state_result = ClientState::FromFont(face);
-  EXPECT_TRUE(absl::IsInvalidArgument(state_result.status())) << state_result.status();
+  EXPECT_TRUE(absl::IsInvalidArgument(state_result.status()))
+      << state_result.status();
   hb_face_destroy(face);
 }
 
 TEST_F(ClientStateTest, FromFont_Invalid) {
-
   std::string state_raw = "abcdefg";
-  hb_blob_t* state_blob = hb_blob_create(state_raw.data(), state_raw.size(),
-                                         HB_MEMORY_MODE_READONLY, nullptr, nullptr);
+  hb_blob_t* state_blob =
+      hb_blob_create(state_raw.data(), state_raw.size(),
+                     HB_MEMORY_MODE_READONLY, nullptr, nullptr);
   hb_face_t* face_builder = hb_face_builder_create();
 
-  hb_face_builder_add_table(face_builder,
-                            HB_TAG('I', 'F', 'T', 'P'),
+  hb_face_builder_add_table(face_builder, HB_TAG('I', 'F', 'T', 'P'),
                             state_blob);
   hb_blob_destroy(state_blob);
 
@@ -318,9 +314,9 @@ TEST_F(ClientStateTest, FromFont_Invalid) {
   hb_blob_destroy(face_blob);
   hb_face_destroy(face_builder);
 
-
   auto state_result = ClientState::FromFont(face);
-  EXPECT_TRUE(absl::IsInvalidArgument(state_result.status())) << state_result.status();
+  EXPECT_TRUE(absl::IsInvalidArgument(state_result.status()))
+      << state_result.status();
   hb_face_destroy(face);
 }
 
