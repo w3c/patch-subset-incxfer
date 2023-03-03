@@ -231,7 +231,6 @@ void PatchSubsetServerImpl::AddPredictedCodepoints(RequestState* state) const {
 
 Status PatchSubsetServerImpl::ComputeSubsets(const std::string& font_id,
                                              RequestState& state) const {
-  // TODO(garretrieger): inject client state table in the before/after fonts.
   ClientState client_state;
   Status result = CreateClientState(state, client_state);
   if (!result.ok()) {
