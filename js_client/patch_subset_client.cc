@@ -178,7 +178,9 @@ class State {
 
     attr.requestData = payload->data();
     attr.requestDataSize = payload->size();
-    // TODO: set content encoding.
+
+    const char* headers[] = {"Accept-Encoding", "brdiff", NULL};
+    attr.requestHeaders = headers;
 
     RequestContext* context = new RequestContext(callback, std::move(payload));
     context->subset = &_subset;
