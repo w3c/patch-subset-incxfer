@@ -129,6 +129,13 @@ class PatchSubsetClientTest : public ::testing::Test {
         .WillRepeatedly(Return(checksum));
   }
 
+  void ExpectPatch(const FontData& base, const FontData& patch,
+                   string_view patched) {
+    EXPECT_CALL(*binary_patch_, Patch(Eq(ByRef(base)), Eq(ByRef(patch)), _))
+        .Times(1)
+        .WillOnce(Invoke(ApplyPatch(patched)));
+  }
+
   MockBinaryPatch* binary_patch_;
   MockHasher* hasher_;
   MockIntegerListChecksum* integer_list_checksum_;
@@ -250,79 +257,26 @@ TEST_F(PatchSubsetClientTest, DoesntSendPatchRequest_NoNewCodepoints) {
   EXPECT_EQ(expected_request, *request);
 }
 
-// TODO(garretrieger): add tests for DecodeResponse.
-// TODO(garretrieger): convert below to tests of DecodeResponse.
-
-/*
-
-TEST_F(PatchSubsetClientTest, HandlesRebaseResponse) {
-  hb_set_unique_ptr codepoints = make_hb_set(1, 0x61);
-
-  PatchResponse response = CreateResponse(false);  // Rebase.
-  SendResponse(response);
-  ExpectChecksum("roboto.patched.ttf", kPatchedChecksum);
-
-  FontData base("");
-  FontData patch("roboto.patch.ttf");
-  ExpectPatch(base, patch, "roboto.patched.ttf");
-
-  ClientState state;
-  state.SetFontData("roboto.base.ttf");
-  EXPECT_EQ(client_->Extend(*codepoints, state), absl::OkStatus());
-
-  EXPECT_EQ(state.FontData(), "roboto.patched.ttf");
-  EXPECT_EQ(state.OriginalFontChecksum(), kOriginalChecksum);
-}
-
-TEST_F(PatchSubsetClientTest, HandlesRebaseResponse_WithCodepointMapping) {
-  hb_set_unique_ptr codepoints = make_hb_set(1, 0x61);
-
-  PatchResponse response = CreateResponse(false);  // Rebase.
-  response.SetCodepointOrdering(std::vector<int32_t>{13});
-  response.SetOrderingChecksum(14);
-
-  SendResponse(response);
-  ExpectChecksum("roboto.patched.ttf", kPatchedChecksum);
-
-  FontData base("");
-  FontData patch("roboto.patch.ttf");
-  ExpectPatch(base, patch, "roboto.patched.ttf");
-
-  ClientState state;
-  state.SetFontId("roboto.base.ttf");
-  EXPECT_EQ(client_->Extend(*codepoints, state), absl::OkStatus());
-
-  EXPECT_EQ(state.FontData(), "roboto.patched.ttf");
-  EXPECT_EQ(state.OriginalFontChecksum(), kOriginalChecksum);
-
-  EXPECT_EQ(state.CodepointRemapping().size(), 1);
-  EXPECT_EQ(state.CodepointRemapping()[0], 13);
-  EXPECT_EQ(state.CodepointRemappingChecksum(), 14);
-}
-
-TEST_F(PatchSubsetClientTest, HandlesPatchResponse) {
-  hb_set_unique_ptr codepoints = make_hb_set(1, 0x61);
-
-  PatchResponse response = CreateResponse(true);  // Patch.
-
-  SendResponse(response);
-  ExpectChecksum("roboto.patched.ttf", kPatchedChecksum);
-
+TEST_F(PatchSubsetClientTest, DecodeResponse) {
   FontData base("roboto.base.ttf");
   FontData patch("roboto.patch.ttf");
   ExpectPatch(base, patch, "roboto.patched.ttf");
 
-  ClientState state;
-  state.SetFontData("roboto.base.ttf");
-  EXPECT_EQ(client_->Extend(*codepoints, state), absl::OkStatus());
+  auto result = client_->DecodeResponse(base, patch, "brdiff");
+  ASSERT_TRUE(result.ok()) << result.status();
 
-  EXPECT_EQ(state.FontData(), "roboto.patched.ttf");
-  EXPECT_EQ(state.OriginalFontChecksum(), kOriginalChecksum);
+  EXPECT_EQ(result->str(), "roboto.patched.ttf");
 }
-    */
+
+TEST_F(PatchSubsetClientTest, DecodeResponseNonBrotli) {
+  FontData base("roboto.base.ttf");
+  FontData patch("roboto.patch.ttf");
+
+  auto result = client_->DecodeResponse(base, patch, "vcdiff");
+  ASSERT_TRUE(absl::IsInvalidArgument(result.status())) << result.status();
+}
 
 // TODO(garretrieger): add more response handling tests:
 //   - checksum mismatch.
-//   - bad patch format.
 
 }  // namespace patch_subset
