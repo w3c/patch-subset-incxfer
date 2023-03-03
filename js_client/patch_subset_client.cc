@@ -61,11 +61,14 @@ StatusOr<std::string> GetContentEncoding(emscripten_fetch_t* fetch) {
 
   while (*headers) {
     if (!strncasecmp("content-encoding", headers[0], 16)) {
-      // Emscripten api has a bug that leaves extra chars at the front and back of the value string
+      // Emscripten api has a bug that leaves extra chars at the front and back
+      // of the value string
       // (https://github.com/emscripten-core/emscripten/issues/7026#issuecomment-545491875)
       // Manually strip them out:
       char* value = headers[1];
-      while (*value == ' ') { value++; }
+      while (*value == ' ') {
+        value++;
+      }
       int i = 0;
       while (value[i]) {
         if (value[i] < 'a' || value[i] > 'z') {
