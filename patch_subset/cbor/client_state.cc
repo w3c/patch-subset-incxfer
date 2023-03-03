@@ -32,7 +32,6 @@ ClientState::ClientState(ClientState&& other) noexcept
       _original_axis_space(std::move(other._original_axis_space)) {}
 
 absl::StatusOr<ClientState> ClientState::FromFont(hb_face_t* face) {
-  // TODO(garretrieger): add test.
   hb_blob_t* state_table =
       hb_face_reference_table(face, HB_TAG('I', 'F', 'T', 'P'));
   if (state_table == hb_blob_get_empty()) {
