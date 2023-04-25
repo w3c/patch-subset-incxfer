@@ -27,9 +27,7 @@ Status HarfbuzzSubsetter::Subset(const FontData& font,
     return absl::OkStatus();
   }
 
-  hb_blob_t* blob = font.reference_blob();
-  hb_face_t* face = hb_face_create(blob, 0);
-  hb_blob_destroy(blob);
+  hb_face_t* face = font.reference_face();
 
   hb_subset_input_t* input = hb_subset_input_create_or_fail();
   hb_set_t* input_codepoints = hb_subset_input_unicode_set(input);
@@ -78,10 +76,7 @@ Status HarfbuzzSubsetter::Subset(const FontData& font,
 
 void HarfbuzzSubsetter::CodepointsInFont(const FontData& font,
                                          hb_set_t* codepoints) const {
-  hb_blob_t* blob = font.reference_blob();
-  hb_face_t* face = hb_face_create(blob, 0);
-  hb_blob_destroy(blob);
-
+  hb_face_t* face = font.reference_face();
   hb_face_collect_unicodes(face, codepoints);
   hb_face_destroy(face);
 }

@@ -305,9 +305,7 @@ Status PatchSubsetServerImpl::ValidateChecksum(uint64_t checksum,
 
 void PatchSubsetServerImpl::AddVariableAxesData(
     const FontData& font_data, ClientState& client_state) const {
-  hb_blob_t* blob = font_data.reference_blob();
-  hb_face_t* face = hb_face_create(blob, 0);
-  hb_blob_destroy(blob);
+  hb_face_t* face = font_data.reference_face();
 
   if (!hb_ot_var_has_data(face)) {
     // No variable axes.
