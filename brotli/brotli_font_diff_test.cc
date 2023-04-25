@@ -90,7 +90,7 @@ TEST_F(BrotliFontDiffTest, Diff) {
   hb_face_t* base_face = hb_subset_plan_execute_or_fail(base_plan);
   SortTables(roboto, base_face);
   hb_blob_t* base_blob = hb_face_reference_blob(base_face);
-  FontData base = FontData::ToFontData(base_face);
+  FontData base(base_face);
   ASSERT_TRUE(base_plan);
 
   hb_set_add_range(hb_subset_input_unicode_set(input), 0x61, 0x7A);
@@ -98,7 +98,7 @@ TEST_F(BrotliFontDiffTest, Diff) {
   hb_face_t* derived_face = hb_subset_plan_execute_or_fail(derived_plan);
   SortTables(roboto, derived_face);
   hb_blob_t* derived_blob = hb_face_reference_blob(derived_face);
-  FontData derived = FontData::ToFontData(derived_face);
+  FontData derived(derived_face);
   ASSERT_TRUE(derived_plan);
 
   BrotliFontDiff differ(immutable_tables.get(), custom_tables.get());
@@ -125,7 +125,7 @@ TEST_F(BrotliFontDiffTest, DiffRetainGids) {
   hb_face_t* base_face = hb_subset_plan_execute_or_fail(base_plan);
   SortTables(roboto, base_face);
   hb_blob_t* base_blob = hb_face_reference_blob(base_face);
-  FontData base = FontData::ToFontData(base_face);
+  FontData base(base_face);
   ASSERT_TRUE(base_plan);
 
   hb_set_add(hb_subset_input_unicode_set(input), 0x47);
@@ -133,7 +133,7 @@ TEST_F(BrotliFontDiffTest, DiffRetainGids) {
   hb_face_t* derived_face = hb_subset_plan_execute_or_fail(derived_plan);
   SortTables(roboto, derived_face);
   hb_blob_t* derived_blob = hb_face_reference_blob(derived_face);
-  FontData derived = FontData::ToFontData(derived_face);
+  FontData derived(derived_face);
   ASSERT_TRUE(derived_plan);
 
   BrotliFontDiff differ(immutable_tables.get(), custom_tables.get());
@@ -162,7 +162,7 @@ TEST_F(BrotliFontDiffTest, LongLoca) {
   hb_face_t* base_face = hb_subset_plan_execute_or_fail(base_plan);
   SortTables(noto_sans_jp, base_face);
   hb_blob_t* base_blob = hb_face_reference_blob(base_face);
-  FontData base = FontData::ToFontData(base_face);
+  FontData base(base_face);
   ASSERT_TRUE(base_plan);
 
   hb_set_add_range(hb_subset_input_glyph_set(input), 500, 750);
@@ -172,7 +172,7 @@ TEST_F(BrotliFontDiffTest, LongLoca) {
   hb_face_t* derived_face = hb_subset_plan_execute_or_fail(derived_plan);
   SortTables(noto_sans_jp, derived_face);
   hb_blob_t* derived_blob = hb_face_reference_blob(derived_face);
-  FontData derived = FontData::ToFontData(derived_face);
+  FontData derived(derived_face);
   ASSERT_TRUE(derived_plan);
 
   BrotliFontDiff differ(immutable_tables.get(), custom_tables.get());
@@ -198,7 +198,7 @@ TEST_F(BrotliFontDiffTest, ShortToLongLoca) {
   hb_face_t* base_face = hb_subset_plan_execute_or_fail(base_plan);
   SortTables(noto_sans_jp, base_face);
   hb_blob_t* base_blob = hb_face_reference_blob(base_face);
-  FontData base = FontData::ToFontData(base_face);
+  FontData base(base_face);
   ASSERT_TRUE(base_plan);
 
   hb_set_add_range(hb_subset_input_glyph_set(input), 500, 750);
@@ -210,7 +210,7 @@ TEST_F(BrotliFontDiffTest, ShortToLongLoca) {
   hb_face_t* derived_face = hb_subset_plan_execute_or_fail(derived_plan);
   SortTables(noto_sans_jp, derived_face);
   hb_blob_t* derived_blob = hb_face_reference_blob(derived_face);
-  FontData derived = FontData::ToFontData(derived_face);
+  FontData derived(derived_face);
   ASSERT_TRUE(derived_plan);
 
   BrotliFontDiff differ(immutable_tables.get(), custom_tables.get());
@@ -243,7 +243,7 @@ TEST_F(BrotliFontDiffTest, WithImmutableTables) {
   hb_face_t* base_face = hb_subset_plan_execute_or_fail(base_plan);
   SortTables(roboto, base_face);
   hb_blob_t* base_blob = hb_face_reference_blob(base_face);
-  FontData base = FontData::ToFontData(base_face);
+  FontData base(base_face);
   ASSERT_TRUE(base_plan);
 
   hb_set_add_range(hb_subset_input_unicode_set(input), 0x61, 0x7A);
@@ -251,7 +251,7 @@ TEST_F(BrotliFontDiffTest, WithImmutableTables) {
   hb_face_t* derived_face = hb_subset_plan_execute_or_fail(derived_plan);
   SortTables(roboto, derived_face);
   hb_blob_t* derived_blob = hb_face_reference_blob(derived_face);
-  FontData derived = FontData::ToFontData(derived_face);
+  FontData derived(derived_face);
   ASSERT_TRUE(derived_plan);
 
   BrotliFontDiff differ(immutable_tables.get(), custom_tables.get());

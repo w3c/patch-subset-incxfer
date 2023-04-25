@@ -13,22 +13,22 @@ namespace patch_subset {
 // Holds the binary data for a font.
 class FontData {
  public:
-  static FontData ToFontData(hb_face_t* face) {
-    hb_blob_t* blob = hb_face_reference_blob(face);
-    FontData data(blob);
-    hb_blob_destroy(blob);
-    return data;
-  }
-
-  FontData() : buffer_(hb_blob_get_empty()) {}
+  FontData() : buffer_(hb_blob_get_empty()), saved_face_(nullptr) {}
 
   // TODO(garretrieger): construct from span
 
-  explicit FontData(hb_blob_t* blob) : buffer_(hb_blob_get_empty()) {
+  explicit FontData(hb_blob_t* blob)
+      : buffer_(hb_blob_get_empty()), saved_face_(nullptr) {
     set(blob);
   }
 
-  explicit FontData(::absl::string_view data) : buffer_(hb_blob_get_empty()) {
+  explicit FontData(hb_face_t* face)
+      : buffer_(hb_blob_get_empty()), saved_face_(nullptr) {
+    set(face);
+  }
+
+  explicit FontData(::absl::string_view data)
+      : buffer_(hb_blob_get_empty()), saved_face_(nullptr) {
     copy(data);
   }
 
@@ -36,7 +36,10 @@ class FontData {
 
   FontData(FontData&& other) : buffer_(nullptr) {
     buffer_ = other.buffer_;
+    saved_face_ = other.saved_face_;
+
     other.buffer_ = hb_blob_get_empty();
+    other.saved_face_ = nullptr;
   }
 
   FontData& operator=(const FontData&) = delete;
@@ -46,8 +49,13 @@ class FontData {
       return *this;
     }
     reset();
+
     buffer_ = other.buffer_;
+    saved_face_ = other.saved_face_;
+
     other.buffer_ = hb_blob_get_empty();
+    other.saved_face_ = nullptr;
+
     return *this;
   }
 
@@ -93,7 +101,23 @@ class FontData {
     buffer_ = hb_blob_reference(blob);
   }
 
-  void shallow_copy(const FontData& other) { set(other.buffer_); }
+  void set(hb_face_t* face) {
+    reset();
+
+    saved_face_ = hb_face_reference(face);
+
+    hb_blob_t* blob = hb_face_reference_blob(face);
+    buffer_ = hb_blob_reference(blob);
+    hb_blob_destroy(blob);
+  }
+
+  void shallow_copy(const FontData& other) {
+    if (other.saved_face_) {
+      set(other.saved_face_);
+    } else {
+      set(other.buffer_);
+    }
+  }
 
   // TODO(garretrieger): copy method which takes vector<uint8_t>.
   // TODO(garretgrieger): method which takes ownership of a vector<uint8_t>
@@ -113,11 +137,19 @@ class FontData {
       hb_blob_destroy(buffer_);
       buffer_ = hb_blob_get_empty();
     }
+
+    if (saved_face_ != nullptr) {
+      hb_face_destroy(saved_face_);
+      saved_face_ = nullptr;
+    }
   }
 
-  hb_blob_t* reference_blob() const { return hb_blob_reference(buffer_); }
-
-  hb_face_t* reference_face() const { return hb_face_create(buffer_, 0); }
+  hb_face_t* reference_face() const {
+    if (saved_face_) {
+      return hb_face_reference(saved_face_);
+    }
+    return hb_face_create(buffer_, 0);
+  }
 
   const char* data() const {
     unsigned int size;
@@ -128,6 +160,7 @@ class FontData {
 
  private:
   hb_blob_t* buffer_;
+  hb_face_t* saved_face_;
 };
 
 }  // namespace patch_subset
