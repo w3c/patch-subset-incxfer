@@ -111,6 +111,13 @@ class FontData {
     hb_blob_destroy(blob);
   }
 
+  void set(hb_face_t* face, hb_blob_t* blob) {
+    reset();
+
+    saved_face_ = hb_face_reference(face);
+    buffer_ = hb_blob_reference(blob);
+  }
+
   void shallow_copy(const FontData& other) {
     if (other.saved_face_) {
       set(other.saved_face_);
