@@ -33,6 +33,7 @@ struct RequestState;
 class ServerConfig {
  public:
   ServerConfig() {}
+  virtual ~ServerConfig() = default;
 
   // Location of the font library.
   std::string font_directory = "";
