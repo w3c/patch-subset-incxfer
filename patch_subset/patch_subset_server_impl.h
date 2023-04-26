@@ -49,6 +49,10 @@ class ServerConfig {
   // remap codepoints
   bool remap_codepoints = false;
 
+  virtual FontProvider* CreateFontProvider() const {
+    return new FileFontProvider(font_directory);
+  }
+
   CodepointMapper* CreateCodepointMapper() const {
     if (remap_codepoints) {
       return new SimpleCodepointMapper();
@@ -96,8 +100,7 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
     Hasher* hasher = new FastHasher();
     return std::unique_ptr<PatchSubsetServer>(new PatchSubsetServerImpl(
         config.max_predicted_codepoints,
-        std::unique_ptr<FontProvider>(
-            new FileFontProvider(config.font_directory)),
+        std::unique_ptr<FontProvider>(config.CreateFontProvider()),
         std::unique_ptr<Subsetter>(new HarfbuzzSubsetter()),
         std::unique_ptr<BinaryDiff>(new BrotliBinaryDiff()),
         std::unique_ptr<BinaryDiff>(new VCDIFFBinaryDiff()),
