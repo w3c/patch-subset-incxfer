@@ -179,7 +179,7 @@ class State {
     attr.requestData = payload->data();
     attr.requestDataSize = payload->size();
 
-    const char* headers[] = {"Accept-Encoding", "brdiff", NULL};
+    const char* headers[] = {"Accept-Encoding", "br, sbr", NULL};
     attr.requestHeaders = headers;
 
     RequestContext* context = new RequestContext(callback, std::move(payload));

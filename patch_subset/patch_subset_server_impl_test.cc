@@ -185,6 +185,30 @@ TEST_F(PatchSubsetServerImplTest, NewRequest) {
   EXPECT_EQ(encoding, Encodings::kBrotliDiffEncoding);
 }
 
+TEST_F(PatchSubsetServerImplTest, NewRequest_NoSharedBrotli) {
+  ExpectRoboto();
+  ExpectBrotliDiff();
+
+  ExpectChecksum("Roboto-Regular.ttf", 42);
+  ExpectChecksum("Roboto-Regular.ttf:abcd", 43);
+
+  PatchRequest request;
+  FontData response;
+  std::string encoding;
+  patch_subset::cbor::CompressedSet codepoints_needed;
+  CompressedSet::Encode(*set_abcd_, codepoints_needed);
+  request.SetCodepointsNeeded(codepoints_needed);
+
+  EXPECT_EQ(
+      server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliEncoding},
+                     request, response, encoding),
+      absl::OkStatus());
+
+  EXPECT_EQ(response.str(), "Roboto-Regular.ttf:abcd, {orig_cs=42}");
+  EXPECT_EQ(encoding, Encodings::kBrotliEncoding);
+}
+
+
 TEST_F(PatchSubsetServerImplTest, NewRequestVCDIFF) {
   ExpectRoboto();
   ExpectVCDIFF();

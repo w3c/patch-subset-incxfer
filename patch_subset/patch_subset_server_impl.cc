@@ -100,7 +100,7 @@ Status PatchSubsetServerImpl::Handle(
 
   ValidatePatchBase(request.BaseChecksum(), &state);
 
-  const BinaryDiff* binary_diff = DiffFor(accept_encoding, state.encoding);
+  const BinaryDiff* binary_diff = DiffFor(accept_encoding, state.IsPatch(), state.encoding);
   if (!binary_diff) {
     return absl::InvalidArgumentError(
         "No available binary diff algorithms were specified.");
@@ -355,13 +355,23 @@ Status PatchSubsetServerImpl::CreateClientState(
 
 const BinaryDiff* PatchSubsetServerImpl::DiffFor(
     const std::vector<std::string>& accept_encoding,
+    bool is_patch,
     std::string& encoding /* OUT */) const {
+  if (!is_patch
+      && std::find(accept_encoding.begin(), accept_encoding.end(),
+                   Encodings::kBrotliEncoding) != accept_encoding.end()) {
+    // Brotli is preferred and this is not a patch, so just use regular brotli.
+    encoding = Encodings::kBrotliEncoding;
+    return brotli_binary_diff_.get();
+  }
+
   if (std::find(accept_encoding.begin(), accept_encoding.end(),
                 Encodings::kBrotliDiffEncoding) != accept_encoding.end()) {
     // Brotli is preferred, so always pick it, if it's accepted by the client.
     encoding = Encodings::kBrotliDiffEncoding;
     return brotli_binary_diff_.get();
   }
+
   if (std::find(accept_encoding.begin(), accept_encoding.end(),
                 Encodings::kVCDIFFEncoding) != accept_encoding.end()) {
     encoding = Encodings::kVCDIFFEncoding;
@@ -369,7 +379,7 @@ const BinaryDiff* PatchSubsetServerImpl::DiffFor(
   }
 
   // TODO(garretrieger): fallback to br or gzip if patching is not supported.
-  // TODO(garretrieger): use br or gzip if rebasing and brdiff is not supported
+  // TODO(garretrieger): use br or gzip if rebasing and sbr is not supported
   // (instead of VCDIFF).
   return nullptr;
 }
