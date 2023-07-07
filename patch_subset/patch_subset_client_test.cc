@@ -262,7 +262,7 @@ TEST_F(PatchSubsetClientTest, DecodeResponse) {
   FontData patch("roboto.patch.ttf");
   ExpectPatch(base, patch, "roboto.patched.ttf");
 
-  auto result = client_->DecodeResponse(base, patch, "brdiff");
+  auto result = client_->DecodeResponse(base, patch, "sbr");
   ASSERT_TRUE(result.ok()) << result.status();
 
   EXPECT_EQ(result->str(), "roboto.patched.ttf");

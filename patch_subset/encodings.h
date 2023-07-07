@@ -6,7 +6,8 @@ namespace patch_subset {
 namespace Encodings {
 
 static const char* kIdentityEncoding [[maybe_unused]] = "identity";
-static const char* kBrotliDiffEncoding [[maybe_unused]] = "brdiff";
+static const char* kBrotliDiffEncoding [[maybe_unused]] = "sbr";
+static const char* kBrotliEncoding [[maybe_unused]] = "br";
 static const char* kVCDIFFEncoding [[maybe_unused]] = "vcdiff";
 
 }  // namespace Encodings

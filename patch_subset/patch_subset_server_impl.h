@@ -175,6 +175,7 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
                            patch_subset::cbor::ClientState& client_state) const;
 
   const BinaryDiff* DiffFor(const std::vector<std::string>& accept_encoding,
+                            bool is_patch,
                             std::string& encoding /* OUT */) const;
 
   int max_predicted_codepoints_;
