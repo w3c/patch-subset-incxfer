@@ -100,7 +100,8 @@ Status PatchSubsetServerImpl::Handle(
 
   ValidatePatchBase(request.BaseChecksum(), &state);
 
-  const BinaryDiff* binary_diff = DiffFor(accept_encoding, state.IsPatch(), state.encoding);
+  const BinaryDiff* binary_diff =
+      DiffFor(accept_encoding, state.IsPatch(), state.encoding);
   if (!binary_diff) {
     return absl::InvalidArgumentError(
         "No available binary diff algorithms were specified.");
@@ -354,12 +355,11 @@ Status PatchSubsetServerImpl::CreateClientState(
 }
 
 const BinaryDiff* PatchSubsetServerImpl::DiffFor(
-    const std::vector<std::string>& accept_encoding,
-    bool is_patch,
+    const std::vector<std::string>& accept_encoding, bool is_patch,
     std::string& encoding /* OUT */) const {
-  if (!is_patch
-      && std::find(accept_encoding.begin(), accept_encoding.end(),
-                   Encodings::kBrotliEncoding) != accept_encoding.end()) {
+  if (!is_patch &&
+      std::find(accept_encoding.begin(), accept_encoding.end(),
+                Encodings::kBrotliEncoding) != accept_encoding.end()) {
     // Brotli is preferred and this is not a patch, so just use regular brotli.
     encoding = Encodings::kBrotliEncoding;
     return brotli_binary_diff_.get();
