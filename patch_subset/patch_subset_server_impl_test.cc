@@ -199,15 +199,13 @@ TEST_F(PatchSubsetServerImplTest, NewRequest_NoSharedBrotli) {
   CompressedSet::Encode(*set_abcd_, codepoints_needed);
   request.SetCodepointsNeeded(codepoints_needed);
 
-  EXPECT_EQ(
-      server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliEncoding},
-                     request, response, encoding),
-      absl::OkStatus());
+  EXPECT_EQ(server_.Handle("Roboto-Regular.ttf", {Encodings::kBrotliEncoding},
+                           request, response, encoding),
+            absl::OkStatus());
 
   EXPECT_EQ(response.str(), "Roboto-Regular.ttf:abcd, {orig_cs=42}");
   EXPECT_EQ(encoding, Encodings::kBrotliEncoding);
 }
-
 
 TEST_F(PatchSubsetServerImplTest, NewRequestVCDIFF) {
   ExpectRoboto();
