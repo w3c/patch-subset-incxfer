@@ -95,8 +95,11 @@ void RequestSucceeded(emscripten_fetch_t* fetch) {
 
     auto encoding = GetContentEncoding(fetch);
     if (encoding.ok()) {
+      // 'br' encoding will have already been decoded by the browser, so switch
+      // to 'identity'.
+      std::string encoding_str = (*encoding == "br") ? "identity" : *encoding;
       auto result = context->client->DecodeResponse(*(context->subset),
-                                                    response, *encoding);
+                                                    response, encoding_str);
       if (result.ok()) {
         context->subset->shallow_copy(*result);
       } else {
