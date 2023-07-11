@@ -54,7 +54,14 @@ StatusOr<PatchRequest> PatchSubsetClient::CreateRequest(
 StatusOr<FontData> PatchSubsetClient::DecodeResponse(
     const FontData& font_subset, const FontData& encoded_response,
     const std::string& encoding) const {
-  if (encoding != Encodings::kBrotliDiffEncoding) {
+  if (encoding == Encodings::kIdentityEncoding) {
+    FontData copy;
+    copy.shallow_copy(encoded_response);
+    return copy;
+  }
+
+  if (encoding != Encodings::kBrotliDiffEncoding &&
+      encoding != Encodings::kBrotliEncoding) {
     return absl::InvalidArgumentError(
         absl::StrCat("Unsupported patch encoding ", encoding));
   }
