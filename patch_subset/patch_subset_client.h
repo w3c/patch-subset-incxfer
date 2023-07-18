@@ -30,6 +30,11 @@ class PatchSubsetClient {
   absl::StatusOr<patch_subset::cbor::PatchRequest> CreateRequest(
       const hb_set_t& additional_codepoints, const FontData& font_subset) const;
 
+  patch_subset::cbor::PatchRequest CreateRequest(
+      const hb_set_t& codepoints_have, const hb_set_t& codepoints_needed,
+      uint64_t base_checksum,
+      const patch_subset::cbor::ClientState& state) const;
+
   absl::StatusOr<FontData> DecodeResponse(const FontData& font_subset,
                                           const FontData& encoded_response,
                                           const std::string& encoding) const;
@@ -38,11 +43,6 @@ class PatchSubsetClient {
   absl::Status EncodeCodepoints(const patch_subset::cbor::ClientState& state,
                                 hb_set_t* codepoints_have,
                                 hb_set_t* codepoints_needed) const;
-
-  patch_subset::cbor::PatchRequest CreateRequest(
-      const hb_set_t& codepoints_have, const hb_set_t& codepoints_needed,
-      const FontData& font_subset,
-      const patch_subset::cbor::ClientState& state) const;
 
   std::unique_ptr<BinaryPatch> binary_patch_;
   std::unique_ptr<Hasher> hasher_;

@@ -47,7 +47,8 @@ StatusOr<PatchRequest> PatchSubsetClient::CreateRequest(
     return PatchRequest();
   }
 
-  return CreateRequest(*existing_codepoints, *new_codepoints, font_subset,
+  uint64_t base_checksum = hasher_->Checksum(font_subset.str());
+  return CreateRequest(*existing_codepoints, *new_codepoints, base_checksum,
                        *client_state);
 }
 
@@ -103,13 +104,13 @@ Status PatchSubsetClient::EncodeCodepoints(const ClientState& state,
 
 PatchRequest PatchSubsetClient::CreateRequest(const hb_set_t& codepoints_have,
                                               const hb_set_t& codepoints_needed,
-                                              const FontData& font_subset,
+                                              uint64_t base_checksum,
                                               const ClientState& state) const {
   PatchRequest request;
 
   if (hb_set_get_population(&codepoints_have)) {
     request.SetOriginalFontChecksum(state.OriginalFontChecksum());
-    request.SetBaseChecksum(hasher_->Checksum(font_subset.str()));
+    request.SetBaseChecksum(base_checksum);
   }
 
   if (!hb_set_is_empty(&codepoints_have)) {
