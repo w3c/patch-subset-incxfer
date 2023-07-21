@@ -17,6 +17,15 @@ http_archive(
 load("@hedron_compile_commands//:workspace_setup.bzl", "hedron_compile_commands_setup")
 hedron_compile_commands_setup()
 
+# Base64
+http_archive(
+    name = "base64",
+    build_file = "//third_party:base64.BUILD",
+    sha256 = "c101f3ff13ce48d6b80b4c931eb9759ee48812ba2e989c82322d8abd5c8bbcf7",
+    strip_prefix = "cpp-base64-82147d6d89636217b870f54ec07ddd3e544d5f69",
+    url = "https://github.com/ReneNyffenegger/cpp-base64/archive/82147d6d89636217b870f54ec07ddd3e544d5f69.zip",
+)
+
 # Google Test
 http_archive(
     name = "gtest",

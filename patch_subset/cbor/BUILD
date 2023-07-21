@@ -31,6 +31,7 @@ cc_library(
     visibility = [
         "//js_client:__pkg__",
         "//patch_subset:__pkg__",
+        "//util:__pkg__",
     ],
     deps = [
         "@com_google_absl//absl/container:btree",
