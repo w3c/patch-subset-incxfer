@@ -24,6 +24,18 @@ cc_binary(
 )
 
 cc_binary(
+    name = "print-client-state",
+    srcs = [
+        "print-client-state.cc",
+    ],
+    deps = [
+        "//patch_subset/cbor",
+        "//patch_subset:common",
+        "@harfbuzz",
+    ],
+)
+
+cc_binary(
     name = "precompress-test",
     srcs = [
         "precompress-test.cc",
