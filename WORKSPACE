@@ -105,22 +105,32 @@ rules_proto_toolchains()
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 http_archive(
     name = "emsdk",
-    sha256 = "506376d0d2a71fc3dd1a4dba6fb4cf18f0a2fa4e1936aa04ba4b59f2d435bf3f",
-    strip_prefix = "emsdk-3.1.29/bazel",
-    url = "https://github.com/emscripten-core/emsdk/archive/3.1.29.tar.gz",
+    strip_prefix = "emsdk-3.1.44/bazel",
+    sha256 = "cb8cded78f6953283429d724556e89211e51ac4d871fcf38e0b32405ee248e91",
+    url = "https://github.com/emscripten-core/emsdk/archive/3.1.44.tar.gz",
 )
 
 load("@emsdk//:deps.bzl", emsdk_deps = "deps")
 emsdk_deps()
 
 load("@emsdk//:emscripten_deps.bzl", emsdk_emscripten_deps = "emscripten_deps")
-emsdk_emscripten_deps(emscripten_version = "3.1.29")
+emsdk_emscripten_deps(emscripten_version = "3.1.44")
 
 load("@emsdk//:toolchains.bzl", "register_emscripten_toolchains")
 register_emscripten_toolchains()
 
 
 ### End Emscripten ###
+
+# IFTB - Binned Incremental Font Transfer
+
+http_archive(
+    name = "iftb",
+    build_file = "//third_party:iftb.BUILD",
+    sha256 = "e1b2367d45179748eb0f815bfd6d28e49cc83e76dbdd633fcbc06c1775bcfa7b",
+    strip_prefix = "binned-ift-reference-649e1d50478ffcbd4dc7369b22992d8e06af11ed",
+    urls = ["https://github.com/adobe/binned-ift-reference/archive/649e1d50478ffcbd4dc7369b22992d8e06af11ed.zip"],
+)
 
 # libcbor
 http_archive(
