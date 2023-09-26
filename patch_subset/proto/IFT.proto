@@ -1,0 +1,5 @@
+syntax = "proto3";
+
+message IFT {
+    repeated string url_templates = 1;
+}
