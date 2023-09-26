@@ -1,6 +1,8 @@
 #ifndef PATCH_SUBSET_HASHER_H_
 #define PATCH_SUBSET_HASHER_H_
 
+#include <cstdint>
+
 #include "absl/strings/string_view.h"
 
 namespace patch_subset {

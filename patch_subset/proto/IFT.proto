@@ -1,5 +1,26 @@
 syntax = "proto3";
 
 message IFT {
-    repeated string url_templates = 1;
+  string url_template = 1;
+  repeated SubsetMapping subset_mapping = 2;
+  repeated CombinedSubsetMapping combined_subset_mapping = 3;
+  // next = 4
+}
+
+message SubsetMapping {
+  // KEY
+  uint32 bias = 1;
+  bytes codepoint_set = 2;
+  // TODO: features, design space
+
+  // VALUE
+  string id = 3;
+}
+
+message CombinedSubsetMapping {
+  // KEY
+  repeated uint32 subset_indices = 1;
+
+  // VALUE
+  string id = 2;
 }
