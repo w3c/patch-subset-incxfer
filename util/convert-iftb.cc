@@ -9,9 +9,13 @@
 #include "absl/container/btree_set.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/flags/flag.h"
+#include "absl/flags/parse.h"
 #include "hb.h"
 #include "patch_subset/proto/IFT.pb.h"
 #include "patch_subset/sparse_bit_set.h"
+
+ABSL_FLAG(bool, text_format, false, "Output the table in text format.");
 
 using absl::btree_map;
 using absl::btree_set;
@@ -128,7 +132,6 @@ void to_subset_mapping(uint32_t chunk, btree_set<uint32_t> codepoints,
 
   auto it = codepoints.begin();
   uint32_t lowest = *it;
-  fprintf(stderr, "lowest cp in group: %u\n", lowest);
 
   hb_set_t* biased_codepoints = hb_set_create();
   for (uint32_t cp : codepoints) {
@@ -146,12 +149,14 @@ void to_subset_mapping(uint32_t chunk, btree_set<uint32_t> codepoints,
   mapping->set_codepoint_set(encoded);
 }
 
-IFT create_table(const flat_hash_map<std::uint32_t, uint32_t>& gid_map,
+IFT create_table(const std::string& url_template,
+                 const flat_hash_map<std::uint32_t, uint32_t>& gid_map,
                  hb_face_t* face) {
   btree_map<uint32_t, btree_set<uint32_t>> chunk_to_codepoints =
       compress_gid_map(gid_map, face);
 
   IFT ift;
+  ift.set_url_template(url_template);
 
   for (auto e : chunk_to_codepoints) {
     to_subset_mapping(e.first, e.second, ift.add_subset_mapping());
@@ -163,16 +168,19 @@ IFT create_table(const flat_hash_map<std::uint32_t, uint32_t>& gid_map,
 }
 
 int main(int argc, char** argv) {
-  if (argc != 2) {
-    printf("usage: <path to font>\n");
+  auto args = absl::ParseCommandLine(argc, argv);
+
+  if (args.size() != 2) {
+    printf("usage: [--notext_format] <path to font>\n");
     return -1;
   }
 
-  hb_face_t* face = load_font(argv[1]);
+  hb_face_t* face = load_font(args[1]);
 
   std::string line;
 
   flat_hash_map<std::uint32_t, uint32_t> gid_map;
+  std::string url_template;
 
   while (std::getline(std::cin, line)) {
     size_t index = 0;
@@ -188,14 +196,15 @@ int main(int argc, char** argv) {
       gid_map = load_gid_map(line, index);
       continue;
     }
+
+    if (next == "filesURI") {
+      url_template = line.substr(index);
+    }
   }
 
-  // TODO(garretrieger): make this into a flag.
-  bool to_text = false;
+  IFT ift = create_table(url_template, gid_map, face);
 
-  IFT ift = create_table(gid_map, face);
-
-  if (to_text) {
+  if (absl::GetFlag(FLAGS_text_format)) {
     std::string out;
     TextFormat::PrintToString(ift, &out);
     std::cout << out << std::endl;
