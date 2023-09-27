@@ -14,7 +14,7 @@ message SubsetMapping {
   // TODO: features, design space
 
   // VALUE
-  string id = 3;
+  uint32 id = 3;
 }
 
 message CombinedSubsetMapping {
@@ -22,5 +22,5 @@ message CombinedSubsetMapping {
   repeated uint32 subset_indices = 1;
 
   // VALUE
-  string id = 2;
+  uint32 id = 2;
 }

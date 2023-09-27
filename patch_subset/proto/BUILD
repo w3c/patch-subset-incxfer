@@ -6,6 +6,9 @@ cc_library(
     "ift_table.h",
     "ift_table.cc",
   ],
+  visibility = [
+    "//util:__pkg__",
+  ],
   deps = [
       ":IFT_cc_proto",
       "@com_google_absl//absl/status:statusor",
@@ -22,6 +25,7 @@ proto_library(
 cc_proto_library(
   name = "IFT_cc_proto",
   visibility = [
+    "//util:__pkg__",
     "//patch_subset:__pkg__",
   ],
   deps = [":IFT_proto"],

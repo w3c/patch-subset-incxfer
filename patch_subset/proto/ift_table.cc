@@ -5,8 +5,6 @@
 #include "absl/strings/string_view.h"
 #include "patch_subset/proto/IFT.pb.h"
 
-using google::protobuf::TextFormat;
-
 namespace patch_subset::proto {
 
 absl::StatusOr<IFTTable> IFTTable::FromFont(hb_face_t* face) {
