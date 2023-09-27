@@ -11,6 +11,7 @@
 #include "absl/container/flat_hash_set.h"
 #include "hb.h"
 #include "patch_subset/proto/IFT.pb.h"
+#include "patch_subset/sparse_bit_set.h"
 
 using absl::btree_map;
 using absl::btree_set;
@@ -37,7 +38,7 @@ size_t next_token(const std::string& line, const std::string& delim,
 hb_face_t* load_font(const char* filename) {
   hb_blob_t* blob = hb_blob_create_from_file_or_fail(filename);
   if (!blob) {
-    printf("failed to load file: %s\n", filename);
+    fprintf(stderr, "failed to load file: %s\n", filename);
     exit(-1);
   }
 
@@ -79,7 +80,8 @@ hb_map_t* load_gid_to_unicode_map(hb_face_t* face) {
     if (hb_map_has(gid_to_unicode, gid)) {
       // TODO(garretrieger): support this. Need to map from gid -> {codepoint
       // set}.
-      printf("WARNING: multi codepoints map to the same gid (%u)\n", gid);
+      fprintf(stderr, "WARNING: multi codepoints map to the same gid (%u)\n",
+              gid);
     }
     hb_map_set(gid_to_unicode, gid, cp);
   }
@@ -93,8 +95,10 @@ hb_map_t* load_gid_to_unicode_map(hb_face_t* face) {
 btree_map<uint32_t, btree_set<uint32_t>> compress_gid_map(
     const flat_hash_map<std::uint32_t, uint32_t>& gid_map, hb_face_t* face) {
   // TODO(garretrieger): don't include mappings in the compressed table for
-  // glyphs/codepoints that are
-  //                     already loaded into the font.
+  //   glyphs/codepoints that are already loaded into the font.
+
+  // TODO(garretrieger): in the same vein skip chunk 0 which are things
+  //                     already included.
 
   hb_map_t* gid_to_unicode = load_gid_to_unicode_map(face);
   btree_map<uint32_t, btree_set<uint32_t>> result;
@@ -106,7 +110,8 @@ btree_map<uint32_t, btree_set<uint32_t>> compress_gid_map(
     if (cp == (unsigned)-1) {
       // TODO(garretrieger): this can be ignored if the associated chunk is
       // already loaded.
-      printf("WARNING: gid %u not found in cmap.\n", gid);
+      fprintf(stderr, "WARNING: gid %u not found in cmap.\n", gid);
+      continue;
     }
 
     result[chunk].insert(cp);
@@ -117,12 +122,42 @@ btree_map<uint32_t, btree_set<uint32_t>> compress_gid_map(
   return result;
 }
 
+void to_subset_mapping(uint32_t chunk, btree_set<uint32_t> codepoints,
+                       SubsetMapping* mapping) {
+  mapping->set_id(chunk);
+
+  auto it = codepoints.begin();
+  uint32_t lowest = *it;
+  fprintf(stderr, "lowest cp in group: %u\n", lowest);
+
+  hb_set_t* biased_codepoints = hb_set_create();
+  for (uint32_t cp : codepoints) {
+    if (lowest > cp) {
+      fprintf(stderr, "FATAL: %u > %u.", lowest, cp);
+      exit(-1);
+    }
+    hb_set_add(biased_codepoints, cp - lowest);
+  }
+
+  std::string encoded = patch_subset::SparseBitSet::Encode(*biased_codepoints);
+  hb_set_destroy(biased_codepoints);
+
+  mapping->set_bias(lowest);
+  mapping->set_codepoint_set(encoded);
+}
+
 IFT create_table(const flat_hash_map<std::uint32_t, uint32_t>& gid_map,
                  hb_face_t* face) {
   btree_map<uint32_t, btree_set<uint32_t>> chunk_to_codepoints =
       compress_gid_map(gid_map, face);
 
   IFT ift;
+
+  for (auto e : chunk_to_codepoints) {
+    to_subset_mapping(e.first, e.second, ift.add_subset_mapping());
+  }
+
+  // TODO(garretrieger): populate the additional fields.
 
   return ift;
 }
@@ -147,7 +182,7 @@ int main(int argc, char** argv) {
       continue;
     }
 
-    printf(">> %s\n", next.c_str());
+    fprintf(stderr, ">> %s\n", next.c_str());
 
     if (next == "gidMap") {
       gid_map = load_gid_map(line, index);
@@ -155,7 +190,19 @@ int main(int argc, char** argv) {
     }
   }
 
+  // TODO(garretrieger): make this into a flag.
+  bool to_text = false;
+
   IFT ift = create_table(gid_map, face);
+
+  if (to_text) {
+    std::string out;
+    TextFormat::PrintToString(ift, &out);
+    std::cout << out << std::endl;
+  } else {
+    std::string out;
+    std::cout << ift.SerializeAsString();
+  }
 
   hb_face_destroy(face);
   return 0;

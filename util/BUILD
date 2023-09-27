@@ -41,6 +41,7 @@ cc_binary(
         "convert-iftb.cc",
     ],
     deps = [
+        "//patch_subset:common",
         "//patch_subset/proto",
         "//patch_subset/proto:IFT_cc_proto",
         "@com_google_absl//absl/container:flat_hash_map",
