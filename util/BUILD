@@ -36,6 +36,21 @@ cc_binary(
 )
 
 cc_binary(
+    name = "convert-iftb",
+    srcs = [
+        "convert-iftb.cc",
+    ],
+    deps = [
+        "//patch_subset/proto",
+        "//patch_subset/proto:IFT_cc_proto",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/container:btree",
+        "@harfbuzz",
+    ],
+)
+
+cc_binary(
     name = "precompress-test",
     srcs = [
         "precompress-test.cc",
