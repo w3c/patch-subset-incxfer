@@ -52,6 +52,18 @@ hb_face_t* load_font(const char* filename) {
   return face;
 }
 
+flat_hash_set<std::uint32_t> load_chunk_set(const std::string& line,
+                                            size_t index) {
+  flat_hash_set<std::uint32_t> result;
+
+  std::string next;
+  while ((index = next_token(line, ", ", index, next)) != std::string::npos) {
+    result.insert(std::stoi(next));
+  }
+
+  return result;
+}
+
 flat_hash_map<std::uint32_t, uint32_t> load_gid_map(const std::string& line,
                                                     size_t index) {
   flat_hash_map<std::uint32_t, uint32_t> result;
@@ -71,57 +83,50 @@ flat_hash_map<std::uint32_t, uint32_t> load_gid_map(const std::string& line,
   return result;
 }
 
-hb_map_t* load_gid_to_unicode_map(hb_face_t* face) {
+flat_hash_map<uint32_t, flat_hash_set<uint32_t>> load_gid_to_unicode_map(
+    hb_face_t* face) {
   hb_map_t* unicode_to_gid = hb_map_create();
   hb_set_t* unicodes = hb_set_create();
   hb_face_collect_nominal_glyph_mapping(face, unicode_to_gid, unicodes);
 
-  hb_map_t* gid_to_unicode = hb_map_create();
+  flat_hash_map<uint32_t, flat_hash_set<uint32_t>> gid_to_unicodes;
+
   int index = -1;
   hb_codepoint_t cp;
   hb_codepoint_t gid;
   while (hb_map_next(unicode_to_gid, &index, &cp, &gid)) {
-    if (hb_map_has(gid_to_unicode, gid)) {
-      // TODO(garretrieger): support this. Need to map from gid -> {codepoint
-      // set}.
-      fprintf(stderr, "WARNING: multi codepoints map to the same gid (%u)\n",
-              gid);
-    }
-    hb_map_set(gid_to_unicode, gid, cp);
+    gid_to_unicodes[gid].insert(cp);
   }
 
   hb_map_destroy(unicode_to_gid);
   hb_set_destroy(unicodes);
 
-  return gid_to_unicode;
+  return gid_to_unicodes;
 }
 
 btree_map<uint32_t, btree_set<uint32_t>> compress_gid_map(
-    const flat_hash_map<std::uint32_t, uint32_t>& gid_map, hb_face_t* face) {
-  // TODO(garretrieger): don't include mappings in the compressed table for
-  //   glyphs/codepoints that are already loaded into the font.
-
-  // TODO(garretrieger): in the same vein skip chunk 0 which are things
-  //                     already included.
-
-  hb_map_t* gid_to_unicode = load_gid_to_unicode_map(face);
+    const flat_hash_map<std::uint32_t, uint32_t>& gid_map,
+    const flat_hash_set<uint32_t>& loaded_chunks, hb_face_t* face) {
+  flat_hash_map<uint32_t, flat_hash_set<uint32_t>> gid_to_unicodes =
+      load_gid_to_unicode_map(face);
   btree_map<uint32_t, btree_set<uint32_t>> result;
 
   for (auto e : gid_map) {
     uint32_t gid = e.first;
     uint32_t chunk = e.second;
-    uint32_t cp = hb_map_get(gid_to_unicode, gid);
-    if (cp == (unsigned)-1) {
-      // TODO(garretrieger): this can be ignored if the associated chunk is
-      // already loaded.
-      fprintf(stderr, "WARNING: gid %u not found in cmap.\n", gid);
+    if (!chunk || loaded_chunks.contains(chunk)) {
+      // if chunk is loaded we don't need to map it.
       continue;
     }
 
-    result[chunk].insert(cp);
-  }
+    if (gid_to_unicodes[gid].empty()) {
+      fprintf(stderr, "WARNING: gid %u not found in cmap.\n", gid);
+    }
 
-  hb_map_destroy(gid_to_unicode);
+    for (uint32_t cp : gid_to_unicodes[gid]) {
+      result[chunk].insert(cp);
+    }
+  }
 
   return result;
 }
@@ -151,9 +156,10 @@ void to_subset_mapping(uint32_t chunk, btree_set<uint32_t> codepoints,
 
 IFT create_table(const std::string& url_template,
                  const flat_hash_map<std::uint32_t, uint32_t>& gid_map,
+                 const flat_hash_set<uint32_t>& loaded_chunks,
                  hb_face_t* face) {
   btree_map<uint32_t, btree_set<uint32_t>> chunk_to_codepoints =
-      compress_gid_map(gid_map, face);
+      compress_gid_map(gid_map, loaded_chunks, face);
 
   IFT ift;
   ift.set_url_template(url_template);
@@ -180,6 +186,7 @@ int main(int argc, char** argv) {
   std::string line;
 
   flat_hash_map<std::uint32_t, uint32_t> gid_map;
+  flat_hash_set<uint32_t> loaded_chunks;
   std::string url_template;
 
   while (std::getline(std::cin, line)) {
@@ -197,12 +204,18 @@ int main(int argc, char** argv) {
       continue;
     }
 
+    if (next == "chunkSet indexes") {
+      loaded_chunks = load_chunk_set(line, index);
+      continue;
+    }
+
     if (next == "filesURI") {
       url_template = line.substr(index);
+      continue;
     }
   }
 
-  IFT ift = create_table(url_template, gid_map, face);
+  IFT ift = create_table(url_template, gid_map, loaded_chunks, face);
 
   if (absl::GetFlag(FLAGS_text_format)) {
     std::string out;
