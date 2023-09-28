@@ -2,9 +2,10 @@ syntax = "proto3";
 
 message IFT {
   string url_template = 1;
-  repeated SubsetMapping subset_mapping = 2;
-  repeated CombinedSubsetMapping combined_subset_mapping = 3;
-  // next = 4
+  string base_patch = 2;
+  repeated SubsetMapping subset_mapping = 3;
+  repeated CombinedSubsetMapping combined_subset_mapping = 4;
+  // next = 5
 }
 
 message SubsetMapping {
@@ -20,6 +21,8 @@ message SubsetMapping {
 message CombinedSubsetMapping {
   // KEY
   repeated uint32 subset_indices = 1;
+
+  // TODO: support adding features here
 
   // VALUE
   uint32 id = 2;

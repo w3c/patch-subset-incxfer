@@ -11,17 +11,25 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
+#include "absl/status/status.h"
 #include "hb.h"
+#include "patch_subset/brotli_binary_diff.h"
+#include "patch_subset/font_data.h"
 #include "patch_subset/proto/IFT.pb.h"
 #include "patch_subset/sparse_bit_set.h"
 
 ABSL_FLAG(bool, text_format, false, "Output the table in text format.");
+ABSL_FLAG(std::string, base_patch_file_name, "",
+          "Path to write out the base patch.");
 
 using absl::btree_map;
 using absl::btree_set;
 using absl::flat_hash_map;
 using absl::flat_hash_set;
+using absl::Status;
 using google::protobuf::TextFormat;
+using patch_subset::BrotliBinaryDiff;
+using patch_subset::FontData;
 
 size_t next_token(const std::string& line, const std::string& delim,
                   size_t prev, std::string& out) {
@@ -173,6 +181,83 @@ IFT create_table(const std::string& url_template,
   return ift;
 }
 
+// Creates a font with only one table, the "IFT " table. Meant
+// to be used inlined into a @font-face.
+FontData create_font(const FontData& ift_table) {
+  hb_face_t* face = hb_face_builder_create();
+
+  hb_blob_t* blob = ift_table.reference_blob();
+  hb_face_builder_add_table(face, HB_TAG('I', 'F', 'T', ' '), blob);
+  hb_blob_destroy(blob);
+
+  blob = hb_face_reference_blob(face);
+  FontData result(blob);
+  hb_blob_destroy(blob);
+
+  return result;
+}
+
+FontData replace_iftb_table(hb_face_t* face, const FontData& ift) {
+  constexpr uint32_t max_tags = 64;
+  hb_tag_t table_tags[max_tags + 1];
+  unsigned table_count = max_tags;
+  unsigned tot_table_count =
+      hb_face_get_table_tags(face, 0, &table_count, table_tags);
+  if (tot_table_count != table_count) {
+    fprintf(stderr, "ERROR: more than 64 tables present in input font.");
+    exit(-1);
+  }
+
+  table_tags[table_count + 1] = 0;
+  hb_face_t* new_face = hb_face_builder_create();
+
+  for (unsigned i = 0; i < table_count; i++) {
+    hb_tag_t tag = table_tags[i];
+    hb_blob_t* blob = hb_face_reference_table(face, tag);
+
+    if (tag == HB_TAG('I', 'F', 'T', 'B')) {
+      tag = HB_TAG('I', 'F', 'T', ' ');
+      table_tags[i] = tag;
+
+      hb_blob_destroy(blob);
+      blob = ift.reference_blob();
+    }
+
+    hb_face_builder_add_table(new_face, tag, blob);
+    hb_blob_destroy(blob);
+  }
+
+  // keep original sort order.
+  hb_face_builder_sort_tables(new_face, table_tags);
+
+  hb_blob_t* blob = hb_face_reference_blob(new_face);
+  hb_face_destroy(new_face);
+
+  FontData updated(blob);
+  hb_blob_destroy(blob);
+
+  return updated;
+}
+
+void to_ift_font(hb_face_t* source_face, IFT& ift_table, FontData& init_font,
+                 FontData& base_patch) {
+  ift_table.set_base_patch(
+      absl::StrCat("./", absl::GetFlag(FLAGS_base_patch_file_name)));
+
+  std::string ift_table_bin = ift_table.SerializeAsString();
+  FontData ift_table_fontdata(ift_table_bin);
+
+  init_font = create_font(ift_table_fontdata);
+  FontData base_font = replace_iftb_table(source_face, ift_table_fontdata);
+
+  BrotliBinaryDiff differ(11);
+  Status s = differ.Diff(init_font, base_font, &base_patch);
+  if (!s.ok()) {
+    std::cerr << "Failed to generate binary diff: " << s << std::endl;
+    exit(-1);
+  }
+}
+
 int main(int argc, char** argv) {
   auto args = absl::ParseCommandLine(argc, argv);
 
@@ -222,8 +307,11 @@ int main(int argc, char** argv) {
     TextFormat::PrintToString(ift, &out);
     std::cout << out << std::endl;
   } else {
-    std::string out;
-    std::cout << ift.SerializeAsString();
+    FontData init_font;
+    FontData base_patch;
+    to_ift_font(face, ift, init_font, base_patch);
+    std::cout << init_font.str();
+    // TODO save base_patch somewhere.
   }
 
   hb_face_destroy(face);

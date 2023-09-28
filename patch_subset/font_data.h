@@ -158,6 +158,8 @@ class FontData {
     return hb_face_create(buffer_, 0);
   }
 
+  hb_blob_t* reference_blob() const { return hb_blob_reference(buffer_); }
+
   const char* data() const {
     unsigned int size;
     return hb_blob_get_data(buffer_, &size);
