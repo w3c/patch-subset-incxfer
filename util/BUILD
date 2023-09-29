@@ -41,6 +41,17 @@ cc_binary(
         "convert-iftb.cc",
     ],
     deps = [
+        ":convert_iftb",
+    ],
+)
+
+cc_library(
+    name = "convert_iftb",
+    srcs = [
+        "convert_iftb.cc",
+        "convert_iftb.h",
+    ],
+    deps = [
         "//patch_subset:common",
         "//patch_subset/proto",
         "//patch_subset/proto:IFT_cc_proto",
@@ -50,6 +61,22 @@ cc_binary(
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
         "@harfbuzz",
+    ],
+    data = [
+        "testdata/convert-iftb-sample.txt",
+        "testdata/Roboto-Regular.Awesome.ttf",
+    ]
+)
+
+cc_test(
+    name = "convert_iftb_test",
+    size = "small",
+    srcs = [
+        "convert_iftb_test.cc",
+    ],
+    deps = [
+        ":convert_iftb",
+        "@gtest//:gtest_main",
     ],
 )
 
