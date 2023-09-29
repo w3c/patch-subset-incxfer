@@ -18,9 +18,8 @@
 #include "patch_subset/proto/IFT.pb.h"
 #include "patch_subset/sparse_bit_set.h"
 
-ABSL_FLAG(bool, text_format, false, "Output the table in text format.");
-ABSL_FLAG(std::string, base_patch_file_name, "",
-          "Path to write out the base patch.");
+ABSL_FLAG(std::string, output_format, "font",
+          "Format of the output: 'text', 'proto', or 'font'.");
 
 using absl::btree_map;
 using absl::btree_set;
@@ -181,22 +180,6 @@ IFT create_table(const std::string& url_template,
   return ift;
 }
 
-// Creates a font with only one table, the "IFT " table. Meant
-// to be used inlined into a @font-face.
-FontData create_font(const FontData& ift_table) {
-  hb_face_t* face = hb_face_builder_create();
-
-  hb_blob_t* blob = ift_table.reference_blob();
-  hb_face_builder_add_table(face, HB_TAG('I', 'F', 'T', ' '), blob);
-  hb_blob_destroy(blob);
-
-  blob = hb_face_reference_blob(face);
-  FontData result(blob);
-  hb_blob_destroy(blob);
-
-  return result;
-}
-
 FontData replace_iftb_table(hb_face_t* face, const FontData& ift) {
   constexpr uint32_t max_tags = 64;
   hb_tag_t table_tags[max_tags + 1];
@@ -239,30 +222,11 @@ FontData replace_iftb_table(hb_face_t* face, const FontData& ift) {
   return updated;
 }
 
-void to_ift_font(hb_face_t* source_face, IFT& ift_table, FontData& init_font,
-                 FontData& base_patch) {
-  ift_table.set_base_patch(
-      absl::StrCat("./", absl::GetFlag(FLAGS_base_patch_file_name)));
-
-  std::string ift_table_bin = ift_table.SerializeAsString();
-  FontData ift_table_fontdata(ift_table_bin);
-
-  init_font = create_font(ift_table_fontdata);
-  FontData base_font = replace_iftb_table(source_face, ift_table_fontdata);
-
-  BrotliBinaryDiff differ(11);
-  Status s = differ.Diff(init_font, base_font, &base_patch);
-  if (!s.ok()) {
-    std::cerr << "Failed to generate binary diff: " << s << std::endl;
-    exit(-1);
-  }
-}
-
 int main(int argc, char** argv) {
   auto args = absl::ParseCommandLine(argc, argv);
 
   if (args.size() != 2) {
-    printf("usage: [--notext_format] <path to font>\n");
+    printf("usage: [--notext_format] <input font>\n");
     return -1;
   }
 
@@ -302,16 +266,21 @@ int main(int argc, char** argv) {
 
   IFT ift = create_table(url_template, gid_map, loaded_chunks, face);
 
-  if (absl::GetFlag(FLAGS_text_format)) {
+  if (absl::GetFlag(FLAGS_output_format) == "text") {
     std::string out;
     TextFormat::PrintToString(ift, &out);
     std::cout << out << std::endl;
+  } else if (absl::GetFlag(FLAGS_output_format) == "proto") {
+    std::cout << ift.SerializeAsString();
+  } else if (absl::GetFlag(FLAGS_output_format) == "font") {
+    FontData ift_bin(ift.SerializeAsString());
+    FontData out_font = replace_iftb_table(face, ift_bin);
+    std::cout << out_font.string();
   } else {
-    FontData init_font;
-    FontData base_patch;
-    to_ift_font(face, ift, init_font, base_patch);
-    std::cout << init_font.str();
-    // TODO save base_patch somewhere.
+    fprintf(stderr, "ERROR: unrecognized output format: %s\n",
+            absl::GetFlag(FLAGS_output_format).c_str());
+    hb_face_destroy(face);
+    return -1;
   }
 
   hb_face_destroy(face);
