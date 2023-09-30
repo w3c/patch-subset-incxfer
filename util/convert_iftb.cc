@@ -107,10 +107,6 @@ btree_map<uint32_t, btree_set<uint32_t>> compress_gid_map(
       continue;
     }
 
-    if (gid_to_unicodes[gid].empty()) {
-      fprintf(stderr, "WARNING: gid %u not found in cmap.\n", gid);
-    }
-
     for (uint32_t cp : gid_to_unicodes[gid]) {
       result[chunk].insert(cp);
     }
