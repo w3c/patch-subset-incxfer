@@ -20,6 +20,19 @@ cc_library(
   ]
 )
 
+cc_test(
+    name = "ift_table_test",
+    size = "small",
+    srcs = [
+        "ift_table_test.cc",
+    ],
+    deps = [
+        ":proto",
+        ":IFT_cc_proto",
+        "@gtest//:gtest_main",
+    ],
+)
+
 proto_library(
   name = "IFT_proto",
   srcs = ["IFT.proto"],

@@ -31,12 +31,16 @@ StatusOr<IFTTable> IFTTable::FromFont(hb_face_t* face) {
     return absl::InternalError("Unable to parse 'IFT ' table.");
   }
 
-  auto m = create_patch_map(ift);
+  return FromProto(ift);
+}
+
+StatusOr<IFTTable> IFTTable::FromProto(IFT proto) {
+  auto m = create_patch_map(proto);
   if (!m.ok()) {
     return m.status();
   }
 
-  return IFTTable(ift, *m);
+  return IFTTable(proto, *m);
 }
 
 std::string IFTTable::chunk_to_url(uint32_t patch_idx) const {
