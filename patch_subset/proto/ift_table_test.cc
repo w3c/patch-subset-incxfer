@@ -25,10 +25,27 @@ class IFTTableTest : public ::testing::Test {
     m->set_bias(45);
     m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
     m->set_id(2);
+
+    overlap_sample = sample;
+
+    m = overlap_sample.add_subset_mapping();
+    set = make_hb_set(1, 55);
+    m->set_bias(0);
+    m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
+    m->set_id(3);
   }
 
+  IFT empty;
   IFT sample;
+  IFT overlap_sample;
 };
+
+TEST_F(IFTTableTest, Empty) {
+  auto table = IFTTable::FromProto(empty);
+  ASSERT_TRUE(table.ok()) << table.status();
+  flat_hash_map<uint32_t, uint32_t> expected = {};
+  ASSERT_EQ(table->get_patch_map(), expected);
+}
 
 TEST_F(IFTTableTest, Mapping) {
   auto table = IFTTable::FromProto(sample);
@@ -39,6 +56,11 @@ TEST_F(IFTTableTest, Mapping) {
   };
 
   ASSERT_EQ(table->get_patch_map(), expected);
+}
+
+TEST_F(IFTTableTest, OverlapFails) {
+  auto table = IFTTable::FromProto(overlap_sample);
+  ASSERT_TRUE(absl::IsInvalidArgument(table.status())) << table.status();
 }
 
 }  // namespace patch_subset::proto
