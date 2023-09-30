@@ -36,9 +36,9 @@ cc_binary(
 )
 
 cc_binary(
-    name = "convert-iftb",
+    name = "iftb2ift",
     srcs = [
-        "convert-iftb.cc",
+        "iftb2ift.cc",
     ],
     deps = [
         ":convert_iftb",
