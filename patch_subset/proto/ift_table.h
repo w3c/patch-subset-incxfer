@@ -13,6 +13,7 @@ namespace patch_subset::proto {
 class IFTTable {
  public:
   static absl::StatusOr<IFTTable> FromFont(hb_face_t* face);
+  static absl::StatusOr<IFTTable> FromProto(IFT proto);
 
   const absl::flat_hash_map<uint32_t, uint32_t>& get_patch_map() const;
 
