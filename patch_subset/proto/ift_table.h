@@ -6,6 +6,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/statusor.h"
 #include "hb.h"
+#include "patch_subset/font_data.h"
 #include "patch_subset/proto/IFT.pb.h"
 
 namespace patch_subset::proto {
@@ -14,6 +15,7 @@ class IFTTable {
  public:
   static absl::StatusOr<IFTTable> FromFont(hb_face_t* face);
   static absl::StatusOr<IFTTable> FromProto(IFT proto);
+  static absl::StatusOr<FontData> AddToFont(hb_face_t* face, IFT proto);
 
   const absl::flat_hash_map<uint32_t, uint32_t>& get_patch_map() const;
 

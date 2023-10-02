@@ -26,10 +26,15 @@ cc_test(
     srcs = [
         "ift_table_test.cc",
     ],
+    data = [
+        "//patch_subset:testdata",
+    ],
     deps = [
         ":proto",
         ":IFT_cc_proto",
         "@gtest//:gtest_main",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
     ],
 )
 

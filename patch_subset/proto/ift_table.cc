@@ -14,9 +14,10 @@ using patch_subset::SparseBitSet;
 
 namespace patch_subset::proto {
 
+constexpr hb_tag_t IFT_TAG = HB_TAG('I', 'F', 'T', ' ');
+
 StatusOr<IFTTable> IFTTable::FromFont(hb_face_t* face) {
-  hb_blob_t* ift_table =
-      hb_face_reference_table(face, HB_TAG('I', 'F', 'T', ' '));
+  hb_blob_t* ift_table = hb_face_reference_table(face, IFT_TAG);
   if (ift_table == hb_blob_get_empty()) {
     return absl::InvalidArgumentError("'IFT ' table not found in face.");
   }
@@ -41,6 +42,43 @@ StatusOr<IFTTable> IFTTable::FromProto(IFT proto) {
   }
 
   return IFTTable(proto, *m);
+}
+
+StatusOr<FontData> IFTTable::AddToFont(hb_face_t* face, IFT proto) {
+  constexpr uint32_t max_tags = 64;
+  hb_tag_t table_tags[max_tags];
+  unsigned table_count = max_tags;
+  unsigned offset = 0;
+
+  hb_face_t* new_face = hb_face_builder_create();
+  while (((void)hb_face_get_table_tags(face, offset, &table_count, table_tags),
+          table_count)) {
+    for (unsigned i = 0; i < table_count; i++) {
+      hb_tag_t tag = table_tags[i];
+      hb_blob_t* blob = hb_face_reference_table(face, tag);
+      hb_face_builder_add_table(new_face, tag, blob);
+      hb_blob_destroy(blob);
+    }
+    offset += table_count;
+  }
+
+  std::string serialized = proto.SerializeAsString();
+  hb_blob_t* blob =
+      hb_blob_create_or_fail(serialized.data(), serialized.size(),
+                             HB_MEMORY_MODE_READONLY, nullptr, nullptr);
+  if (!blob) {
+    return absl::InternalError(
+        "Failed to allocate memory for serialized IFT table.");
+  }
+  hb_face_builder_add_table(new_face, IFT_TAG, blob);
+  hb_blob_destroy(blob);
+
+  blob = hb_face_reference_blob(new_face);
+  hb_face_destroy(new_face);
+  FontData new_font_data(blob);
+  hb_blob_destroy(blob);
+
+  return new_font_data;
 }
 
 std::string IFTTable::chunk_to_url(uint32_t patch_idx) const {
