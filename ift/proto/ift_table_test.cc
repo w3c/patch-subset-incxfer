@@ -1,19 +1,21 @@
-#include "patch_subset/proto/ift_table.h"
+#include "ift/proto/ift_table.h"
 
 #include <cstring>
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "gtest/gtest.h"
+#include "ift/proto/IFT.pb.h"
 #include "patch_subset/hb_set_unique_ptr.h"
-#include "patch_subset/proto/IFT.pb.h"
 #include "patch_subset/sparse_bit_set.h"
 
 using absl::flat_hash_map;
 using absl::flat_hash_set;
+using patch_subset::hb_set_unique_ptr;
+using patch_subset::make_hb_set;
 using patch_subset::SparseBitSet;
 
-namespace patch_subset::proto {
+namespace ift::proto {
 
 class IFTTableTest : public ::testing::Test {
  protected:
@@ -227,4 +229,4 @@ TEST_F(IFTTableTest, PatchToUrl_Complex) {
   EXPECT_EQ(table->patch_to_url(200000), "https://localhost/3/d/d40.patch");
 }
 
-}  // namespace patch_subset::proto
+}  // namespace ift::proto

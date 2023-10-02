@@ -11,8 +11,8 @@ cc_library(
     ],
     deps = [
         "//patch_subset:common",
-        "//patch_subset/proto",
-        "//patch_subset/proto:IFT_cc_proto",
+        "//ift/proto",
+        "//ift/proto:IFT_cc_proto",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
@@ -35,8 +35,8 @@ cc_test(
     ],
     deps = [
         ":client",
-        "//patch_subset/proto:proto",
-        "//patch_subset/proto:IFT_cc_proto",
+        "//ift/proto:proto",
+        "//ift/proto:IFT_cc_proto",
         "@com_google_absl//absl/container:btree",
         "@gtest//:gtest_main",
     ],

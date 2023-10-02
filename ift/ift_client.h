@@ -4,13 +4,12 @@
 #include "absl/container/btree_set.h"
 #include "absl/status/statusor.h"
 #include "hb.h"
+#include "ift/proto/IFT.pb.h"
 #include "patch_subset/font_data.h"
-#include "patch_subset/proto/IFT.pb.h"
 
 namespace ift {
 
-typedef absl::btree_set<
-    std::pair<std::string, patch_subset::proto::PatchEncoding>>
+typedef absl::btree_set<std::pair<std::string, ift::proto::PatchEncoding>>
     patch_set;
 
 class IFTClient {
@@ -21,7 +20,7 @@ class IFTClient {
 
   absl::StatusOr<patch_subset::FontData> ApplyPatch(
       const patch_subset::FontData& font, const patch_subset::FontData& patch,
-      patch_subset::proto::PatchEncoding encoding) const;
+      ift::proto::PatchEncoding encoding) const;
 };
 
 }  // namespace ift

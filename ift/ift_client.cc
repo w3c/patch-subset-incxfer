@@ -2,14 +2,14 @@
 
 #include "absl/status/statusor.h"
 #include "hb.h"
+#include "ift/proto/IFT.pb.h"
+#include "ift/proto/ift_table.h"
 #include "patch_subset/font_data.h"
-#include "patch_subset/proto/IFT.pb.h"
-#include "patch_subset/proto/ift_table.h"
 
 using absl::StatusOr;
+using ift::proto::IFTTable;
+using ift::proto::PatchEncoding;
 using patch_subset::FontData;
-using patch_subset::proto::IFTTable;
-using patch_subset::proto::PatchEncoding;
 
 namespace ift {
 

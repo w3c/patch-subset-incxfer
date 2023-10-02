@@ -2,21 +2,21 @@
 
 #include "absl/container/btree_set.h"
 #include "gtest/gtest.h"
+#include "ift/proto/IFT.pb.h"
+#include "ift/proto/ift_table.h"
 #include "patch_subset/font_data.h"
 #include "patch_subset/hb_set_unique_ptr.h"
-#include "patch_subset/proto/IFT.pb.h"
-#include "patch_subset/proto/ift_table.h"
 #include "patch_subset/sparse_bit_set.h"
 
 using absl::btree_set;
+using ift::proto::IFT;
+using ift::proto::IFTB_ENCODING;
+using ift::proto::IFTTable;
+using ift::proto::SHARED_BROTLI_ENCODING;
 using patch_subset::FontData;
 using patch_subset::hb_set_unique_ptr;
 using patch_subset::make_hb_set;
 using patch_subset::SparseBitSet;
-using patch_subset::proto::IFT;
-using patch_subset::proto::IFTB_ENCODING;
-using patch_subset::proto::IFTTable;
-using patch_subset::proto::SHARED_BROTLI_ENCODING;
 
 namespace ift {
 
