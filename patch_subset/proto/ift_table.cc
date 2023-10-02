@@ -126,19 +126,21 @@ std::string IFTTable::patch_to_url(uint32_t patch_idx) const {
   return out.str();
 }
 
-const flat_hash_map<uint32_t, uint32_t>& IFTTable::get_patch_map() const {
-  return patch_map_;
-}
+const patch_map& IFTTable::get_patch_map() const { return patch_map_; }
 
-StatusOr<flat_hash_map<uint32_t, uint32_t>> IFTTable::create_patch_map(
-    const IFT& ift) {
+StatusOr<patch_map> IFTTable::create_patch_map(const IFT& ift) {
   // TODO(garretrieger): allow for implicit patch indices if they are not
   // specified
   //                     on an entry.
-  flat_hash_map<uint32_t, uint32_t> result;
+  PatchEncoding default_encoding = ift.default_patch_encoding();
+  patch_map result;
   for (auto m : ift.subset_mapping()) {
     uint32_t bias = m.bias();
     uint32_t patch_idx = m.id();
+    PatchEncoding encoding = m.patch_encoding();
+    if (encoding == DEFAULT_ENCODING) {
+      encoding = default_encoding;
+    }
 
     hb_set_unique_ptr codepoints = make_hb_set();
     auto s = SparseBitSet::Decode(m.codepoint_set(), codepoints.get());
@@ -158,7 +160,7 @@ StatusOr<flat_hash_map<uint32_t, uint32_t>> IFTTable::create_patch_map(
             "cannot load IFT table that maps a codepoint to more than one "
             "patch.");
       }
-      result[actual_cp] = patch_idx;
+      result[actual_cp] = std::pair(patch_idx, encoding);
     }
   }
 

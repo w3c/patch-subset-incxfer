@@ -1,14 +1,17 @@
 syntax = "proto3";
 
-enum Encoding {
-  IFTB = 0;
-  SHARED_BROTLI = 1;
-  // next = 2
+package patch_subset.proto;
+
+enum PatchEncoding {
+  DEFAULT_ENCODING = 0;
+  IFTB_ENCODING = 1;
+  SHARED_BROTLI_ENCODING = 2;
+  // next = 3
 }
 
 message IFT {
   string url_template = 1;
-  Encoding default_patch_encoding = 2;
+  PatchEncoding default_patch_encoding = 2;
   repeated SubsetMapping subset_mapping = 3;
   repeated CombinedSubsetMapping combined_subset_mapping = 4;
   // next = 5
@@ -22,7 +25,7 @@ message SubsetMapping {
 
   // VALUE
   uint32 id = 3;
-  Encoding patch_encoding = 4;
+  PatchEncoding patch_encoding = 4;
 }
 
 message CombinedSubsetMapping {
@@ -33,5 +36,5 @@ message CombinedSubsetMapping {
 
   // VALUE
   uint32 id = 2;
-  Encoding patch_encoding = 3;
+  PatchEncoding patch_encoding = 3;
 }

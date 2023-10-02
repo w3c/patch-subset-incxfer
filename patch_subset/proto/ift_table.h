@@ -11,25 +11,26 @@
 
 namespace patch_subset::proto {
 
+typedef absl::flat_hash_map<uint32_t, std::pair<uint32_t, PatchEncoding>>
+    patch_map;
+
 class IFTTable {
  public:
   static absl::StatusOr<IFTTable> FromFont(hb_face_t* face);
   static absl::StatusOr<IFTTable> FromProto(IFT proto);
   static absl::StatusOr<FontData> AddToFont(hb_face_t* face, IFT proto);
 
-  const absl::flat_hash_map<uint32_t, uint32_t>& get_patch_map() const;
+  const patch_map& get_patch_map() const;
 
   std::string patch_to_url(uint32_t patch_idx) const;
 
  private:
-  explicit IFTTable(IFT ift_proto,
-                    absl::flat_hash_map<uint32_t, uint32_t> patch_map)
+  explicit IFTTable(IFT ift_proto, patch_map patch_map)
       : patch_map_(patch_map), ift_proto_(ift_proto) {}
 
-  static absl::StatusOr<absl::flat_hash_map<uint32_t, uint32_t>>
-  create_patch_map(const IFT& ift_proto);
+  static absl::StatusOr<patch_map> create_patch_map(const IFT& ift_proto);
 
-  absl::flat_hash_map<uint32_t, uint32_t> patch_map_;
+  patch_map patch_map_;
   IFT ift_proto_;
 };
 

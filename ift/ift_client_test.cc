@@ -13,7 +13,10 @@ using patch_subset::FontData;
 using patch_subset::hb_set_unique_ptr;
 using patch_subset::make_hb_set;
 using patch_subset::SparseBitSet;
+using patch_subset::proto::IFT;
+using patch_subset::proto::IFTB_ENCODING;
 using patch_subset::proto::IFTTable;
+using patch_subset::proto::SHARED_BROTLI_ENCODING;
 
 namespace ift {
 
@@ -26,12 +29,14 @@ class IFTClientTest : public ::testing::Test {
     m->set_bias(23);
     m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
     m->set_id(9);
+    m->set_patch_encoding(IFTB_ENCODING);
 
     m = sample.add_subset_mapping();
     set = make_hb_set(3, 10, 11, 12);
     m->set_bias(45);
     m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
     m->set_id(42);
+    m->set_patch_encoding(SHARED_BROTLI_ENCODING);
 
     sample.set_url_template("https://localhost/patches/$2$1.patch");
 
@@ -59,12 +64,13 @@ TEST_F(IFTClientTest, PatchUrls) {
   std::string url_1 = "https://localhost/patches/09.patch";
   std::string url_2 = "https://localhost/patches/2a.patch";
 
-  btree_set<std::string> expected_1{url_1};
-  btree_set<std::string> expected_2{url_2};
-  btree_set<std::string> expected_3{url_1, url_2};
-  btree_set<std::string> expected_4{};
-  btree_set<std::string> expected_5{};
-  btree_set<std::string> expected_6{url_1};
+  patch_set expected_1{std::pair(url_1, IFTB_ENCODING)};
+  patch_set expected_2{std::pair(url_2, SHARED_BROTLI_ENCODING)};
+  patch_set expected_3{std::pair(url_1, IFTB_ENCODING),
+                       std::pair(url_2, SHARED_BROTLI_ENCODING)};
+  patch_set expected_4{};
+  patch_set expected_5{};
+  patch_set expected_6{std::pair(url_1, IFTB_ENCODING)};
 
   auto r = client.PatchUrlsFor(sample_font, *codepoints_1);
   ASSERT_TRUE(r.ok()) << r.status();
