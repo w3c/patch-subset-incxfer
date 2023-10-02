@@ -1,19 +1,19 @@
 #include "ift/ift_client.h"
 
-#include "absl/container/btree_set.h"
 #include "absl/status/statusor.h"
 #include "hb.h"
 #include "patch_subset/font_data.h"
+#include "patch_subset/proto/IFT.pb.h"
 #include "patch_subset/proto/ift_table.h"
 
-using absl::btree_set;
 using absl::StatusOr;
 using patch_subset::FontData;
 using patch_subset::proto::IFTTable;
+using patch_subset::proto::PatchEncoding;
 
 namespace ift {
 
-StatusOr<btree_set<std::string>> IFTClient::PatchUrlsFor(
+StatusOr<patch_set> IFTClient::PatchUrlsFor(
     const FontData& font, const hb_set_t& additional_codepoints) const {
   hb_face_t* face = font.reference_face();
   auto ift = IFTTable::FromFont(face);
@@ -23,7 +23,7 @@ StatusOr<btree_set<std::string>> IFTClient::PatchUrlsFor(
     return ift.status();
   }
 
-  absl::btree_set<std::string> result;
+  patch_set result;
   hb_codepoint_t cp = HB_SET_VALUE_INVALID;
   while (hb_set_next(&additional_codepoints, &cp)) {
     auto v = ift->get_patch_map().find(cp);
@@ -31,15 +31,17 @@ StatusOr<btree_set<std::string>> IFTClient::PatchUrlsFor(
       continue;
     }
 
-    uint32_t patch_idx = v->second;
-    result.insert(ift->patch_to_url(patch_idx));
+    uint32_t patch_idx = v->second.first;
+    PatchEncoding encoding = v->second.second;
+    result.insert(std::pair(ift->patch_to_url(patch_idx), encoding));
   }
 
   return result;
 }
 
 StatusOr<FontData> IFTClient::ApplyPatch(const FontData& font,
-                                         const FontData& patch) const {
+                                         const FontData& patch,
+                                         PatchEncoding encoding) const {
   // TODO
   return absl::InternalError("not implemented.");
 }

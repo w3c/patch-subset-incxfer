@@ -18,6 +18,8 @@ namespace patch_subset::proto {
 class IFTTableTest : public ::testing::Test {
  protected:
   IFTTableTest() {
+    sample.set_default_patch_encoding(SHARED_BROTLI_ENCODING);
+
     auto m = sample.add_subset_mapping();
     hb_set_unique_ptr set = make_hb_set(2, 7, 9);
     m->set_bias(23);
@@ -29,6 +31,7 @@ class IFTTableTest : public ::testing::Test {
     m->set_bias(45);
     m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
     m->set_id(2);
+    m->set_patch_encoding(IFTB_ENCODING);
 
     overlap_sample = sample;
 
@@ -98,7 +101,7 @@ TEST_F(IFTTableTest, AddToFont) {
 TEST_F(IFTTableTest, Empty) {
   auto table = IFTTable::FromProto(empty);
   ASSERT_TRUE(table.ok()) << table.status();
-  flat_hash_map<uint32_t, uint32_t> expected = {};
+  patch_map expected = {};
   ASSERT_EQ(table->get_patch_map(), expected);
 }
 
@@ -106,8 +109,12 @@ TEST_F(IFTTableTest, Mapping) {
   auto table = IFTTable::FromProto(sample);
   ASSERT_TRUE(table.ok()) << table.status();
 
-  flat_hash_map<uint32_t, uint32_t> expected = {
-      {30, 1}, {32, 1}, {55, 2}, {56, 2}, {57, 2},
+  patch_map expected = {
+      {30, std::pair(1, SHARED_BROTLI_ENCODING)},
+      {32, std::pair(1, SHARED_BROTLI_ENCODING)},
+      {55, std::pair(2, IFTB_ENCODING)},
+      {56, std::pair(2, IFTB_ENCODING)},
+      {57, std::pair(2, IFTB_ENCODING)},
   };
 
   ASSERT_EQ(table->get_patch_map(), expected);
