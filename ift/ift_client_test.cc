@@ -33,7 +33,7 @@ class IFTClientTest : public ::testing::Test {
     m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
     m->set_id(42);
 
-    sample.set_url_template("https://localhost/patches/{id}.patch");
+    sample.set_url_template("https://localhost/patches/$2$1.patch");
 
     hb_blob_t* blob =
         hb_blob_create_from_file("patch_subset/testdata/Roboto-Regular.ab.ttf");
@@ -49,18 +49,22 @@ class IFTClientTest : public ::testing::Test {
 };
 
 TEST_F(IFTClientTest, PatchUrls) {
-  hb_set_unique_ptr codepoints_1 = make_hb_set(1, 7);
-  hb_set_unique_ptr codepoints_2 = make_hb_set(2, 10, 12);
-  hb_set_unique_ptr codepoints_3 = make_hb_set(2, 9, 11);
+  hb_set_unique_ptr codepoints_1 = make_hb_set(1, 30);
+  hb_set_unique_ptr codepoints_2 = make_hb_set(2, 55, 57);
+  hb_set_unique_ptr codepoints_3 = make_hb_set(2, 32, 56);
   hb_set_unique_ptr codepoints_4 = make_hb_set(0);
+  hb_set_unique_ptr codepoints_5 = make_hb_set(1, 112);
+  hb_set_unique_ptr codepoints_6 = make_hb_set(1, 30, 112);
 
-  std::string url_1 = "https://localhost/patches/9.patch";
-  std::string url_2 = "https://localhost/patches/2A.patch";
+  std::string url_1 = "https://localhost/patches/09.patch";
+  std::string url_2 = "https://localhost/patches/2a.patch";
 
   btree_set<std::string> expected_1{url_1};
   btree_set<std::string> expected_2{url_2};
   btree_set<std::string> expected_3{url_1, url_2};
   btree_set<std::string> expected_4{};
+  btree_set<std::string> expected_5{};
+  btree_set<std::string> expected_6{url_1};
 
   auto r = client.PatchUrlsFor(sample_font, *codepoints_1);
   ASSERT_TRUE(r.ok()) << r.status();
@@ -77,6 +81,14 @@ TEST_F(IFTClientTest, PatchUrls) {
   r = client.PatchUrlsFor(sample_font, *codepoints_4);
   ASSERT_TRUE(r.ok()) << r.status();
   ASSERT_EQ(expected_4, *r);
+
+  r = client.PatchUrlsFor(sample_font, *codepoints_5);
+  ASSERT_TRUE(r.ok()) << r.status();
+  ASSERT_EQ(expected_5, *r);
+
+  r = client.PatchUrlsFor(sample_font, *codepoints_6);
+  ASSERT_TRUE(r.ok()) << r.status();
+  ASSERT_EQ(expected_6, *r);
 }
 
 }  // namespace ift
