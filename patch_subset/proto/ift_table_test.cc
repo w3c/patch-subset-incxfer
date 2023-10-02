@@ -120,104 +120,104 @@ TEST_F(IFTTableTest, OverlapFails) {
 
 // format at end of string
 
-TEST_F(IFTTableTest, ChunkToUrl_NoFormatters) {
+TEST_F(IFTTableTest, PatchToUrl_NoFormatters) {
   IFT ift;
   ift.set_url_template("https://localhost/abc.patch");
   auto table = IFTTable::FromProto(ift);
   ASSERT_TRUE(table.ok()) << table.status();
 
-  EXPECT_EQ(table->chunk_to_url(0), "https://localhost/abc.patch");
-  EXPECT_EQ(table->chunk_to_url(5), "https://localhost/abc.patch");
+  EXPECT_EQ(table->patch_to_url(0), "https://localhost/abc.patch");
+  EXPECT_EQ(table->patch_to_url(5), "https://localhost/abc.patch");
 }
 
-TEST_F(IFTTableTest, ChunkToUrl_InvalidFormatter) {
+TEST_F(IFTTableTest, PatchToUrl_InvalidFormatter) {
   IFT ift;
   ift.set_url_template("https://localhost/$1.$patch");
   auto table = IFTTable::FromProto(ift);
   ASSERT_TRUE(table.ok()) << table.status();
 
-  EXPECT_EQ(table->chunk_to_url(0), "https://localhost/0.$patch");
-  EXPECT_EQ(table->chunk_to_url(5), "https://localhost/5.$patch");
+  EXPECT_EQ(table->patch_to_url(0), "https://localhost/0.$patch");
+  EXPECT_EQ(table->patch_to_url(5), "https://localhost/5.$patch");
 
   ift.set_url_template("https://localhost/$1.patch$");
   table = IFTTable::FromProto(ift);
   ASSERT_TRUE(table.ok()) << table.status();
 
-  EXPECT_EQ(table->chunk_to_url(0), "https://localhost/0.patch$");
-  EXPECT_EQ(table->chunk_to_url(5), "https://localhost/5.patch$");
+  EXPECT_EQ(table->patch_to_url(0), "https://localhost/0.patch$");
+  EXPECT_EQ(table->patch_to_url(5), "https://localhost/5.patch$");
 
   ift.set_url_template("https://localhost/$1.pa$$2tch");
   table = IFTTable::FromProto(ift);
   ASSERT_TRUE(table.ok()) << table.status();
 
-  EXPECT_EQ(table->chunk_to_url(0), "https://localhost/0.pa$0tch");
-  EXPECT_EQ(table->chunk_to_url(5), "https://localhost/5.pa$0tch");
-  EXPECT_EQ(table->chunk_to_url(18), "https://localhost/2.pa$1tch");
+  EXPECT_EQ(table->patch_to_url(0), "https://localhost/0.pa$0tch");
+  EXPECT_EQ(table->patch_to_url(5), "https://localhost/5.pa$0tch");
+  EXPECT_EQ(table->patch_to_url(18), "https://localhost/2.pa$1tch");
 
   ift.set_url_template("https://localhost/$6.patch");
   table = IFTTable::FromProto(ift);
   ASSERT_TRUE(table.ok()) << table.status();
 
-  EXPECT_EQ(table->chunk_to_url(0), "https://localhost/$6.patch");
-  EXPECT_EQ(table->chunk_to_url(5), "https://localhost/$6.patch");
+  EXPECT_EQ(table->patch_to_url(0), "https://localhost/$6.patch");
+  EXPECT_EQ(table->patch_to_url(5), "https://localhost/$6.patch");
 
   ift.set_url_template("https://localhost/$12.patch");
   table = IFTTable::FromProto(ift);
   ASSERT_TRUE(table.ok()) << table.status();
 
-  EXPECT_EQ(table->chunk_to_url(0), "https://localhost/02.patch");
-  EXPECT_EQ(table->chunk_to_url(5), "https://localhost/52.patch");
+  EXPECT_EQ(table->patch_to_url(0), "https://localhost/02.patch");
+  EXPECT_EQ(table->patch_to_url(5), "https://localhost/52.patch");
 }
 
-TEST_F(IFTTableTest, ChunkToUrl_Basic) {
+TEST_F(IFTTableTest, PatchToUrl_Basic) {
   IFT ift;
   ift.set_url_template("https://localhost/$2$1.patch");
   auto table = IFTTable::FromProto(ift);
   ASSERT_TRUE(table.ok()) << table.status();
 
-  EXPECT_EQ(table->chunk_to_url(0), "https://localhost/00.patch");
-  EXPECT_EQ(table->chunk_to_url(5), "https://localhost/05.patch");
-  EXPECT_EQ(table->chunk_to_url(12), "https://localhost/0c.patch");
-  EXPECT_EQ(table->chunk_to_url(18), "https://localhost/12.patch");
-  EXPECT_EQ(table->chunk_to_url(212), "https://localhost/d4.patch");
+  EXPECT_EQ(table->patch_to_url(0), "https://localhost/00.patch");
+  EXPECT_EQ(table->patch_to_url(5), "https://localhost/05.patch");
+  EXPECT_EQ(table->patch_to_url(12), "https://localhost/0c.patch");
+  EXPECT_EQ(table->patch_to_url(18), "https://localhost/12.patch");
+  EXPECT_EQ(table->patch_to_url(212), "https://localhost/d4.patch");
 
   ift.set_url_template("https://localhost/$2$1");
   table = IFTTable::FromProto(ift);
   ASSERT_TRUE(table.ok()) << table.status();
 
-  EXPECT_EQ(table->chunk_to_url(0), "https://localhost/00");
-  EXPECT_EQ(table->chunk_to_url(5), "https://localhost/05");
-  EXPECT_EQ(table->chunk_to_url(12), "https://localhost/0c");
-  EXPECT_EQ(table->chunk_to_url(18), "https://localhost/12");
-  EXPECT_EQ(table->chunk_to_url(212), "https://localhost/d4");
+  EXPECT_EQ(table->patch_to_url(0), "https://localhost/00");
+  EXPECT_EQ(table->patch_to_url(5), "https://localhost/05");
+  EXPECT_EQ(table->patch_to_url(12), "https://localhost/0c");
+  EXPECT_EQ(table->patch_to_url(18), "https://localhost/12");
+  EXPECT_EQ(table->patch_to_url(212), "https://localhost/d4");
 
   ift.set_url_template("$2$1.patch");
   table = IFTTable::FromProto(ift);
   ASSERT_TRUE(table.ok()) << table.status();
 
-  EXPECT_EQ(table->chunk_to_url(0), "00.patch");
-  EXPECT_EQ(table->chunk_to_url(5), "05.patch");
-  EXPECT_EQ(table->chunk_to_url(12), "0c.patch");
-  EXPECT_EQ(table->chunk_to_url(18), "12.patch");
-  EXPECT_EQ(table->chunk_to_url(212), "d4.patch");
+  EXPECT_EQ(table->patch_to_url(0), "00.patch");
+  EXPECT_EQ(table->patch_to_url(5), "05.patch");
+  EXPECT_EQ(table->patch_to_url(12), "0c.patch");
+  EXPECT_EQ(table->patch_to_url(18), "12.patch");
+  EXPECT_EQ(table->patch_to_url(212), "d4.patch");
 
   ift.set_url_template("$1");
   table = IFTTable::FromProto(ift);
   ASSERT_TRUE(table.ok()) << table.status();
 
-  EXPECT_EQ(table->chunk_to_url(0), "0");
-  EXPECT_EQ(table->chunk_to_url(5), "5");
+  EXPECT_EQ(table->patch_to_url(0), "0");
+  EXPECT_EQ(table->patch_to_url(5), "5");
 }
 
-TEST_F(IFTTableTest, ChunkToUrl_Complex) {
+TEST_F(IFTTableTest, PatchToUrl_Complex) {
   IFT ift;
   ift.set_url_template("https://localhost/$5/$3/$3$2$1.patch");
   auto table = IFTTable::FromProto(ift);
   ASSERT_TRUE(table.ok()) << table.status();
 
-  EXPECT_EQ(table->chunk_to_url(0), "https://localhost/0/0/000.patch");
-  EXPECT_EQ(table->chunk_to_url(5), "https://localhost/0/0/005.patch");
-  EXPECT_EQ(table->chunk_to_url(200000), "https://localhost/3/d/d40.patch");
+  EXPECT_EQ(table->patch_to_url(0), "https://localhost/0/0/000.patch");
+  EXPECT_EQ(table->patch_to_url(5), "https://localhost/0/0/005.patch");
+  EXPECT_EQ(table->patch_to_url(200000), "https://localhost/3/d/d40.patch");
 }
 
 }  // namespace patch_subset::proto

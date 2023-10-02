@@ -19,7 +19,7 @@ class IFTTable {
 
   const absl::flat_hash_map<uint32_t, uint32_t>& get_patch_map() const;
 
-  std::string chunk_to_url(uint32_t patch_idx) const;
+  std::string patch_to_url(uint32_t patch_idx) const;
 
  private:
   explicit IFTTable(IFT ift_proto,
