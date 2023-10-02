@@ -23,3 +23,21 @@ cc_library(
         "@harfbuzz",        
     ],
 )
+
+cc_test(
+    name = "ift_client_test",
+    size = "small",
+    srcs = [
+        "ift_client_test.cc",
+    ],
+    data = [
+        "//patch_subset:testdata",
+    ],
+    deps = [
+        ":client",
+        "//patch_subset/proto:proto",
+        "//patch_subset/proto:IFT_cc_proto",
+        "@com_google_absl//absl/container:btree",
+        "@gtest//:gtest_main",
+    ],
+)
