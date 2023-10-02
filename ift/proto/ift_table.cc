@@ -1,4 +1,4 @@
-#include "patch_subset/proto/ift_table.h"
+#include "ift/proto/ift_table.h"
 
 #include <google/protobuf/text_format.h>
 
@@ -7,15 +7,18 @@
 
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
+#include "ift/proto/IFT.pb.h"
 #include "patch_subset/hb_set_unique_ptr.h"
-#include "patch_subset/proto/IFT.pb.h"
 #include "patch_subset/sparse_bit_set.h"
 
 using absl::flat_hash_map;
 using absl::StatusOr;
+using patch_subset::FontData;
+using patch_subset::hb_set_unique_ptr;
+using patch_subset::make_hb_set;
 using patch_subset::SparseBitSet;
 
-namespace patch_subset::proto {
+namespace ift::proto {
 
 constexpr hb_tag_t IFT_TAG = HB_TAG('I', 'F', 'T', ' ');
 
@@ -167,4 +170,4 @@ StatusOr<patch_map> IFTTable::create_patch_map(const IFT& ift) {
   return result;
 }
 
-}  // namespace patch_subset::proto
+}  // namespace ift::proto

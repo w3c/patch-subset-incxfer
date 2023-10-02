@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package patch_subset.proto;
+package ift.proto;
 
 enum PatchEncoding {
   DEFAULT_ENCODING = 0;

@@ -1,15 +1,15 @@
-#ifndef PATCH_SUBSET_PROTO_IFT_TABLE_H_
-#define PATCH_SUBSET_PROTO_IFT_TABLE_H_
+#ifndef IFT_PROTO_IFT_TABLE_H_
+#define IFT_PROTO_IFT_TABLE_H_
 
 #include <cstdint>
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/statusor.h"
 #include "hb.h"
+#include "ift/proto/IFT.pb.h"
 #include "patch_subset/font_data.h"
-#include "patch_subset/proto/IFT.pb.h"
 
-namespace patch_subset::proto {
+namespace ift::proto {
 
 typedef absl::flat_hash_map<uint32_t, std::pair<uint32_t, PatchEncoding>>
     patch_map;
@@ -18,7 +18,8 @@ class IFTTable {
  public:
   static absl::StatusOr<IFTTable> FromFont(hb_face_t* face);
   static absl::StatusOr<IFTTable> FromProto(IFT proto);
-  static absl::StatusOr<FontData> AddToFont(hb_face_t* face, IFT proto);
+  static absl::StatusOr<patch_subset::FontData> AddToFont(hb_face_t* face,
+                                                          IFT proto);
 
   const patch_map& get_patch_map() const;
 
@@ -34,6 +35,6 @@ class IFTTable {
   IFT ift_proto_;
 };
 
-}  // namespace patch_subset::proto
+}  // namespace ift::proto
 
-#endif  // PATCH_SUBSET_PATCH_SUBSET_CLIENT_H_
+#endif  // IFT_PROTO_IFT_TABLE_H_
