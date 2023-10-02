@@ -9,6 +9,7 @@
 namespace ift {
 
 class IFTClient {
+ public:
   absl::StatusOr<absl::btree_set<std::string>> PatchUrlsFor(
       const patch_subset::FontData& font,
       const hb_set_t& additional_codepoints) const;
