@@ -32,7 +32,7 @@ StatusOr<btree_set<std::string>> IFTClient::PatchUrlsFor(
     }
 
     uint32_t patch_idx = v->second;
-    result.insert(ift->chunk_to_url(patch_idx));
+    result.insert(ift->patch_to_url(patch_idx));
   }
 
   return result;

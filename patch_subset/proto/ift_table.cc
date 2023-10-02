@@ -84,7 +84,7 @@ StatusOr<FontData> IFTTable::AddToFont(hb_face_t* face, IFT proto) {
   return new_font_data;
 }
 
-std::string IFTTable::chunk_to_url(uint32_t patch_idx) const {
+std::string IFTTable::patch_to_url(uint32_t patch_idx) const {
   std::string url = ift_proto_.url_template();
   constexpr int num_digits = 5;
   int hex_digits[num_digits];
@@ -132,6 +132,9 @@ const flat_hash_map<uint32_t, uint32_t>& IFTTable::get_patch_map() const {
 
 StatusOr<flat_hash_map<uint32_t, uint32_t>> IFTTable::create_patch_map(
     const IFT& ift) {
+  // TODO(garretrieger): allow for implicit patch indices if they are not
+  // specified
+  //                     on an entry.
   flat_hash_map<uint32_t, uint32_t> result;
   for (auto m : ift.subset_mapping()) {
     uint32_t bias = m.bias();
@@ -146,8 +149,8 @@ StatusOr<flat_hash_map<uint32_t, uint32_t>> IFTTable::create_patch_map(
     hb_codepoint_t cp = HB_SET_VALUE_INVALID;
     while (hb_set_next(codepoints.get(), &cp)) {
       // TODO(garretrieger): currently we assume that a codepoints maps to only
-      // one chunk,
-      //   however, this is not always going to be true. Chunk selection needs
+      // one patch,
+      //   however, this is not always going to be true. Patch selection needs
       //   to be more complicated then a simple map.
       uint32_t actual_cp = cp + bias;
       if (result.contains(actual_cp)) {
