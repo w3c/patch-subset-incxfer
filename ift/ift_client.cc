@@ -33,14 +33,14 @@ StatusOr<patch_set> IFTClient::PatchUrlsFor(
   patch_set result;
   hb_codepoint_t cp = HB_SET_VALUE_INVALID;
   while (hb_set_next(&additional_codepoints, &cp)) {
-    auto v = ift->get_patch_map().find(cp);
-    if (v == ift->get_patch_map().end()) {
+    auto v = ift->GetPatchMap().find(cp);
+    if (v == ift->GetPatchMap().end()) {
       continue;
     }
 
     uint32_t patch_idx = v->second.first;
     PatchEncoding encoding = v->second.second;
-    result.insert(std::pair(ift->patch_to_url(patch_idx), encoding));
+    result.insert(std::pair(ift->PatchToUrl(patch_idx), encoding));
   }
 
   return result;

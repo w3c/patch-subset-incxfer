@@ -5,6 +5,8 @@
 #include <sstream>
 #include <string>
 
+#include "absl/container/flat_hash_map.h"
+#include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "ift/proto/IFT.pb.h"
@@ -12,6 +14,8 @@
 #include "patch_subset/sparse_bit_set.h"
 
 using absl::flat_hash_map;
+using absl::flat_hash_set;
+using absl::Status;
 using absl::StatusOr;
 using patch_subset::FontData;
 using patch_subset::hb_set_unique_ptr;
@@ -41,10 +45,21 @@ StatusOr<IFTTable> IFTTable::FromFont(hb_face_t* face) {
   return FromProto(ift);
 }
 
+StatusOr<IFTTable> IFTTable::FromFont(const FontData& font) {
+  hb_face_t* face = font.reference_face();
+  auto s = IFTTable::FromFont(face);
+  hb_face_destroy(face);
+  return s;
+}
+
 StatusOr<IFTTable> IFTTable::FromProto(IFT proto) {
-  auto m = create_patch_map(proto);
+  auto m = CreatePatchMap(proto);
   if (!m.ok()) {
     return m.status();
+  }
+
+  if (proto.id_size() != 4 && proto.id_size() != 0) {
+    return absl::InvalidArgumentError("id field must have a length of 4 or 0.");
   }
 
   return IFTTable(proto, *m);
@@ -87,7 +102,11 @@ StatusOr<FontData> IFTTable::AddToFont(hb_face_t* face, IFT proto) {
   return new_font_data;
 }
 
-std::string IFTTable::patch_to_url(uint32_t patch_idx) const {
+StatusOr<FontData> IFTTable::AddToFont(hb_face_t* face) {
+  return AddToFont(face, ift_proto_);
+}
+
+std::string IFTTable::PatchToUrl(uint32_t patch_idx) const {
   std::string url = ift_proto_.url_template();
   constexpr int num_digits = 5;
   int hex_digits[num_digits];
@@ -129,9 +148,34 @@ std::string IFTTable::patch_to_url(uint32_t patch_idx) const {
   return out.str();
 }
 
-const patch_map& IFTTable::get_patch_map() const { return patch_map_; }
+Status IFTTable::RemovePatches(
+    const absl::flat_hash_set<uint32_t> patch_indices) {
+  auto mapping = ift_proto_.mutable_subset_mapping();
+  for (auto it = mapping->cbegin(); it != mapping->cend();) {
+    if (patch_indices.contains(it->id())) {
+      it = mapping->erase(it);
+      continue;
+    }
+    ++it;
+  }
+  auto new_patch_map = CreatePatchMap(ift_proto_);
+  if (!new_patch_map.ok()) {
+    return new_patch_map.status();
+  }
 
-StatusOr<patch_map> IFTTable::create_patch_map(const IFT& ift) {
+  patch_map_ = std::move(*new_patch_map);
+  return absl::OkStatus();
+}
+
+void IFTTable::GetId(uint32_t out[4]) const {
+  for (int i = 0; i < 4; i++) {
+    out[i] = id_[i];
+  }
+}
+
+const patch_map& IFTTable::GetPatchMap() const { return patch_map_; }
+
+StatusOr<patch_map> IFTTable::CreatePatchMap(const IFT& ift) {
   // TODO(garretrieger): allow for implicit patch indices if they are not
   // specified
   //                     on an entry.
