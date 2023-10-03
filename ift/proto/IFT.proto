@@ -11,10 +11,11 @@ enum PatchEncoding {
 
 message IFT {
   string url_template = 1;
-  PatchEncoding default_patch_encoding = 2;
-  repeated SubsetMapping subset_mapping = 3;
-  repeated CombinedSubsetMapping combined_subset_mapping = 4;
-  // next = 5
+  repeated uint32 id = 2;
+  PatchEncoding default_patch_encoding = 3;
+  repeated SubsetMapping subset_mapping = 4;
+  repeated CombinedSubsetMapping combined_subset_mapping = 5;
+  // next = 6
 }
 
 message SubsetMapping {

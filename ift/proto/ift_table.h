@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
 #include "hb.h"
 #include "ift/proto/IFT.pb.h"
@@ -17,22 +18,35 @@ typedef absl::flat_hash_map<uint32_t, std::pair<uint32_t, PatchEncoding>>
 class IFTTable {
  public:
   static absl::StatusOr<IFTTable> FromFont(hb_face_t* face);
+  static absl::StatusOr<IFTTable> FromFont(const patch_subset::FontData& font);
   static absl::StatusOr<IFTTable> FromProto(IFT proto);
   static absl::StatusOr<patch_subset::FontData> AddToFont(hb_face_t* face,
                                                           IFT proto);
 
-  const patch_map& get_patch_map() const;
+  void GetId(uint32_t out[4]) const;
+  const patch_map& GetPatchMap() const;
+  std::string PatchToUrl(uint32_t patch_idx) const;
 
-  std::string patch_to_url(uint32_t patch_idx) const;
+  absl::Status RemovePatches(const absl::flat_hash_set<uint32_t> patch_indices);
+  absl::StatusOr<patch_subset::FontData> AddToFont(hb_face_t* face);
 
  private:
   explicit IFTTable(IFT ift_proto, patch_map patch_map)
-      : patch_map_(patch_map), ift_proto_(ift_proto) {}
+      : patch_map_(patch_map), ift_proto_(ift_proto) {
+    for (int i = 0; i < 4; i++) {
+      if (i < ift_proto_.id_size()) {
+        id_[i] = ift_proto_.id(i);
+      } else {
+        id_[i] = 0;
+      }
+    }
+  }
 
-  static absl::StatusOr<patch_map> create_patch_map(const IFT& ift_proto);
+  static absl::StatusOr<patch_map> CreatePatchMap(const IFT& ift_proto);
 
   patch_map patch_map_;
   IFT ift_proto_;
+  uint32_t id_[4];
 };
 
 }  // namespace ift::proto
