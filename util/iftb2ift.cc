@@ -8,14 +8,15 @@
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "hb.h"
+#include "ift/proto/IFT.pb.h"
 #include "patch_subset/font_data.h"
-#include "patch_subset/proto/IFT.pb.h"
 #include "util/convert_iftb.h"
 
 ABSL_FLAG(std::string, output_format, "font",
           "Format of the output: 'text', 'proto', or 'font'.");
 
 using google::protobuf::TextFormat;
+using ift::proto::IFT;
 using patch_subset::FontData;
 using util::convert_iftb;
 

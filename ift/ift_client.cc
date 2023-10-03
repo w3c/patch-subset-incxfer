@@ -1,14 +1,21 @@
 #include "ift/ift_client.h"
 
+#include <sstream>
+
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "hb.h"
 #include "ift/proto/IFT.pb.h"
 #include "ift/proto/ift_table.h"
+#include "patch_subset/binary_patch.h"
 #include "patch_subset/font_data.h"
 
+using absl::Status;
 using absl::StatusOr;
 using ift::proto::IFTTable;
 using ift::proto::PatchEncoding;
+using ift::proto::SHARED_BROTLI_ENCODING;
+using patch_subset::BinaryPatch;
 using patch_subset::FontData;
 
 namespace ift {
@@ -39,11 +46,34 @@ StatusOr<patch_set> IFTClient::PatchUrlsFor(
   return result;
 }
 
-StatusOr<FontData> IFTClient::ApplyPatch(const FontData& font,
-                                         const FontData& patch,
-                                         PatchEncoding encoding) const {
-  // TODO
-  return absl::InternalError("not implemented.");
+StatusOr<FontData> IFTClient::ApplyPatches(const FontData& font,
+                                           const std::vector<FontData>& patches,
+                                           PatchEncoding encoding) const {
+  auto patcher = PatcherFor(encoding);
+  if (!patcher.ok()) {
+    return patcher.status();
+  }
+
+  FontData result;
+  Status s = (*patcher)->Patch(font, patches, &result);
+  if (!s.ok()) {
+    return s;
+  }
+
+  return result;
+}
+
+StatusOr<const BinaryPatch*> IFTClient::PatcherFor(
+    ift::proto::PatchEncoding encoding) const {
+  switch (encoding) {
+    case SHARED_BROTLI_ENCODING:
+      return brotli_binary_patch_.get();
+      // TODO(garretrieger): add support for IFTB patches.
+    default:
+      std::stringstream message;
+      message << "Patch encoding " << encoding << " is not implemented.";
+      return absl::UnimplementedError(message.str());
+  }
 }
 
 }  // namespace ift

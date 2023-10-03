@@ -4,15 +4,18 @@
 #include "gtest/gtest.h"
 #include "ift/proto/IFT.pb.h"
 #include "ift/proto/ift_table.h"
+#include "patch_subset/brotli_binary_diff.h"
 #include "patch_subset/font_data.h"
 #include "patch_subset/hb_set_unique_ptr.h"
 #include "patch_subset/sparse_bit_set.h"
 
 using absl::btree_set;
+using absl::IsInvalidArgument;
 using ift::proto::IFT;
 using ift::proto::IFTB_ENCODING;
 using ift::proto::IFTTable;
 using ift::proto::SHARED_BROTLI_ENCODING;
+using patch_subset::BrotliBinaryDiff;
 using patch_subset::FontData;
 using patch_subset::hb_set_unique_ptr;
 using patch_subset::make_hb_set;
@@ -95,6 +98,59 @@ TEST_F(IFTClientTest, PatchUrls) {
   r = client.PatchUrlsFor(sample_font, *codepoints_6);
   ASSERT_TRUE(r.ok()) << r.status();
   ASSERT_EQ(expected_6, *r);
+}
+
+TEST_F(IFTClientTest, ApplyPatches_IFTB) {
+  FontData base;
+  FontData patch;
+  std::vector<FontData> patches;
+  patches.push_back(std::move(patch));
+
+  IFTClient client;
+  auto s = client.ApplyPatches(base, patches, IFTB_ENCODING);
+  ASSERT_TRUE(absl::IsUnimplemented(s.status())) << s.status();
+}
+
+TEST_F(IFTClientTest, ApplyPatches_SharedBrotli) {
+  std::string d1 = "abc";
+  std::string d2 = "abcdef";
+  std::string d3 = "abcdefhij";
+  FontData f1(d1);
+  FontData f2(d2);
+  FontData f3(d3);
+
+  BrotliBinaryDiff differ;
+  FontData f1_to_f2;
+  auto s = differ.Diff(f1, f2, &f1_to_f2);
+  ASSERT_TRUE(s.ok()) << s;
+
+  FontData f2_to_f3;
+  s = differ.Diff(f2, f3, &f2_to_f3);
+  ASSERT_TRUE(s.ok()) << s;
+
+  IFTClient client;
+
+  {
+    std::vector<FontData> patch_set_1;
+    patch_set_1.emplace_back(f1_to_f2.str());
+    auto s = client.ApplyPatches(f1, patch_set_1, SHARED_BROTLI_ENCODING);
+    ASSERT_TRUE(s.ok()) << s.status();
+    ASSERT_EQ(s->str(), f2.str());
+
+    std::vector<FontData> patch_set_2;
+    patch_set_2.emplace_back(f2_to_f3.str());
+    s = client.ApplyPatches(f2, patch_set_2, SHARED_BROTLI_ENCODING);
+    ASSERT_TRUE(s.ok()) << s.status();
+    ASSERT_EQ(s->str(), f3.str());
+  }
+
+  {
+    std::vector<FontData> patch_set_1;
+    patch_set_1.emplace_back(f1_to_f2.str());
+    patch_set_1.emplace_back(f2_to_f3.str());
+    auto s = client.ApplyPatches(f1, patch_set_1, SHARED_BROTLI_ENCODING);
+    ASSERT_TRUE(IsInvalidArgument(s.status())) << s.status();
+  }
 }
 
 }  // namespace ift

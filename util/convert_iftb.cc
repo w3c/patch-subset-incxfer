@@ -11,8 +11,8 @@
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "hb.h"
+#include "ift/proto/IFT.pb.h"
 #include "patch_subset/font_data.h"
-#include "patch_subset/proto/IFT.pb.h"
 #include "patch_subset/sparse_bit_set.h"
 
 using absl::btree_map;
@@ -21,6 +21,8 @@ using absl::flat_hash_map;
 using absl::flat_hash_set;
 using absl::Status;
 using absl::string_view;
+using ift::proto::IFT;
+using ift::proto::SubsetMapping;
 using patch_subset::FontData;
 
 namespace util {
