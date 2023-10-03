@@ -26,4 +26,19 @@ Status VCDIFFBinaryPatch::Patch(const FontData& font_base,
   return absl::OkStatus();
 }
 
+Status VCDIFFBinaryPatch::Patch(const FontData& font_base,
+                                const std::vector<FontData>& patch,
+                                FontData* font_derived) const {
+  if (patch.size() == 1) {
+    return Patch(font_base, patch[0], font_derived);
+  }
+
+  if (patch.size() == 0) {
+    return absl::InvalidArgumentError("Must provide at least one patch.");
+  }
+
+  return absl::InvalidArgumentError(
+      "VCDIFF binary patches cannot be applied independently");
+}
+
 }  // namespace patch_subset

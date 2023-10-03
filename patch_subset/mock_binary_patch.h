@@ -16,6 +16,13 @@ class MockBinaryPatch : public BinaryPatch {
               (const FontData& font_base, const FontData& patch,
                FontData* derived /* OUT */),
               (const override));
+
+  absl::Status Patch(const FontData& font_base,
+                     const std::vector<FontData>& patch,
+                     FontData* font_derived) const {
+    // TODO(garretrieger): mock this properly.
+    return absl::InvalidArgumentError("not implemented in mock yet.");
+  }
 };
 
 class ApplyPatch {

@@ -3,11 +3,11 @@
 
 #include "absl/strings/string_view.h"
 #include "hb.h"
-#include "patch_subset/proto/IFT.pb.h"
+#include "ift/proto/IFT.pb.h"
 
 namespace util {
 
-IFT convert_iftb(absl::string_view iftb_dump, hb_face_t* face);
+ift::proto::IFT convert_iftb(absl::string_view iftb_dump, hb_face_t* face);
 
 }
 

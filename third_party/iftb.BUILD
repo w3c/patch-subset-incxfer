@@ -66,6 +66,36 @@ cc_binary(
     ],
 )
 
+cc_library(
+    name = "merger",
+    srcs = [
+        "src/sfnt.cc",
+        "src/sfnt.h",
+        "src/merger.cc",
+        "src/merger.h",
+        "src/streamhelp.h",
+        "src/tag.h",
+        "src/table_IFTB.cc",
+        "src/table_IFTB.h",
+        "src/cmap.cc",
+        "src/cmap.h",
+    ],
+    hdrs = [
+        "src/merger.h",
+    ],
+    includes = [
+        "src/",
+    ],
+    copts = [
+        "",
+    ],
+    deps = [
+        "@brotli",
+        "@woff2",
+    ],
+    visibility = ["//visibility:public"],
+)
+
 wasm_cc_binary(
     name = "iftb_wasm",
     cc_target = ":iftb",

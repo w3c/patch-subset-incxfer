@@ -127,9 +127,9 @@ register_emscripten_toolchains()
 http_archive(
     name = "iftb",
     build_file = "//third_party:iftb.BUILD",
-    sha256 = "e1b2367d45179748eb0f815bfd6d28e49cc83e76dbdd633fcbc06c1775bcfa7b",
-    strip_prefix = "binned-ift-reference-649e1d50478ffcbd4dc7369b22992d8e06af11ed",
-    urls = ["https://github.com/adobe/binned-ift-reference/archive/649e1d50478ffcbd4dc7369b22992d8e06af11ed.zip"],
+    sha256 = "3b4b28fc9aea3ebb3986620a24716ab9e8063e2f7f0818ed083d54262175b93e",
+    strip_prefix = "binned-ift-reference-2629ce830c09ccd239ce2647bf05c0989bfd8bb8",
+    urls = ["https://github.com/adobe/binned-ift-reference/archive/2629ce830c09ccd239ce2647bf05c0989bfd8bb8.zip"],
 )
 
 # libcbor
