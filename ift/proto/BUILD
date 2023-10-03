@@ -28,7 +28,7 @@ cc_test(
         "ift_table_test.cc",
     ],
     data = [
-        "//patch_subset:testdata",
+        "//patch_subset:testdata",        
     ],
     deps = [
         ":proto",

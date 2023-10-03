@@ -25,9 +25,8 @@ class IFTTable {
   // to by face. If iftb_conversion is set any "IFTB" tables if present will be
   // be removed and tables in the final font will be ordered according to IFTB
   // ordering requirements.
-  static absl::StatusOr<patch_subset::FontData> AddToFont(hb_face_t* face,
-                                                          const IFT& proto,
-                                                          bool iftb_conversion=false);
+  static absl::StatusOr<patch_subset::FontData> AddToFont(
+      hb_face_t* face, const IFT& proto, bool iftb_conversion = false);
 
   void GetId(uint32_t out[4]) const;
   const patch_map& GetPatchMap() const;
