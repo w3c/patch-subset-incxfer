@@ -2,6 +2,7 @@
 
 #include <google/protobuf/text_format.h>
 
+#include <algorithm>
 #include <sstream>
 #include <string>
 
@@ -65,17 +66,31 @@ StatusOr<IFTTable> IFTTable::FromProto(IFT proto) {
   return IFTTable(proto, *m);
 }
 
-StatusOr<FontData> IFTTable::AddToFont(hb_face_t* face, IFT proto) {
+void move_tag_to_back(std::vector<hb_tag_t>& tags, hb_tag_t tag) {
+  auto it = std::find(tags.begin(), tags.end(), tag);
+  if (it != tags.end()) {
+    tags.erase(it);
+    tags.push_back(tag);
+  }
+}
+
+StatusOr<FontData> IFTTable::AddToFont(hb_face_t* face, const IFT& proto, bool iftb_conversion) {
   constexpr uint32_t max_tags = 64;
   hb_tag_t table_tags[max_tags];
   unsigned table_count = max_tags;
   unsigned offset = 0;
 
+  std::vector<hb_tag_t> tags;
   hb_face_t* new_face = hb_face_builder_create();
   while (((void)hb_face_get_table_tags(face, offset, &table_count, table_tags),
           table_count)) {
     for (unsigned i = 0; i < table_count; i++) {
       hb_tag_t tag = table_tags[i];
+      if (iftb_conversion && tag == HB_TAG('I', 'F', 'T', 'B')) {
+        // drop IFTB if we're doing an IFTB conversion.
+        continue;
+      }
+      tags.push_back(tag);
       hb_blob_t* blob = hb_face_reference_table(face, tag);
       hb_face_builder_add_table(new_face, tag, blob);
       hb_blob_destroy(blob);
@@ -93,6 +108,26 @@ StatusOr<FontData> IFTTable::AddToFont(hb_face_t* face, IFT proto) {
   }
   hb_face_builder_add_table(new_face, IFT_TAG, blob);
   hb_blob_destroy(blob);
+
+  if (iftb_conversion) {
+    if (std::find(tags.begin(), tags.end(), IFT_TAG) == tags.end()) {
+      // Add 'IFT ' tag if it wasn't added above.
+      tags.push_back(IFT_TAG);
+    }
+    // requirements:
+    // - gvar before glyf.
+    // - glyf before loca.
+    // - loca at end of file.
+    // - CFF/CFF2 at end of file.
+    move_tag_to_back(tags, HB_TAG('g', 'v', 'a', 'r'));
+    move_tag_to_back(tags, HB_TAG('g', 'l', 'y', 'f'));
+    move_tag_to_back(tags, HB_TAG('l', 'o', 'c', 'a'));
+    move_tag_to_back(tags, HB_TAG('C', 'F', 'F', ' '));
+    move_tag_to_back(tags, HB_TAG('C', 'F', 'F', '2'));
+    tags.push_back(0); // null terminate the array as expected by hb.
+
+    hb_face_builder_sort_tables(new_face, tags.data());
+  }
 
   blob = hb_face_reference_blob(new_face);
   hb_face_destroy(new_face);
