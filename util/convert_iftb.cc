@@ -55,6 +55,16 @@ flat_hash_set<std::uint32_t> load_chunk_set(string_view line) {
   return result;
 }
 
+std::vector<uint32_t> load_id(string_view line) {
+  std::vector<uint32_t> result;
+  std::string next;
+  while (!line.empty()) {
+    line = next_token(line, " ", next);
+    result.push_back(std::stoul(next, 0, 16));
+  }
+  return result;
+}
+
 flat_hash_map<std::uint32_t, uint32_t> load_gid_map(string_view line) {
   flat_hash_map<std::uint32_t, uint32_t> result;
 
@@ -141,6 +151,7 @@ void to_subset_mapping(uint32_t chunk, btree_set<uint32_t> codepoints,
 }
 
 IFT create_table(const std::string& url_template,
+                 const std::vector<uint32_t>& id,
                  const flat_hash_map<std::uint32_t, uint32_t>& gid_map,
                  const flat_hash_set<uint32_t>& loaded_chunks,
                  hb_face_t* face) {
@@ -149,6 +160,9 @@ IFT create_table(const std::string& url_template,
 
   IFT ift;
   ift.set_url_template(url_template);
+  for (uint32_t n : id) {
+    ift.add_id(n);
+  }
 
   for (auto e : chunk_to_codepoints) {
     to_subset_mapping(e.first, e.second, ift.add_subset_mapping());
@@ -162,6 +176,7 @@ IFT create_table(const std::string& url_template,
 IFT convert_iftb(string_view iftb_dump, hb_face_t* face) {
   flat_hash_map<std::uint32_t, uint32_t> gid_map;
   flat_hash_set<uint32_t> loaded_chunks;
+  std::vector<uint32_t> id;
   std::string url_template;
 
   while (!iftb_dump.empty()) {
@@ -190,9 +205,14 @@ IFT convert_iftb(string_view iftb_dump, hb_face_t* face) {
       url_template = line;
       continue;
     }
+
+    if (field == "ID") {
+      id = load_id(line);
+    }
   }
 
-  return create_table(url_template, gid_map, loaded_chunks, face);
+  fprintf(stderr, "Font ID = %x %x %x %x\n", id[0], id[1], id[2], id[3]);
+  return create_table(url_template, id, gid_map, loaded_chunks, face);
 }
 
 }  // namespace util
