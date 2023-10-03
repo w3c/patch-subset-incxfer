@@ -33,9 +33,11 @@ cc_test(
     size = "small",
     srcs = [
         "ift_client_test.cc",
+        "ift_binary_patch_test.cc",
     ],
     data = [
         "//patch_subset:testdata",
+        "//ift:testdata",
     ],
     deps = [
         ":client",
@@ -44,5 +46,13 @@ cc_test(
         "//ift/proto:IFT_cc_proto",
         "@com_google_absl//absl/container:btree",
         "@gtest//:gtest_main",
+    ],
+)
+
+filegroup(
+    name = "testdata",
+    srcs = glob(["testdata/**"]),
+    visibility = [
+        "//ift/proto:__pkg__",
     ],
 )

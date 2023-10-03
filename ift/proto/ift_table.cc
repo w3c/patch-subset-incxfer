@@ -74,7 +74,8 @@ void move_tag_to_back(std::vector<hb_tag_t>& tags, hb_tag_t tag) {
   }
 }
 
-StatusOr<FontData> IFTTable::AddToFont(hb_face_t* face, const IFT& proto, bool iftb_conversion) {
+StatusOr<FontData> IFTTable::AddToFont(hb_face_t* face, const IFT& proto,
+                                       bool iftb_conversion) {
   constexpr uint32_t max_tags = 64;
   hb_tag_t table_tags[max_tags];
   unsigned table_count = max_tags;
@@ -124,7 +125,7 @@ StatusOr<FontData> IFTTable::AddToFont(hb_face_t* face, const IFT& proto, bool i
     move_tag_to_back(tags, HB_TAG('l', 'o', 'c', 'a'));
     move_tag_to_back(tags, HB_TAG('C', 'F', 'F', ' '));
     move_tag_to_back(tags, HB_TAG('C', 'F', 'F', '2'));
-    tags.push_back(0); // null terminate the array as expected by hb.
+    tags.push_back(0);  // null terminate the array as expected by hb.
 
     hb_face_builder_sort_tables(new_face, tags.data());
   }

@@ -27,14 +27,14 @@ Status IftbBinaryPatch::Patch(const FontData& font_base, const FontData& patch,
 }
 
 StatusOr<uint32_t> get_chunk_index(const FontData& patch) {
-  if (patch.size() < 16) {
+  if (patch.size() < 28) {
     return absl::InvalidArgumentError(
         "Can't read chunk index in patch, too short.");
   }
 
-  const uint8_t* bytes = reinterpret_cast<const uint8_t*>(patch.data() + 12);
-  return (((uint32_t)bytes[3]) << 24) + (((uint32_t)bytes[2]) << 16) +
-         (((uint32_t)bytes[1]) << 8) + ((uint32_t)bytes[0]);
+  const uint8_t* bytes = reinterpret_cast<const uint8_t*>(patch.data() + 24);
+  return (((uint32_t)bytes[0]) << 24) + (((uint32_t)bytes[1]) << 16) +
+         (((uint32_t)bytes[2]) << 8) + ((uint32_t)bytes[3]);
 }
 
 Status IftbBinaryPatch::Patch(const FontData& font_base,
@@ -83,7 +83,10 @@ Status IftbBinaryPatch::Patch(const FontData& font_base,
     return absl::InvalidArgumentError("IFTB Patch merging failed.");
   }
 
-  ift_table->RemovePatches(patch_indices);
+  auto s = ift_table->RemovePatches(patch_indices);
+  if (!s.ok()) {
+    return s;
+  }
 
   hb_blob_t* blob = hb_blob_create(new_font_data.data(), new_font_data.size(),
                                    HB_MEMORY_MODE_READONLY, nullptr, nullptr);
