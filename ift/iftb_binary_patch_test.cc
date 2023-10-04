@@ -1,9 +1,10 @@
+#include "ift/iftb_binary_patch.h"
+
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "common/font_helper.h"
 #include "gtest/gtest.h"
 #include "hb.h"
-#include "ift/iftb_binary_patch.h"
 #include "ift/proto/ift_table.h"
 #include "patch_subset/font_data.h"
 
@@ -100,7 +101,45 @@ TEST_F(IftbBinaryPatchTest, SinglePatch) {
   // TODO(garretrieger): check glyph is equal to corresponding glyph in the
   // original file.
   ASSERT_GT(*glyph_size(result, 0xa5), 1);
+  ASSERT_LT(*glyph_size(result, 0xa5), 1000);
   ASSERT_GT(*glyph_size(result, 0x30d4), 1);
+  ASSERT_LT(*glyph_size(result, 0x30d4), 1000);
+}
+
+TEST_F(IftbBinaryPatchTest, MultiplePatches) {
+  FontData result;
+  std::vector<FontData> patches;
+  patches.emplace_back().shallow_copy(chunk2);
+  patches.emplace_back().shallow_copy(chunk3);
+  auto s = patcher.Patch(font, patches, &result);
+  ASSERT_TRUE(s.ok()) << s;
+  ASSERT_GT(result.size(), 1000);
+
+  auto ift_table = IFTTable::FromFont(result);
+  ASSERT_TRUE(ift_table.ok()) << ift_table.status();
+
+  for (auto e : ift_table->GetPatchMap()) {
+    uint32_t codepoint = e.first;
+    uint32_t patch_index = e.second.first;
+    ASSERT_NE(patch_index, 2);
+    ASSERT_NE(patch_index, 3);
+    // spot check a couple of codepoints that should be removed.
+    ASSERT_NE(codepoint, 0xa5);
+    ASSERT_NE(codepoint, 0xeb);
+    ASSERT_NE(codepoint, 0x30d4);
+  }
+
+  ASSERT_EQ(*glyph_size(result, 0xab), 0);
+  ASSERT_EQ(*glyph_size(result, 0x2e8d), 0);
+
+  // TODO(garretrieger): check glyph is equal to corresponding glyph in the
+  // original file.
+  ASSERT_GT(*glyph_size(result, 0xa5), 1);
+  ASSERT_LT(*glyph_size(result, 0xa5), 1000);
+  ASSERT_GT(*glyph_size(result, 0xeb), 1);
+  ASSERT_LT(*glyph_size(result, 0xeb), 1000);
+  ASSERT_GT(*glyph_size(result, 0x30d4), 1);
+  ASSERT_LT(*glyph_size(result, 0x30d4), 1000);
 }
 
 }  // namespace ift
