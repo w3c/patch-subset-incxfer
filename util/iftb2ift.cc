@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <string>
 
@@ -28,6 +29,22 @@ hb_face_t* load_font(const char* filename) {
     fprintf(stderr, "failed to load file: %s\n", filename);
     exit(-1);
   }
+
+  uint32_t length = 0;
+  const char* data = hb_blob_get_data(blob, &length);
+
+  // Input is an IFTB font which will have the first 4 bytes as
+  // 'IFTB'. Our version of harfbuzz doesn't support this tag, so
+  // rewrite 'IFTB' version tag to normal open type 0100
+  char* copy = (char*) calloc(length, 1);
+  memcpy(copy, data, length);
+  copy[0] = 0;
+  copy[1] = 1;
+  copy[2] = 0;
+  copy[3] = 0;
+
+  hb_blob_destroy(blob);
+  blob = hb_blob_create(copy, length, HB_MEMORY_MODE_READONLY, copy, free);
 
   hb_face_t* face = hb_face_create(blob, 0);
   hb_blob_destroy(blob);
