@@ -142,4 +142,21 @@ TEST_F(IftbBinaryPatchTest, MultiplePatches) {
   ASSERT_LT(*glyph_size(result, 0x30d4), 1000);
 }
 
+TEST_F(IftbBinaryPatchTest, ConsecutivePatches) {
+  FontData result1, result2, result_combined;
+  auto s = patcher.Patch(font, chunk2, &result1);
+  ASSERT_TRUE(s.ok()) << s;
+
+  s = patcher.Patch(result1, chunk3, &result2);
+  ASSERT_TRUE(s.ok()) << s;
+
+  std::vector<FontData> patches;
+  patches.emplace_back().shallow_copy(chunk2);
+  patches.emplace_back().shallow_copy(chunk3);
+  s = patcher.Patch(font, patches, &result_combined);
+  ASSERT_TRUE(s.ok()) << s;
+
+  ASSERT_EQ(result2.str(), result_combined.str());
+}
+
 }  // namespace ift
