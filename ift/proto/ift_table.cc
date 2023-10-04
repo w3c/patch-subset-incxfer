@@ -10,6 +10,7 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
+#include "common/font_helper.h"
 #include "hb-subset.h"
 #include "ift/proto/IFT.pb.h"
 #include "patch_subset/hb_set_unique_ptr.h"
@@ -19,6 +20,7 @@ using absl::flat_hash_map;
 using absl::flat_hash_set;
 using absl::Status;
 using absl::StatusOr;
+using common::FontHelper;
 using patch_subset::FontData;
 using patch_subset::hb_set_unique_ptr;
 using patch_subset::make_hb_set;
@@ -77,27 +79,23 @@ void move_tag_to_back(std::vector<hb_tag_t>& tags, hb_tag_t tag) {
 
 StatusOr<FontData> IFTTable::AddToFont(hb_face_t* face, const IFT& proto,
                                        bool iftb_conversion) {
-  constexpr uint32_t max_tags = 64;
-  hb_tag_t table_tags[max_tags];
-  unsigned table_count = max_tags;
-  unsigned offset = 0;
-
-  std::vector<hb_tag_t> tags;
+  std::vector<hb_tag_t> tags = FontHelper::GetOrderedTags(face);
   hb_face_t* new_face = hb_face_builder_create();
-  while (((void)hb_face_get_table_tags(face, offset, &table_count, table_tags),
-          table_count)) {
-    for (unsigned i = 0; i < table_count; i++) {
-      hb_tag_t tag = table_tags[i];
-      if (iftb_conversion && tag == HB_TAG('I', 'F', 'T', 'B')) {
-        // drop IFTB if we're doing an IFTB conversion.
-        continue;
-      }
-      tags.push_back(tag);
-      hb_blob_t* blob = hb_face_reference_table(face, tag);
-      hb_face_builder_add_table(new_face, tag, blob);
-      hb_blob_destroy(blob);
+  for (hb_tag_t tag : tags) {
+    if (iftb_conversion && tag == FontHelper::kIFTB) {
+      // drop IFTB if we're doing an IFTB conversion.
+      continue;
     }
-    offset += table_count;
+    hb_blob_t* blob = hb_face_reference_table(face, tag);
+    hb_face_builder_add_table(new_face, tag, blob);
+    hb_blob_destroy(blob);
+  }
+
+  if (iftb_conversion) {
+    auto it = std::find(tags.begin(), tags.end(), FontHelper::kIFTB);
+    if (it != tags.end()) {
+      tags.erase(it);
+    }
   }
 
   std::string serialized = proto.SerializeAsString();
@@ -111,11 +109,12 @@ StatusOr<FontData> IFTTable::AddToFont(hb_face_t* face, const IFT& proto,
   hb_face_builder_add_table(new_face, IFT_TAG, blob);
   hb_blob_destroy(blob);
 
+  if (std::find(tags.begin(), tags.end(), IFT_TAG) == tags.end()) {
+    // Add 'IFT ' tag if it wasn't added above.
+    tags.push_back(IFT_TAG);
+  }
+
   if (iftb_conversion) {
-    if (std::find(tags.begin(), tags.end(), IFT_TAG) == tags.end()) {
-      // Add 'IFT ' tag if it wasn't added above.
-      tags.push_back(IFT_TAG);
-    }
     // requirements:
     // - gvar before glyf.
     // - glyf before loca.
@@ -135,16 +134,6 @@ StatusOr<FontData> IFTTable::AddToFont(hb_face_t* face, const IFT& proto,
   hb_face_destroy(new_face);
   FontData new_font_data(blob);
   hb_blob_destroy(blob);
-
-  if (iftb_conversion) {
-    // running the face through preprocess will force it to use a long
-    // loca table.
-    face = new_font_data.reference_face();
-    new_face = hb_subset_preprocess(face);
-    hb_face_destroy(face);
-    new_font_data.set(new_face);
-    hb_face_destroy(new_face);
-  }
 
   return new_font_data;
 }

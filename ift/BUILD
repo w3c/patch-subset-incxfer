@@ -16,6 +16,7 @@ cc_library(
         "//patch_subset:client",
         "//ift/proto",
         "//ift/proto:IFT_cc_proto",
+        "//common",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
