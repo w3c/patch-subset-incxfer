@@ -12,6 +12,7 @@ cc_library(
   ],
   deps = [
       ":IFT_cc_proto",
+      "//common",
       "//patch_subset:common",
       "@com_google_absl//absl/status:statusor",
       "@com_google_absl//absl/container:flat_hash_map",
@@ -28,11 +29,13 @@ cc_test(
         "ift_table_test.cc",
     ],
     data = [
-        "//patch_subset:testdata",        
+        "//patch_subset:testdata",
+        "//ift:testdata",
     ],
     deps = [
         ":proto",
         ":IFT_cc_proto",
+        "//common",
         "@gtest//:gtest_main",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",

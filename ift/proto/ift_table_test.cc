@@ -1,18 +1,24 @@
 #include "ift/proto/ift_table.h"
 
+#include <cstdio>
 #include <cstring>
+#include <iterator>
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
+#include "common/font_helper.h"
 #include "gtest/gtest.h"
 #include "ift/proto/IFT.pb.h"
+#include "patch_subset/font_data.h"
 #include "patch_subset/hb_set_unique_ptr.h"
 #include "patch_subset/sparse_bit_set.h"
 
 using absl::flat_hash_map;
 using absl::flat_hash_set;
 using absl::Status;
+using common::FontHelper;
+using patch_subset::FontData;
 using patch_subset::hb_set_unique_ptr;
 using patch_subset::make_hb_set;
 using patch_subset::SparseBitSet;
@@ -58,36 +64,31 @@ class IFTTableTest : public ::testing::Test {
         hb_blob_create_from_file("patch_subset/testdata/Roboto-Regular.ab.ttf");
     roboto_ab = hb_face_create(blob, 0);
     hb_blob_destroy(blob);
+
+    blob = hb_blob_create_from_file("ift/testdata/NotoSansJP-Regular.iftb.ttf");
+    FontData font_data(blob);
+    hb_blob_destroy(blob);
+
+    std::string copy = font_data.string();
+    copy[0] = 'O';
+    copy[1] = 'T';
+    copy[2] = 'T';
+    copy[3] = 'O';
+
+    font_data.copy(copy);
+    iftb = font_data.reference_face();
   }
 
   ~IFTTableTest() { hb_face_destroy(roboto_ab); }
 
   hb_face_t* roboto_ab;
+  hb_face_t* iftb;
   IFT empty;
   IFT sample;
   IFT overlap_sample;
   IFT good_id;
   IFT bad_id;
 };
-
-flat_hash_set<uint32_t> get_tags(hb_face_t* face) {
-  constexpr uint32_t max_tags = 64;
-  hb_tag_t table_tags[max_tags];
-  unsigned table_count = max_tags;
-
-  hb_face_get_table_tags(face, 0, &table_count, table_tags);
-
-  flat_hash_set<uint32_t> tag_set;
-  for (unsigned i = 0; i < table_count; i++) {
-    tag_set.insert(table_tags[i]);
-  }
-
-  return tag_set;
-}
-
-// TODO(garretrieger): AddToFont tests w/ iftb conversion set, verify updates
-// table ordering to iftb requirements.
-// TODO(garretrieger): AddToFont tests verify preserves existing ordering.
 
 TEST_F(IFTTableTest, AddToFont) {
   auto font = IFTTable::AddToFont(roboto_ab, sample);
@@ -108,13 +109,76 @@ TEST_F(IFTTableTest, AddToFont) {
 
   hb_blob_destroy(blob);
 
-  flat_hash_set<uint32_t> table_tags = get_tags(face);
-  flat_hash_set<uint32_t> expected_table_tags = get_tags(roboto_ab);
+  auto original_tag_order =
+      FontHelper::ToStrings(FontHelper::GetOrderedTags(roboto_ab));
+  auto new_tag_order = FontHelper::ToStrings(FontHelper::GetOrderedTags(face));
   hb_face_destroy(face);
 
-  table_tags.erase(HB_TAG('I', 'F', 'T', ' '));
+  new_tag_order.erase(
+      std::find(new_tag_order.begin(), new_tag_order.end(), "IFT "));
 
-  EXPECT_EQ(expected_table_tags, table_tags);
+  EXPECT_EQ(original_tag_order, new_tag_order);
+}
+
+TEST_F(IFTTableTest, AddToFont_IftbConversion) {
+  auto font = IFTTable::AddToFont(iftb, sample, true);
+  ASSERT_TRUE(font.ok()) << font.status();
+
+  hb_face_t* face = font->reference_face();
+  hb_blob_t* blob = hb_face_reference_table(face, HB_TAG('I', 'F', 'T', ' '));
+
+  unsigned length = 0;
+  const char* data = hb_blob_get_data(blob, &length);
+
+  std::string expected = sample.SerializeAsString();
+  EXPECT_EQ(expected.size(), length);
+  if (expected.size() == length) {
+    EXPECT_EQ(memcmp(expected.data(), data, length), 0);
+  }
+
+  hb_blob_destroy(blob);
+
+  auto expected_tags = FontHelper::GetTags(iftb);
+  auto new_tags = FontHelper::GetTags(face);
+  expected_tags.erase(FontHelper::kIFTB);
+  expected_tags.insert(FontHelper::kIFT);
+
+  EXPECT_EQ(expected_tags, new_tags);
+
+  auto ordered_tags = FontHelper::ToStrings(FontHelper::GetOrderedTags(face));
+  EXPECT_EQ(ordered_tags[ordered_tags.size() - 3], "IFT ");
+  EXPECT_EQ(ordered_tags[ordered_tags.size() - 2], "glyf");
+  EXPECT_EQ(ordered_tags[ordered_tags.size() - 1], "loca");
+}
+
+TEST_F(IFTTableTest, AddToFont_IftbConversionRoboto) {
+  auto font = IFTTable::AddToFont(roboto_ab, sample, true);
+  ASSERT_TRUE(font.ok()) << font.status();
+
+  hb_face_t* face = font->reference_face();
+  hb_blob_t* blob = hb_face_reference_table(face, HB_TAG('I', 'F', 'T', ' '));
+
+  unsigned length = 0;
+  const char* data = hb_blob_get_data(blob, &length);
+
+  std::string expected = sample.SerializeAsString();
+  EXPECT_EQ(expected.size(), length);
+  if (expected.size() == length) {
+    EXPECT_EQ(memcmp(expected.data(), data, length), 0);
+  }
+
+  hb_blob_destroy(blob);
+
+  auto expected_tags = FontHelper::GetTags(roboto_ab);
+  auto new_tags = FontHelper::GetTags(face);
+  expected_tags.insert(FontHelper::kIFT);
+
+  EXPECT_EQ(expected_tags, new_tags);
+
+  auto ordered_tags = FontHelper::ToStrings(FontHelper::GetOrderedTags(face));
+  EXPECT_EQ(ordered_tags[ordered_tags.size() - 3], "IFT ");
+  EXPECT_EQ(ordered_tags[ordered_tags.size() - 2], "glyf");
+  EXPECT_EQ(ordered_tags[ordered_tags.size() - 1], "loca");
 }
 
 TEST_F(IFTTableTest, Empty) {

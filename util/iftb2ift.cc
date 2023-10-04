@@ -36,7 +36,7 @@ hb_face_t* load_font(const char* filename) {
   // Input is an IFTB font which will have the first 4 bytes as
   // 'IFTB'. Our version of harfbuzz doesn't support this tag, so
   // rewrite 'IFTB' version tag to normal open type 0100
-  char* copy = (char*) calloc(length, 1);
+  char* copy = (char*)calloc(length, 1);
   memcpy(copy, data, length);
   copy[0] = 0;
   copy[1] = 1;

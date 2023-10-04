@@ -34,6 +34,7 @@ struct CompareTableOffsets {
 class FontHelper {
  public:
   constexpr static hb_tag_t kIFT = HB_TAG('I', 'F', 'T', ' ');
+  constexpr static hb_tag_t kIFTB = HB_TAG('I', 'F', 'T', 'B');
   constexpr static hb_tag_t kLoca = HB_TAG('l', 'o', 'c', 'a');
   constexpr static hb_tag_t kGlyf = HB_TAG('g', 'l', 'y', 'f');
   constexpr static hb_tag_t kCFF = HB_TAG('C', 'F', 'F', ' ');
