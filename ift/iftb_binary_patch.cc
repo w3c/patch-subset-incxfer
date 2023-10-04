@@ -56,6 +56,7 @@ Status IftbBinaryPatch::Patch(const FontData& font_base,
   flat_hash_set<uint32_t> patch_indices;
   for (const FontData& patch : patches) {
     auto idx = get_chunk_index(patch);
+    // TODO(garretrieger): validate read chunk index exists in ift_table.
     if (!idx.ok()) {
       return idx.status();
     }
@@ -83,7 +84,7 @@ Status IftbBinaryPatch::Patch(const FontData& font_base,
   hb_face_destroy(face);
 
   uint32_t new_length = merger.calcLayout(
-      sfnt, num_glyphs, 0 /* TODO: add CFF charstrings offset */);
+      sfnt, num_glyphs, 0 /* TODO(garretrieger): add CFF charstrings offset */);
   if (!new_length) {
     return absl::InvalidArgumentError(
         "Calculating layout before merge failed.");
