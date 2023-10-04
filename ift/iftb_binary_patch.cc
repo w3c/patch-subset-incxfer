@@ -60,7 +60,11 @@ Status IftbBinaryPatch::Patch(const FontData& font_base,
       return idx.status();
     }
     patch_indices.insert(*idx);
-    iftb::decodeBuffer(patch.data(), patch.size(), merger.stringForChunk(*idx));
+    if (HB_TAG('I', 'F', 'T', 'C') !=
+        iftb::decodeBuffer(patch.data(), patch.size(),
+                           merger.stringForChunk(*idx))) {
+      return absl::InvalidArgumentError("Unsupported chunk type.");
+    }
   }
 
   if (!merger.unpackChunks()) {
@@ -84,19 +88,28 @@ Status IftbBinaryPatch::Patch(const FontData& font_base,
     return absl::InvalidArgumentError(
         "Calculating layout before merge failed.");
   }
+
+  // TODO(garretrieger): merge can use the old buffer as the new buffer,
+  // assuming
+  //  there is enough free space in it. May want to utilize this with a larger
+  //  preallocation for the old buffer.
   std::string new_font_data;
-  new_font_data.reserve(new_length);
+  new_font_data.resize(new_length, 0);
 
   if (!merger.merge(sfnt, font_data.data(), new_font_data.data())) {
     return absl::InvalidArgumentError("IFTB Patch merging failed.");
   }
+
+  // The above merge will have changed sfnt's buffer to new_font_data.
+  // sfnt.write() needs to be called to realize table directory changes
+  sfnt.write(false);
 
   auto s = ift_table->RemovePatches(patch_indices);
   if (!s.ok()) {
     return s;
   }
 
-  hb_blob_t* blob = hb_blob_create(new_font_data.data(), new_font_data.size(),
+  hb_blob_t* blob = hb_blob_create(new_font_data.data(), new_length,
                                    HB_MEMORY_MODE_READONLY, nullptr, nullptr);
   face = hb_face_create(blob, 0);
   hb_blob_destroy(blob);

@@ -85,6 +85,10 @@ flat_hash_set<uint32_t> get_tags(hb_face_t* face) {
   return tag_set;
 }
 
+// TODO(garretrieger): AddToFont tests w/ iftb conversion set, verify updates
+// table ordering to iftb requirements.
+// TODO(garretrieger): AddToFont tests verify preserves existing ordering.
+
 TEST_F(IFTTableTest, AddToFont) {
   auto font = IFTTable::AddToFont(roboto_ab, sample);
   ASSERT_TRUE(font.ok()) << font.status();
