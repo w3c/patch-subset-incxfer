@@ -4,6 +4,7 @@
 
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
+#include "common/font_helper.h"
 #include "ift/proto/ift_table.h"
 #include "merger.h"
 #include "patch_subset/font_data.h"
@@ -11,6 +12,7 @@
 using absl::flat_hash_set;
 using absl::Status;
 using absl::StatusOr;
+using common::FontHelper;
 using ift::proto::IFTTable;
 using iftb::merger;
 using iftb::sfnt;
@@ -32,9 +34,7 @@ StatusOr<uint32_t> get_chunk_index(const FontData& patch) {
         "Can't read chunk index in patch, too short.");
   }
 
-  const uint8_t* bytes = reinterpret_cast<const uint8_t*>(patch.data() + 24);
-  return (((uint32_t)bytes[0]) << 24) + (((uint32_t)bytes[1]) << 16) +
-         (((uint32_t)bytes[2]) << 8) + ((uint32_t)bytes[3]);
+  return FontHelper::ReadUInt32(patch.str().substr(24, 4));
 }
 
 Status IftbBinaryPatch::Patch(const FontData& font_base,
