@@ -27,12 +27,17 @@ class FontHelperTest : public ::testing::Test {
 };
 
 TEST_F(FontHelperTest, ReadUInt32) {
-  uint8_t input[] = {0x12, 0x34, 0x56, 0x78};
-  auto s = FontHelper::ReadUInt32(string_view((const char*)input, 4));
+  uint8_t input1[] = {0x12, 0x34, 0x56, 0x78};
+  auto s = FontHelper::ReadUInt32(string_view((const char*)input1, 4));
   ASSERT_TRUE(s.ok()) << s.status();
   ASSERT_EQ(*s, 0x12345678);
 
-  s = FontHelper::ReadUInt32(string_view((const char*)input, 3));
+  uint8_t input2[] = {0x00, 0x00, 0x00, 0xFA};
+  s = FontHelper::ReadUInt32(string_view((const char*)input2, 4));
+  ASSERT_TRUE(s.ok()) << s.status();
+  ASSERT_EQ(*s, 0x000000FA);
+
+  s = FontHelper::ReadUInt32(string_view((const char*)input1, 3));
   ASSERT_FALSE(s.ok());
 }
 

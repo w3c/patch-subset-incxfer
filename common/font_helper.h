@@ -43,8 +43,9 @@ class FontHelper {
     if (value.size() < 4) {
       return absl::InvalidArgumentError("Need at least 4 bytes");
     }
-    return (((uint32_t)value[0]) << 24) + (((uint32_t)value[1]) << 16) +
-           (((uint32_t)value[2]) << 8) + ((uint32_t)value[3]);
+    const uint8_t* bytes = (const uint8_t*)value.data();
+    return (((uint32_t)bytes[0]) << 24) + (((uint32_t)bytes[1]) << 16) +
+           (((uint32_t)bytes[2]) << 8) + ((uint32_t)bytes[3]);
   }
 
   static absl::StatusOr<absl::string_view> Loca(hb_face_t* face) {
