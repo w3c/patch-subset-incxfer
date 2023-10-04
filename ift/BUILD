@@ -34,7 +34,7 @@ cc_test(
     size = "small",
     srcs = [
         "ift_client_test.cc",
-        "ift_binary_patch_test.cc",
+        "iftb_binary_patch_test.cc",
     ],
     data = [
         "//patch_subset:testdata",
