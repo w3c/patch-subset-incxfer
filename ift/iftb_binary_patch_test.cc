@@ -159,4 +159,15 @@ TEST_F(IftbBinaryPatchTest, ConsecutivePatches) {
   ASSERT_EQ(result2.str(), result_combined.str());
 }
 
+TEST_F(IftbBinaryPatchTest, PatchesIdempotent) {
+  FontData result1, result2;
+  auto s = patcher.Patch(font, chunk2, &result1);
+  ASSERT_TRUE(s.ok()) << s;
+
+  s = patcher.Patch(result1, chunk2, &result2);
+  ASSERT_TRUE(s.ok()) << s;
+
+  ASSERT_EQ(result1.str(), result2.str());
+}
+
 }  // namespace ift
