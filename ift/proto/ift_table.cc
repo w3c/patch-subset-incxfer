@@ -10,6 +10,7 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
+#include "hb-subset.h"
 #include "ift/proto/IFT.pb.h"
 #include "patch_subset/hb_set_unique_ptr.h"
 #include "patch_subset/sparse_bit_set.h"
@@ -125,15 +126,25 @@ StatusOr<FontData> IFTTable::AddToFont(hb_face_t* face, const IFT& proto,
     move_tag_to_back(tags, HB_TAG('l', 'o', 'c', 'a'));
     move_tag_to_back(tags, HB_TAG('C', 'F', 'F', ' '));
     move_tag_to_back(tags, HB_TAG('C', 'F', 'F', '2'));
-    tags.push_back(0);  // null terminate the array as expected by hb.
-
-    hb_face_builder_sort_tables(new_face, tags.data());
   }
+
+  tags.push_back(0);  // null terminate the array as expected by hb.
+  hb_face_builder_sort_tables(new_face, tags.data());
 
   blob = hb_face_reference_blob(new_face);
   hb_face_destroy(new_face);
   FontData new_font_data(blob);
   hb_blob_destroy(blob);
+
+  if (iftb_conversion) {
+    // running the face through preprocess will force it to use a long
+    // loca table.
+    face = new_font_data.reference_face();
+    new_face = hb_subset_preprocess(face);
+    hb_face_destroy(face);
+    new_font_data.set(new_face);
+    hb_face_destroy(new_face);
+  }
 
   return new_font_data;
 }

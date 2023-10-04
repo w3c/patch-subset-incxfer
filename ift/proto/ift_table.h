@@ -22,9 +22,10 @@ class IFTTable {
   static absl::StatusOr<IFTTable> FromProto(IFT proto);
 
   // Adds an encoded 'IFT ' table built from the supplied proto to font pointed
-  // to by face. If iftb_conversion is set any "IFTB" tables if present will be
-  // be removed and tables in the final font will be ordered according to IFTB
-  // ordering requirements.
+  // to by face. By default this will maintain the physical ordering of tables
+  // already present in the font. If iftb_conversion is set any "IFTB" tables
+  // if present will be be removed and tables in the final font will be ordered
+  // according to IFTB ordering requirements.
   static absl::StatusOr<patch_subset::FontData> AddToFont(
       hb_face_t* face, const IFT& proto, bool iftb_conversion = false);
 
