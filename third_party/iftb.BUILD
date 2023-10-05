@@ -87,7 +87,10 @@ cc_library(
         "src/",
     ],
     copts = [
-        "",
+        "-Wno-reorder-ctor",
+        "-Wno-unused-variable",
+        "-Wno-unused-but-set-variable",
+        "-Wno-unused-private-field",
     ],
     deps = [
         "@brotli",

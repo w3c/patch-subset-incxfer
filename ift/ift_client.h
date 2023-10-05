@@ -1,7 +1,7 @@
 #ifndef IFT_IFT_CLIENT_H_
 #define IFT_IFT_CLIENT_H_
 
-#include "absl/container/btree_set.h"
+#include "absl/container/btree_map.h"
 #include "absl/status/statusor.h"
 #include "hb.h"
 #include "ift/proto/IFT.pb.h"
@@ -11,8 +11,7 @@
 
 namespace ift {
 
-typedef absl::btree_set<std::pair<std::string, ift::proto::PatchEncoding>>
-    patch_set;
+typedef absl::btree_map<std::string, ift::proto::PatchEncoding> patch_set;
 
 class IFTClient {
  public:

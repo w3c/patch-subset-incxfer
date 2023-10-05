@@ -27,7 +27,31 @@ cc_binary(
     ],
 )
 
+cc_binary(
+    name = "ift_client",
+    srcs = [
+        "ift_client.cc",
+    ],
+    linkopts = DEFAULT_EMSCRIPTEN_LINKOPTS,
+    copts = [
+        "-Wno-unused-function",
+    ],
+    deps = [
+        "//ift:client",
+        "//patch_subset:common",
+        "@com_google_absl//absl/container:btree",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
 wasm_cc_binary(
     name = "patch_subset_wasm",
     cc_target = ":patch_subset_client",
+)
+
+wasm_cc_binary(
+    name = "ift_wasm",
+    cc_target = ":ift_client",
 )
