@@ -343,6 +343,52 @@ TEST_F(IFTTableTest, PatchToUrl_Complex) {
   EXPECT_EQ(table->PatchToUrl(200000), "https://localhost/3/d/d40.patch");
 }
 
+TEST_F(IFTTableTest, AddPatch) {
+  auto table = IFTTable::FromProto(sample);
+  ASSERT_TRUE(table.ok()) << table.status();
+
+  Status s = table->AddPatch({77, 79, 80}, 5, SHARED_BROTLI_ENCODING);
+  ASSERT_TRUE(s.ok()) << s;
+
+  patch_map expected = {
+      {30, std::pair(1, SHARED_BROTLI_ENCODING)},
+      {32, std::pair(1, SHARED_BROTLI_ENCODING)},
+      {55, std::pair(2, IFTB_ENCODING)},
+      {56, std::pair(2, IFTB_ENCODING)},
+      {57, std::pair(2, IFTB_ENCODING)},
+      {77, std::pair(5, SHARED_BROTLI_ENCODING)},
+      {79, std::pair(5, SHARED_BROTLI_ENCODING)},
+      {80, std::pair(5, SHARED_BROTLI_ENCODING)},
+  };
+
+  ASSERT_GT(table->GetProto().subset_mapping(2).bias(), 0);
+  ASSERT_EQ(table->GetProto().subset_mapping(2).patch_encoding(), DEFAULT_ENCODING);
+  ASSERT_EQ(table->GetPatchMap(), expected);
+}
+
+TEST_F(IFTTableTest, AddPatch_NonDefaultEncoding) {
+  auto table = IFTTable::FromProto(sample);
+  ASSERT_TRUE(table.ok()) << table.status();
+
+  Status s = table->AddPatch({77, 79, 80}, 5, IFTB_ENCODING);
+  ASSERT_TRUE(s.ok()) << s;
+
+  ASSERT_GT(table->GetProto().subset_mapping(2).bias(), 0);
+  ASSERT_EQ(table->GetProto().subset_mapping(2).patch_encoding(), IFTB_ENCODING);
+  patch_map expected = {
+      {30, std::pair(1, SHARED_BROTLI_ENCODING)},
+      {32, std::pair(1, SHARED_BROTLI_ENCODING)},
+      {55, std::pair(2, IFTB_ENCODING)},
+      {56, std::pair(2, IFTB_ENCODING)},
+      {57, std::pair(2, IFTB_ENCODING)},
+      {77, std::pair(5, IFTB_ENCODING)},
+      {79, std::pair(5, IFTB_ENCODING)},
+      {80, std::pair(5, IFTB_ENCODING)},
+  };
+
+  ASSERT_EQ(table->GetPatchMap(), expected);
+}
+
 TEST_F(IFTTableTest, RemovePatches) {
   auto table = IFTTable::FromProto(sample);
   ASSERT_TRUE(table.ok()) << table.status();
