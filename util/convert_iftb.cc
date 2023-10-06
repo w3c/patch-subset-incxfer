@@ -22,8 +22,8 @@ using absl::flat_hash_set;
 using absl::Status;
 using absl::string_view;
 using ift::proto::IFT;
-using ift::proto::SubsetMapping;
 using ift::proto::IFTB_ENCODING;
+using ift::proto::SubsetMapping;
 using patch_subset::FontData;
 
 namespace util {

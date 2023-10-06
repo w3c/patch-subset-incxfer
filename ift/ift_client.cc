@@ -12,9 +12,9 @@
 
 using absl::Status;
 using absl::StatusOr;
+using ift::proto::IFTB_ENCODING;
 using ift::proto::IFTTable;
 using ift::proto::PatchEncoding;
-using ift::proto::IFTB_ENCODING;
 using ift::proto::SHARED_BROTLI_ENCODING;
 using patch_subset::BinaryPatch;
 using patch_subset::FontData;
