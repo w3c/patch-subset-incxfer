@@ -23,6 +23,7 @@ using absl::Status;
 using absl::string_view;
 using ift::proto::IFT;
 using ift::proto::SubsetMapping;
+using ift::proto::IFTB_ENCODING;
 using patch_subset::FontData;
 
 namespace util {
@@ -160,6 +161,7 @@ IFT create_table(const std::string& url_template,
 
   IFT ift;
   ift.set_url_template(url_template);
+  ift.set_default_patch_encoding(IFTB_ENCODING);
   for (uint32_t n : id) {
     ift.add_id(n);
   }

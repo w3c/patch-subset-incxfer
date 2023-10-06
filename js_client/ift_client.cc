@@ -171,6 +171,11 @@ class State {
       return;
     }
 
+    if (urls->empty()) {
+      callback(true);
+      return;
+    }
+
     DoRequest(*urls, callback);
   }
 
@@ -222,6 +227,7 @@ void InitRequestSucceeded(emscripten_fetch_t* fetch) {
   InitRequestContext* context =
       reinterpret_cast<InitRequestContext*>(fetch->userData);
   if (fetch->status == 200) {
+    // TODO(garretrieger): decode woff2 if necessary.
     FontData response(absl::string_view(fetch->data, fetch->numBytes));
     context->subset->shallow_copy(response);
 

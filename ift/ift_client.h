@@ -5,6 +5,7 @@
 #include "absl/status/statusor.h"
 #include "hb.h"
 #include "ift/proto/IFT.pb.h"
+#include "ift/iftb_binary_patch.h"
 #include "patch_subset/binary_patch.h"
 #include "patch_subset/brotli_binary_patch.h"
 #include "patch_subset/font_data.h"
@@ -15,7 +16,7 @@ typedef absl::btree_map<std::string, ift::proto::PatchEncoding> patch_set;
 
 class IFTClient {
  public:
-  IFTClient() : brotli_binary_patch_(new patch_subset::BrotliBinaryPatch()) {}
+  IFTClient() : brotli_binary_patch_(new patch_subset::BrotliBinaryPatch()), iftb_binary_patch_(new ift::IftbBinaryPatch()) {}
 
   absl::StatusOr<patch_set> PatchUrlsFor(
       const patch_subset::FontData& font,
@@ -31,6 +32,7 @@ class IFTClient {
       ift::proto::PatchEncoding encoding) const;
 
   std::unique_ptr<patch_subset::BinaryPatch> brotli_binary_patch_;
+  std::unique_ptr<ift::IftbBinaryPatch> iftb_binary_patch_;
 };
 
 }  // namespace ift

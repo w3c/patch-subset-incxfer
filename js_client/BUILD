@@ -9,6 +9,7 @@ DEFAULT_EMSCRIPTEN_LINKOPTS = [
     "-s EXPORT_NAME=createModule",  # Not used, but good to specify
     "-s SINGLE_FILE=1",  # Pack all webassembly into base64
     "-s FETCH=1",  # Enable fetch API
+    "-s INITIAL_MEMORY=65536000"
 ]
 
 cc_binary(
