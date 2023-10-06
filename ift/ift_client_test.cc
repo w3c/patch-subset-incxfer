@@ -50,10 +50,23 @@ class IFTClientTest : public ::testing::Test {
 
     auto font = IFTTable::AddToFont(face, sample);
     sample_font.set(font->reference_face());
+
+    iftb_font = from_file("ift/testdata/NotoSansJP-Regular.ift.ttf");
+    chunk1 = from_file("ift/testdata/NotoSansJP-Regular.subset_iftb/chunk1.br");
+  }
+
+  FontData from_file(const char* filename) {
+    hb_blob_t* blob = hb_blob_create_from_file(filename);
+    FontData result(blob);
+    hb_blob_destroy(blob);
+    return result;
   }
 
   IFTClient client;
   FontData sample_font;
+
+  FontData iftb_font;
+  FontData chunk1;
 };
 
 TEST_F(IFTClientTest, PatchUrls) {
@@ -101,14 +114,12 @@ TEST_F(IFTClientTest, PatchUrls) {
 }
 
 TEST_F(IFTClientTest, ApplyPatches_IFTB) {
-  FontData base;
-  FontData patch;
   std::vector<FontData> patches;
-  patches.push_back(std::move(patch));
+  patches.emplace_back().shallow_copy(chunk1);
 
   IFTClient client;
-  auto s = client.ApplyPatches(base, patches, IFTB_ENCODING);
-  ASSERT_TRUE(absl::IsUnimplemented(s.status())) << s.status();
+  auto s = client.ApplyPatches(iftb_font, patches, IFTB_ENCODING);
+  ASSERT_TRUE(s.ok()) << s.status();
 }
 
 TEST_F(IFTClientTest, ApplyPatches_SharedBrotli) {
