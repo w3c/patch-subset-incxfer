@@ -14,6 +14,7 @@ using absl::Status;
 using absl::StatusOr;
 using ift::proto::IFTTable;
 using ift::proto::PatchEncoding;
+using ift::proto::IFTB_ENCODING;
 using ift::proto::SHARED_BROTLI_ENCODING;
 using patch_subset::BinaryPatch;
 using patch_subset::FontData;
@@ -68,7 +69,8 @@ StatusOr<const BinaryPatch*> IFTClient::PatcherFor(
   switch (encoding) {
     case SHARED_BROTLI_ENCODING:
       return brotli_binary_patch_.get();
-      // TODO(garretrieger): add support for IFTB patches.
+    case IFTB_ENCODING:
+      return iftb_binary_patch_.get();
     default:
       std::stringstream message;
       message << "Patch encoding " << encoding << " is not implemented.";
