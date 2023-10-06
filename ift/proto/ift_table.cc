@@ -184,8 +184,34 @@ std::string IFTTable::PatchToUrl(uint32_t patch_idx) const {
   return out.str();
 }
 
-Status IFTTable::RemovePatches(
-    const absl::flat_hash_set<uint32_t> patch_indices) {
+Status IFTTable::AddPatch(const flat_hash_set<uint32_t>& codepoints, uint32_t id,
+                PatchEncoding encoding) {
+  hb_set_unique_ptr set = make_hb_set();
+  for (uint32_t cp : codepoints) {
+    hb_set_add(set.get(), cp);
+  }
+
+  uint32_t bias = hb_set_get_min(set.get());
+  hb_set_clear(set.get());
+  for (uint32_t cp : codepoints) {
+    hb_set_add(set.get(), cp - bias);
+  }
+
+  std::string encoded = patch_subset::SparseBitSet::Encode(*set);
+
+  auto* m = ift_proto_.add_subset_mapping();
+  m->set_bias(bias);
+  m->set_codepoint_set(encoded);
+  m->set_id(id);
+
+  if (encoding != ift_proto_.default_patch_encoding()) {
+    m->set_patch_encoding(encoding);
+  }
+
+  return UpdatePatchMap();
+}
+
+Status IFTTable::RemovePatches(const flat_hash_set<uint32_t>& patch_indices) {
   auto mapping = ift_proto_.mutable_subset_mapping();
   for (auto it = mapping->cbegin(); it != mapping->cend();) {
     if (patch_indices.contains(it->id())) {
@@ -194,6 +220,11 @@ Status IFTTable::RemovePatches(
     }
     ++it;
   }
+
+  return UpdatePatchMap();
+}
+
+Status IFTTable::UpdatePatchMap() {
   auto new_patch_map = CreatePatchMap(ift_proto_);
   if (!new_patch_map.ok()) {
     return new_patch_map.status();

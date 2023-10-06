@@ -29,11 +29,18 @@ class IFTTable {
   static absl::StatusOr<patch_subset::FontData> AddToFont(
       hb_face_t* face, const IFT& proto, bool iftb_conversion = false);
 
+  const IFT& GetProto() const {
+    return ift_proto_;
+  }
+  
   void GetId(uint32_t out[4]) const;
   const patch_map& GetPatchMap() const;
   std::string PatchToUrl(uint32_t patch_idx) const;
 
-  absl::Status RemovePatches(const absl::flat_hash_set<uint32_t> patch_indices);
+  absl::Status AddPatch(const absl::flat_hash_set<uint32_t>& codepoints,
+                        uint32_t id, PatchEncoding encoding);
+  absl::Status RemovePatches(
+      const absl::flat_hash_set<uint32_t>& patch_indices);
   absl::StatusOr<patch_subset::FontData> AddToFont(hb_face_t* face);
 
  private:
@@ -48,6 +55,7 @@ class IFTTable {
     }
   }
 
+  absl::Status UpdatePatchMap();
   static absl::StatusOr<patch_map> CreatePatchMap(const IFT& ift_proto);
 
   patch_map patch_map_;
