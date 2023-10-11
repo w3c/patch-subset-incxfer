@@ -203,7 +203,7 @@ TEST_F(EncoderTest, Encode_FourSubsets) {
   ASSERT_TRUE(base.ok()) << base.status();
   ASSERT_EQ(ToCodepoints(*base), "a");
   ASSERT_EQ(encoder.Patches().size(),
-            12);  // TODO investigate why there are 15 instead of 12.
+            12);
 
   graph g;
   auto sc = ToGraph(encoder, *base, g);
