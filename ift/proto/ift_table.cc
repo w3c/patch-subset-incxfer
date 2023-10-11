@@ -33,7 +33,7 @@ constexpr hb_tag_t IFT_TAG = HB_TAG('I', 'F', 'T', ' ');
 StatusOr<IFTTable> IFTTable::FromFont(hb_face_t* face) {
   hb_blob_t* ift_table = hb_face_reference_table(face, IFT_TAG);
   if (ift_table == hb_blob_get_empty()) {
-    return absl::InvalidArgumentError("'IFT ' table not found in face.");
+    return absl::NotFoundError("'IFT ' table not found in face.");
   }
 
   unsigned length;

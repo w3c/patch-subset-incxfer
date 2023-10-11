@@ -19,6 +19,9 @@ ABSL_FLAG(std::string, output_path, "./",
 ABSL_FLAG(std::string, output_font, "out.ttf",
           "Name of the outputted base font.");
 
+ABSL_FLAG(std::string, url_template, "patch$5$4$3$2$1.br",
+          "Url template for patch files.");
+
 using absl::flat_hash_set;
 using absl::Status;
 using absl::StatusOr;
@@ -111,6 +114,9 @@ int write_output(const Encoder& encoder, const FontData& base_font) {
 
 int main(int argc, char** argv) {
   auto args = absl::ParseCommandLine(argc, argv);
+  // TODO(garretrieger): add support for taking arguments/config as a proto
+  // file,
+  //   where command line flags override the proto settings.
   if (args.size() < 3) {
     std::cerr << "usage: <input font> <codepoints file> [<codepoints file> ...]"
               << std::endl;
@@ -137,6 +143,7 @@ int main(int argc, char** argv) {
   }
 
   Encoder encoder;
+  encoder.SetUrlTemplate(absl::GetFlag(FLAGS_url_template));
   auto base_font = encoder.Encode(input_font, subsets[0], subset_pointers);
   if (!base_font.ok()) {
     std::cerr << base_font.status().message() << std::endl;

@@ -47,6 +47,7 @@ class IFTClientTest : public ::testing::Test {
         hb_blob_create_from_file("patch_subset/testdata/Roboto-Regular.ab.ttf");
     hb_face_t* face = hb_face_create(blob, 0);
     hb_blob_destroy(blob);
+    roboto_ab.set(face);
 
     auto font = IFTTable::AddToFont(face, sample);
     sample_font.set(font->reference_face());
@@ -63,6 +64,7 @@ class IFTClientTest : public ::testing::Test {
   }
 
   IFTClient client;
+  FontData roboto_ab;
   FontData sample_font;
 
   FontData iftb_font;
@@ -111,6 +113,16 @@ TEST_F(IFTClientTest, PatchUrls) {
   r = client.PatchUrlsFor(sample_font, *codepoints_6);
   ASSERT_TRUE(r.ok()) << r.status();
   ASSERT_EQ(expected_6, *r);
+}
+
+TEST_F(IFTClientTest, PatchUrls_Leaf) {
+  hb_set_unique_ptr codepoints_1 = make_hb_set(1, 30);
+
+  patch_set expected;
+
+  auto r = client.PatchUrlsFor(roboto_ab, *codepoints_1);
+  ASSERT_TRUE(r.ok()) << r.status();
+  ASSERT_EQ(expected, *r);
 }
 
 TEST_F(IFTClientTest, ApplyPatches_IFTB) {

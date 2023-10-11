@@ -12,10 +12,9 @@ namespace ift::encoder {
 
 class Encoder {
  public:
-  const std::string& UrlTemplate() const {
-    // TODO(garretrieger): customizable template.
-    return url_template_;
-  }
+  void SetUrlTemplate(const std::string& value) { url_template_ = value; }
+
+  const std::string& UrlTemplate() const { return url_template_; }
 
   absl::Span<const uint32_t> Id() const {
     // TODO(garretrieger): generate a new id on creation.

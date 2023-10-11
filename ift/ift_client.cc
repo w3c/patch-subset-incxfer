@@ -69,11 +69,16 @@ StatusOr<patch_set> IFTClient::PatchUrlsFor(
   auto ift = IFTTable::FromFont(face);
   hb_face_destroy(face);
 
+  patch_set result;
+  if (absl::IsNotFound(ift.status())) {
+    // No IFT table, means there's no additional patches.
+    return result;
+  }
+
   if (!ift.ok()) {
     return ift.status();
   }
 
-  patch_set result;
   hb_codepoint_t cp = HB_SET_VALUE_INVALID;
   while (hb_set_next(&additional_codepoints, &cp)) {
     auto v = ift->GetPatchMap().find(cp);
