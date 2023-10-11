@@ -28,6 +28,7 @@ namespace ift::proto {
 class IFTTableTest : public ::testing::Test {
  protected:
   IFTTableTest() {
+    sample.set_url_template("fonts/go/here");
     sample.set_default_patch_encoding(SHARED_BROTLI_ENCODING);
 
     auto m = sample.add_subset_mapping();
@@ -348,6 +349,24 @@ TEST_F(IFTTableTest, RemovePatches_BadIds) {
   };
 
   ASSERT_EQ(table->GetPatchMap(), expected);
+}
+
+TEST_F(IFTTableTest, FromFont) {
+  auto font = IFTTable::AddToFont(roboto_ab, sample);
+  ASSERT_TRUE(font.ok()) << font.status();
+
+  hb_face_t* face = font->reference_face();
+  auto table = IFTTable::FromFont(face);
+  hb_face_destroy(face);
+
+  ASSERT_TRUE(table.ok()) << table.status();
+  ASSERT_EQ(table->GetUrlTemplate(), "fonts/go/here");
+}
+
+TEST_F(IFTTableTest, FromFont_Missing) {
+  auto table = IFTTable::FromFont(roboto_ab);
+  ASSERT_FALSE(table.ok()) << table.status();
+  ASSERT_TRUE(absl::IsNotFound(table.status()));
 }
 
 }  // namespace ift::proto
