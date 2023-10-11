@@ -164,4 +164,69 @@ TEST_F(IFTClientTest, ApplyPatches_SharedBrotli) {
   }
 }
 
+TEST_F(IFTClientTest, PatchToUrl_NoFormatters) {
+  std::string url("https://localhost/abc.patch");
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 0), "https://localhost/abc.patch");
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 5), "https://localhost/abc.patch");
+}
+
+TEST_F(IFTClientTest, PatchToUrl_InvalidFormatter) {
+  std::string url("https://localhost/$1.$patch");
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 0), "https://localhost/0.$patch");
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 5), "https://localhost/5.$patch");
+
+  url = "https://localhost/$1.patch$";
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 0), "https://localhost/0.patch$");
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 5), "https://localhost/5.patch$");
+
+  url = "https://localhost/$1.pa$$2tch";
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 0), "https://localhost/0.pa$0tch");
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 5), "https://localhost/5.pa$0tch");
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 18), "https://localhost/2.pa$1tch");
+
+  url = "https://localhost/$6.patch";
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 0), "https://localhost/$6.patch");
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 5), "https://localhost/$6.patch");
+
+  url = "https://localhost/$12.patch";
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 0), "https://localhost/02.patch");
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 5), "https://localhost/52.patch");
+}
+
+TEST_F(IFTClientTest, PatchToUrl_Basic) {
+  std::string url = "https://localhost/$2$1.patch";
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 0), "https://localhost/00.patch");
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 5), "https://localhost/05.patch");
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 12), "https://localhost/0c.patch");
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 18), "https://localhost/12.patch");
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 212), "https://localhost/d4.patch");
+
+  url = "https://localhost/$2$1";
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 0), "https://localhost/00");
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 5), "https://localhost/05");
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 12), "https://localhost/0c");
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 18), "https://localhost/12");
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 212), "https://localhost/d4");
+
+  url = "$2$1.patch";
+  ;
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 0), "00.patch");
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 5), "05.patch");
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 12), "0c.patch");
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 18), "12.patch");
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 212), "d4.patch");
+
+  url = "$1";
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 0), "0");
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 5), "5");
+}
+
+TEST_F(IFTClientTest, PatchToUrl_Complex) {
+  std::string url = "https://localhost/$5/$3/$3$2$1.patch";
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 0), "https://localhost/0/0/000.patch");
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 5), "https://localhost/0/0/005.patch");
+  EXPECT_EQ(IFTClient::PatchToUrl(url, 200000),
+            "https://localhost/3/d/d40.patch");
+}
+
 }  // namespace ift

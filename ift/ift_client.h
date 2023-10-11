@@ -20,6 +20,9 @@ class IFTClient {
       : brotli_binary_patch_(new patch_subset::BrotliBinaryPatch()),
         iftb_binary_patch_(new ift::IftbBinaryPatch()) {}
 
+  static std::string PatchToUrl(const std::string& url_template,
+                                uint32_t patch_idx);
+
   absl::StatusOr<patch_set> PatchUrlsFor(
       const patch_subset::FontData& font,
       const hb_set_t& additional_codepoints) const;

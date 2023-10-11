@@ -21,6 +21,48 @@ using patch_subset::FontData;
 
 namespace ift {
 
+std::string IFTClient::PatchToUrl(const std::string& url_template,
+                                  uint32_t patch_idx) {
+  constexpr int num_digits = 5;
+  int hex_digits[num_digits];
+  int base = 1;
+  for (int i = 0; i < num_digits; i++) {
+    hex_digits[i] = (patch_idx / base) % 16;
+    base *= 16;
+  }
+
+  std::stringstream out;
+
+  size_t i = 0;
+  while (true) {
+    size_t from = i;
+    i = url_template.find("$", i);
+    if (i == std::string::npos) {
+      out << url_template.substr(from);
+      break;
+    }
+    out << url_template.substr(from, i - from);
+
+    i++;
+    if (i == url_template.length()) {
+      out << "$";
+      break;
+    }
+
+    char c = url_template[i];
+    if (c < 0x31 || c >= 0x31 + num_digits) {
+      out << "$";
+      continue;
+    }
+
+    int digit = c - 0x31;
+    out << std::hex << hex_digits[digit];
+    i++;
+  }
+
+  return out.str();
+}
+
 StatusOr<patch_set> IFTClient::PatchUrlsFor(
     const FontData& font, const hb_set_t& additional_codepoints) const {
   hb_face_t* face = font.reference_face();
@@ -41,7 +83,8 @@ StatusOr<patch_set> IFTClient::PatchUrlsFor(
 
     uint32_t patch_idx = v->second.first;
     PatchEncoding encoding = v->second.second;
-    result.insert(std::pair(ift->PatchToUrl(patch_idx), encoding));
+    result.insert(std::pair(
+        IFTClient::PatchToUrl(ift->GetUrlTemplate(), patch_idx), encoding));
   }
 
   return result;
