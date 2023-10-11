@@ -45,6 +45,23 @@ cc_binary(
     ],
 )
 
+cc_binary(
+    name = "font2ift",
+    srcs = [
+        "font2ift.cc",
+    ],
+    deps = [
+        "//ift:client",
+        "//ift/encoder",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@harfbuzz",
+    ],
+)
+
 cc_library(
     name = "convert_iftb",
     srcs = [
