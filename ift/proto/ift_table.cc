@@ -184,8 +184,8 @@ std::string IFTTable::PatchToUrl(uint32_t patch_idx) const {
   return out.str();
 }
 
-Status IFTTable::AddPatch(const flat_hash_set<uint32_t>& codepoints, uint32_t id,
-                PatchEncoding encoding) {
+Status IFTTable::AddPatch(const flat_hash_set<uint32_t>& codepoints,
+                          uint32_t id, PatchEncoding encoding) {
   hb_set_unique_ptr set = make_hb_set();
   for (uint32_t cp : codepoints) {
     hb_set_add(set.get(), cp);

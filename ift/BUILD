@@ -54,6 +54,6 @@ filegroup(
     name = "testdata",
     srcs = glob(["testdata/**"]),
     visibility = [
-        "//ift/proto:__pkg__",
+        "//ift:__subpackages__",
     ],
 )
