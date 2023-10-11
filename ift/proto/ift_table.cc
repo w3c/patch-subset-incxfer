@@ -142,48 +142,6 @@ StatusOr<FontData> IFTTable::AddToFont(hb_face_t* face) {
   return AddToFont(face, ift_proto_);
 }
 
-std::string IFTTable::PatchToUrl(uint32_t patch_idx) const {
-  std::string url = ift_proto_.url_template();
-  constexpr int num_digits = 5;
-  int hex_digits[num_digits];
-  int base = 1;
-  for (int i = 0; i < num_digits; i++) {
-    hex_digits[i] = (patch_idx / base) % 16;
-    base *= 16;
-  }
-
-  std::stringstream out;
-
-  size_t i = 0;
-  while (true) {
-    size_t from = i;
-    i = url.find("$", i);
-    if (i == std::string::npos) {
-      out << url.substr(from);
-      break;
-    }
-    out << url.substr(from, i - from);
-
-    i++;
-    if (i == url.length()) {
-      out << "$";
-      break;
-    }
-
-    char c = url[i];
-    if (c < 0x31 || c >= 0x31 + num_digits) {
-      out << "$";
-      continue;
-    }
-
-    int digit = c - 0x31;
-    out << std::hex << hex_digits[digit];
-    i++;
-  }
-
-  return out.str();
-}
-
 Status IFTTable::AddPatch(const flat_hash_set<uint32_t>& codepoints,
                           uint32_t id, PatchEncoding encoding) {
   hb_set_unique_ptr set = make_hb_set();

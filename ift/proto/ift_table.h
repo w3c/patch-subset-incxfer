@@ -33,7 +33,9 @@ class IFTTable {
 
   void GetId(uint32_t out[4]) const;
   const patch_map& GetPatchMap() const;
-  std::string PatchToUrl(uint32_t patch_idx) const;
+  const std::string& GetUrlTemplate() const {
+    return ift_proto_.url_template();
+  }
 
   absl::Status AddPatch(const absl::flat_hash_set<uint32_t>& codepoints,
                         uint32_t id, PatchEncoding encoding);
