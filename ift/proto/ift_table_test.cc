@@ -362,7 +362,8 @@ TEST_F(IFTTableTest, AddPatch) {
   };
 
   ASSERT_GT(table->GetProto().subset_mapping(2).bias(), 0);
-  ASSERT_EQ(table->GetProto().subset_mapping(2).patch_encoding(), DEFAULT_ENCODING);
+  ASSERT_EQ(table->GetProto().subset_mapping(2).patch_encoding(),
+            DEFAULT_ENCODING);
   ASSERT_EQ(table->GetPatchMap(), expected);
 }
 
@@ -374,7 +375,8 @@ TEST_F(IFTTableTest, AddPatch_NonDefaultEncoding) {
   ASSERT_TRUE(s.ok()) << s;
 
   ASSERT_GT(table->GetProto().subset_mapping(2).bias(), 0);
-  ASSERT_EQ(table->GetProto().subset_mapping(2).patch_encoding(), IFTB_ENCODING);
+  ASSERT_EQ(table->GetProto().subset_mapping(2).patch_encoding(),
+            IFTB_ENCODING);
   patch_map expected = {
       {30, std::pair(1, SHARED_BROTLI_ENCODING)},
       {32, std::pair(1, SHARED_BROTLI_ENCODING)},

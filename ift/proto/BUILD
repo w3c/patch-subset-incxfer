@@ -9,6 +9,7 @@ cc_library(
   visibility = [
     "//util:__pkg__",
     "//ift:__pkg__",
+    "//ift/encoder:__pkg__",
   ],
   deps = [
       ":IFT_cc_proto",
@@ -50,7 +51,7 @@ proto_library(
 cc_proto_library(
   name = "IFT_cc_proto",
   visibility = [
-    "//ift:__pkg__",
+    "//ift:__subpackages__",
     "//util:__pkg__",
     "//patch_subset:__pkg__",
   ],

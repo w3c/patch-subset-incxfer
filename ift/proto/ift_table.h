@@ -29,10 +29,8 @@ class IFTTable {
   static absl::StatusOr<patch_subset::FontData> AddToFont(
       hb_face_t* face, const IFT& proto, bool iftb_conversion = false);
 
-  const IFT& GetProto() const {
-    return ift_proto_;
-  }
-  
+  const IFT& GetProto() const { return ift_proto_; }
+
   void GetId(uint32_t out[4]) const;
   const patch_map& GetPatchMap() const;
   std::string PatchToUrl(uint32_t patch_idx) const;
