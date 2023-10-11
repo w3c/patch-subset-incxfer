@@ -49,9 +49,6 @@ StatusOr<FontData> Encoder::Encode(
     return copy;
   }
 
-  // TODO(garretrieger): XXXX add diagnostics to see the patches which are
-  // generated.
-
   // The first subset forms the base file, the remaining subsets are made
   // reachable via patches.
   auto base = CutSubset(font, base_subset);
@@ -60,6 +57,7 @@ StatusOr<FontData> Encoder::Encode(
   }
 
   if (subsets.empty()) {
+    built_subsets_[base_subset].shallow_copy(*base);
     return base;
   }
 
@@ -94,6 +92,7 @@ StatusOr<FontData> Encoder::Encode(
   }
 
   base->shallow_copy(*new_base);
+  built_subsets_[base_subset].shallow_copy(*base);
 
   uint32_t i = 0;
   for (auto s : subsets) {
