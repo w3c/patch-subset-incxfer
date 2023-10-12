@@ -75,8 +75,7 @@ int main(int argc, char** argv) {
     std::cout << out << std::endl;
   } else if (out_format == "proto") {
     std::cout << ift.SerializeAsString();
-  } else if (out_format == "font" ||
-             out_format == "woff2") {
+  } else if (out_format == "font" || out_format == "woff2") {
     auto out_font = IFTTable::AddToFont(face, ift, true);
     if (!out_font.ok()) {
       std::cerr << out_font.status();
