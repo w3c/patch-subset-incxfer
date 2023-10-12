@@ -223,7 +223,7 @@ TEST_F(EncoderTest, Encode_FourSubsets) {
 }
 
 TEST_F(EncoderTest, EncodeWoff2) {
-  auto woff2 = Encoder::EncodeWoff2(font);
+  auto woff2 = Encoder::EncodeWoff2(font.str());
   ASSERT_TRUE(woff2.ok()) << woff2.status();
 
   ASSERT_GT(woff2->size(), 48);
@@ -232,12 +232,12 @@ TEST_F(EncoderTest, EncodeWoff2) {
 }
 
 TEST_F(EncoderTest, EncodeWoff2_Fails) {
-  auto woff2 = Encoder::EncodeWoff2(woff2_font);
+  auto woff2 = Encoder::EncodeWoff2(woff2_font.str());
   ASSERT_TRUE(absl::IsInternal(woff2.status())) << woff2.status();
 }
 
 TEST_F(EncoderTest, DecodeWoff2) {
-  auto font = Encoder::DecodeWoff2(woff2_font);
+  auto font = Encoder::DecodeWoff2(woff2_font.str());
   ASSERT_TRUE(font.ok()) << font.status();
 
   ASSERT_GT(font->size(), woff2_font.size());
@@ -247,12 +247,12 @@ TEST_F(EncoderTest, DecodeWoff2) {
 }
 
 TEST_F(EncoderTest, DecodeWoff2_Fails) {
-  auto ttf = Encoder::DecodeWoff2(font);
+  auto ttf = Encoder::DecodeWoff2(font.str());
   ASSERT_TRUE(absl::IsInternal(ttf.status())) << ttf.status();
 }
 
 TEST_F(EncoderTest, RoundTripWoff2) {
-  auto ttf = Encoder::RoundTripWoff2(font);
+  auto ttf = Encoder::RoundTripWoff2(font.str());
   ASSERT_TRUE(ttf.ok()) << ttf.status();
 
   ASSERT_GT(ttf->size(), 4);
@@ -261,7 +261,7 @@ TEST_F(EncoderTest, RoundTripWoff2) {
 }
 
 TEST_F(EncoderTest, RoundTripWoff2_Fails) {
-  auto ttf = Encoder::RoundTripWoff2(woff2_font);
+  auto ttf = Encoder::RoundTripWoff2(woff2_font.str());
   ASSERT_TRUE(absl::IsInternal(ttf.status())) << ttf.status();
 }
 

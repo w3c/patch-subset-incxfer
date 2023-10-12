@@ -145,6 +145,7 @@ int main(int argc, char** argv) {
   Encoder encoder;
   encoder.SetUrlTemplate(absl::GetFlag(FLAGS_url_template));
   auto base_font = encoder.Encode(input_font, subsets[0], subset_pointers);
+  base_font = Encoder::EncodeWoff2(base_font->str());
   if (!base_font.ok()) {
     std::cerr << base_font.status().message() << std::endl;
     return -1;

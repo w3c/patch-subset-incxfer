@@ -4,6 +4,7 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/string_view.h"
 #include "hb-subset.h"
 #include "ift/proto/IFT.pb.h"
 #include "ift/proto/ift_table.h"
@@ -16,6 +17,7 @@
 using absl::flat_hash_set;
 using absl::Status;
 using absl::StatusOr;
+using absl::string_view;
 using ift::proto::IFT;
 using ift::proto::IFTTable;
 using ift::proto::SHARED_BROTLI_ENCODING;
@@ -65,9 +67,6 @@ StatusOr<FontData> Encoder::Encode(
     return base.status();
   }
 
-  // For the root node round trip the font through woff2 so that the base for
-  // patching can be a decoded woff2 font file.
-
   if (subsets.empty()) {
     built_subsets_[base_subset].shallow_copy(*base);
     return base;
@@ -103,7 +102,14 @@ StatusOr<FontData> Encoder::Encode(
     return new_base.status();
   }
 
-  base->shallow_copy(*new_base);
+  if (is_root) {
+    // For the root node round trip the font through woff2 so that the base for
+    // patching can be a decoded woff2 font file.
+    base = RoundTripWoff2(new_base->str());
+  } else {
+    base->shallow_copy(*new_base);
+  }
+
   built_subsets_[base_subset].shallow_copy(*base);
 
   uint32_t i = 0;
@@ -153,7 +159,7 @@ StatusOr<FontData> Encoder::CutSubset(
   return subset;
 }
 
-StatusOr<FontData> Encoder::EncodeWoff2(const FontData& font) {
+StatusOr<FontData> Encoder::EncodeWoff2(string_view font) {
   WOFF2Params params;
   params.brotli_quality = 11;
   params.allow_transforms = false;  // no loca + glyf transform.
@@ -173,7 +179,7 @@ StatusOr<FontData> Encoder::EncodeWoff2(const FontData& font) {
   return result;
 }
 
-StatusOr<FontData> Encoder::DecodeWoff2(const FontData& font) {
+StatusOr<FontData> Encoder::DecodeWoff2(string_view font) {
   size_t buffer_size =
       ComputeWOFF2FinalSize((const uint8_t*)font.data(), font.size());
   if (!buffer_size) {
@@ -192,13 +198,13 @@ StatusOr<FontData> Encoder::DecodeWoff2(const FontData& font) {
   return result;
 }
 
-StatusOr<FontData> Encoder::RoundTripWoff2(const FontData& font) {
+StatusOr<FontData> Encoder::RoundTripWoff2(string_view font) {
   auto r = EncodeWoff2(font);
   if (!r.ok()) {
     return r.status();
   }
 
-  return DecodeWoff2(*r);
+  return DecodeWoff2(r->str());
 }
 
 }  // namespace ift::encoder

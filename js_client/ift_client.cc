@@ -13,14 +13,18 @@
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/string_view.h"
+#include "ift/encoder/encoder.h"
 #include "ift/proto/IFT.pb.h"
 #include "patch_subset/font_data.h"
 #include "patch_subset/hb_set_unique_ptr.h"
 
 using namespace emscripten;
 
+using absl::string_view;
 using ift::IFTClient;
 using ift::patch_set;
+using ift::encoder::Encoder;
 using ift::proto::DEFAULT_ENCODING;
 using ift::proto::PatchEncoding;
 using patch_subset::FontData;
@@ -226,20 +230,42 @@ class State {
 void InitRequestSucceeded(emscripten_fetch_t* fetch) {
   InitRequestContext* context =
       reinterpret_cast<InitRequestContext*>(fetch->userData);
-  if (fetch->status == 200) {
-    // TODO(garretrieger): decode woff2 if necessary.
-    FontData response(absl::string_view(fetch->data, fetch->numBytes));
-    context->subset->shallow_copy(response);
+  FontData response;
+  string_view response_data;
 
-    // Now that we have the base file we need to trigger loading of any needed
-    // patches re-call extend.
-    context->state->extend_(std::move(context->codepoints),
-                            std::move(context->callback));
-  } else {
+  if (fetch->status != 200) {
     LOG(WARNING) << "Extend http request failed with code " << fetch->status;
     context->callback(false);
+    goto cleanup;
   }
 
+  response_data = string_view(fetch->data, fetch->numBytes);
+  if (response_data.size() < 4) {
+    LOG(WARNING) << "Response is too small.";
+    context->callback(false);
+    goto cleanup;
+  }
+
+  if (response_data.substr(0, 4) == "wOF2") {
+    auto r = Encoder::DecodeWoff2(response_data);
+    if (!r.ok()) {
+      LOG(WARNING) << "WOFF2 decoding failed: " << r.status();
+      context->callback(false);
+      goto cleanup;
+    }
+    response = std::move(*r);
+  } else {
+    response.copy(string_view(fetch->data, fetch->numBytes));
+  }
+
+  context->subset->shallow_copy(response);
+
+  // Now that we have the base file we need to trigger loading of any needed
+  // patches re-call extend.
+  context->state->extend_(std::move(context->codepoints),
+                          std::move(context->callback));
+
+cleanup:
   delete context;
   emscripten_fetch_close(fetch);
 }
