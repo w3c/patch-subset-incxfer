@@ -8,9 +8,9 @@
 #include "ift/proto/IFT.pb.h"
 #include "patch_subset/sparse_bit_set.h"
 
-using ::patch_subset::SparseBitSet;
 using ::ift::proto::IFT;
 using ::ift::proto::SubsetMapping;
+using ::patch_subset::SparseBitSet;
 
 namespace util {
 

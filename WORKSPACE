@@ -47,9 +47,9 @@ http_archive(
 http_archive(
     name = "woff2",
     build_file = "//third_party:woff2.BUILD",
-    sha256 = "db9ebe2aff6520e22ad9491863fc9e851b71fedbabefbb32508935d0f5cecf91",
-    strip_prefix = "woff2-a0d0ed7da27b708c0a4e96ad7a998bddc933c06e",
-    url = "https://github.com/google/woff2/archive/a0d0ed7da27b708c0a4e96ad7a998bddc933c06e.zip",
+    sha256 = "730b7f9de381c7b5b09c81841604fa10c5dd67628822fa377b776ab7929fe18c",
+    strip_prefix = "woff2-c8c0d339131e8f1889ae8aac0075913d98d9a722",
+    url = "https://github.com/google/woff2/archive/c8c0d339131e8f1889ae8aac0075913d98d9a722.zip",
 )
 
 # harfbuzz
