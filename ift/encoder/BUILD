@@ -14,6 +14,7 @@ cc_library(
     "@com_google_absl//absl/flags:flag",
     "@com_google_absl//absl/flags:parse",    
     "@harfbuzz",
+    "@woff2",
   ],
   visibility = [
     "//util:__pkg__",    

@@ -28,8 +28,15 @@ class Encoder {
 
   absl::StatusOr<patch_subset::FontData> Encode(
       hb_face_t* font, const absl::flat_hash_set<hb_codepoint_t>& base_subset,
-      // TODO(garretrieger): do we need a pointer here for the subset members?
-      std::vector<const absl::flat_hash_set<hb_codepoint_t>*> subsets);
+      std::vector<const absl::flat_hash_set<hb_codepoint_t>*> subsets,
+      bool is_root = true);
+
+  static absl::StatusOr<patch_subset::FontData> EncodeWoff2(
+      const patch_subset::FontData& font);
+  static absl::StatusOr<patch_subset::FontData> DecodeWoff2(
+      const patch_subset::FontData& font);
+  static absl::StatusOr<patch_subset::FontData> RoundTripWoff2(
+      const patch_subset::FontData& font);
 
  private:
   absl::StatusOr<patch_subset::FontData> CutSubset(
