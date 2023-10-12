@@ -9,6 +9,9 @@
 #include "ift/proto/ift_table.h"
 #include "patch_subset/font_data.h"
 #include "patch_subset/hb_set_unique_ptr.h"
+#include "woff2/decode.h"
+#include "woff2/encode.h"
+#include "woff2/output.h"
 
 using absl::flat_hash_set;
 using absl::Status;
@@ -18,6 +21,12 @@ using ift::proto::IFTTable;
 using ift::proto::SHARED_BROTLI_ENCODING;
 using patch_subset::FontData;
 using patch_subset::hb_set_unique_ptr;
+using woff2::ComputeWOFF2FinalSize;
+using woff2::ConvertTTFToWOFF2;
+using woff2::ConvertWOFF2ToTTF;
+using woff2::MaxWOFF2CompressedSize;
+using woff2::WOFF2Params;
+using woff2::WOFF2StringOut;
 
 namespace ift::encoder {
 
@@ -41,7 +50,7 @@ flat_hash_set<hb_codepoint_t> combine(const flat_hash_set<hb_codepoint_t>& s1,
 
 StatusOr<FontData> Encoder::Encode(
     hb_face_t* font, const flat_hash_set<hb_codepoint_t>& base_subset,
-    std::vector<const flat_hash_set<hb_codepoint_t>*> subsets) {
+    std::vector<const flat_hash_set<hb_codepoint_t>*> subsets, bool is_root) {
   auto it = built_subsets_.find(base_subset);
   if (it != built_subsets_.end()) {
     FontData copy;
@@ -55,6 +64,9 @@ StatusOr<FontData> Encoder::Encode(
   if (!base.ok()) {
     return base.status();
   }
+
+  // For the root node round trip the font through woff2 so that the base for
+  // patching can be a decoded woff2 font file.
 
   if (subsets.empty()) {
     built_subsets_[base_subset].shallow_copy(*base);
@@ -100,7 +112,7 @@ StatusOr<FontData> Encoder::Encode(
     std::vector<const flat_hash_set<hb_codepoint_t>*> remaining_subsets =
         remaining(subsets, s);
     flat_hash_set<hb_codepoint_t> combined_subset = combine(base_subset, *s);
-    auto next = Encode(font, combined_subset, remaining_subsets);
+    auto next = Encode(font, combined_subset, remaining_subsets, false);
     if (!next.ok()) {
       return next.status();
     }
@@ -139,6 +151,54 @@ StatusOr<FontData> Encoder::CutSubset(
   hb_subset_input_destroy(input);
 
   return subset;
+}
+
+StatusOr<FontData> Encoder::EncodeWoff2(const FontData& font) {
+  WOFF2Params params;
+  params.brotli_quality = 11;
+  params.allow_transforms = false;  // no loca + glyf transform.
+  size_t buffer_size =
+      MaxWOFF2CompressedSize((const uint8_t*)font.data(), font.size());
+  uint8_t* buffer = (uint8_t*)malloc(buffer_size);
+  if (!ConvertTTFToWOFF2((const uint8_t*)font.data(), font.size(), buffer,
+                         &buffer_size, params)) {
+    free(buffer);
+    return absl::InternalError("WOFF2 encoding failed.");
+  }
+
+  hb_blob_t* blob = hb_blob_create((const char*)buffer, buffer_size,
+                                   HB_MEMORY_MODE_READONLY, buffer, free);
+  FontData result(blob);
+  hb_blob_destroy(blob);
+  return result;
+}
+
+StatusOr<FontData> Encoder::DecodeWoff2(const FontData& font) {
+  size_t buffer_size =
+      ComputeWOFF2FinalSize((const uint8_t*)font.data(), font.size());
+  if (!buffer_size) {
+    return absl::InternalError("Failed computing woff2 output size.");
+  }
+
+  std::string buffer;
+  buffer.resize(buffer_size);
+  WOFF2StringOut out(&buffer);
+
+  if (!ConvertWOFF2ToTTF((const uint8_t*)font.data(), font.size(), &out)) {
+    return absl::InternalError("WOFF2 decoding failed.");
+  }
+
+  FontData result(buffer);
+  return result;
+}
+
+StatusOr<FontData> Encoder::RoundTripWoff2(const FontData& font) {
+  auto r = EncodeWoff2(font);
+  if (!r.ok()) {
+    return r.status();
+  }
+
+  return DecodeWoff2(*r);
 }
 
 }  // namespace ift::encoder
