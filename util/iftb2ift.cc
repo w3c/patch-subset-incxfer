@@ -9,15 +9,17 @@
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "hb.h"
+#include "ift/encoder/encoder.h"
 #include "ift/proto/IFT.pb.h"
 #include "ift/proto/ift_table.h"
 #include "patch_subset/font_data.h"
 #include "util/convert_iftb.h"
 
 ABSL_FLAG(std::string, output_format, "font",
-          "Format of the output: 'text', 'proto', or 'font'.");
+          "Format of the output: 'text', 'proto', 'font', or 'woff2'.");
 
 using google::protobuf::TextFormat;
+using ift::encoder::Encoder;
 using ift::proto::IFT;
 using ift::proto::IFTTable;
 using patch_subset::FontData;
@@ -66,18 +68,28 @@ int main(int argc, char** argv) {
   std::getline(std::cin, input, '\0');
   IFT ift = convert_iftb(input, face);
 
-  if (absl::GetFlag(FLAGS_output_format) == "text") {
+  std::string out_format = absl::GetFlag(FLAGS_output_format);
+  if (out_format == "text") {
     std::string out;
     TextFormat::PrintToString(ift, &out);
     std::cout << out << std::endl;
-  } else if (absl::GetFlag(FLAGS_output_format) == "proto") {
+  } else if (out_format == "proto") {
     std::cout << ift.SerializeAsString();
-  } else if (absl::GetFlag(FLAGS_output_format) == "font") {
+  } else if (out_format == "font" ||
+             out_format == "woff2") {
     auto out_font = IFTTable::AddToFont(face, ift, true);
     if (!out_font.ok()) {
       std::cerr << out_font.status();
       return -1;
     }
+
+    if (out_format == "woff2") {
+      out_font = Encoder::EncodeWoff2(out_font->str());
+      if (!out_font.ok()) {
+        std::cerr << out_font.status();
+      }
+    }
+
     std::cout << out_font->string();
   } else {
     fprintf(stderr, "ERROR: unrecognized output format: %s\n",

@@ -5,10 +5,12 @@
 
 #include "gtest/gtest.h"
 #include "hb.h"
-#include "patch_subset/proto/IFT.pb.h"
+#include "ift/proto/IFT.pb.h"
 #include "patch_subset/sparse_bit_set.h"
 
 using ::patch_subset::SparseBitSet;
+using ::ift::proto::IFT;
+using ::ift::proto::SubsetMapping;
 
 namespace util {
 

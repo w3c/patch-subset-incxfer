@@ -42,6 +42,7 @@ cc_binary(
     ],
     deps = [
         ":convert_iftb",
+        "//ift/encoder",
     ],
 )
 
@@ -71,7 +72,7 @@ cc_library(
     deps = [
         "//patch_subset:common",
         "//ift/proto",
-        "//ift/proto:IFT_cc_proto",
+        "//ift/proto:IFT_cc_proto",        
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/container:btree",
