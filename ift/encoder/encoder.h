@@ -4,6 +4,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "patch_subset/brotli_binary_diff.h"
 #include "patch_subset/font_data.h"
@@ -32,11 +33,11 @@ class Encoder {
       bool is_root = true);
 
   static absl::StatusOr<patch_subset::FontData> EncodeWoff2(
-      const patch_subset::FontData& font);
+      absl::string_view font);
   static absl::StatusOr<patch_subset::FontData> DecodeWoff2(
-      const patch_subset::FontData& font);
+      absl::string_view font);
   static absl::StatusOr<patch_subset::FontData> RoundTripWoff2(
-      const patch_subset::FontData& font);
+      absl::string_view font);
 
  private:
   absl::StatusOr<patch_subset::FontData> CutSubset(

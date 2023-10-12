@@ -98,9 +98,9 @@ function update_transfer_bars() {
     let ur_total = 0;
     for (let r of performance.getEntriesByType("resource")) {
         if ((r.name.includes("/experimental/patch_subset")
-             || r.name.includes("/fonts")
+             || r.name.includes("/fonts/")
              || r.name.includes("_iftb"))
-            && (r.name.endsWith(".ttf") || r.name.endsWith(".otf") || r.name.endsWith(".br"))) {
+            && (r.name.endsWith(".ttf") || r.name.endsWith(".otf") || r.name.endsWith(".br") || r.name.endsWith(".woff2"))) {
             pfe_total += r.transferSize;
         }
         if (r.name.includes("/s/")) {
