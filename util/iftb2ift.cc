@@ -15,6 +15,15 @@
 #include "patch_subset/font_data.h"
 #include "util/convert_iftb.h"
 
+/*
+ * This utility converts iftb fonts into the IFT format.
+ */
+
+// TODO(garretrieger): add flags to allow input info dump and an output
+// file path to be specified. Currently these come from stdin/stdout.
+
+// TODO(garretrieger): support converting IFTB feature mappings.
+
 ABSL_FLAG(std::string, output_format, "font",
           "Format of the output: 'text', 'proto', 'font', or 'woff2'.");
 
@@ -58,7 +67,15 @@ int main(int argc, char** argv) {
   auto args = absl::ParseCommandLine(argc, argv);
 
   if (args.size() != 2) {
-    printf("usage: [--notext_format] <input font>\n");
+    std::cout
+        << "This utility converts an existing IFTB font into the IFT format. "
+        << "it must be supplied with a IFTB info dump on stdin "
+        << "(produced via \"iftb -VV info\"). The output file is sent to "
+           "stdout."
+        << std::endl
+        << std::endl;
+    std::cout << "usage: iftb2ift [--output_format=<text|proto|font|woff2>] "
+                 "<input font>\n";
     return -1;
   }
 

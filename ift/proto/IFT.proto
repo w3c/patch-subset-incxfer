@@ -11,31 +11,54 @@ enum PatchEncoding {
 
 message IFT {
   string url_template = 1;
+
+  // Unique ID for this font. Can be used to validate patches before application.
   repeated uint32 id = 2;
+
+  // This is the encoding for patches unless otherwise specified in the patch mapping.
   PatchEncoding default_patch_encoding = 3;
+
   repeated SubsetMapping subset_mapping = 4;
   repeated CombinedSubsetMapping combined_subset_mapping = 5;
+
   // next = 6
 }
 
+// Maps from a subset description to a patch
 message SubsetMapping {
-  // KEY
-  uint32 bias = 1;
-  bytes codepoint_set = 2;
-  // TODO: features, design space
+  // == KEY ==
 
-  // VALUE
+  // 'bias' is added to all values in codepoint_set.
+  uint32 bias = 1;
+
+  // The encoded bytes of a SparseBitSet (see: patch_subset/sparse_bit_set.h)
+  bytes codepoint_set = 2;
+
+  // TODO(garretrieger): add layout features and design space.
+
+  // == VALUE ==
+
   uint32 id = 3;
   PatchEncoding patch_encoding = 4;
+
+  // next = 5
 }
 
+// Maps from a subset description (formed as a union of previously listed definitions)
+// to a patch
+//
+// TODO(garretrieger): should this just be an optional field in the SubsetMapping object above?
 message CombinedSubsetMapping {
-  // KEY
+  // == KEY == 
+
+  // TODO(garretrieger): Use bias + sparse bit sets here?
   repeated uint32 subset_indices = 1;
 
-  // TODO: support adding features here
+  // TODO(garretrieger): support adding features here
 
-  // VALUE
+  // == VALUE ==
   uint32 id = 2;
   PatchEncoding patch_encoding = 3;
+
+  // next = 4
 }

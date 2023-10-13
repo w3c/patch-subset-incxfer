@@ -11,6 +11,14 @@
 
 namespace ift::encoder {
 
+/*
+ * Implementation of an encoder which can convert non-IFT fonts to an IFT
+ * font and a set of patches.
+ *
+ * Currently this only supports producing shared brotli IFT fonts. For IFTB
+ * the util/iftb2ift.cc cli can be used to convert IFTB fonts into the IFT
+ * format.
+ */
 class Encoder {
  public:
   void SetUrlTemplate(const std::string& value) { url_template_ = value; }
@@ -27,6 +35,14 @@ class Encoder {
     return patches_;
   }
 
+  /*
+   * Create an IFT encoded version of 'font' that initially supports
+   * 'base_subset' but can be extended via patches to support any combination of
+   * 'subsets'.
+   *
+   * Returns: the IFT encoded initial font. Patches() will be populated with the
+   * set of associated patch files.
+   */
   absl::StatusOr<patch_subset::FontData> Encode(
       hb_face_t* font, const absl::flat_hash_set<hb_codepoint_t>& base_subset,
       std::vector<const absl::flat_hash_set<hb_codepoint_t>*> subsets,

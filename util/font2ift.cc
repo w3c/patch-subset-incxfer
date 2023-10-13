@@ -13,6 +13,10 @@
 #include "ift/ift_client.h"
 #include "patch_subset/font_data.h"
 
+/*
+ * Utility that converts a standard font file into an IFT font file.
+ */
+
 ABSL_FLAG(std::string, output_path, "./",
           "Path to write output files under (base font and patches).");
 
@@ -118,11 +122,21 @@ int main(int argc, char** argv) {
   // file,
   //   where command line flags override the proto settings.
   if (args.size() < 3) {
-    std::cerr << "usage: <input font> <codepoints file> [<codepoints file> ...]"
-              << std::endl;
     std::cerr
         << "creates an IFT font from <input font> that can incrementally load "
-        << "the provided subsets." << std::endl;
+        << "the provided subsets." << std::endl
+        << std::endl
+        << "usage: <input font> <codepoints file> [<codepoints file> ...]"
+        << std::endl
+        << "flags: " << std::endl
+        << " --output_path: directory to write the output font and patches "
+           "into."
+        << std::endl
+        << " --output_font: name of the output font file." << std::endl
+        << " --url_template: url template to use for the patch files."
+        << std::endl
+        << std::endl;
+    return -1;
   }
 
   hb_face_t* input_font = load_font(args[1]);

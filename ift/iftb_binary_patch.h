@@ -9,8 +9,7 @@
 
 namespace ift {
 
-// Applies a patch that was created using brotli compression
-// with a shared dictionary.
+/* Applies one or more IFTB chunk file patches. */
 class IftbBinaryPatch : public patch_subset::BinaryPatch {
  public:
   absl::Status Patch(
