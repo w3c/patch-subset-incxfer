@@ -59,18 +59,19 @@ std::set<uint32_t> to_set(const SubsetMapping& mapping) {
 }
 
 TEST_F(ConvertIftbTest, BasicConversion) {
-  IFT ift = convert_iftb(sample_input, face);
+  auto ift = convert_iftb(sample_input, face);
+  ASSERT_TRUE(ift.ok()) << ift.status();
 
-  ASSERT_EQ(ift.url_template(), "./Roboto-Regular_iftb/$3/chunk$3$2$1.br");
-  ASSERT_EQ(ift.subset_mapping_size(), 2);
+  ASSERT_EQ(ift->url_template(), "./Roboto-Regular_iftb/$3/chunk$3$2$1.br");
+  ASSERT_EQ(ift->subset_mapping_size(), 2);
 
   std::set<uint32_t> expected1{{0x41, 0x65, 0x6d}};
-  ASSERT_EQ(to_set(ift.subset_mapping(0)), expected1);
-  ASSERT_EQ(ift.subset_mapping(0).id(), 1);
+  ASSERT_EQ(to_set(ift->subset_mapping(0)), expected1);
+  ASSERT_EQ(ift->subset_mapping(0).id(), 1);
 
   std::set<uint32_t> expected2{{0x6f, 0x77, 0x80}};
-  ASSERT_EQ(to_set(ift.subset_mapping(1)), expected2);
-  ASSERT_EQ(ift.subset_mapping(1).id(), 2);
+  ASSERT_EQ(to_set(ift->subset_mapping(1)), expected2);
+  ASSERT_EQ(ift->subset_mapping(1).id(), 2);
 }
 
 }  // namespace util

@@ -9,21 +9,23 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "hb.h"
 #include "ift/proto/IFT.pb.h"
+#include "ift/proto/ift_table.h"
 #include "patch_subset/font_data.h"
-#include "patch_subset/sparse_bit_set.h"
 
 using absl::btree_map;
 using absl::btree_set;
 using absl::flat_hash_map;
 using absl::flat_hash_set;
 using absl::Status;
+using absl::StatusOr;
 using absl::string_view;
 using ift::proto::IFT;
 using ift::proto::IFTB_ENCODING;
-using ift::proto::SubsetMapping;
+using ift::proto::IFTTable;
 using patch_subset::FontData;
 
 namespace util {
@@ -128,54 +130,42 @@ btree_map<uint32_t, btree_set<uint32_t>> compress_gid_map(
   return result;
 }
 
-void to_subset_mapping(uint32_t chunk, btree_set<uint32_t> codepoints,
-                       SubsetMapping* mapping) {
-  mapping->set_id(chunk);
-
-  auto it = codepoints.begin();
-  uint32_t lowest = *it;
-
-  hb_set_t* biased_codepoints = hb_set_create();
-  for (uint32_t cp : codepoints) {
-    if (lowest > cp) {
-      fprintf(stderr, "FATAL: %u > %u.", lowest, cp);
-      exit(-1);
-    }
-    hb_set_add(biased_codepoints, cp - lowest);
-  }
-
-  std::string encoded = patch_subset::SparseBitSet::Encode(*biased_codepoints);
-  hb_set_destroy(biased_codepoints);
-
-  mapping->set_bias(lowest);
-  mapping->set_codepoint_set(encoded);
-}
-
-IFT create_table(const std::string& url_template,
-                 const std::vector<uint32_t>& id,
-                 const flat_hash_map<std::uint32_t, uint32_t>& gid_map,
-                 const flat_hash_set<uint32_t>& loaded_chunks,
-                 hb_face_t* face) {
+StatusOr<IFT> create_table(
+    const std::string& url_template, const std::vector<uint32_t>& id,
+    const flat_hash_map<std::uint32_t, uint32_t>& gid_map,
+    const flat_hash_set<uint32_t>& loaded_chunks, hb_face_t* face) {
   btree_map<uint32_t, btree_set<uint32_t>> chunk_to_codepoints =
       compress_gid_map(gid_map, loaded_chunks, face);
 
   IFT ift;
   ift.set_url_template(url_template);
   ift.set_default_patch_encoding(IFTB_ENCODING);
+
   for (uint32_t n : id) {
     ift.add_id(n);
   }
 
+  auto table = IFTTable::FromProto(ift);
+  if (!table.ok()) {
+    return table.status();
+  }
+
   for (auto e : chunk_to_codepoints) {
-    to_subset_mapping(e.first, e.second, ift.add_subset_mapping());
+    flat_hash_set<uint32_t> flat_set;
+    std::copy(e.second.begin(), e.second.end(),
+              std::inserter(flat_set, flat_set.begin()));
+    auto sc = table->AddPatch(flat_set, e.first, IFTB_ENCODING);
+    if (!sc.ok()) {
+      return sc;
+    }
   }
 
   // TODO(garretrieger): populate the additional fields.
 
-  return ift;
+  return table->GetProto();
 }
 
-IFT convert_iftb(string_view iftb_dump, hb_face_t* face) {
+StatusOr<IFT> convert_iftb(string_view iftb_dump, hb_face_t* face) {
   flat_hash_map<std::uint32_t, uint32_t> gid_map;
   flat_hash_set<uint32_t> loaded_chunks;
   std::vector<uint32_t> id;
