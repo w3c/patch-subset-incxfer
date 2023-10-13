@@ -87,9 +87,9 @@ A prototype implementation has been added to this repo. The following pieces are
 * Patch application implementations:
   [brotli_binary_patch.h](../patch_subset/brotli_binary_patch.h) and [iftb_binary_patch.h](../ift/iftb_binary_patch.h).
 
-
-As this is a prototype there's some missing functionality. Current limitations:
+As this is a prototype there's some missing functionality. Some current limitations:
 * Only supports subset definitions using codepoints. Will be looking to add supprot for layout features next.
 * For IFTB currently only supports true type (glyf) and not open type (CFF/CFF2) fonts. Support for CFF coming soon.
+* Overlapping subset definitions in the patch map are not yet supported.
 
 

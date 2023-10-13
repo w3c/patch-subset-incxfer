@@ -83,17 +83,21 @@ int main(int argc, char** argv) {
 
   std::string input;
   std::getline(std::cin, input, '\0');
-  IFT ift = convert_iftb(input, face);
+  auto ift = convert_iftb(input, face);
+  if (!ift.ok()) {
+    std::cerr << ift.status();
+    return -1;
+  }
 
   std::string out_format = absl::GetFlag(FLAGS_output_format);
   if (out_format == "text") {
     std::string out;
-    TextFormat::PrintToString(ift, &out);
+    TextFormat::PrintToString(*ift, &out);
     std::cout << out << std::endl;
   } else if (out_format == "proto") {
-    std::cout << ift.SerializeAsString();
+    std::cout << ift->SerializeAsString();
   } else if (out_format == "font" || out_format == "woff2") {
-    auto out_font = IFTTable::AddToFont(face, ift, true);
+    auto out_font = IFTTable::AddToFont(face, *ift, true);
     if (!out_font.ok()) {
       std::cerr << out_font.status();
       return -1;
