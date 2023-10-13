@@ -21,6 +21,8 @@ namespace ift::encoder {
  */
 class Encoder {
  public:
+  Encoder() : binary_diff_(11) {}
+
   void SetUrlTemplate(const std::string& value) { url_template_ = value; }
 
   const std::string& UrlTemplate() const { return url_template_; }
