@@ -14,6 +14,10 @@ namespace ift {
 
 typedef absl::btree_map<std::string, ift::proto::PatchEncoding> patch_set;
 
+/*
+ * Client library for IFT fonts. Provides common operations needed by a client
+ * trying to use an IFT font.
+ */
 class IFTClient {
  public:
   IFTClient()
@@ -23,10 +27,20 @@ class IFTClient {
   static std::string PatchToUrl(const std::string& url_template,
                                 uint32_t patch_idx);
 
+  /*
+   * Returns the set of patches needed to add support for all codepoints
+   * in 'additional_codepoints'.
+   */
   absl::StatusOr<patch_set> PatchUrlsFor(
       const patch_subset::FontData& font,
       const hb_set_t& additional_codepoints) const;
 
+  /*
+   * Applies one or more 'patches' to 'font'. The patches are all encoded
+   * in the 'encoding' format.
+   *
+   * Returns the extended font.
+   */
   absl::StatusOr<patch_subset::FontData> ApplyPatches(
       const patch_subset::FontData& font,
       const std::vector<patch_subset::FontData>& patches,
