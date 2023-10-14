@@ -67,11 +67,11 @@ TEST_F(ConvertIftbTest, BasicConversion) {
 
   std::set<uint32_t> expected1{{0x41, 0x65, 0x6d}};
   ASSERT_EQ(to_set(ift->subset_mapping(0)), expected1);
-  ASSERT_EQ(ift->subset_mapping(0).id(), 1);
+  ASSERT_EQ(ift->subset_mapping(0).id_delta(), 0);
 
   std::set<uint32_t> expected2{{0x6f, 0x77, 0x80}};
   ASSERT_EQ(to_set(ift->subset_mapping(1)), expected2);
-  ASSERT_EQ(ift->subset_mapping(1).id(), 2);
+  ASSERT_EQ(ift->subset_mapping(1).id_delta(), 0);
 }
 
 }  // namespace util

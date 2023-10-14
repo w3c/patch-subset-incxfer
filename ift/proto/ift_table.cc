@@ -3,7 +3,6 @@
 #include <google/protobuf/text_format.h>
 
 #include <algorithm>
-#include <sstream>
 #include <string>
 
 #include "absl/container/flat_hash_map.h"
@@ -11,7 +10,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "common/font_helper.h"
-#include "hb-subset.h"
+#include "hb.h"
 #include "ift/proto/IFT.pb.h"
 #include "patch_subset/hb_set_unique_ptr.h"
 #include "patch_subset/sparse_bit_set.h"
@@ -20,6 +19,7 @@ using absl::flat_hash_map;
 using absl::flat_hash_set;
 using absl::Status;
 using absl::StatusOr;
+using absl::StrCat;
 using common::FontHelper;
 using patch_subset::FontData;
 using patch_subset::hb_set_unique_ptr;
@@ -29,6 +29,10 @@ using patch_subset::SparseBitSet;
 namespace ift::proto {
 
 constexpr hb_tag_t IFT_TAG = HB_TAG('I', 'F', 'T', ' ');
+
+// TODO(garretrieger): keep an abstract representation around and have a
+// compiler rather than
+//                     trying to modify the proto.
 
 StatusOr<IFTTable> IFTTable::FromFont(hb_face_t* face) {
   hb_blob_t* ift_table = hb_face_reference_table(face, IFT_TAG);
@@ -157,10 +161,17 @@ Status IFTTable::AddPatch(const flat_hash_set<uint32_t>& codepoints,
 
   std::string encoded = patch_subset::SparseBitSet::Encode(*set);
 
+  auto last_id = GetLastPatchId();
+  if (!last_id.ok()) {
+    return last_id.status();
+  }
+
+  int32_t delta = ((int64_t)id) - ((int64_t)*last_id) - 1;
+
   auto* m = ift_proto_.add_subset_mapping();
   m->set_bias(bias);
   m->set_codepoint_set(encoded);
-  m->set_id(id);
+  m->set_id_delta(delta);
 
   if (encoding != ift_proto_.default_patch_encoding()) {
     m->set_patch_encoding(encoding);
@@ -171,15 +182,35 @@ Status IFTTable::AddPatch(const flat_hash_set<uint32_t>& codepoints,
 
 Status IFTTable::RemovePatches(const flat_hash_set<uint32_t>& patch_indices) {
   auto mapping = ift_proto_.mutable_subset_mapping();
-  for (auto it = mapping->cbegin(); it != mapping->cend();) {
-    if (patch_indices.contains(it->id())) {
+  int32_t id = 0;
+  int32_t gain = 0;
+  for (auto it = mapping->begin(); it != mapping->end();) {
+    id += it->id_delta() + 1;
+    if (patch_indices.contains(id)) {
+      gain += it->id_delta() + 1;
       it = mapping->erase(it);
       continue;
     }
+
+    it->set_id_delta(it->id_delta() + gain);
+    gain = 0;
     ++it;
   }
 
   return UpdatePatchMap();
+}
+
+StatusOr<uint32_t> IFTTable::GetLastPatchId() const {
+  int32_t id = 0;
+  for (const auto& m : ift_proto_.subset_mapping()) {
+    int32_t delta = m.id_delta() + 1;
+    id += delta;
+    if (id < 0) {
+      return absl::InvalidArgumentError(
+          StrCat("invalid mapping proto, id is less than zero (", id, ")."));
+    }
+  }
+  return (uint32_t)id;
 }
 
 Status IFTTable::UpdatePatchMap() {
@@ -206,9 +237,11 @@ StatusOr<patch_map> IFTTable::CreatePatchMap(const IFT& ift) {
   //                     on an entry.
   PatchEncoding default_encoding = ift.default_patch_encoding();
   patch_map result;
+  int32_t id = 0;
   for (auto m : ift.subset_mapping()) {
+    id += m.id_delta() + 1;
     uint32_t bias = m.bias();
-    uint32_t patch_idx = m.id();
+    uint32_t patch_idx = id;
     PatchEncoding encoding = m.patch_encoding();
     if (encoding == DEFAULT_ENCODING) {
       encoding = default_encoding;

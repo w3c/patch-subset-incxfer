@@ -31,14 +31,14 @@ class IFTClientTest : public ::testing::Test {
     hb_set_unique_ptr set = make_hb_set(2, 7, 9);
     m->set_bias(23);
     m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
-    m->set_id(9);
+    m->set_id_delta(8);
     m->set_patch_encoding(IFTB_ENCODING);
 
     m = sample.add_subset_mapping();
     set = make_hb_set(3, 10, 11, 12);
     m->set_bias(45);
     m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
-    m->set_id(42);
+    m->set_id_delta(32);
     m->set_patch_encoding(SHARED_BROTLI_ENCODING);
 
     sample.set_url_template("https://localhost/patches/$2$1.patch");

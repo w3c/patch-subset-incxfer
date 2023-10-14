@@ -84,6 +84,8 @@ class IFTTable {
     }
   }
 
+  absl::StatusOr<uint32_t> GetLastPatchId() const;
+
   absl::Status UpdatePatchMap();
   static absl::StatusOr<patch_map> CreatePatchMap(const IFT& ift_proto);
 

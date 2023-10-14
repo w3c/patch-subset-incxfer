@@ -38,7 +38,7 @@ message SubsetMapping {
 
   // == VALUE ==
 
-  uint32 id = 3;
+  int32 id_delta = 3;
   PatchEncoding patch_encoding = 4;
 
   // next = 5

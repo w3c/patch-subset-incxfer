@@ -91,5 +91,6 @@ As this is a prototype there's some missing functionality. Some current limitati
 * Only supports subset definitions using codepoints. Will be looking to add supprot for layout features next.
 * For IFTB currently only supports true type (glyf) and not open type (CFF/CFF2) fonts. Support for CFF coming soon.
 * Overlapping subset definitions in the patch map are not yet supported.
+* Only integer patch ids are currently supported. Eventually though arbitrary string ids should be allowed.
 
 
