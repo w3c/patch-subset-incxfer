@@ -105,7 +105,7 @@ StatusOr<FontData> Encoder::Encode(
   if (is_root) {
     // For the root node round trip the font through woff2 so that the base for
     // patching can be a decoded woff2 font file.
-    base = RoundTripWoff2(new_base->str());
+    base = RoundTripWoff2(new_base->str(), false);
   } else {
     base->shallow_copy(*new_base);
   }
@@ -159,10 +159,10 @@ StatusOr<FontData> Encoder::CutSubset(
   return subset;
 }
 
-StatusOr<FontData> Encoder::EncodeWoff2(string_view font) {
+StatusOr<FontData> Encoder::EncodeWoff2(string_view font, bool glyf_transform) {
   WOFF2Params params;
   params.brotli_quality = 11;
-  params.allow_transforms = false;  // no loca + glyf transform.
+  params.allow_transforms = glyf_transform;
   params.preserve_table_order =
       true;  // IFTB patches require a specific table ordering.
   size_t buffer_size =
@@ -200,8 +200,8 @@ StatusOr<FontData> Encoder::DecodeWoff2(string_view font) {
   return result;
 }
 
-StatusOr<FontData> Encoder::RoundTripWoff2(string_view font) {
-  auto r = EncodeWoff2(font);
+StatusOr<FontData> Encoder::RoundTripWoff2(string_view font, bool glyf_transform) {
+  auto r = EncodeWoff2(font, glyf_transform);
   if (!r.ok()) {
     return r.status();
   }
