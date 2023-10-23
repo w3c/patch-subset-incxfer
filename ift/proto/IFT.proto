@@ -4,8 +4,15 @@ package ift.proto;
 
 enum PatchEncoding {
   DEFAULT_ENCODING = 0;
+
+  // IFTB patches are independent.
   IFTB_ENCODING = 1;
+
+  // Shared brotli patches are dependent.
   SHARED_BROTLI_ENCODING = 2;
+
+  // TODO(garretrieger): add a per table shared brotli encoding.
+
   // next = 3
 }
 
@@ -19,9 +26,8 @@ message IFT {
   PatchEncoding default_patch_encoding = 3;
 
   repeated SubsetMapping subset_mapping = 4;
-  repeated CombinedSubsetMapping combined_subset_mapping = 5;
-
-  // next = 6
+  
+  // next = 5
 }
 
 // Maps from a subset description to a patch
@@ -34,31 +40,20 @@ message SubsetMapping {
   // The encoded bytes of a SparseBitSet (see: patch_subset/sparse_bit_set.h)
   bytes codepoint_set = 2;
 
-  // TODO(garretrieger): add layout features and design space.
+  // List of features encoded using known ids, or the 4 byte tag as a uint32.
+  uint32 features = 5;
+
+  // Re-use previously defined subset definitions, must have indices less than the index
+  // for this entry (ensures no cycles). Any referenced definitions are unioned into this
+  // one.
+  repeated uint32 subset_indices = 6;
+
+  // TODO(garretrieger): add design space.
 
   // == VALUE ==
 
   int32 id_delta = 3;
   PatchEncoding patch_encoding = 4;
 
-  // next = 5
-}
-
-// Maps from a subset description (formed as a union of previously listed definitions)
-// to a patch
-//
-// TODO(garretrieger): should this just be an optional field in the SubsetMapping object above?
-message CombinedSubsetMapping {
-  // == KEY == 
-
-  // TODO(garretrieger): Use bias + sparse bit sets here?
-  repeated uint32 subset_indices = 1;
-
-  // TODO(garretrieger): support adding features here
-
-  // == VALUE ==
-  uint32 id = 2;
-  PatchEncoding patch_encoding = 3;
-
-  // next = 4
+  // next = 6
 }
