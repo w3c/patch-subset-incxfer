@@ -5,6 +5,8 @@ cc_library(
   srcs = [
     "ift_table.h",
     "ift_table.cc",
+    "patch_map.h",
+    "patch_map.cc",
   ],
   visibility = [
     "//util:__pkg__",
@@ -27,7 +29,7 @@ cc_test(
     name = "ift_table_test",
     size = "small",
     srcs = [
-        "ift_table_test.cc",
+        "ift_table_test.cc",    
     ],
     data = [
         "//patch_subset:testdata",
@@ -39,6 +41,27 @@ cc_test(
         "//common",
         "@gtest//:gtest_main",
         "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+    ],
+)
+
+cc_test(
+    name = "patch_map_test",
+    size = "small",
+    srcs = [
+        "patch_map_test.cc",
+    ],
+    data = [
+        "//patch_subset:testdata",
+        "//ift:testdata",
+    ],
+    deps = [
+        ":proto",
+        ":IFT_cc_proto",
+        "//common",
+        "@gtest//:gtest_main",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:btree",
         "@com_google_absl//absl/container:flat_hash_set",
     ],
 )

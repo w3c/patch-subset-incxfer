@@ -200,7 +200,8 @@ StatusOr<FontData> Encoder::DecodeWoff2(string_view font) {
   return result;
 }
 
-StatusOr<FontData> Encoder::RoundTripWoff2(string_view font, bool glyf_transform) {
+StatusOr<FontData> Encoder::RoundTripWoff2(string_view font,
+                                           bool glyf_transform) {
   auto r = EncodeWoff2(font, glyf_transform);
   if (!r.ok()) {
     return r.status();
