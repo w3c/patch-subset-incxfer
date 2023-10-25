@@ -3,7 +3,7 @@ cc_library(
     srcs = [
         "ift_client.cc",
         "iftb_binary_patch.h",
-        "iftb_binary_patch.cc",
+        "iftb_binary_patch.cc",        
     ],
     hdrs = [
         "ift_client.h",

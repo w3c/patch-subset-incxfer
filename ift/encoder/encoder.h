@@ -51,11 +51,11 @@ class Encoder {
       bool is_root = true);
 
   static absl::StatusOr<patch_subset::FontData> EncodeWoff2(
-      absl::string_view font, bool glyf_transform=true);
+      absl::string_view font, bool glyf_transform = true);
   static absl::StatusOr<patch_subset::FontData> DecodeWoff2(
       absl::string_view font);
   static absl::StatusOr<patch_subset::FontData> RoundTripWoff2(
-      absl::string_view font, bool glyf_transform=true);
+      absl::string_view font, bool glyf_transform = true);
 
  private:
   absl::StatusOr<patch_subset::FontData> CutSubset(
