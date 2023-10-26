@@ -31,6 +31,9 @@ class PatchMap {
       return other.codepoints == codepoints && other.features == features;
     }
 
+    void ToProto(ift::proto::SubsetMapping* out) const;
+
+    // TODO(garretrieger): use hb sets instead?
     absl::flat_hash_set<uint32_t> codepoints;
     absl::flat_hash_set<uint32_t> features;
   };
@@ -53,6 +56,10 @@ class PatchMap {
              other.encoding == encoding;
     }
 
+    void ToProto(uint32_t last_patch_index,
+                 ift::proto::PatchEncoding default_encoding,
+                 ift::proto::SubsetMapping* out) const;
+
     Coverage coverage;
     uint32_t patch_index;
     PatchEncoding encoding;
@@ -69,6 +76,7 @@ class PatchMap {
   }
 
   static absl::StatusOr<PatchMap> FromProto(const ift::proto::IFT& ift_proto);
+  void AddToProto(ift::proto::IFT& ift_proto) const;
 
   absl::Span<const Entry> GetEntries() const;
 

@@ -3,7 +3,6 @@
 #include "absl/container/btree_set.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
-#include "absl/strings/str_format.h"
 #include "absl/types/span.h"
 #include "ift/proto/IFT.pb.h"
 #include "patch_subset/hb_set_unique_ptr.h"
@@ -36,6 +35,27 @@ StatusOr<PatchMap::Coverage> PatchMap::Coverage::FromProto(
   return coverage;
 }
 
+void PatchMap::Coverage::ToProto(SubsetMapping* out) const {
+  if (codepoints.empty()) {
+    return;
+  }
+
+  hb_set_unique_ptr set = make_hb_set();
+  for (uint32_t cp : codepoints) {
+    hb_set_add(set.get(), cp);
+  }
+
+  uint32_t bias = hb_set_get_min(set.get());
+  hb_set_clear(set.get());
+  for (uint32_t cp : codepoints) {
+    hb_set_add(set.get(), cp - bias);
+  }
+
+  std::string encoded = patch_subset::SparseBitSet::Encode(*set);
+  out->set_bias(bias);
+  out->set_codepoint_set(encoded);
+}
+
 StatusOr<PatchMap::Entry> PatchMap::Entry::FromProto(
     const ift::proto::SubsetMapping& mapping, uint32_t index,
     PatchEncoding enc) {
@@ -49,6 +69,19 @@ StatusOr<PatchMap::Entry> PatchMap::Entry::FromProto(
   entry.encoding = enc;
   entry.patch_index = index;
   return entry;
+}
+
+void PatchMap::Entry::ToProto(uint32_t last_patch_index,
+                              ift::proto::PatchEncoding default_encoding,
+                              SubsetMapping* out) const {
+  coverage.ToProto(out);
+
+  int32_t delta = ((int64_t)patch_index) - ((int64_t)last_patch_index) - 1;
+  out->set_id_delta(delta);
+
+  if (encoding != default_encoding) {
+    out->set_patch_encoding(encoding);
+  }
 }
 
 StatusOr<PatchMap> PatchMap::FromProto(const IFT& ift_proto) {
@@ -73,6 +106,16 @@ StatusOr<PatchMap> PatchMap::FromProto(const IFT& ift_proto) {
   }
 
   return map;
+}
+
+void PatchMap::AddToProto(IFT& ift_proto) const {
+  PatchEncoding default_encoding = ift_proto.default_patch_encoding();
+  uint32_t last_patch_index = 0;
+  for (const Entry& e : entries_) {
+    auto* m = ift_proto.add_subset_mapping();
+    e.ToProto(last_patch_index, default_encoding, m);
+    last_patch_index = e.patch_index;
+  }
 }
 
 void PrintTo(const PatchMap::Coverage& coverage, std::ostream* os) {
