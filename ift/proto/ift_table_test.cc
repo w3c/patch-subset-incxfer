@@ -212,7 +212,7 @@ TEST_F(IFTTableTest, AddToFont_IftbConversionRoboto) {
 TEST_F(IFTTableTest, Empty) {
   auto table = IFTTable::FromProto(empty);
   ASSERT_TRUE(table.ok()) << table.status();
-  patch_map expected = {};
+  PatchMap expected = {};
   ASSERT_EQ(table->GetPatchMap(), expected);
 }
 
@@ -220,12 +220,9 @@ TEST_F(IFTTableTest, Mapping) {
   auto table = IFTTable::FromProto(sample);
   ASSERT_TRUE(table.ok()) << table.status();
 
-  patch_map expected = {
-      {30, std::pair(1, SHARED_BROTLI_ENCODING)},
-      {32, std::pair(1, SHARED_BROTLI_ENCODING)},
-      {55, std::pair(2, IFTB_ENCODING)},
-      {56, std::pair(2, IFTB_ENCODING)},
-      {57, std::pair(2, IFTB_ENCODING)},
+  PatchMap expected = {
+      {{30, 32}, 1, SHARED_BROTLI_ENCODING},
+      {{55, 56, 57}, 2, IFTB_ENCODING},
   };
 
   ASSERT_EQ(table->GetPatchMap(), expected);
@@ -235,11 +232,11 @@ TEST_F(IFTTableTest, Mapping_ComplexIds) {
   auto table = IFTTable::FromProto(complex_ids);
   ASSERT_TRUE(table.ok()) << table.status();
 
-  patch_map expected = {
-      {0, std::pair(0, SHARED_BROTLI_ENCODING)},
-      {2, std::pair(2, SHARED_BROTLI_ENCODING)},
-      {4, std::pair(4, SHARED_BROTLI_ENCODING)},
-      {5, std::pair(5, SHARED_BROTLI_ENCODING)},
+  PatchMap expected = {
+      {{0}, 0, SHARED_BROTLI_ENCODING},
+      {{5}, 5, SHARED_BROTLI_ENCODING},
+      {{2}, 2, SHARED_BROTLI_ENCODING},
+      {{4}, 4, SHARED_BROTLI_ENCODING},
   };
 
   ASSERT_EQ(table->GetPatchMap(), expected);
@@ -278,176 +275,9 @@ TEST_F(IFTTableTest, GetId_Bad) {
   ASSERT_TRUE(absl::IsInvalidArgument(table.status())) << table.status();
 }
 
-TEST_F(IFTTableTest, OverlapFails) {
+TEST_F(IFTTableTest, OverlapSucceeds) {
   auto table = IFTTable::FromProto(overlap_sample);
-  ASSERT_TRUE(absl::IsInvalidArgument(table.status())) << table.status();
-}
-
-TEST_F(IFTTableTest, AddPatch) {
-  auto table = IFTTable::FromProto(sample);
   ASSERT_TRUE(table.ok()) << table.status();
-
-  Status s = table->AddPatch({77, 79, 80}, 5, SHARED_BROTLI_ENCODING);
-  ASSERT_TRUE(s.ok()) << s;
-
-  patch_map expected = {
-      {30, std::pair(1, SHARED_BROTLI_ENCODING)},
-      {32, std::pair(1, SHARED_BROTLI_ENCODING)},
-      {55, std::pair(2, IFTB_ENCODING)},
-      {56, std::pair(2, IFTB_ENCODING)},
-      {57, std::pair(2, IFTB_ENCODING)},
-      {77, std::pair(5, SHARED_BROTLI_ENCODING)},
-      {79, std::pair(5, SHARED_BROTLI_ENCODING)},
-      {80, std::pair(5, SHARED_BROTLI_ENCODING)},
-  };
-
-  ASSERT_EQ(table->GetProto().subset_mapping(2).id_delta(), 2);
-  ASSERT_GT(table->GetProto().subset_mapping(2).bias(), 0);
-  ASSERT_EQ(table->GetProto().subset_mapping(2).patch_encoding(),
-            DEFAULT_ENCODING);
-  ASSERT_EQ(table->GetPatchMap(), expected);
-}
-
-TEST_F(IFTTableTest, AddPatch_NonDefaultEncoding) {
-  auto table = IFTTable::FromProto(sample);
-  ASSERT_TRUE(table.ok()) << table.status();
-
-  Status s = table->AddPatch({77, 79, 80}, 5, IFTB_ENCODING);
-  ASSERT_TRUE(s.ok()) << s;
-
-  ASSERT_GT(table->GetProto().subset_mapping(2).bias(), 0);
-  ASSERT_EQ(table->GetProto().subset_mapping(2).patch_encoding(),
-            IFTB_ENCODING);
-  patch_map expected = {
-      {30, std::pair(1, SHARED_BROTLI_ENCODING)},
-      {32, std::pair(1, SHARED_BROTLI_ENCODING)},
-      {55, std::pair(2, IFTB_ENCODING)},
-      {56, std::pair(2, IFTB_ENCODING)},
-      {57, std::pair(2, IFTB_ENCODING)},
-      {77, std::pair(5, IFTB_ENCODING)},
-      {79, std::pair(5, IFTB_ENCODING)},
-      {80, std::pair(5, IFTB_ENCODING)},
-  };
-
-  ASSERT_EQ(table->GetPatchMap(), expected);
-}
-
-TEST_F(IFTTableTest, RemovePatches) {
-  auto table = IFTTable::FromProto(sample);
-  ASSERT_TRUE(table.ok()) << table.status();
-
-  Status s = table->RemovePatches({1});
-  ASSERT_TRUE(s.ok()) << s;
-
-  patch_map expected = {
-      {55, std::pair(2, IFTB_ENCODING)},
-      {56, std::pair(2, IFTB_ENCODING)},
-      {57, std::pair(2, IFTB_ENCODING)},
-  };
-
-  ASSERT_EQ(table->GetPatchMap(), expected);
-}
-
-TEST_F(IFTTableTest, RemovePatches_ComplexIds1) {
-  auto table = IFTTable::FromProto(complex_ids);
-  ASSERT_TRUE(table.ok()) << table.status();
-
-  Status s = table->RemovePatches({2});
-  ASSERT_TRUE(s.ok()) << s;
-
-  patch_map expected1 = {
-      {0, std::pair(0, SHARED_BROTLI_ENCODING)},
-      {4, std::pair(4, SHARED_BROTLI_ENCODING)},
-      {5, std::pair(5, SHARED_BROTLI_ENCODING)},
-  };
-
-  ASSERT_EQ(table->GetPatchMap(), expected1);
-
-  s = table->RemovePatches({4});
-  ASSERT_TRUE(s.ok()) << s;
-
-  patch_map expected2 = {
-      {0, std::pair(0, SHARED_BROTLI_ENCODING)},
-      {5, std::pair(5, SHARED_BROTLI_ENCODING)},
-  };
-
-  ASSERT_EQ(table->GetPatchMap(), expected2);
-}
-
-TEST_F(IFTTableTest, RemovePatches_ComplexIds2) {
-  auto table = IFTTable::FromProto(complex_ids);
-  ASSERT_TRUE(table.ok()) << table.status();
-
-  Status s = table->RemovePatches({5});
-  ASSERT_TRUE(s.ok()) << s;
-
-  patch_map expected = {
-      {0, std::pair(0, SHARED_BROTLI_ENCODING)},
-      {2, std::pair(2, SHARED_BROTLI_ENCODING)},
-      {4, std::pair(4, SHARED_BROTLI_ENCODING)},
-  };
-
-  ASSERT_EQ(table->GetPatchMap(), expected);
-}
-
-TEST_F(IFTTableTest, RemovePatches_ComplexIdsMultiple) {
-  auto table = IFTTable::FromProto(complex_ids);
-  ASSERT_TRUE(table.ok()) << table.status();
-
-  Status s = table->RemovePatches({0, 2});
-  ASSERT_TRUE(s.ok()) << s;
-
-  patch_map expected = {
-      {4, std::pair(4, SHARED_BROTLI_ENCODING)},
-      {5, std::pair(5, SHARED_BROTLI_ENCODING)},
-  };
-
-  ASSERT_EQ(table->GetPatchMap(), expected);
-}
-
-TEST_F(IFTTableTest, RemovePatches_None) {
-  auto table = IFTTable::FromProto(sample);
-  ASSERT_TRUE(table.ok()) << table.status();
-
-  Status s = table->RemovePatches({});
-  ASSERT_TRUE(s.ok()) << s;
-
-  patch_map expected = {
-      {30, std::pair(1, SHARED_BROTLI_ENCODING)},
-      {32, std::pair(1, SHARED_BROTLI_ENCODING)},
-      {55, std::pair(2, IFTB_ENCODING)},
-      {56, std::pair(2, IFTB_ENCODING)},
-      {57, std::pair(2, IFTB_ENCODING)},
-  };
-
-  ASSERT_EQ(table->GetPatchMap(), expected);
-}
-
-TEST_F(IFTTableTest, RemovePatches_All) {
-  auto table = IFTTable::FromProto(sample);
-  ASSERT_TRUE(table.ok()) << table.status();
-
-  Status s = table->RemovePatches({1, 2});
-  ASSERT_TRUE(s.ok()) << s;
-
-  patch_map expected = {};
-
-  ASSERT_EQ(table->GetPatchMap(), expected);
-}
-
-TEST_F(IFTTableTest, RemovePatches_BadIds) {
-  auto table = IFTTable::FromProto(sample);
-  ASSERT_TRUE(table.ok()) << table.status();
-
-  Status s = table->RemovePatches({42, 2});
-  ASSERT_TRUE(s.ok()) << s;
-
-  patch_map expected = {
-      {30, std::pair(1, SHARED_BROTLI_ENCODING)},
-      {32, std::pair(1, SHARED_BROTLI_ENCODING)},
-  };
-
-  ASSERT_EQ(table->GetPatchMap(), expected);
 }
 
 TEST_F(IFTTableTest, FromFont) {

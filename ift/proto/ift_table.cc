@@ -61,16 +61,28 @@ StatusOr<IFTTable> IFTTable::FromFont(const FontData& font) {
 }
 
 StatusOr<IFTTable> IFTTable::FromProto(IFT proto) {
-  auto m = CreatePatchMap(proto);
-  if (!m.ok()) {
-    return m.status();
+  auto map = PatchMap::FromProto(proto);
+  if (!map.ok()) {
+    return map.status();
   }
+
+  IFTTable table;
+  table.patch_map_ = std::move(*map);
+  table.url_template_ = proto.url_template();
+  table.default_encoding_ = proto.default_patch_encoding();
 
   if (proto.id_size() != 4 && proto.id_size() != 0) {
     return absl::InvalidArgumentError("id field must have a length of 4 or 0.");
   }
+  for (int i = 0; i < 4; i++) {
+    if (i < proto.id_size()) {
+      table.id_[i] = proto.id(i);
+    } else {
+      table.id_[i] = 0;
+    }
+  }
 
-  return IFTTable(proto, *m);
+  return table;
 }
 
 void move_tag_to_back(std::vector<hb_tag_t>& tags, hb_tag_t tag) {
@@ -143,133 +155,21 @@ StatusOr<FontData> IFTTable::AddToFont(hb_face_t* face, const IFT& proto,
 }
 
 StatusOr<FontData> IFTTable::AddToFont(hb_face_t* face) {
-  return AddToFont(face, ift_proto_);
-}
-
-Status IFTTable::AddPatch(const flat_hash_set<uint32_t>& codepoints,
-                          uint32_t id, PatchEncoding encoding) {
-  hb_set_unique_ptr set = make_hb_set();
-  for (uint32_t cp : codepoints) {
-    hb_set_add(set.get(), cp);
-  }
-
-  uint32_t bias = hb_set_get_min(set.get());
-  hb_set_clear(set.get());
-  for (uint32_t cp : codepoints) {
-    hb_set_add(set.get(), cp - bias);
-  }
-
-  std::string encoded = patch_subset::SparseBitSet::Encode(*set);
-
-  auto last_id = GetLastPatchId();
-  if (!last_id.ok()) {
-    return last_id.status();
-  }
-
-  int32_t delta = ((int64_t)id) - ((int64_t)*last_id) - 1;
-
-  auto* m = ift_proto_.add_subset_mapping();
-  m->set_bias(bias);
-  m->set_codepoint_set(encoded);
-  m->set_id_delta(delta);
-
-  if (encoding != ift_proto_.default_patch_encoding()) {
-    m->set_patch_encoding(encoding);
-  }
-
-  return UpdatePatchMap();
-}
-
-Status IFTTable::RemovePatches(const flat_hash_set<uint32_t>& patch_indices) {
-  auto mapping = ift_proto_.mutable_subset_mapping();
-  int32_t id = 0;
-  int32_t gain = 0;
-  for (auto it = mapping->begin(); it != mapping->end();) {
-    id += it->id_delta() + 1;
-    if (patch_indices.contains(id)) {
-      gain += it->id_delta() + 1;
-      it = mapping->erase(it);
-      continue;
-    }
-
-    it->set_id_delta(it->id_delta() + gain);
-    gain = 0;
-    ++it;
-  }
-
-  return UpdatePatchMap();
-}
-
-StatusOr<uint32_t> IFTTable::GetLastPatchId() const {
-  int32_t id = 0;
-  for (const auto& m : ift_proto_.subset_mapping()) {
-    int32_t delta = m.id_delta() + 1;
-    id += delta;
-    if (id < 0) {
-      return absl::InvalidArgumentError(
-          StrCat("invalid mapping proto, id is less than zero (", id, ")."));
-    }
-  }
-  return (uint32_t)id;
-}
-
-Status IFTTable::UpdatePatchMap() {
-  auto new_patch_map = CreatePatchMap(ift_proto_);
-  if (!new_patch_map.ok()) {
-    return new_patch_map.status();
-  }
-
-  patch_map_ = std::move(*new_patch_map);
-  return absl::OkStatus();
+  IFT proto;
+  proto.set_url_template(url_template_);
+  proto.set_id(0, id_[0]);
+  proto.set_id(1, id_[1]);
+  proto.set_id(2, id_[2]);
+  proto.set_id(3, id_[3]);
+  proto.set_default_patch_encoding(default_encoding_);
+  patch_map_.AddToProto(proto);
+  return AddToFont(face, proto);
 }
 
 void IFTTable::GetId(uint32_t out[4]) const {
   for (int i = 0; i < 4; i++) {
     out[i] = id_[i];
   }
-}
-
-const patch_map& IFTTable::GetPatchMap() const { return patch_map_; }
-
-StatusOr<patch_map> IFTTable::CreatePatchMap(const IFT& ift) {
-  // TODO(garretrieger): allow for implicit patch indices if they are not
-  // specified
-  //                     on an entry.
-  PatchEncoding default_encoding = ift.default_patch_encoding();
-  patch_map result;
-  int32_t id = 0;
-  for (auto m : ift.subset_mapping()) {
-    id += m.id_delta() + 1;
-    uint32_t bias = m.bias();
-    uint32_t patch_idx = id;
-    PatchEncoding encoding = m.patch_encoding();
-    if (encoding == DEFAULT_ENCODING) {
-      encoding = default_encoding;
-    }
-
-    hb_set_unique_ptr codepoints = make_hb_set();
-    auto s = SparseBitSet::Decode(m.codepoint_set(), codepoints.get());
-    if (!s.ok()) {
-      return s;
-    }
-
-    hb_codepoint_t cp = HB_SET_VALUE_INVALID;
-    while (hb_set_next(codepoints.get(), &cp)) {
-      // TODO(garretrieger): currently we assume that a codepoints maps to only
-      // one patch,
-      //   however, this is not always going to be true. Patch selection needs
-      //   to be more complicated then a simple map.
-      uint32_t actual_cp = cp + bias;
-      if (result.contains(actual_cp)) {
-        return absl::InvalidArgumentError(
-            "cannot load IFT table that maps a codepoint to more than one "
-            "patch.");
-      }
-      result[actual_cp] = std::pair(patch_idx, encoding);
-    }
-  }
-
-  return result;
 }
 
 }  // namespace ift::proto
