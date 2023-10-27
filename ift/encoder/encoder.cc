@@ -8,6 +8,7 @@
 #include "hb-subset.h"
 #include "ift/proto/IFT.pb.h"
 #include "ift/proto/ift_table.h"
+#include "ift/proto/patch_map.h"
 #include "patch_subset/font_data.h"
 #include "patch_subset/hb_set_unique_ptr.h"
 #include "woff2/decode.h"
@@ -20,6 +21,7 @@ using absl::StatusOr;
 using absl::string_view;
 using ift::proto::IFT;
 using ift::proto::IFTTable;
+using ift::proto::PatchMap;
 using ift::proto::SHARED_BROTLI_ENCODING;
 using patch_subset::FontData;
 using patch_subset::hb_set_unique_ptr;
@@ -79,23 +81,22 @@ StatusOr<FontData> Encoder::Encode(
     ift_proto.add_id(p);
   }
 
-  auto ift_table = IFTTable::FromProto(ift_proto);
-  if (!ift_table.ok()) {
-    return ift_table.status();
-  }
+  PatchMap patch_map;
 
   std::vector<uint32_t> ids;
   for (auto s : subsets) {
     uint32_t id = next_id_++;
     ids.push_back(id);
-    auto sc = ift_table->AddPatch(*s, id, SHARED_BROTLI_ENCODING);
-    if (!sc.ok()) {
-      return sc;
-    }
+
+    PatchMap::Coverage coverage;
+    coverage.codepoints = *s;
+    patch_map.AddEntry(coverage, id, SHARED_BROTLI_ENCODING);
   }
 
+  patch_map.AddToProto(ift_proto);
+
   hb_face_t* face = base->reference_face();
-  auto new_base = ift_table->AddToFont(face);
+  auto new_base = IFTTable::AddToFont(face, ift_proto);
   hb_face_destroy(face);
 
   if (!new_base.ok()) {

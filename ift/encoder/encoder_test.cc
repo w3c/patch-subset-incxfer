@@ -89,10 +89,11 @@ class EncoderTest : public ::testing::Test {
     }
 
     flat_hash_map<uint32_t, btree_set<uint32_t>> subsets;
-    for (const auto& p : ift_table->GetPatchMap()) {
-      uint32_t cp = p.first;
-      uint32_t id = p.second.first;
-      subsets[id].insert(cp);
+    for (const auto& e : ift_table->GetPatchMap().GetEntries()) {
+      uint32_t id = e.patch_index;
+      for (uint32_t cp : e.coverage.codepoints) {
+        subsets[id].insert(cp);
+      }
     }
 
     // add the base set to all entries.
