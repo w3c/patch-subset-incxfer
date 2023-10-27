@@ -8,12 +8,10 @@
 #include "absl/status/statusor.h"
 #include "hb.h"
 #include "ift/proto/IFT.pb.h"
+#include "ift/proto/patch_map.h"
 #include "patch_subset/font_data.h"
 
 namespace ift::proto {
-
-typedef absl::flat_hash_map<uint32_t, std::pair<uint32_t, PatchEncoding>>
-    patch_map;
 
 /*
  * Abstract representation of a IFT table. Used to load, construct, and/or
@@ -46,26 +44,11 @@ class IFTTable {
   static absl::StatusOr<patch_subset::FontData> AddToFont(
       hb_face_t* face, const IFT& proto, bool iftb_conversion = false);
 
-  const IFT& GetProto() const { return ift_proto_; }
-
   void GetId(uint32_t out[4]) const;
-  const patch_map& GetPatchMap() const;
-  const std::string& GetUrlTemplate() const {
-    return ift_proto_.url_template();
-  }
 
-  /*
-   * Adds a patch mapping to this table from 'codepoints' to the supplied patch
-   * id.
-   */
-  absl::Status AddPatch(const absl::flat_hash_set<uint32_t>& codepoints,
-                        uint32_t id, PatchEncoding encoding);
+  const PatchMap& GetPatchMap() const { return patch_map_; }
 
-  /*
-   * Remove all patch mappings associated with 'patch_indices' from this table.
-   */
-  absl::Status RemovePatches(
-      const absl::flat_hash_set<uint32_t>& patch_indices);
+  const std::string& GetUrlTemplate() const { return url_template_; }
 
   /*
    * Adds a copy of this table to the supplied 'face'.
@@ -73,25 +56,10 @@ class IFTTable {
   absl::StatusOr<patch_subset::FontData> AddToFont(hb_face_t* face);
 
  private:
-  explicit IFTTable(IFT ift_proto, patch_map patch_map)
-      : patch_map_(patch_map), ift_proto_(ift_proto) {
-    for (int i = 0; i < 4; i++) {
-      if (i < ift_proto_.id_size()) {
-        id_[i] = ift_proto_.id(i);
-      } else {
-        id_[i] = 0;
-      }
-    }
-  }
-
-  absl::StatusOr<uint32_t> GetLastPatchId() const;
-
-  absl::Status UpdatePatchMap();
-  static absl::StatusOr<patch_map> CreatePatchMap(const IFT& ift_proto);
-
-  patch_map patch_map_;
-  IFT ift_proto_;
+  std::string url_template_;
   uint32_t id_[4];
+  PatchEncoding default_encoding_;
+  PatchMap patch_map_;
 };
 
 }  // namespace ift::proto
