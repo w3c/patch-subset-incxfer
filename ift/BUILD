@@ -30,7 +30,7 @@ cc_library(
 )
 
 cc_test(
-    name = "ift_client_test",
+    name = "client_test",
     size = "small",
     srcs = [
         "ift_client_test.cc",

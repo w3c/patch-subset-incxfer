@@ -105,9 +105,8 @@ Status IftbBinaryPatch::Patch(const FontData& font_base,
   // sfnt.write() needs to be called to realize table directory changes
   sfnt.write(false);
 
-  auto s = ift_table->RemovePatches(patch_indices);
-  if (!s.ok()) {
-    return s;
+  for (uint32_t patch_index : patch_indices) {
+    ift_table->GetPatchMap().RemoveEntries(patch_index);
   }
 
   hb_blob_t* blob = hb_blob_create(new_font_data.data(), new_length,

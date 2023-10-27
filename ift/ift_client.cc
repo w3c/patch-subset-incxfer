@@ -7,19 +7,34 @@
 #include "hb.h"
 #include "ift/proto/IFT.pb.h"
 #include "ift/proto/ift_table.h"
+#include "ift/proto/patch_map.h"
 #include "patch_subset/binary_patch.h"
 #include "patch_subset/font_data.h"
 
+using absl::flat_hash_map;
+using absl::flat_hash_set;
 using absl::Status;
 using absl::StatusOr;
+using absl::StrCat;
 using ift::proto::IFTB_ENCODING;
 using ift::proto::IFTTable;
 using ift::proto::PatchEncoding;
+using ift::proto::PatchMap;
 using ift::proto::SHARED_BROTLI_ENCODING;
 using patch_subset::BinaryPatch;
 using patch_subset::FontData;
 
 namespace ift {
+
+StatusOr<IFTClient> IFTClient::NewClient(patch_subset::FontData&& font) {
+  IFTClient client;
+  auto s = client.SetFont(std::move(font));
+  if (!s.ok()) {
+    return s;
+  }
+
+  return client;
+}
 
 std::string IFTClient::PatchToUrl(const std::string& url_template,
                                   uint32_t patch_idx) {
@@ -64,52 +79,94 @@ std::string IFTClient::PatchToUrl(const std::string& url_template,
 }
 
 StatusOr<patch_set> IFTClient::PatchUrlsFor(
-    const FontData& font, const hb_set_t& additional_codepoints) const {
-  hb_face_t* face = font.reference_face();
-  auto ift = IFTTable::FromFont(face);
-  hb_face_destroy(face);
+    const hb_set_t& additional_codepoints) const {
+  // Patch matching algorithm works like this:
+  // 1. Identify all patches listed in the IFT table which intersect the input
+  // codepoints.
+  // 2. Keep all of those that are independent.
+  // 3. Of the matched dependent patches, keep only one. Select the patch with
+  // the largest
+  //    coverage.
 
-  patch_set result;
-  if (absl::IsNotFound(ift.status())) {
-    // No IFT table, means there's no additional patches.
+  if (!ift_table_) {
+    patch_set result;
     return result;
   }
 
-  if (!ift.ok()) {
-    return ift.status();
-  }
+  absl::flat_hash_set<uint32_t> independent_entry_indices;
+  absl::flat_hash_set<uint32_t> dependent_entry_indices;
 
   hb_codepoint_t cp = HB_SET_VALUE_INVALID;
   while (hb_set_next(&additional_codepoints, &cp)) {
-    auto v = ift->GetPatchMap().find(cp);
-    if (v == ift->GetPatchMap().end()) {
+    auto indices = codepoint_to_entries_index_.find(cp);
+    if (indices == codepoint_to_entries_index_.end()) {
       continue;
     }
 
-    uint32_t patch_idx = v->second.first;
-    PatchEncoding encoding = v->second.second;
-    result.insert(std::pair(
-        IFTClient::PatchToUrl(ift->GetUrlTemplate(), patch_idx), encoding));
+    for (uint32_t index : indices->second) {
+      const auto& entry = ift_table_->GetPatchMap().GetEntries().at(index);
+
+      if (entry.IsDependent()) {
+        dependent_entry_indices.insert(index);
+      } else {
+        independent_entry_indices.insert(index);
+      }
+    }
+
+    if (!dependent_entry_indices.empty()) {
+      // Pick at most one dependent patches to keep.
+      // TODO(garretrieger): use intersection size with additional_codepoints
+      // instead.
+      // TODO(garretrieger): merge coverages when multiple entries have the same
+      // patch index.
+
+      uint32_t selected_entry_index;
+      uint32_t max_size = 0;
+      for (uint32_t entry_index : dependent_entry_indices) {
+        const PatchMap::Entry& entry =
+            ift_table_->GetPatchMap().GetEntries().at(entry_index);
+        if (entry.coverage.codepoints.size() > max_size) {
+          max_size = entry.coverage.codepoints.size();
+          selected_entry_index = entry_index;
+        }
+      }
+      independent_entry_indices.insert(selected_entry_index);
+    }
+  }
+
+  patch_set result;
+  for (uint32_t entry_index : independent_entry_indices) {
+    const PatchMap::Entry& entry =
+        ift_table_->GetPatchMap().GetEntries().at(entry_index);
+    std::string url =
+        IFTClient::PatchToUrl(ift_table_->GetUrlTemplate(), entry.patch_index);
+
+    auto [it, was_inserted] =
+        result.insert(std::pair(std::move(url), entry.encoding));
+    if (!was_inserted && it->second != entry.encoding) {
+      return absl::InternalError(StrCat("Invalid IFT table. patch URL,  ", url,
+                                        ", has conflicting encoding types: ",
+                                        entry.encoding, " != ", it->second));
+    }
   }
 
   return result;
 }
 
-StatusOr<FontData> IFTClient::ApplyPatches(const FontData& font,
-                                           const std::vector<FontData>& patches,
-                                           PatchEncoding encoding) const {
+Status IFTClient::ApplyPatches(const std::vector<FontData>& patches,
+                               PatchEncoding encoding) {
   auto patcher = PatcherFor(encoding);
   if (!patcher.ok()) {
     return patcher.status();
   }
 
   FontData result;
-  Status s = (*patcher)->Patch(font, patches, &result);
+  Status s = (*patcher)->Patch(font_, patches, &result);
   if (!s.ok()) {
     return s;
   }
 
-  return result;
+  return SetFont(std::move(result));
 }
 
 StatusOr<const BinaryPatch*> IFTClient::PatcherFor(
@@ -123,6 +180,41 @@ StatusOr<const BinaryPatch*> IFTClient::PatcherFor(
       std::stringstream message;
       message << "Patch encoding " << encoding << " is not implemented.";
       return absl::UnimplementedError(message.str());
+  }
+}
+
+Status IFTClient::SetFont(patch_subset::FontData&& new_font) {
+  hb_face_t* face = new_font.reference_face();
+
+  auto table = IFTTable::FromFont(face);
+  if (table.ok()) {
+    ift_table_ = std::move(*table);
+
+  } else if (!table.ok() && !absl::IsNotFound(table.status())) {
+    hb_face_destroy(face);
+    return table.status();
+  }
+
+  font_ = std::move(new_font);
+  hb_face_destroy(face_);
+  face_ = face;
+
+  UpdateIndex();
+  return absl::OkStatus();
+}
+
+void IFTClient::UpdateIndex() {
+  codepoint_to_entries_index_.clear();
+  if (!ift_table_) {
+    return;
+  }
+
+  uint32_t entry_index = 0;
+  for (const auto& e : ift_table_->GetPatchMap().GetEntries()) {
+    for (uint32_t cp : e.coverage.codepoints) {
+      codepoint_to_entries_index_[cp].push_back(entry_index);
+    }
+    entry_index++;
   }
 }
 

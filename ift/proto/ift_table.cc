@@ -157,10 +157,10 @@ StatusOr<FontData> IFTTable::AddToFont(hb_face_t* face, const IFT& proto,
 StatusOr<FontData> IFTTable::AddToFont(hb_face_t* face) {
   IFT proto;
   proto.set_url_template(url_template_);
-  proto.set_id(0, id_[0]);
-  proto.set_id(1, id_[1]);
-  proto.set_id(2, id_[2]);
-  proto.set_id(3, id_[3]);
+  proto.add_id(id_[0]);
+  proto.add_id(id_[1]);
+  proto.add_id(id_[2]);
+  proto.add_id(id_[3]);
   proto.set_default_patch_encoding(default_encoding_);
   patch_map_.AddToProto(proto);
   return AddToFont(face, proto);

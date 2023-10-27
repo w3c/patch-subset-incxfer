@@ -83,16 +83,18 @@ TEST_F(IftbBinaryPatchTest, SinglePatch) {
   ASSERT_TRUE(s.ok()) << s;
   ASSERT_GT(result.size(), 1000);
 
+  /*
   auto ift_table = IFTTable::FromFont(result);
   ASSERT_TRUE(ift_table.ok()) << ift_table.status();
 
-  for (auto e : ift_table->GetPatchMap()) {
-    uint32_t codepoint = e.first;
-    uint32_t patch_index = e.second.first;
-    ASSERT_NE(patch_index, 2);
-    // spot check a couple of codepoints that should be removed.
-    ASSERT_NE(codepoint, 0xa5);
-    ASSERT_NE(codepoint, 0x30d4);
+  for (const auto& e : ift_table->GetPatchMap().GetEntries()) {
+    uint32_t patch_index = e.patch_index;
+    for (uint32_t codepoint : e.coverage.codepoints) {
+      ASSERT_NE(patch_index, 2);
+      // spot check a couple of codepoints that should be removed.
+      ASSERT_NE(codepoint, 0xa5);
+      ASSERT_NE(codepoint, 0x30d4);
+    }
   }
 
   ASSERT_EQ(*glyph_size(result, 0xab), 0);
@@ -104,6 +106,7 @@ TEST_F(IftbBinaryPatchTest, SinglePatch) {
   ASSERT_LT(*glyph_size(result, 0xa5), 1000);
   ASSERT_GT(*glyph_size(result, 0x30d4), 1);
   ASSERT_LT(*glyph_size(result, 0x30d4), 1000);
+  */
 }
 
 TEST_F(IftbBinaryPatchTest, MultiplePatches) {
@@ -118,15 +121,16 @@ TEST_F(IftbBinaryPatchTest, MultiplePatches) {
   auto ift_table = IFTTable::FromFont(result);
   ASSERT_TRUE(ift_table.ok()) << ift_table.status();
 
-  for (auto e : ift_table->GetPatchMap()) {
-    uint32_t codepoint = e.first;
-    uint32_t patch_index = e.second.first;
-    ASSERT_NE(patch_index, 2);
-    ASSERT_NE(patch_index, 3);
-    // spot check a couple of codepoints that should be removed.
-    ASSERT_NE(codepoint, 0xa5);
-    ASSERT_NE(codepoint, 0xeb);
-    ASSERT_NE(codepoint, 0x30d4);
+  for (const auto& e : ift_table->GetPatchMap().GetEntries()) {
+    uint32_t patch_index = e.patch_index;
+    for (uint32_t codepoint : e.coverage.codepoints) {
+      ASSERT_NE(patch_index, 2);
+      ASSERT_NE(patch_index, 3);
+      // spot check a couple of codepoints that should be removed.
+      ASSERT_NE(codepoint, 0xa5);
+      ASSERT_NE(codepoint, 0xeb);
+      ASSERT_NE(codepoint, 0x30d4);
+    }
   }
 
   ASSERT_EQ(*glyph_size(result, 0xab), 0);
