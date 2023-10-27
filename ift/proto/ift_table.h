@@ -47,6 +47,7 @@ class IFTTable {
   void GetId(uint32_t out[4]) const;
 
   const PatchMap& GetPatchMap() const { return patch_map_; }
+  PatchMap& GetPatchMap() { return patch_map_; }
 
   const std::string& GetUrlTemplate() const { return url_template_; }
 

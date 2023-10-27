@@ -63,13 +63,18 @@ class IFTClientTest : public ::testing::Test {
     return result;
   }
 
-  IFTClient client;
   FontData roboto_ab;
   FontData sample_font;
 
   FontData iftb_font;
   FontData chunk1;
 };
+
+// TODO(garretrieger): more tests
+// - tests for mixed and overlapping mappins
+// - prioritization of dependent.
+// - select all matching independent.
+// - handling invalid mappings (patch indices w/ conflicting encodings.).
 
 TEST_F(IFTClientTest, PatchUrls) {
   hb_set_unique_ptr codepoints_1 = make_hb_set(1, 30);
@@ -90,27 +95,30 @@ TEST_F(IFTClientTest, PatchUrls) {
   patch_set expected_5{};
   patch_set expected_6{std::pair(url_1, IFTB_ENCODING)};
 
-  auto r = client.PatchUrlsFor(sample_font, *codepoints_1);
+  auto client = IFTClient::NewClient(std::move(sample_font));
+  ASSERT_TRUE(client.ok()) << client.status();
+
+  auto r = client->PatchUrlsFor(*codepoints_1);
   ASSERT_TRUE(r.ok()) << r.status();
   ASSERT_EQ(expected_1, *r);
 
-  r = client.PatchUrlsFor(sample_font, *codepoints_2);
+  r = client->PatchUrlsFor(*codepoints_2);
   ASSERT_TRUE(r.ok()) << r.status();
   ASSERT_EQ(expected_2, *r);
 
-  r = client.PatchUrlsFor(sample_font, *codepoints_3);
+  r = client->PatchUrlsFor(*codepoints_3);
   ASSERT_TRUE(r.ok()) << r.status();
   ASSERT_EQ(expected_3, *r);
 
-  r = client.PatchUrlsFor(sample_font, *codepoints_4);
+  r = client->PatchUrlsFor(*codepoints_4);
   ASSERT_TRUE(r.ok()) << r.status();
   ASSERT_EQ(expected_4, *r);
 
-  r = client.PatchUrlsFor(sample_font, *codepoints_5);
+  r = client->PatchUrlsFor(*codepoints_5);
   ASSERT_TRUE(r.ok()) << r.status();
   ASSERT_EQ(expected_5, *r);
 
-  r = client.PatchUrlsFor(sample_font, *codepoints_6);
+  r = client->PatchUrlsFor(*codepoints_6);
   ASSERT_TRUE(r.ok()) << r.status();
   ASSERT_EQ(expected_6, *r);
 }
@@ -120,7 +128,10 @@ TEST_F(IFTClientTest, PatchUrls_Leaf) {
 
   patch_set expected;
 
-  auto r = client.PatchUrlsFor(roboto_ab, *codepoints_1);
+  auto client = IFTClient::NewClient(std::move(roboto_ab));
+  ASSERT_TRUE(client.ok()) << client.status();
+
+  auto r = client->PatchUrlsFor(*codepoints_1);
   ASSERT_TRUE(r.ok()) << r.status();
   ASSERT_EQ(expected, *r);
 }
@@ -129,9 +140,11 @@ TEST_F(IFTClientTest, ApplyPatches_IFTB) {
   std::vector<FontData> patches;
   patches.emplace_back().shallow_copy(chunk1);
 
-  IFTClient client;
-  auto s = client.ApplyPatches(iftb_font, patches, IFTB_ENCODING);
-  ASSERT_TRUE(s.ok()) << s.status();
+  auto client = IFTClient::NewClient(std::move(iftb_font));
+  ASSERT_TRUE(client.ok()) << client.status();
+
+  auto s = client->ApplyPatches(patches, IFTB_ENCODING);
+  ASSERT_TRUE(s.ok()) << s;
 }
 
 TEST_F(IFTClientTest, ApplyPatches_SharedBrotli) {
@@ -151,28 +164,33 @@ TEST_F(IFTClientTest, ApplyPatches_SharedBrotli) {
   s = differ.Diff(f2, f3, &f2_to_f3);
   ASSERT_TRUE(s.ok()) << s;
 
-  IFTClient client;
-
   {
+    auto client = IFTClient::NewClient(std::move(f1));
+    ASSERT_TRUE(client.ok()) << client.status();
+
     std::vector<FontData> patch_set_1;
     patch_set_1.emplace_back(f1_to_f2.str());
-    auto s = client.ApplyPatches(f1, patch_set_1, SHARED_BROTLI_ENCODING);
-    ASSERT_TRUE(s.ok()) << s.status();
-    ASSERT_EQ(s->str(), f2.str());
+    auto s = client->ApplyPatches(patch_set_1, SHARED_BROTLI_ENCODING);
+    ASSERT_TRUE(s.ok()) << s;
+    ASSERT_EQ(client->GetFontData().str(), f2.str());
 
     std::vector<FontData> patch_set_2;
     patch_set_2.emplace_back(f2_to_f3.str());
-    s = client.ApplyPatches(f2, patch_set_2, SHARED_BROTLI_ENCODING);
-    ASSERT_TRUE(s.ok()) << s.status();
-    ASSERT_EQ(s->str(), f3.str());
+    s = client->ApplyPatches(patch_set_2, SHARED_BROTLI_ENCODING);
+    ASSERT_TRUE(s.ok()) << s;
+    ASSERT_EQ(client->GetFontData().str(), f3.str());
   }
 
   {
+    f1.copy(d1);
+    auto client = IFTClient::NewClient(std::move(f1));
+    ASSERT_TRUE(client.ok()) << client.status();
+
     std::vector<FontData> patch_set_1;
     patch_set_1.emplace_back(f1_to_f2.str());
     patch_set_1.emplace_back(f2_to_f3.str());
-    auto s = client.ApplyPatches(f1, patch_set_1, SHARED_BROTLI_ENCODING);
-    ASSERT_TRUE(IsInvalidArgument(s.status())) << s.status();
+    auto s = client->ApplyPatches(patch_set_1, SHARED_BROTLI_ENCODING);
+    ASSERT_TRUE(IsInvalidArgument(s)) << s;
   }
 }
 
