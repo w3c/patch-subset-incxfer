@@ -14,6 +14,7 @@
 #include "hb.h"
 #include "ift/proto/IFT.pb.h"
 #include "ift/proto/ift_table.h"
+#include "ift/proto/patch_map.h"
 #include "patch_subset/font_data.h"
 
 using absl::btree_map;
@@ -26,6 +27,7 @@ using absl::string_view;
 using ift::proto::IFT;
 using ift::proto::IFTB_ENCODING;
 using ift::proto::IFTTable;
+using ift::proto::PatchMap;
 using patch_subset::FontData;
 
 namespace util {
@@ -145,24 +147,18 @@ StatusOr<IFT> create_table(
     ift.add_id(n);
   }
 
-  auto table = IFTTable::FromProto(ift);
-  if (!table.ok()) {
-    return table.status();
-  }
-
+  PatchMap patch_map;
   for (auto e : chunk_to_codepoints) {
-    flat_hash_set<uint32_t> flat_set;
+    PatchMap::Coverage coverage;
     std::copy(e.second.begin(), e.second.end(),
-              std::inserter(flat_set, flat_set.begin()));
-    auto sc = table->AddPatch(flat_set, e.first, IFTB_ENCODING);
-    if (!sc.ok()) {
-      return sc;
-    }
+              std::inserter(coverage.codepoints, coverage.codepoints.begin()));
+    patch_map.AddEntry(coverage, e.first, IFTB_ENCODING);
   }
 
   // TODO(garretrieger): populate the additional fields.
 
-  return table->GetProto();
+  patch_map.AddToProto(ift);
+  return ift;
 }
 
 StatusOr<IFT> convert_iftb(string_view iftb_dump, hb_face_t* face) {
