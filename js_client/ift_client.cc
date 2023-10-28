@@ -61,7 +61,6 @@ struct RequestContext {
   patch_set urls;
   val callback;
 
-  FontData* subset;
   IFTClient* client;
 
  private:
@@ -79,14 +78,12 @@ struct RequestContext {
       callback(false);
     }
 
-    auto new_font = client->ApplyPatches(*subset, patches_, encoding_);
-    if (!new_font.ok()) {
-      LOG(WARNING) << "Patch application failed: "
-                   << new_font.status().message();
+    auto sc = client->ApplyPatches(patches_, encoding_);
+    if (!sc.ok()) {
+      LOG(WARNING) << "Patch application failed: " << sc.message();
       callback(false);
     }
 
-    subset->shallow_copy(*new_font);
     callback(true);
   }
 
@@ -131,7 +128,6 @@ struct InitRequestContext {
   InitRequestContext(val& callback_, hb_set_unique_ptr& codepoints_)
       : callback(std::move(callback_)), codepoints(std::move(codepoints_)) {}
   State* state;
-  FontData* subset;
   val callback;
   hb_set_unique_ptr codepoints;
 };
@@ -141,13 +137,19 @@ static void InitRequestFailed(emscripten_fetch_t* fetch);
 
 class State {
  public:
-  State(std::string font_url) : font_url_(font_url), subset_(), client_() {}
+  State(std::string font_url) : font_url_(font_url), client_() {}
 
   val font_data() {
-    return val(typed_memory_view(subset_.size(), subset_.data()));
+    if (client_) {
+      return val(typed_memory_view(client_->GetFontData().size(),
+                                   client_->GetFontData().data()));
+    }
+    return val(typed_memory_view(0, (uint32_t*)nullptr));
   }
 
   void extend(val codepoints_js, val callback) {
+    // TODO(garretrieger): if there is in flight extension request, queue up
+    // the codepoints instead of initiating new requests.
     std::vector<int> codepoints =
         convertJSArrayToNumberVector<int>(codepoints_js);
     hb_set_unique_ptr additional_codepoints = make_hb_set();
@@ -159,15 +161,17 @@ class State {
     extend_(std::move(additional_codepoints), std::move(callback));
   }
 
+  void init_client(IFTClient&& client) { client_ = std::move(client); }
+
   void extend_(hb_set_unique_ptr codepoints, val callback) {
-    if (!subset_.size()) {
+    if (!client_) {
       // This will load the init font file and then re-run extend once we have
       // it.
       DoInitRequest(std::move(codepoints), callback);
       return;
     }
 
-    auto urls = client_.PatchUrlsFor(subset_, *codepoints);
+    auto urls = client_->PatchUrlsFor(*codepoints);
     if (!urls.ok()) {
       LOG(WARNING) << "Failed to calculate patch URLs: "
                    << urls.status().message();
@@ -187,7 +191,6 @@ class State {
   void DoInitRequest(hb_set_unique_ptr codepoints, val& callback) {
     InitRequestContext* context = new InitRequestContext(callback, codepoints);
     context->state = this;
-    context->subset = &subset_;
 
     emscripten_fetch_attr_t attr;
     emscripten_fetch_attr_init(&attr);
@@ -202,9 +205,13 @@ class State {
   }
 
   void DoRequest(const patch_set& urls, val& callback) {
+    if (!client_) {
+      callback(false);
+      return;
+    }
+
     RequestContext* context = new RequestContext(urls, callback);
-    context->subset = &subset_;
-    context->client = &client_;
+    context->client = &(*client_);
 
     for (auto p : urls) {
       const std::string& url = p.first;
@@ -223,8 +230,7 @@ class State {
   }
 
   std::string font_url_;
-  FontData subset_;
-  IFTClient client_;
+  std::optional<IFTClient> client_;
 };
 
 void InitRequestSucceeded(emscripten_fetch_t* fetch) {
@@ -258,7 +264,15 @@ void InitRequestSucceeded(emscripten_fetch_t* fetch) {
     response.copy(string_view(fetch->data, fetch->numBytes));
   }
 
-  context->subset->shallow_copy(response);
+  {
+    auto client = IFTClient::NewClient(std::move(response));
+    if (!client.ok()) {
+      LOG(WARNING) << "Creating client failed: " << client.status();
+      context->callback(false);
+      goto cleanup;
+    }
+    context->state->init_client(std::move(*client));
+  }
 
   // Now that we have the base file we need to trigger loading of any needed
   // patches re-call extend.

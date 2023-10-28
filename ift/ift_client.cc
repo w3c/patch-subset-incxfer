@@ -189,8 +189,9 @@ Status IFTClient::SetFont(patch_subset::FontData&& new_font) {
   auto table = IFTTable::FromFont(face);
   if (table.ok()) {
     ift_table_ = std::move(*table);
-
-  } else if (!table.ok() && !absl::IsNotFound(table.status())) {
+  } else if (absl::IsNotFound(table.status())) {
+    ift_table_.reset();
+  } else if (!table.ok()) {
     hb_face_destroy(face);
     return table.status();
   }
