@@ -194,6 +194,36 @@ TEST_F(IFTClientTest, ApplyPatches_SharedBrotli) {
   }
 }
 
+TEST_F(IFTClientTest, ApplyPatches_LeafHasNoMappings) {
+  FontData f1;
+  f1.copy(sample_font.str());
+  FontData f2;
+  f2.copy(roboto_ab.str());
+
+  BrotliBinaryDiff differ;
+  FontData f1_to_f2;
+  auto s1 = differ.Diff(f1, f2, &f1_to_f2);
+  ASSERT_TRUE(s1.ok()) << s1;
+
+  auto client = IFTClient::NewClient(std::move(f1));
+  ASSERT_TRUE(client.ok()) << client.status();
+
+  hb_set_unique_ptr codepoints = make_hb_set(1, 30);
+  auto patches = client->PatchUrlsFor(*codepoints);
+  ASSERT_TRUE(patches.ok()) << patches.status();
+  ASSERT_FALSE(patches->empty());
+
+  std::vector<FontData> patch_set_1;
+  patch_set_1.emplace_back(f1_to_f2.str());
+  auto s2 = client->ApplyPatches(patch_set_1, SHARED_BROTLI_ENCODING);
+  ASSERT_TRUE(s2.ok()) << s2;
+  ASSERT_EQ(client->GetFontData().str(), f2.str());
+
+  patches = client->PatchUrlsFor(*codepoints);
+  ASSERT_TRUE(patches.ok()) << patches.status();
+  ASSERT_TRUE(patches->empty());
+}
+
 TEST_F(IFTClientTest, PatchToUrl_NoFormatters) {
   std::string url("https://localhost/abc.patch");
   EXPECT_EQ(IFTClient::PatchToUrl(url, 0), "https://localhost/abc.patch");
