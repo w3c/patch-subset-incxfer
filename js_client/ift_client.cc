@@ -38,18 +38,15 @@ struct RequestContext {
   bool IsComplete() { return urls.empty(); }
 
   void UrlSuceeded(const std::string& url, FontData data) {
-    patches_.push_back(std::move(data));
-
     auto it = urls.find(url);
     if (it != urls.end()) {
-      if (encoding_ == DEFAULT_ENCODING) {
-        encoding_ = it->second;
-      } else if (encoding_ != it->second) {
-        failed_ = true;
-        LOG(WARNING) << "Mismatched encodings " << encoding_ << " vs "
-                     << it->second;
-      }
+      PatchEncoding encoding = it->second;
+      patches_[encoding].push_back(std::move(data));
+    } else {
+      LOG(WARNING) << "No encoding found for url.";
+      failed_ = true;
     }
+
     RemoveUrl(url);
   }
 
@@ -76,19 +73,24 @@ struct RequestContext {
 
     if (failed_) {
       callback(false);
+      return;
     }
 
-    auto sc = client->ApplyPatches(patches_, encoding_);
-    if (!sc.ok()) {
-      LOG(WARNING) << "Patch application failed: " << sc.message();
-      callback(false);
+    for (const auto& e : patches_) {
+      PatchEncoding encoding = e.first;
+      const std::vector<FontData>& patches = e.second;
+      auto sc = client->ApplyPatches(patches, encoding);
+      if (!sc.ok()) {
+        LOG(WARNING) << "Patch application failed: " << sc.message();
+        callback(false);
+        return;
+      }
     }
 
     callback(true);
   }
 
-  PatchEncoding encoding_ = DEFAULT_ENCODING;
-  std::vector<FontData> patches_;
+  absl::flat_hash_map<PatchEncoding, std::vector<FontData>> patches_;
   bool failed_ = false;
 };
 
