@@ -2,8 +2,8 @@
 
 namespace common {
 
-absl::flat_hash_set<uint32_t> FontHelper::GetTags(hb_face_t* face) {
-  absl::flat_hash_set<uint32_t> tag_set;
+absl::flat_hash_set<hb_tag_t> FontHelper::GetTags(hb_face_t* face) {
+  absl::flat_hash_set<hb_tag_t> tag_set;
   constexpr uint32_t max_tags = 64;
   hb_tag_t table_tags[max_tags];
   unsigned table_count = max_tags;
@@ -31,14 +31,19 @@ std::vector<hb_tag_t> FontHelper::GetOrderedTags(hb_face_t* face) {
   return ordered_tags;
 }
 
+std::string FontHelper::ToString(hb_tag_t tag) {
+  std::string tag_name;
+  tag_name.resize(5);  // need 5 for the null terminator
+  snprintf(tag_name.data(), 5, "%c%c%c%c", HB_UNTAG(tag));
+  tag_name.resize(4);
+  return tag_name;
+}
+
 std::vector<std::string> FontHelper::ToStrings(
     const std::vector<hb_tag_t>& tags) {
   std::vector<std::string> result;
   for (hb_tag_t tag : tags) {
-    std::string tag_name;
-    tag_name.resize(4);
-    sprintf(tag_name.data(), "%c%c%c%c", HB_UNTAG(tag));
-    result.push_back(tag_name);
+    result.push_back(ToString(tag));
   }
 
   return result;

@@ -10,8 +10,10 @@ cc_library(
   deps = [
     "@harfbuzz",
     "@com_google_absl//absl/container:flat_hash_set",
+    "@com_google_absl//absl/container:flat_hash_map",
     "@com_google_absl//absl/status:statusor",
     "@com_google_absl//absl/strings",
+    "//patch_subset:common",
   ]
 )
 
@@ -26,6 +28,6 @@ cc_test(
   ],
   deps = [
     ":common",
-    "@gtest//:gtest_main",
+    "@gtest//:gtest_main",    
   ],
 )

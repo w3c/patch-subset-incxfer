@@ -75,4 +75,26 @@ TEST_F(FontHelperTest, GetOrderedTags) {
   EXPECT_EQ(s[17], "fpgm");
 }
 
+TEST_F(FontHelperTest, ToString) {
+  ASSERT_EQ("glyf", FontHelper::ToString(HB_TAG('g', 'l', 'y', 'f')));
+  ASSERT_EQ("abCD", FontHelper::ToString(HB_TAG('a', 'b', 'C', 'D')));
+}
+
+TEST_F(FontHelperTest, BuildFont) {
+  absl::flat_hash_map<hb_tag_t, std::string> tables = {
+      {HB_TAG('a', 'b', 'c', 'd'), "table_1"},
+      {HB_TAG('d', 'e', 'f', 'g'), "table_2"},
+  };
+  auto font = FontHelper::BuildFont(tables);
+
+  hb_face_t* face = font.reference_face();
+  auto table_1 = FontHelper::TableData(face, HB_TAG('a', 'b', 'c', 'd'));
+  auto table_2 = FontHelper::TableData(face, HB_TAG('d', 'e', 'f', 'g'));
+
+  ASSERT_EQ(table_1.str(), "table_1");
+  ASSERT_EQ(table_2.str(), "table_2");
+}
+
+// TODO test BuildFont...
+
 }  // namespace common
