@@ -301,6 +301,50 @@ TEST_F(PatchMapTest, AddToProto) {
       << Diff(expected, proto);
 }
 
+TEST_F(PatchMapTest, AddToProto_ExtensionFilter) {
+  PatchMap map = {
+      {{23, 25, 28}, 0, SHARED_BROTLI_ENCODING},
+      {{25, 28, 37}, 1, SHARED_BROTLI_ENCODING},
+      {{30, 31}, 2, SHARED_BROTLI_ENCODING, true},
+  };
+
+  IFT expected_1;
+  IFT expected_2;
+  expected_1.set_default_patch_encoding(SHARED_BROTLI_ENCODING);
+  expected_2.set_default_patch_encoding(SHARED_BROTLI_ENCODING);
+
+  auto* m = expected_1.add_subset_mapping();
+  hb_set_unique_ptr set = make_hb_set(3, 0, 2, 5);
+  m->set_bias(23);
+  m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
+  m->set_id_delta(-1);
+
+  m = expected_1.add_subset_mapping();
+  set = make_hb_set(3, 0, 3, 12);
+  m->set_bias(25);
+  m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
+  m->set_id_delta(0);
+
+  m = expected_2.add_subset_mapping();
+  set = make_hb_set(2, 0, 1);
+  m->set_bias(30);
+  m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
+  m->set_id_delta(1);
+
+  IFT proto_1;
+  proto_1.set_default_patch_encoding(SHARED_BROTLI_ENCODING);
+  map.AddToProto(proto_1);
+
+  IFT proto_2;
+  proto_2.set_default_patch_encoding(SHARED_BROTLI_ENCODING);
+  map.AddToProto(proto_2, true);
+
+  ASSERT_TRUE(MessageDifferencer::Equals(expected_1, proto_1))
+      << Diff(expected_1, proto_1);
+  ASSERT_TRUE(MessageDifferencer::Equals(expected_2, proto_2))
+      << Diff(expected_2, proto_2);
+}
+
 TEST_F(PatchMapTest, AddToProto_ComplexIds) {
   PatchMap map = {
       {{23, 25, 28}, 0, SHARED_BROTLI_ENCODING},
