@@ -6,10 +6,13 @@ cc_library(
         "iftb_binary_patch.cc",
         "per_table_brotli_binary_diff.h",
         "per_table_brotli_binary_diff.cc",
+        "per_table_brotli_binary_patch.h",
+        "per_table_brotli_binary_patch.cc",
     ],
     hdrs = [
         "ift_client.h",
         "per_table_brotli_binary_diff.h",
+        "per_table_brotli_binary_patch.h",
     ],
     visibility = [
         "//visibility:public",
@@ -39,6 +42,7 @@ cc_test(
         "ift_client_test.cc",
         "iftb_binary_patch_test.cc",
         "per_table_brotli_binary_diff_test.cc",
+        "per_table_brotli_binary_patch_test.cc",
     ],
     data = [
         "//patch_subset:testdata",
