@@ -46,8 +46,8 @@ class PatchMap {
 
     Entry() {}
     Entry(std::initializer_list<uint32_t> codepoints, uint32_t patch_idx,
-          PatchEncoding enc)
-        : coverage(codepoints), patch_index(patch_idx), encoding(enc) {}
+          PatchEncoding enc, bool is_ext=false)
+        : coverage(codepoints), patch_index(patch_idx), encoding(enc), extension_entry(is_ext) {}
 
     friend void PrintTo(const Entry& point, std::ostream* os);
 
@@ -68,6 +68,7 @@ class PatchMap {
     Coverage coverage;
     uint32_t patch_index;
     PatchEncoding encoding;
+    bool extension_entry = false;
   };
 
   // TODO(garretrieger): move constructors?
@@ -81,6 +82,8 @@ class PatchMap {
   }
 
   static absl::StatusOr<PatchMap> FromProto(const ift::proto::IFT& ift_proto);
+  absl::Status AddFromProto(const ift::proto::IFT& ift_proto, bool is_extension_table=false);
+
   void AddToProto(ift::proto::IFT& ift_proto) const;
 
   absl::Span<const Entry> GetEntries() const;
