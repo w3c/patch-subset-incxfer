@@ -25,7 +25,7 @@ class PerTableBrotliBinaryPatchTest : public ::testing::Test {
   PerTableBrotliBinaryPatchTest() {
     BrotliBinaryDiff differ;
 
-    FontData foo, bar, abc, def;
+    FontData foo, bar, abc, def, empty;
     foo.copy("foo");
     bar.copy("bar");
     abc.copy("abc");
@@ -33,6 +33,7 @@ class PerTableBrotliBinaryPatchTest : public ::testing::Test {
 
     assert(differ.Diff(foo, bar, &foo_to_bar).ok());
     assert(differ.Diff(abc, def, &abc_to_def).ok());
+    assert(differ.Diff(empty, def, &empty_to_def).ok());
   }
 
   hb_tag_t tag1 = HB_TAG('t', 'a', 'g', '1');
@@ -45,6 +46,7 @@ class PerTableBrotliBinaryPatchTest : public ::testing::Test {
 
   FontData foo_to_bar;
   FontData abc_to_def;
+  FontData empty_to_def;
 
   PerTableBrotliBinaryPatch patcher;
 };
@@ -73,6 +75,122 @@ TEST_F(PerTableBrotliBinaryPatchTest, BasicPatch) {
   ASSERT_EQ(after.str(), result.str());
 }
 
-// TODO test more advanced cases.
+TEST_F(PerTableBrotliBinaryPatchTest, AddTable) {
+  FontData before = FontHelper::BuildFont({
+      {tag1, "foo"},
+  });
+  FontData after = FontHelper::BuildFont({
+      {tag1, "bar"},
+      {tag2, "def"},
+  });
+
+  PerTablePatch patch_proto;
+  (*patch_proto.mutable_table_patches())[tag1_str] = foo_to_bar.string();
+  (*patch_proto.mutable_table_patches())[tag2_str] = empty_to_def.string();
+  std::string patch = patch_proto.SerializeAsString();
+  FontData patch_data;
+  patch_data.copy(patch.data(), patch.size());
+
+  FontData result;
+  auto sc = patcher.Patch(before, patch_data, &result);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  ASSERT_EQ(after.str(), result.str());
+}
+
+TEST_F(PerTableBrotliBinaryPatchTest, PassThroughTable) {
+  FontData before = FontHelper::BuildFont({
+      {tag1, "foo"},
+      {tag2, "abc"},
+  });
+  FontData after = FontHelper::BuildFont({
+      {tag1, "bar"},
+      {tag2, "abc"},
+  });
+
+  PerTablePatch patch_proto;
+  (*patch_proto.mutable_table_patches())[tag1_str] = foo_to_bar.string();
+  std::string patch = patch_proto.SerializeAsString();
+  FontData patch_data;
+  patch_data.copy(patch.data(), patch.size());
+
+  FontData result;
+  auto sc = patcher.Patch(before, patch_data, &result);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  ASSERT_EQ(after.str(), result.str());
+}
+
+TEST_F(PerTableBrotliBinaryPatchTest, RemoveTable) {
+  FontData before = FontHelper::BuildFont({
+      {tag1, "foo"},
+      {tag2, "abc"},
+  });
+  FontData after = FontHelper::BuildFont({
+      {tag1, "bar"},
+  });
+
+  PerTablePatch patch_proto;
+  (*patch_proto.mutable_table_patches())[tag1_str] = foo_to_bar.string();
+  patch_proto.add_removed_tables(tag2_str);
+  std::string patch = patch_proto.SerializeAsString();
+  FontData patch_data;
+  patch_data.copy(patch.data(), patch.size());
+
+  FontData result;
+  auto sc = patcher.Patch(before, patch_data, &result);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  ASSERT_EQ(after.str(), result.str());
+}
+
+TEST_F(PerTableBrotliBinaryPatchTest, RemoveTable_TakesPriorityOverPatch) {
+  FontData before = FontHelper::BuildFont({
+      {tag1, "foo"},
+      {tag2, "abc"},
+  });
+  FontData after = FontHelper::BuildFont({
+      {tag1, "bar"},
+  });
+
+  PerTablePatch patch_proto;
+  (*patch_proto.mutable_table_patches())[tag1_str] = foo_to_bar.string();
+  (*patch_proto.mutable_table_patches())[tag2_str] = abc_to_def.string();
+  patch_proto.add_removed_tables(tag2_str);
+  std::string patch = patch_proto.SerializeAsString();
+  FontData patch_data;
+  patch_data.copy(patch.data(), patch.size());
+
+  FontData result;
+  auto sc = patcher.Patch(before, patch_data, &result);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  ASSERT_EQ(after.str(), result.str());
+}
+
+TEST_F(PerTableBrotliBinaryPatchTest, MixedOperations) {
+  FontData before = FontHelper::BuildFont({
+      {tag1, "foo"},
+      {tag2, "def"},
+      {tag3, "abc"},
+  });
+  FontData after = FontHelper::BuildFont({
+      {tag1, "foo"},
+      {tag3, "def"},
+  });
+
+  PerTablePatch patch_proto;
+  (*patch_proto.mutable_table_patches())[tag3_str] = abc_to_def.string();
+  patch_proto.add_removed_tables(tag2_str);
+  std::string patch = patch_proto.SerializeAsString();
+  FontData patch_data;
+  patch_data.copy(patch.data(), patch.size());
+
+  FontData result;
+  auto sc = patcher.Patch(before, patch_data, &result);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  ASSERT_EQ(after.str(), result.str());
+}
 
 }  // namespace ift

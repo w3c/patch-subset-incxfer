@@ -39,16 +39,22 @@ Status PerTableBrotliBinaryPatch::Patch(const FontData& font_base,
     FontData data = FontHelper::TableData(base, t);
     FontData patch;
 
-    std::string tag = FontHelper::ToString(t);
-    const std::string& patch_data = proto.table_patches().at(tag);
-    patch.copy(patch_data.data(), patch.size());
-
     FontData derived;
-    auto sc = binary_patch_.Patch(data, patch, &derived);
-    if (!sc.ok()) {
-      hb_face_destroy(base);
-      hb_face_destroy(new_face);
-      return sc;
+    std::string tag = FontHelper::ToString(t);
+    auto it = proto.table_patches().find(tag);
+    if (it != proto.table_patches().end()) {
+      const std::string& patch_data = it->second;
+      patch.copy(patch_data.data(), patch_data.size());
+
+      auto sc = binary_patch_.Patch(data, patch, &derived);
+      if (!sc.ok()) {
+        hb_face_destroy(base);
+        hb_face_destroy(new_face);
+        return sc;
+      }
+    } else {
+      // No patch for this table, just pass it through.
+      derived.shallow_copy(data);
     }
 
     hb_blob_t* blob = derived.reference_blob();
