@@ -11,9 +11,10 @@ enum PatchEncoding {
   // Shared brotli patches are dependent.
   SHARED_BROTLI_ENCODING = 2;
 
-  // TODO(garretrieger): add a per table shared brotli encoding.
+  // Per table shared brotli patches are dependent.
+  PER_TABLE_SHARED_BROTLI_ENCODING = 3;
 
-  // next = 3
+  // next = 4
 }
 
 message IFT {
@@ -56,4 +57,13 @@ message SubsetMapping {
   PatchEncoding patch_encoding = 4;
 
   // next = 6
+}
+
+// Format for a table-wise shared brotli patch.
+message PerTablePatch {
+  repeated uint32 id = 1;
+  map<string, bytes> table_patches = 2;
+  repeated string removed_tables = 3;
+
+  // next = 4
 }

@@ -60,7 +60,10 @@ class PatchMap {
                  ift::proto::PatchEncoding default_encoding,
                  ift::proto::SubsetMapping* out) const;
 
-    bool IsDependent() const { return encoding == SHARED_BROTLI_ENCODING; }
+    bool IsDependent() const {
+      return encoding == SHARED_BROTLI_ENCODING ||
+             encoding == PER_TABLE_SHARED_BROTLI_ENCODING;
+    }
 
     Coverage coverage;
     uint32_t patch_index;
