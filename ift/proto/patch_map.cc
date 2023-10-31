@@ -9,6 +9,7 @@
 #include "patch_subset/sparse_bit_set.h"
 
 using absl::Span;
+using absl::Status;
 using absl::StatusOr;
 using patch_subset::hb_set_unique_ptr;
 using patch_subset::make_hb_set;
@@ -86,7 +87,14 @@ void PatchMap::Entry::ToProto(uint32_t last_patch_index,
 
 StatusOr<PatchMap> PatchMap::FromProto(const IFT& ift_proto) {
   PatchMap map;
+  auto s = map.AddFromProto(ift_proto);
+  if (!s.ok()) {
+    return s;
+  }
+  return map;
+}
 
+Status PatchMap::AddFromProto(const IFT& ift_proto, bool is_extension_table) {
   PatchEncoding default_encoding = ift_proto.default_patch_encoding();
   int32_t id = 0;
   for (const auto& m : ift_proto.subset_mapping()) {
@@ -102,10 +110,11 @@ StatusOr<PatchMap> PatchMap::FromProto(const IFT& ift_proto) {
       return e.status();
     }
 
-    map.entries_.push_back(std::move(*e));
+    e->extension_entry = is_extension_table;
+    entries_.push_back(std::move(*e));
   }
 
-  return map;
+  return absl::OkStatus();
 }
 
 void PatchMap::AddToProto(IFT& ift_proto) const {

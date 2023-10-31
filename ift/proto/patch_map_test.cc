@@ -100,6 +100,24 @@ std::string Diff(const IFT& a, const IFT& b) {
   return StrCat("Expected:\n", a_str, "\n", "Actual:\n", b_str);
 }
 
+TEST_F(PatchMapTest, AddFromProto) {
+  PatchMap map;
+  auto s = map.AddFromProto(sample);
+  s.Update(map.AddFromProto(complex_ids, true));
+  ASSERT_TRUE(s.ok()) << s;
+
+  PatchMap expected = {
+      {{30, 32}, 1, SHARED_BROTLI_ENCODING},
+      {{55, 56, 57}, 2, IFTB_ENCODING},
+      {{0}, 0, SHARED_BROTLI_ENCODING, true},
+      {{5}, 5, SHARED_BROTLI_ENCODING, true},
+      {{2}, 2, SHARED_BROTLI_ENCODING, true},
+      {{4}, 4, SHARED_BROTLI_ENCODING, true},
+  };
+
+  ASSERT_EQ(map, expected);
+}
+
 TEST_F(PatchMapTest, Empty) {
   auto map = PatchMap::FromProto(empty);
   ASSERT_TRUE(map.ok()) << map.status();
