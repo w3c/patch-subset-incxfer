@@ -324,4 +324,11 @@ TEST_F(PatchMapTest, AddToProto_ComplexIds) {
       << Diff(expected, proto);
 }
 
+TEST_F(PatchMapTest, IsDependent) {
+  ASSERT_FALSE(PatchMap::Entry({}, 0, IFTB_ENCODING).IsDependent());
+  ASSERT_TRUE(PatchMap::Entry({}, 0, SHARED_BROTLI_ENCODING).IsDependent());
+  ASSERT_TRUE(
+      PatchMap::Entry({}, 0, PER_TABLE_SHARED_BROTLI_ENCODING).IsDependent());
+}
+
 }  // namespace ift::proto

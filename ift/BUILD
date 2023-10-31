@@ -3,10 +3,13 @@ cc_library(
     srcs = [
         "ift_client.cc",
         "iftb_binary_patch.h",
-        "iftb_binary_patch.cc",        
+        "iftb_binary_patch.cc",
+        "per_table_brotli_binary_diff.h",
+        "per_table_brotli_binary_diff.cc",
     ],
     hdrs = [
         "ift_client.h",
+        "per_table_brotli_binary_diff.h",
     ],
     visibility = [
         "//visibility:public",
@@ -35,6 +38,7 @@ cc_test(
     srcs = [
         "ift_client_test.cc",
         "iftb_binary_patch_test.cc",
+        "per_table_brotli_binary_diff_test.cc",
     ],
     data = [
         "//patch_subset:testdata",
