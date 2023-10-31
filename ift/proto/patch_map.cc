@@ -117,10 +117,14 @@ Status PatchMap::AddFromProto(const IFT& ift_proto, bool is_extension_table) {
   return absl::OkStatus();
 }
 
-void PatchMap::AddToProto(IFT& ift_proto) const {
+void PatchMap::AddToProto(IFT& ift_proto, bool extension_entries) const {
   PatchEncoding default_encoding = ift_proto.default_patch_encoding();
   uint32_t last_patch_index = 0;
   for (const Entry& e : entries_) {
+    if (e.extension_entry != extension_entries) {
+      continue;
+    }
+
     auto* m = ift_proto.add_subset_mapping();
     e.ToProto(last_patch_index, default_encoding, m);
     last_patch_index = e.patch_index;
