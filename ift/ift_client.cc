@@ -20,6 +20,7 @@ using ift::proto::IFTB_ENCODING;
 using ift::proto::IFTTable;
 using ift::proto::PatchEncoding;
 using ift::proto::PatchMap;
+using ift::proto::PER_TABLE_SHARED_BROTLI_ENCODING;
 using ift::proto::SHARED_BROTLI_ENCODING;
 using patch_subset::BinaryPatch;
 using patch_subset::FontData;
@@ -176,6 +177,8 @@ StatusOr<const BinaryPatch*> IFTClient::PatcherFor(
       return brotli_binary_patch_.get();
     case IFTB_ENCODING:
       return iftb_binary_patch_.get();
+    case PER_TABLE_SHARED_BROTLI_ENCODING:
+      return per_table_binary_patch_.get();
     default:
       std::stringstream message;
       message << "Patch encoding " << encoding << " is not implemented.";

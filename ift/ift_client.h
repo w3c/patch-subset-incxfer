@@ -5,6 +5,7 @@
 #include "absl/status/statusor.h"
 #include "hb.h"
 #include "ift/iftb_binary_patch.h"
+#include "ift/per_table_brotli_binary_patch.h"
 #include "ift/proto/IFT.pb.h"
 #include "ift/proto/ift_table.h"
 #include "patch_subset/binary_patch.h"
@@ -26,7 +27,8 @@ class IFTClient {
  private:
   IFTClient()
       : brotli_binary_patch_(new patch_subset::BrotliBinaryPatch()),
-        iftb_binary_patch_(new ift::IftbBinaryPatch()) {}
+        iftb_binary_patch_(new ift::IftbBinaryPatch()),
+        per_table_binary_patch_(new ift::PerTableBrotliBinaryPatch()) {}
 
  public:
   IFTClient(const IFTClient&) = delete;
@@ -38,6 +40,7 @@ class IFTClient {
         ift_table_(std::move(other.ift_table_)),
         brotli_binary_patch_(std::move(other.brotli_binary_patch_)),
         iftb_binary_patch_(std::move(other.iftb_binary_patch_)),
+        per_table_binary_patch_(new ift::PerTableBrotliBinaryPatch()),
         codepoint_to_entries_index_(
             std::move(other.codepoint_to_entries_index_)) {
     other.face_ = nullptr;
@@ -96,6 +99,7 @@ class IFTClient {
 
   std::unique_ptr<patch_subset::BinaryPatch> brotli_binary_patch_;
   std::unique_ptr<ift::IftbBinaryPatch> iftb_binary_patch_;
+  std::unique_ptr<ift::PerTableBrotliBinaryPatch> per_table_binary_patch_;
 
   absl::flat_hash_map<uint32_t, std::vector<uint32_t>>
       codepoint_to_entries_index_;
