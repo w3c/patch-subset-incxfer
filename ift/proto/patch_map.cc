@@ -151,6 +151,9 @@ void PrintTo(const PatchMap::Coverage& coverage, std::ostream* os) {
 void PrintTo(const PatchMap::Entry& entry, std::ostream* os) {
   PrintTo(entry.coverage, os);
   *os << ", " << entry.patch_index << ", " << entry.encoding;
+  if (entry.extension_entry) {
+    *os << ", ext";
+  }
 }
 
 void PrintTo(const PatchMap& map, std::ostream* os) {
@@ -166,11 +169,13 @@ void PrintTo(const PatchMap& map, std::ostream* os) {
 Span<const PatchMap::Entry> PatchMap::GetEntries() const { return entries_; }
 
 void PatchMap::AddEntry(const PatchMap::Coverage& coverage,
-                        uint32_t patch_index, PatchEncoding encoding) {
+                        uint32_t patch_index, PatchEncoding encoding,
+                        bool is_extension) {
   Entry e;
   e.coverage = coverage;
   e.patch_index = patch_index;
   e.encoding = encoding;
+  e.extension_entry = is_extension;
   entries_.push_back(std::move(e));
 }
 

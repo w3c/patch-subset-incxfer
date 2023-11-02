@@ -42,12 +42,14 @@ class IFTTable {
    * according to IFTB ordering requirements.
    */
   static absl::StatusOr<patch_subset::FontData> AddToFont(
-      hb_face_t* face, const IFT& proto, bool iftb_conversion = false);
+      hb_face_t* face, const IFT& proto, const IFT* extension_proto = nullptr,
+      bool iftb_conversion = false);
 
   void GetId(uint32_t out[4]) const;
 
   const PatchMap& GetPatchMap() const { return patch_map_; }
   PatchMap& GetPatchMap() { return patch_map_; }
+  bool HasExtensionEntries() const;
 
   const std::string& GetUrlTemplate() const { return url_template_; }
 

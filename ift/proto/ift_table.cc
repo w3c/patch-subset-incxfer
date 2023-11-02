@@ -29,28 +29,44 @@ using patch_subset::SparseBitSet;
 namespace ift::proto {
 
 constexpr hb_tag_t IFT_TAG = HB_TAG('I', 'F', 'T', ' ');
-
-// TODO(garretrieger): keep an abstract representation around and have a
-// compiler rather than
-//                     trying to modify the proto.
+constexpr hb_tag_t IFTX_TAG = HB_TAG('I', 'F', 'T', 'X');
 
 StatusOr<IFTTable> IFTTable::FromFont(hb_face_t* face) {
-  hb_blob_t* ift_table = hb_face_reference_table(face, IFT_TAG);
-  if (ift_table == hb_blob_get_empty()) {
+  FontData ift_table = FontHelper::TableData(face, IFT_TAG);
+  if (ift_table.empty()) {
     return absl::NotFoundError("'IFT ' table not found in face.");
   }
 
-  unsigned length;
-  const char* data = hb_blob_get_data(ift_table, &length);
-  std::string data_string(data, length);
-  hb_blob_destroy(ift_table);
-
-  IFT ift;
-  if (!ift.ParseFromString(data_string)) {
+  std::string data_string = ift_table.string();
+  IFT ift_proto;
+  if (!ift_proto.ParseFromString(data_string)) {
     return absl::InternalError("Unable to parse 'IFT ' table.");
   }
 
-  return FromProto(ift);
+  auto ift = FromProto(ift_proto);
+  if (!ift.ok()) {
+    return ift;
+  }
+
+  // Check for an handle extension table if present.
+  ift_table = FontHelper::TableData(face, IFTX_TAG);
+  if (ift_table.empty()) {
+    // No extension table
+    return ift;
+  }
+
+  data_string = ift_table.string();
+  ift_proto.Clear();
+  if (!ift_proto.ParseFromString(data_string)) {
+    return absl::InternalError("Unable to parse 'IFT ' table.");
+  }
+
+  auto s = ift->GetPatchMap().AddFromProto(ift_proto, true);
+  if (!s.ok()) {
+    return s;
+  }
+
+  return ift;
 }
 
 StatusOr<IFTTable> IFTTable::FromFont(const FontData& font) {
@@ -94,6 +110,7 @@ void move_tag_to_back(std::vector<hb_tag_t>& tags, hb_tag_t tag) {
 }
 
 StatusOr<FontData> IFTTable::AddToFont(hb_face_t* face, const IFT& proto,
+                                       const IFT* extension_proto,
                                        bool iftb_conversion) {
   std::vector<hb_tag_t> tags = FontHelper::GetOrderedTags(face);
   hb_face_t* new_face = hb_face_builder_create();
@@ -130,6 +147,24 @@ StatusOr<FontData> IFTTable::AddToFont(hb_face_t* face, const IFT& proto,
     tags.push_back(IFT_TAG);
   }
 
+  std::string serialized_ext;
+  if (extension_proto) {
+    serialized_ext = extension_proto->SerializeAsString();
+    blob = hb_blob_create_or_fail(serialized_ext.data(), serialized_ext.size(),
+                                  HB_MEMORY_MODE_READONLY, nullptr, nullptr);
+    if (!blob) {
+      return absl::InternalError(
+          "Failed to allocate memory for serialized IFT table.");
+    }
+    hb_face_builder_add_table(new_face, IFTX_TAG, blob);
+    hb_blob_destroy(blob);
+
+    if (std::find(tags.begin(), tags.end(), IFTX_TAG) == tags.end()) {
+      // Add 'IFTX' tag if it wasn't added above.
+      tags.push_back(IFTX_TAG);
+    }
+  }
+
   if (iftb_conversion) {
     // requirements:
     // - gvar before glyf.
@@ -163,13 +198,29 @@ StatusOr<FontData> IFTTable::AddToFont(hb_face_t* face) {
   proto.add_id(id_[3]);
   proto.set_default_patch_encoding(default_encoding_);
   patch_map_.AddToProto(proto);
-  return AddToFont(face, proto);
+
+  bool has_extension_entries = HasExtensionEntries();
+  IFT ext_proto;
+  if (has_extension_entries) {
+    patch_map_.AddToProto(ext_proto, true);
+  }
+
+  return AddToFont(face, proto, has_extension_entries ? &ext_proto : nullptr);
 }
 
 void IFTTable::GetId(uint32_t out[4]) const {
   for (int i = 0; i < 4; i++) {
     out[i] = id_[i];
   }
+}
+
+bool IFTTable::HasExtensionEntries() const {
+  for (const auto& e : GetPatchMap().GetEntries()) {
+    if (e.extension_entry) {
+      return true;
+    }
+  }
+  return false;
 }
 
 }  // namespace ift::proto
