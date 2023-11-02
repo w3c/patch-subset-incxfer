@@ -24,6 +24,8 @@ class PatchMap {
     Coverage() {}
     Coverage(std::initializer_list<uint32_t> codepoints_list)
         : codepoints(codepoints_list) {}
+    Coverage(const absl::flat_hash_set<uint32_t>& codepoints_list)
+        : codepoints(codepoints_list) {}
 
     friend void PrintTo(const Coverage& point, std::ostream* os);
 

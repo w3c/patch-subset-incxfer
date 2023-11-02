@@ -7,8 +7,11 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
+#include "common/font_helper.h"
 #include "gtest/gtest.h"
+#include "ift/per_table_brotli_binary_patch.h"
 #include "ift/proto/ift_table.h"
+#include "patch_subset/binary_patch.h"
 #include "patch_subset/brotli_binary_patch.h"
 #include "patch_subset/font_data.h"
 #include "patch_subset/hb_set_unique_ptr.h"
@@ -21,7 +24,13 @@ using absl::Span;
 using absl::Status;
 using absl::StrCat;
 using absl::string_view;
+using common::FontHelper;
+using ift::proto::DEFAULT_ENCODING;
 using ift::proto::IFTTable;
+using ift::proto::PatchEncoding;
+using ift::proto::PER_TABLE_SHARED_BROTLI_ENCODING;
+using ift::proto::SHARED_BROTLI_ENCODING;
+using patch_subset::BinaryPatch;
 using patch_subset::BrotliBinaryPatch;
 using patch_subset::FontData;
 using patch_subset::hb_set_unique_ptr;
@@ -82,14 +91,26 @@ class EncoderTest : public ::testing::Test {
       return absl::OkStatus();
     }
 
+    out[node] = {};
     if (!ift_table.ok()) {
       // No 'IFT ' table means this is a leaf.
-      out[node] = {};
       return absl::OkStatus();
     }
 
+    PatchEncoding encoding = DEFAULT_ENCODING;
     flat_hash_map<uint32_t, btree_set<uint32_t>> subsets;
     for (const auto& e : ift_table->GetPatchMap().GetEntries()) {
+      if (e.encoding != SHARED_BROTLI_ENCODING &&
+          e.encoding != PER_TABLE_SHARED_BROTLI_ENCODING) {
+        // Ignore IFTB patches which don't form the graph.
+        continue;
+      }
+      if (encoding == DEFAULT_ENCODING) {
+        encoding = e.encoding;
+      }
+      if (encoding != e.encoding) {
+        return absl::InternalError("Inconsistent encodings.");
+      }
       uint32_t id = e.patch_index;
       for (uint32_t cp : e.coverage.codepoints) {
         subsets[id].insert(cp);
@@ -103,7 +124,11 @@ class EncoderTest : public ::testing::Test {
       }
     }
 
-    BrotliBinaryPatch patcher;
+    PerTableBrotliBinaryPatch per_table_patcher;
+    BrotliBinaryPatch brotli_patcher;
+    const BinaryPatch* patcher = (encoding == SHARED_BROTLI_ENCODING)
+                                     ? (BinaryPatch*)&brotli_patcher
+                                     : (BinaryPatch*)&per_table_patcher;
     for (auto p : subsets) {
       uint32_t id = p.first;
       std::string child;
@@ -120,7 +145,7 @@ class EncoderTest : public ::testing::Test {
 
       const FontData& patch = it->second;
       FontData derived;
-      auto sc = patcher.Patch(base, patch, &derived);
+      auto sc = patcher->Patch(base, patch, &derived);
       if (!sc.ok()) {
         return sc;
       }
@@ -158,7 +183,7 @@ TEST_F(EncoderTest, Encode_TwoSubsets) {
   absl::flat_hash_set<hb_codepoint_t> s1 = {'b', 'c'};
   Encoder encoder;
   hb_face_t* face = font.reference_face();
-  auto base = encoder.Encode(font.reference_face(), {'a', 'd'}, {&s1});
+  auto base = encoder.Encode(face, {'a', 'd'}, {&s1});
   hb_face_destroy(face);
 
   ASSERT_TRUE(base.ok()) << base.status();
@@ -178,12 +203,50 @@ TEST_F(EncoderTest, Encode_ThreeSubsets) {
   absl::flat_hash_set<hb_codepoint_t> s2 = {'c'};
   Encoder encoder;
   hb_face_t* face = font.reference_face();
-  auto base = encoder.Encode(font.reference_face(), {'a'}, {&s1, &s2});
+  auto base = encoder.Encode(face, {'a'}, {&s1, &s2});
   hb_face_destroy(face);
 
   ASSERT_TRUE(base.ok()) << base.status();
   ASSERT_EQ(ToCodepoints(*base), "a");
   ASSERT_EQ(encoder.Patches().size(), 4);
+
+  graph g;
+  auto sc = ToGraph(encoder, *base, g);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  graph expected{
+      {"a", {"ab", "ac"}},
+      {"ab", {"abc"}},
+      {"ac", {"abc"}},
+      {"abc", {}},
+  };
+  ASSERT_EQ(g, expected);
+}
+
+TEST_F(EncoderTest, Encode_ThreeSubsets_Mixed) {
+  absl::flat_hash_set<hb_codepoint_t> s1 = {'b'};
+  absl::flat_hash_set<hb_codepoint_t> s2 = {'c'};
+  Encoder encoder;
+  encoder.AddExistingIftbPatch(0, {41});
+  encoder.AddExistingIftbPatch(1, {42});
+  hb_face_t* face = font.reference_face();
+  auto base = encoder.Encode(face, {'a'}, {&s1, &s2});
+  hb_face_destroy(face);
+
+  ASSERT_TRUE(base.ok()) << base.status();
+  ASSERT_EQ(ToCodepoints(*base), "a");
+  ASSERT_EQ(encoder.Patches().size(), 4);
+
+  // TODO(garretrieger): check the iftb entries in the base and check
+  //  they are unmodified in derived fonts.
+  // TODO(garretrieger): apply a iftb patch and then check that you
+  //  can still form the graph with derived fonts containing the
+  //  modified glyf, loca, and IFT table.
+
+  face = base->reference_face();
+  auto iftx_data = FontHelper::TableData(face, HB_TAG('I', 'F', 'T', 'X'));
+  ASSERT_FALSE(iftx_data.empty());
+  hb_face_destroy(face);
 
   graph g;
   auto sc = ToGraph(encoder, *base, g);
@@ -204,7 +267,7 @@ TEST_F(EncoderTest, Encode_FourSubsets) {
   absl::flat_hash_set<hb_codepoint_t> s3 = {'d'};
   Encoder encoder;
   hb_face_t* face = font.reference_face();
-  auto base = encoder.Encode(font.reference_face(), {'a'}, {&s1, &s2, &s3});
+  auto base = encoder.Encode(face, {'a'}, {&s1, &s2, &s3});
   hb_face_destroy(face);
 
   ASSERT_TRUE(base.ok()) << base.status();

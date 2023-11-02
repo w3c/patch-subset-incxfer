@@ -8,6 +8,7 @@ cc_library(
     "//patch_subset:common",
     "//ift/proto:IFT_cc_proto",
     "//ift/proto",
+    "//ift:client",
     "@com_google_absl//absl/container:flat_hash_map",
     "@com_google_absl//absl/container:flat_hash_set",
     "@com_google_absl//absl/container:btree",
@@ -36,5 +37,6 @@ cc_test(
     ":encoder",
     "//patch_subset:client",
      "@gtest//:gtest_main",
+     "//common",
   ],
 )

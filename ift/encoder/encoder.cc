@@ -9,6 +9,7 @@
 #include "ift/proto/IFT.pb.h"
 #include "ift/proto/ift_table.h"
 #include "ift/proto/patch_map.h"
+#include "patch_subset/binary_diff.h"
 #include "patch_subset/font_data.h"
 #include "patch_subset/hb_set_unique_ptr.h"
 #include "woff2/decode.h"
@@ -20,9 +21,13 @@ using absl::Status;
 using absl::StatusOr;
 using absl::string_view;
 using ift::proto::IFT;
+using ift::proto::IFTB_ENCODING;
 using ift::proto::IFTTable;
+using ift::proto::PatchEncoding;
 using ift::proto::PatchMap;
+using ift::proto::PER_TABLE_SHARED_BROTLI_ENCODING;
 using ift::proto::SHARED_BROTLI_ENCODING;
+using patch_subset::BinaryDiff;
 using patch_subset::FontData;
 using patch_subset::hb_set_unique_ptr;
 using woff2::ComputeWOFF2FinalSize;
@@ -69,14 +74,20 @@ StatusOr<FontData> Encoder::Encode(
     return base.status();
   }
 
-  if (subsets.empty()) {
+  if (subsets.empty() && !IsMixedMode()) {
+    // This is a leaf node, a IFT table isn't needed.
     built_subsets_[base_subset].shallow_copy(*base);
     return base;
   }
 
-  IFT ift_proto;
+  IFT ift_proto, iftx_proto;
   ift_proto.set_url_template(UrlTemplate());
-  ift_proto.set_default_patch_encoding(SHARED_BROTLI_ENCODING);
+  if (!IsMixedMode()) {
+    ift_proto.set_default_patch_encoding(SHARED_BROTLI_ENCODING);
+  } else {
+    ift_proto.set_default_patch_encoding(IFTB_ENCODING);
+    iftx_proto.set_default_patch_encoding(PER_TABLE_SHARED_BROTLI_ENCODING);
+  }
   for (uint32_t p : Id()) {
     ift_proto.add_id(p);
   }
@@ -84,19 +95,30 @@ StatusOr<FontData> Encoder::Encode(
   PatchMap patch_map;
 
   std::vector<uint32_t> ids;
+  for (const auto& e : existing_iftb_patches_) {
+    patch_map.AddEntry(e.second, e.first, IFTB_ENCODING);
+  }
+
+  bool as_extensions = IsMixedMode();
+  PatchEncoding encoding =
+      IsMixedMode() ? PER_TABLE_SHARED_BROTLI_ENCODING : SHARED_BROTLI_ENCODING;
   for (auto s : subsets) {
     uint32_t id = next_id_++;
     ids.push_back(id);
 
     PatchMap::Coverage coverage;
     coverage.codepoints = *s;
-    patch_map.AddEntry(coverage, id, SHARED_BROTLI_ENCODING);
+    patch_map.AddEntry(coverage, id, encoding, as_extensions);
   }
 
   patch_map.AddToProto(ift_proto);
+  if (IsMixedMode()) {
+    patch_map.AddToProto(iftx_proto, true);
+  }
 
   hb_face_t* face = base->reference_face();
-  auto new_base = IFTTable::AddToFont(face, ift_proto);
+  auto new_base = IFTTable::AddToFont(face, ift_proto,
+                                      IsMixedMode() ? &iftx_proto : nullptr);
   hb_face_destroy(face);
 
   if (!new_base.ok()) {
@@ -112,6 +134,9 @@ StatusOr<FontData> Encoder::Encode(
   }
 
   built_subsets_[base_subset].shallow_copy(*base);
+  const BinaryDiff* differ = IsMixedMode()
+                                 ? (BinaryDiff*)&per_table_binary_diff_
+                                 : (BinaryDiff*)&binary_diff_;
 
   uint32_t i = 0;
   for (auto s : subsets) {
@@ -125,7 +150,7 @@ StatusOr<FontData> Encoder::Encode(
     }
 
     FontData patch;
-    Status sc = binary_diff_.Diff(*base, *next, &patch);
+    Status sc = differ->Diff(*base, *next, &patch);
     if (!sc.ok()) {
       return sc;
     }

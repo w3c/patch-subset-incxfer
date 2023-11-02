@@ -6,6 +6,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
+#include "ift/per_table_brotli_binary_diff.h"
 #include "patch_subset/brotli_binary_diff.h"
 #include "patch_subset/font_data.h"
 
@@ -21,11 +22,20 @@ namespace ift::encoder {
  */
 class Encoder {
  public:
-  Encoder() : binary_diff_(11) {}
+  Encoder()
+      : binary_diff_(11), per_table_binary_diff_({"IFT", "glyf", "loca"}) {}
 
   void SetUrlTemplate(const std::string& value) { url_template_ = value; }
 
   const std::string& UrlTemplate() const { return url_template_; }
+
+  void AddExistingIftbPatch(uint32_t id,
+                            const absl::flat_hash_set<uint32_t>& codepoints) {
+    existing_iftb_patches_[id] = codepoints;
+    if (id >= next_id_) {
+      next_id_ = id + 1;
+    }
+  }
 
   absl::Span<const uint32_t> Id() const {
     // TODO(garretrieger): generate a new id on creation.
@@ -58,12 +68,18 @@ class Encoder {
       absl::string_view font, bool glyf_transform = true);
 
  private:
+  bool IsMixedMode() const { return !existing_iftb_patches_.empty(); }
+
   absl::StatusOr<patch_subset::FontData> CutSubset(
       hb_face_t* font, const absl::flat_hash_set<hb_codepoint_t>& codepoints);
 
   std::string url_template_ = "patch$5$4$3$2$1.br";
+  absl::flat_hash_map<uint32_t, absl::flat_hash_set<uint32_t>>
+      existing_iftb_patches_;
+
   uint32_t next_id_ = 0;
   patch_subset::BrotliBinaryDiff binary_diff_;
+  ift::PerTableBrotliBinaryDiff per_table_binary_diff_;
   absl::flat_hash_map<absl::flat_hash_set<hb_codepoint_t>,
                       patch_subset::FontData>
       built_subsets_;
