@@ -148,8 +148,71 @@ TEST_F(IFTTableTest, AddToFont) {
   EXPECT_EQ(original_tag_order, new_tag_order);
 }
 
+TEST_F(IFTTableTest, AddToFont_WithExtension) {
+  auto font = IFTTable::AddToFont(roboto_ab, sample, &complex_ids);
+  ASSERT_TRUE(font.ok()) << font.status();
+
+  hb_face_t* face = font->reference_face();
+
+  FontData ift_table = FontHelper::TableData(face, HB_TAG('I', 'F', 'T', ' '));
+  FontData iftx_table = FontHelper::TableData(face, HB_TAG('I', 'F', 'T', 'X'));
+
+  std::string expected_ift = sample.SerializeAsString();
+  ASSERT_EQ(expected_ift.size(), ift_table.size());
+  ASSERT_EQ(memcmp(expected_ift.data(), ift_table.data(), ift_table.size()), 0);
+
+  std::string expected_iftx = complex_ids.SerializeAsString();
+  ASSERT_EQ(expected_iftx.size(), iftx_table.size());
+  ASSERT_EQ(memcmp(expected_iftx.data(), iftx_table.data(), iftx_table.size()),
+            0);
+
+  auto original_tag_order =
+      FontHelper::ToStrings(FontHelper::GetOrderedTags(roboto_ab));
+  auto new_tag_order = FontHelper::ToStrings(FontHelper::GetOrderedTags(face));
+  hb_face_destroy(face);
+
+  new_tag_order.erase(
+      std::find(new_tag_order.begin(), new_tag_order.end(), "IFT "));
+  new_tag_order.erase(
+      std::find(new_tag_order.begin(), new_tag_order.end(), "IFTX"));
+
+  EXPECT_EQ(original_tag_order, new_tag_order);
+}
+
+TEST_F(IFTTableTest, RoundTrip_WithExtension) {
+  IFTTable table;
+  table.GetPatchMap().AddEntry({10}, 1, SHARED_BROTLI_ENCODING);
+  table.GetPatchMap().AddEntry({20}, 2, SHARED_BROTLI_ENCODING);
+  table.GetPatchMap().AddEntry({30}, 3, SHARED_BROTLI_ENCODING, true);
+  table.GetPatchMap().AddEntry({40}, 4, SHARED_BROTLI_ENCODING, true);
+
+  auto font = table.AddToFont(roboto_ab);
+  ASSERT_TRUE(font.ok()) << font.status();
+
+  auto table_from_font = IFTTable::FromFont(*font);
+  ASSERT_TRUE(table_from_font.ok()) << table_from_font.status();
+
+  PatchMap expected = {
+      {{10}, 1, SHARED_BROTLI_ENCODING},
+      {{20}, 2, SHARED_BROTLI_ENCODING},
+      {{30}, 3, SHARED_BROTLI_ENCODING, true},
+      {{40}, 4, SHARED_BROTLI_ENCODING, true},
+  };
+  ASSERT_EQ(expected, table_from_font->GetPatchMap());
+}
+
+TEST_F(IFTTableTest, HasExtensionEntries) {
+  IFTTable table;
+  table.GetPatchMap().AddEntry({10}, 1, SHARED_BROTLI_ENCODING);
+  table.GetPatchMap().AddEntry({20}, 2, SHARED_BROTLI_ENCODING);
+  ASSERT_FALSE(table.HasExtensionEntries());
+  
+  table.GetPatchMap().AddEntry({30}, 3, SHARED_BROTLI_ENCODING, true);
+  ASSERT_TRUE(table.HasExtensionEntries());
+}
+
 TEST_F(IFTTableTest, AddToFont_IftbConversion) {
-  auto font = IFTTable::AddToFont(iftb, sample, true);
+  auto font = IFTTable::AddToFont(iftb, sample, nullptr, true);
   ASSERT_TRUE(font.ok()) << font.status();
 
   hb_face_t* face = font->reference_face();
@@ -180,7 +243,7 @@ TEST_F(IFTTableTest, AddToFont_IftbConversion) {
 }
 
 TEST_F(IFTTableTest, AddToFont_IftbConversionRoboto) {
-  auto font = IFTTable::AddToFont(roboto_ab, sample, true);
+  auto font = IFTTable::AddToFont(roboto_ab, sample, nullptr, true);
   ASSERT_TRUE(font.ok()) << font.status();
 
   hb_face_t* face = font->reference_face();
@@ -290,6 +353,29 @@ TEST_F(IFTTableTest, FromFont) {
 
   ASSERT_TRUE(table.ok()) << table.status();
   ASSERT_EQ(table->GetUrlTemplate(), "fonts/go/here");
+}
+
+TEST_F(IFTTableTest, FromFont_WithExtension) {
+  auto font = IFTTable::AddToFont(roboto_ab, sample, &complex_ids);
+  ASSERT_TRUE(font.ok()) << font.status();
+
+  hb_face_t* face = font->reference_face();
+  auto table = IFTTable::FromFont(face);
+  hb_face_destroy(face);
+
+  ASSERT_TRUE(table.ok()) << table.status();
+  ASSERT_EQ(table->GetUrlTemplate(), "fonts/go/here");
+
+  PatchMap expected = {
+      {{30, 32}, 1, SHARED_BROTLI_ENCODING},
+      {{55, 56, 57}, 2, IFTB_ENCODING},
+      {{0}, 0, SHARED_BROTLI_ENCODING, true},
+      {{5}, 5, SHARED_BROTLI_ENCODING, true},
+      {{2}, 2, SHARED_BROTLI_ENCODING, true},
+      {{4}, 4, SHARED_BROTLI_ENCODING, true},
+  };
+
+  ASSERT_EQ(table->GetPatchMap(), expected);
 }
 
 TEST_F(IFTTableTest, FromFont_Missing) {

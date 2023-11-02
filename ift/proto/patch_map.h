@@ -56,7 +56,8 @@ class PatchMap {
 
     bool operator==(const Entry& other) const {
       return other.coverage == coverage && other.patch_index == patch_index &&
-             other.encoding == encoding;
+             other.encoding == encoding &&
+             other.extension_entry == extension_entry;
     }
 
     void ToProto(uint32_t last_patch_index,
@@ -94,7 +95,7 @@ class PatchMap {
   absl::Span<const Entry> GetEntries() const;
 
   void AddEntry(const Coverage& coverage, uint32_t patch_index,
-                ift::proto::PatchEncoding);
+                ift::proto::PatchEncoding, bool is_extension = false);
   void RemoveEntries(uint32_t patch_index);
 
  private:
