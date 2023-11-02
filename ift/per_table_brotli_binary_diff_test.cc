@@ -149,7 +149,7 @@ TEST_F(PerTableBrotliBinaryDiffTest, FilteredDiff) {
       {tag3, "baaz"},
   });
 
-  PerTableBrotliBinaryDiff differ({tag1_str, tag3_str});
+  PerTableBrotliBinaryDiff differ({tag2_str});
   FontData patch;
   auto sc = differ.Diff(before, after, &patch);
   ASSERT_TRUE(sc.ok()) << sc;
@@ -180,7 +180,7 @@ TEST_F(PerTableBrotliBinaryDiffTest, FilteredDiff_WithRemove) {
       {tag1, "fooo"},
   });
 
-  PerTableBrotliBinaryDiff differ({tag1_str, tag3_str});
+  PerTableBrotliBinaryDiff differ({tag2_str});
   FontData patch;
   auto sc = differ.Diff(before, after, &patch);
   ASSERT_TRUE(sc.ok()) << sc;

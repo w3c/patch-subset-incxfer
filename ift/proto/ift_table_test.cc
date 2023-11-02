@@ -206,7 +206,7 @@ TEST_F(IFTTableTest, HasExtensionEntries) {
   table.GetPatchMap().AddEntry({10}, 1, SHARED_BROTLI_ENCODING);
   table.GetPatchMap().AddEntry({20}, 2, SHARED_BROTLI_ENCODING);
   ASSERT_FALSE(table.HasExtensionEntries());
-  
+
   table.GetPatchMap().AddEntry({30}, 3, SHARED_BROTLI_ENCODING, true);
   ASSERT_TRUE(table.HasExtensionEntries());
 }

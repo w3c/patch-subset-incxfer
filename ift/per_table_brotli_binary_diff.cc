@@ -63,7 +63,7 @@ void PerTableBrotliBinaryDiff::AddAllMatching(
     const flat_hash_set<uint32_t>& tags, btree_set<std::string>& result) const {
   for (const uint32_t& t : tags) {
     std::string tag = FontHelper::ToString(t);
-    if (target_tags_.empty() || target_tags_.contains(tag)) {
+    if (!excluded_tags_.contains(tag)) {
       result.insert(tag);
     }
   }
