@@ -19,6 +19,7 @@ cc_library(
   ],
   visibility = [
     "//util:__pkg__",
+    "//ift:__pkg__",
     "//js_client:__pkg__",
   ],
 )

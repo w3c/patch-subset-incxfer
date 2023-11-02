@@ -39,7 +39,7 @@ class Encoder {
 
   absl::Span<const uint32_t> Id() const {
     // TODO(garretrieger): generate a new id on creation.
-    const uint32_t id[4] = {1, 2, 3, 4};
+    constexpr static uint32_t id[4] = {1, 2, 3, 4};
     return id;
   }
 
