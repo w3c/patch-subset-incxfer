@@ -173,6 +173,11 @@ StatusOr<FontData> Encoder::CutSubset(
     hb_set_add(unicodes, cp);
   }
 
+  if (IsMixedMode()) {
+    // Mixed mode requires stable gids, so set retain gids.
+    hb_subset_input_set_flags(input, HB_SUBSET_FLAGS_RETAIN_GIDS);
+  }
+
   hb_face_t* result = hb_subset_or_fail(font, input);
   hb_blob_t* blob = hb_face_reference_blob(result);
 
