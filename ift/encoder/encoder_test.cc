@@ -44,10 +44,26 @@ class EncoderTest : public ::testing::Test {
   EncoderTest() {
     font = from_file("patch_subset/testdata/Roboto-Regular.abcd.ttf");
     woff2_font = from_file("patch_subset/testdata/Roboto-Regular.abcd.woff2");
+    noto_sans_jp = from_file("ift/testdata/NotoSansJP-Regular.subset.ttf");
+
+    chunk1 = from_file("ift/testdata/NotoSansJP-Regular.subset_iftb/chunk1.br");
+    chunk2 = from_file("ift/testdata/NotoSansJP-Regular.subset_iftb/chunk2.br");
+    chunk3 = from_file("ift/testdata/NotoSansJP-Regular.subset_iftb/chunk3.br");
+    chunk4 = from_file("ift/testdata/NotoSansJP-Regular.subset_iftb/chunk4.br");
   }
 
   FontData font;
   FontData woff2_font;
+  FontData noto_sans_jp;
+  FontData chunk1;
+  FontData chunk2;
+  FontData chunk3;
+  FontData chunk4;
+  uint32_t chunk0_cp = 0x47;
+  uint32_t chunk1_cp = 0xb7;
+  uint32_t chunk2_cp = 0xb2;
+  uint32_t chunk3_cp = 0xeb;
+  uint32_t chunk4_cp = 0xa8;
 
   FontData from_file(const char* filename) {
     hb_blob_t* blob = hb_blob_create_from_file(filename);
@@ -159,12 +175,79 @@ class EncoderTest : public ::testing::Test {
   }
 };
 
+TEST_F(EncoderTest, MissingFace) {
+  Encoder encoder;
+  auto s1 = encoder.AddExistingIftbPatch(1, chunk1);
+  ASSERT_TRUE(absl::IsFailedPrecondition(s1)) << s1;
+
+  auto s2 = encoder.SetBaseSubsetFromIftbPatches({});
+  ASSERT_TRUE(absl::IsFailedPrecondition(s2)) << s2;
+
+  auto s3 = encoder.Encode();
+  ASSERT_TRUE(absl::IsFailedPrecondition(s3.status())) << s3.status();
+}
+
+TEST_F(EncoderTest, IftbGidsNotInFace) {
+  Encoder encoder;
+  {
+    hb_face_t* face = font.reference_face();
+    encoder.SetFace(face);
+    hb_face_destroy(face);
+  }
+
+  auto s = encoder.AddExistingIftbPatch(1, chunk1);
+  ASSERT_TRUE(absl::IsInvalidArgument(s)) << s;
+}
+
+TEST_F(EncoderTest, InvalidIftbIds) {
+  Encoder encoder;
+  {
+    hb_face_t* face = noto_sans_jp.reference_face();
+    encoder.SetFace(face);
+    hb_face_destroy(face);
+  }
+
+  auto s = encoder.AddExistingIftbPatch(1, chunk1);
+  ASSERT_TRUE(s.ok()) << s;
+
+  s = encoder.AddExtensionSubsetOfIftbPatches({2});
+  ASSERT_TRUE(absl::IsInvalidArgument(s)) << s;
+
+  s = encoder.SetBaseSubsetFromIftbPatches({2});
+  ASSERT_TRUE(absl::IsInvalidArgument(s)) << s;
+}
+
+TEST_F(EncoderTest, DontClobberBaseSubset) {
+  Encoder encoder;
+  {
+    hb_face_t* face = noto_sans_jp.reference_face();
+    encoder.SetFace(face);
+    hb_face_destroy(face);
+  }
+
+  auto s = encoder.AddExistingIftbPatch(1, chunk1);
+  ASSERT_TRUE(s.ok()) << s;
+
+  s = encoder.SetBaseSubsetFromIftbPatches({});
+  ASSERT_TRUE(s.ok()) << s;
+
+  s = encoder.SetBaseSubset({1});
+  ASSERT_TRUE(absl::IsFailedPrecondition(s)) << s;
+
+  s = encoder.SetBaseSubsetFromIftbPatches({});
+  ASSERT_TRUE(absl::IsFailedPrecondition(s)) << s;
+}
+
 TEST_F(EncoderTest, Encode_OneSubset) {
   ASSERT_EQ(ToCodepoints(font), "abcd");
 
   Encoder encoder;
   hb_face_t* face = font.reference_face();
-  auto base = encoder.Encode(face, {'a', 'd'}, {});
+  encoder.SetFace(face);
+
+  auto s = encoder.SetBaseSubset({'a', 'd'});
+  ASSERT_TRUE(s.ok()) << s;
+  auto base = encoder.Encode();
   hb_face_destroy(face);
 
   ASSERT_TRUE(base.ok()) << base.status();
@@ -183,7 +266,12 @@ TEST_F(EncoderTest, Encode_TwoSubsets) {
   absl::flat_hash_set<hb_codepoint_t> s1 = {'b', 'c'};
   Encoder encoder;
   hb_face_t* face = font.reference_face();
-  auto base = encoder.Encode(face, {'a', 'd'}, {&s1});
+  encoder.SetFace(face);
+  auto s = encoder.SetBaseSubset({'a', 'd'});
+  ASSERT_TRUE(s.ok()) << s;
+  encoder.AddExtensionSubset(s1);
+
+  auto base = encoder.Encode();
   hb_face_destroy(face);
 
   ASSERT_TRUE(base.ok()) << base.status();
@@ -203,7 +291,13 @@ TEST_F(EncoderTest, Encode_ThreeSubsets) {
   absl::flat_hash_set<hb_codepoint_t> s2 = {'c'};
   Encoder encoder;
   hb_face_t* face = font.reference_face();
-  auto base = encoder.Encode(face, {'a'}, {&s1, &s2});
+  encoder.SetFace(face);
+  auto s = encoder.SetBaseSubset({'a'});
+  ASSERT_TRUE(s.ok()) << s;
+  encoder.AddExtensionSubset(s1);
+  encoder.AddExtensionSubset(s2);
+
+  auto base = encoder.Encode();
   hb_face_destroy(face);
 
   ASSERT_TRUE(base.ok()) << base.status();
@@ -224,18 +318,34 @@ TEST_F(EncoderTest, Encode_ThreeSubsets) {
 }
 
 TEST_F(EncoderTest, Encode_ThreeSubsets_Mixed) {
-  absl::flat_hash_set<hb_codepoint_t> s1 = {'b'};
-  absl::flat_hash_set<hb_codepoint_t> s2 = {'c'};
   Encoder encoder;
-  encoder.AddExistingIftbPatch(0, {41});
-  encoder.AddExistingIftbPatch(1, {42});
-  hb_face_t* face = font.reference_face();
-  auto base = encoder.Encode(face, {'a'}, {&s1, &s2});
-  hb_face_destroy(face);
+  {
+    hb_face_t* face = noto_sans_jp.reference_face();
+    encoder.SetFace(face);
+    hb_face_destroy(face);
+  }
+
+  auto s = encoder.AddExistingIftbPatch(1, chunk1);
+  s.Update(encoder.AddExistingIftbPatch(2, chunk2));
+  s.Update(encoder.AddExistingIftbPatch(3, chunk3));
+  s.Update(encoder.AddExistingIftbPatch(4, chunk4));
+  ASSERT_TRUE(s.ok()) << s;
+
+  s.Update(encoder.SetBaseSubsetFromIftbPatches({1, 2}));
+  s.Update(encoder.AddExtensionSubsetOfIftbPatches({3, 4}));
+  ASSERT_TRUE(s.ok()) << s;
+
+  auto base = encoder.Encode();
 
   ASSERT_TRUE(base.ok()) << base.status();
-  ASSERT_EQ(ToCodepoints(*base), "a");
-  ASSERT_EQ(encoder.Patches().size(), 4);
+  auto cps = ToCodepointsSet(*base);
+  ASSERT_TRUE(cps.contains(chunk0_cp));
+  ASSERT_TRUE(cps.contains(chunk1_cp));
+  ASSERT_TRUE(cps.contains(chunk2_cp));
+  ASSERT_FALSE(cps.contains(chunk3_cp));
+  ASSERT_FALSE(cps.contains(chunk4_cp));
+
+  ASSERT_EQ(encoder.Patches().size(), 1);
 
   // TODO(garretrieger): check the iftb entries in the base and check
   //  they are unmodified in derived fonts.
@@ -243,22 +353,42 @@ TEST_F(EncoderTest, Encode_ThreeSubsets_Mixed) {
   //  can still form the graph with derived fonts containing the
   //  modified glyf, loca, and IFT table.
 
-  face = base->reference_face();
-  auto iftx_data = FontHelper::TableData(face, HB_TAG('I', 'F', 'T', 'X'));
-  ASSERT_FALSE(iftx_data.empty());
-  hb_face_destroy(face);
+  {
+    hb_face_t* face = base->reference_face();
+    auto iftx_data = FontHelper::TableData(face, HB_TAG('I', 'F', 'T', 'X'));
+    ASSERT_FALSE(iftx_data.empty());
+    hb_face_destroy(face);
+  }
 
-  graph g;
-  auto sc = ToGraph(encoder, *base, g);
-  ASSERT_TRUE(sc.ok()) << sc;
+  auto ift_table = IFTTable::FromFont(*base);
+  ASSERT_TRUE(ift_table.ok()) << ift_table.status();
 
-  graph expected{
-      {"a", {"ab", "ac"}},
-      {"ab", {"abc"}},
-      {"ac", {"abc"}},
-      {"abc", {}},
-  };
-  ASSERT_EQ(g, expected);
+  // expected patches:
+  // - chunk 3 (iftb)
+  // - chunk 4 (iftb)
+  // - shared brotli to (chunk 3 + 4)
+  ASSERT_EQ(ift_table->GetPatchMap().GetEntries().size(), 3);
+
+  const auto& entry0 = ift_table->GetPatchMap().GetEntries()[0];
+  ASSERT_FALSE(entry0.coverage.codepoints.contains(chunk0_cp));
+  ASSERT_FALSE(entry0.coverage.codepoints.contains(chunk1_cp));
+  ASSERT_FALSE(entry0.coverage.codepoints.contains(chunk2_cp));
+  ASSERT_TRUE(entry0.coverage.codepoints.contains(chunk3_cp));
+  ASSERT_FALSE(entry0.coverage.codepoints.contains(chunk4_cp));
+
+  const auto& entry1 = ift_table->GetPatchMap().GetEntries()[1];
+  ASSERT_FALSE(entry1.coverage.codepoints.contains(chunk0_cp));
+  ASSERT_FALSE(entry1.coverage.codepoints.contains(chunk1_cp));
+  ASSERT_FALSE(entry1.coverage.codepoints.contains(chunk2_cp));
+  ASSERT_FALSE(entry1.coverage.codepoints.contains(chunk3_cp));
+  ASSERT_TRUE(entry1.coverage.codepoints.contains(chunk4_cp));
+
+  const auto& entry2 = ift_table->GetPatchMap().GetEntries()[2];
+  ASSERT_FALSE(entry2.coverage.codepoints.contains(chunk0_cp));
+  ASSERT_FALSE(entry2.coverage.codepoints.contains(chunk1_cp));
+  ASSERT_FALSE(entry2.coverage.codepoints.contains(chunk2_cp));
+  ASSERT_TRUE(entry2.coverage.codepoints.contains(chunk3_cp));
+  ASSERT_TRUE(entry2.coverage.codepoints.contains(chunk4_cp));
 }
 
 TEST_F(EncoderTest, Encode_FourSubsets) {
@@ -267,7 +397,14 @@ TEST_F(EncoderTest, Encode_FourSubsets) {
   absl::flat_hash_set<hb_codepoint_t> s3 = {'d'};
   Encoder encoder;
   hb_face_t* face = font.reference_face();
-  auto base = encoder.Encode(face, {'a'}, {&s1, &s2, &s3});
+  encoder.SetFace(face);
+  auto s = encoder.SetBaseSubset({'a'});
+  ASSERT_TRUE(s.ok()) << s;
+  encoder.AddExtensionSubset(s1);
+  encoder.AddExtensionSubset(s2);
+  encoder.AddExtensionSubset(s3);
+
+  auto base = encoder.Encode();
   hb_face_destroy(face);
 
   ASSERT_TRUE(base.ok()) << base.status();

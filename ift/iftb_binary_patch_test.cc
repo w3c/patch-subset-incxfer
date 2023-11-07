@@ -106,7 +106,6 @@ TEST_F(IftbBinaryPatchTest, SinglePatch) {
   auto ift_table = IFTTable::FromFont(result);
   ASSERT_TRUE(ift_table.ok()) << ift_table.status();
 
-  
   for (const auto& e : ift_table->GetPatchMap().GetEntries()) {
     uint32_t patch_index = e.patch_index;
     for (uint32_t codepoint : e.coverage.codepoints) {
@@ -116,7 +115,6 @@ TEST_F(IftbBinaryPatchTest, SinglePatch) {
       ASSERT_NE(codepoint, 0x30d4);
     }
   }
-
 
   ASSERT_EQ(*glyph_size(result, 0xab), 0);
   ASSERT_EQ(*glyph_size(result, 0x2e8d), 0);

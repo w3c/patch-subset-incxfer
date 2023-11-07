@@ -1,6 +1,7 @@
 #ifndef IFT_ENCODER_ENCODER_H_
 #define IFT_ENCODER_ENCODER_H_
 
+#include "absl/container/btree_map.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
@@ -25,40 +26,68 @@ class Encoder {
   Encoder()
       : binary_diff_(11), per_table_binary_diff_({"IFT", "glyf", "loca"}) {}
 
+  ~Encoder() {
+    if (face_) {
+      hb_face_destroy(face_);
+    }
+  }
+
   void SetUrlTemplate(const std::string& value) { url_template_ = value; }
 
   const std::string& UrlTemplate() const { return url_template_; }
 
-  void AddExistingIftbPatch(uint32_t id,
-                            const absl::flat_hash_set<uint32_t>& codepoints) {
-    existing_iftb_patches_[id] = codepoints;
-    if (id >= next_id_) {
-      next_id_ = id + 1;
+  absl::Status AddExistingIftbPatch(uint32_t id,
+                                    const patch_subset::FontData& patch);
+
+  void SetFace(hb_face_t* face) { face_ = hb_face_reference(face); }
+
+  absl::Status SetBaseSubset(
+      const absl::flat_hash_set<hb_codepoint_t>& base_subset) {
+    if (!base_subset_.empty()) {
+      return absl::FailedPreconditionError("Base subset has already been set.");
     }
+    base_subset_ = base_subset;
+    return absl::OkStatus();
   }
 
-  absl::Span<const uint32_t> Id() const {
-    // TODO(garretrieger): generate a new id on creation.
-    constexpr static uint32_t id[4] = {1, 2, 3, 4};
-    return id;
+  // Set up the base subset to cover all codepoints not listed in any IFTB
+  // patches, plus codepoints from any patches referenced in 'included_patches'
+  absl::Status SetBaseSubsetFromIftbPatches(
+      const absl::flat_hash_set<uint32_t>& included_patches);
+
+  void AddExtensionSubset(const absl::flat_hash_set<hb_codepoint_t>& subset) {
+    extension_subsets_.push_back(subset);
   }
+
+  absl::Status AddExtensionSubsetOfIftbPatches(
+      const absl::flat_hash_set<uint32_t>& ids);
+
+  absl::Status SetId(absl::Span<const uint32_t> id) {
+    if (id.size() != 4) {
+      return absl::InvalidArgumentError("id must have size = 4.");
+    }
+
+    for (int i = 0; i < 4; i++) {
+      id_[i] = id[i];
+    }
+    return absl::OkStatus();
+  }
+
+  absl::Span<const uint32_t> Id() const { return id_; }
 
   const absl::flat_hash_map<uint32_t, patch_subset::FontData>& Patches() const {
     return patches_;
   }
 
-  /*
+  /* 
    * Create an IFT encoded version of 'font' that initially supports
-   * 'base_subset' but can be extended via patches to support any combination of
-   * 'subsets'.
+   * the configured base subset but can be extended via patches to support any combination of
+   * of extension subsets.
    *
    * Returns: the IFT encoded initial font. Patches() will be populated with the
    * set of associated patch files.
    */
-  absl::StatusOr<patch_subset::FontData> Encode(
-      hb_face_t* font, const absl::flat_hash_set<hb_codepoint_t>& base_subset,
-      std::vector<const absl::flat_hash_set<hb_codepoint_t>*> subsets,
-      bool is_root = true);
+  absl::StatusOr<patch_subset::FontData> Encode();
 
   static absl::StatusOr<patch_subset::FontData> EncodeWoff2(
       absl::string_view font, bool glyf_transform = true);
@@ -68,18 +97,41 @@ class Encoder {
       absl::string_view font, bool glyf_transform = true);
 
  private:
+  /*
+   * Create an IFT encoded version of 'font' that initially supports
+   * 'base_subset' but can be extended via patches to support any combination of
+   * 'subsets'.
+   *
+   * Returns: the IFT encoded initial font. Patches() will be populated with the
+   * set of associated patch files.
+   */
+  absl::StatusOr<patch_subset::FontData> Encode(
+      const absl::flat_hash_set<hb_codepoint_t>& base_subset,
+      std::vector<const absl::flat_hash_set<hb_codepoint_t>*> subsets,
+      bool is_root = true);
+
+  absl::StatusOr<absl::flat_hash_set<uint32_t>> CodepointsForIftbPatches(
+      const absl::flat_hash_set<uint32_t>& ids);
+
   bool IsMixedMode() const { return !existing_iftb_patches_.empty(); }
 
   absl::StatusOr<patch_subset::FontData> CutSubset(
       hb_face_t* font, const absl::flat_hash_set<hb_codepoint_t>& codepoints);
 
-  std::string url_template_ = "patch$5$4$3$2$1.br";
-  absl::flat_hash_map<uint32_t, absl::flat_hash_set<uint32_t>>
-      existing_iftb_patches_;
-
-  uint32_t next_id_ = 0;
   patch_subset::BrotliBinaryDiff binary_diff_;
   ift::PerTableBrotliBinaryDiff per_table_binary_diff_;
+
+  // IN
+  std::string url_template_ = "patch$5$4$3$2$1.br";
+  uint32_t id_[4] = {0, 0, 0, 0};
+  hb_face_t* face_ = nullptr;
+  absl::btree_map<uint32_t, absl::flat_hash_set<uint32_t>>
+      existing_iftb_patches_;
+  absl::flat_hash_set<hb_codepoint_t> base_subset_;
+  std::vector<absl::flat_hash_set<hb_codepoint_t>> extension_subsets_;
+
+  // OUT
+  uint32_t next_id_ = 0;
   absl::flat_hash_map<absl::flat_hash_set<hb_codepoint_t>,
                       patch_subset::FontData>
       built_subsets_;

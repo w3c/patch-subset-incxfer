@@ -139,26 +139,35 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  hb_face_t* input_font = load_font(args[1]);
+  Encoder encoder;
+  {
+    hb_face_t* input_font = load_font(args[1]);
+    encoder.SetFace(input_font);
+    hb_face_destroy(input_font);
+  }
 
-  std::vector<flat_hash_set<hb_codepoint_t>> subsets;
+  bool first = true;
   for (size_t i = 2; i < args.size(); i++) {
     auto s = load_unicodes_file(args[i]);
     if (!s.ok()) {
       std::cerr << s.status().message() << std::endl;
       return -1;
     }
-    subsets.push_back(std::move(*s));
+
+    if (first) {
+      auto sc = encoder.SetBaseSubset(*s);
+      if (!sc.ok()) {
+        std::cerr << sc.message() << std::endl;
+        return -1;
+      }
+      first = false;
+    } else {
+      encoder.AddExtensionSubset(*s);
+    }
   }
 
-  std::vector<const flat_hash_set<uint32_t>*> subset_pointers;
-  for (size_t i = 1; i < subsets.size(); i++) {
-    subset_pointers.push_back(&(subsets[i]));
-  }
-
-  Encoder encoder;
   encoder.SetUrlTemplate(absl::GetFlag(FLAGS_url_template));
-  auto base_font = encoder.Encode(input_font, subsets[0], subset_pointers);
+  auto base_font = encoder.Encode();
   base_font = Encoder::EncodeWoff2(base_font->str(), false);
   if (!base_font.ok()) {
     std::cerr << base_font.status().message() << std::endl;
