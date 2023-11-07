@@ -1,4 +1,5 @@
 #include "common/font_helper.h"
+
 #include <cstdint>
 
 #include "absl/container/flat_hash_map.h"
@@ -8,7 +9,7 @@ using absl::flat_hash_map;
 namespace common {
 
 flat_hash_map<uint32_t, uint32_t> FontHelper::GidToUnicodeMap(hb_face_t* face) {
-  hb_map_t* unicode_to_gid = hb_map_create ();
+  hb_map_t* unicode_to_gid = hb_map_create();
   hb_face_collect_nominal_glyph_mapping(face, unicode_to_gid, nullptr);
 
   flat_hash_map<uint32_t, uint32_t> gid_to_unicode;

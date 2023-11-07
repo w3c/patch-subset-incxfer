@@ -2,6 +2,7 @@
 #define IFT_PER_TABLE_BROTLI_BINARY_DIFF_H_
 
 #include <initializer_list>
+
 #include "absl/container/btree_set.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
@@ -16,7 +17,8 @@ class PerTableBrotliBinaryDiff : public patch_subset::BinaryDiff {
  public:
   PerTableBrotliBinaryDiff() {}
 
-  PerTableBrotliBinaryDiff(std::initializer_list<const char*> excluded_tags) : excluded_tags_() {
+  PerTableBrotliBinaryDiff(std::initializer_list<const char*> excluded_tags)
+      : excluded_tags_() {
     std::copy(excluded_tags.begin(), excluded_tags.end(),
               std::inserter(excluded_tags_, excluded_tags_.begin()));
   }

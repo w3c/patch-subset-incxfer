@@ -55,7 +55,7 @@ class FontHelper {
       return absl::InvalidArgumentError("Need at least 2 bytes");
     }
     const uint8_t* bytes = (const uint8_t*)value.data();
-    return (((uint16_t)bytes[0]) << 8) + (((uint16_t)bytes[1])); 
+    return (((uint16_t)bytes[0]) << 8) + (((uint16_t)bytes[1]));
   }
 
   static absl::StatusOr<absl::string_view> Loca(hb_face_t* face) {
@@ -98,7 +98,8 @@ class FontHelper {
     return result;
   }
 
-  static absl::flat_hash_map<uint32_t, uint32_t> GidToUnicodeMap(hb_face_t* face);
+  static absl::flat_hash_map<uint32_t, uint32_t> GidToUnicodeMap(
+      hb_face_t* face);
   static absl::flat_hash_set<hb_tag_t> GetTags(hb_face_t* face);
   static std::vector<hb_tag_t> GetOrderedTags(hb_face_t* face);
   static std::vector<std::string> ToStrings(const std::vector<hb_tag_t>& input);

@@ -1,11 +1,12 @@
 #include "common/font_helper.h"
+
 #include <cstdint>
 
 #include "absl/container/flat_hash_map.h"
 #include "gtest/gtest.h"
 
-using absl::string_view;
 using absl::flat_hash_map;
+using absl::string_view;
 
 namespace common {
 
@@ -77,8 +78,8 @@ TEST_F(FontHelperTest, GidToUnicodeMap) {
   auto map = FontHelper::GidToUnicodeMap(roboto_ab);
 
   absl::flat_hash_map<uint32_t, uint32_t> expected = {
-    {69, 0x61},
-    {70, 0x62},
+      {69, 0x61},
+      {70, 0x62},
   };
 
   ASSERT_EQ(map, expected);

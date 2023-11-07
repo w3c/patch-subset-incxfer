@@ -14,7 +14,8 @@ namespace ift {
 /* Applies one or more IFTB chunk file patches. */
 class IftbBinaryPatch : public patch_subset::BinaryPatch {
  public:
-  static absl::StatusOr<absl::flat_hash_set<uint32_t>> GidsInPatch(const patch_subset::FontData& patch);
+  static absl::StatusOr<absl::flat_hash_set<uint32_t>> GidsInPatch(
+      const patch_subset::FontData& patch);
 
   absl::Status Patch(
       const patch_subset::FontData& font_base,

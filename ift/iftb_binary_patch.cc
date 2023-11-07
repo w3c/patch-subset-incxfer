@@ -22,7 +22,8 @@ using patch_subset::FontData;
 
 namespace ift {
 
-StatusOr<flat_hash_set<uint32_t>> IftbBinaryPatch::GidsInPatch(const FontData& patch) {
+StatusOr<flat_hash_set<uint32_t>> IftbBinaryPatch::GidsInPatch(
+    const FontData& patch) {
   // Format of the patch:
   // 0:  uint32        version
   // 4:  uint32        reserved
@@ -40,7 +41,7 @@ StatusOr<flat_hash_set<uint32_t>> IftbBinaryPatch::GidsInPatch(const FontData& p
   merger merger;
   std::string uncompressed;
   if (HB_TAG('I', 'F', 'T', 'C') !=
-        iftb::decodeBuffer(patch.data(), patch.size(), uncompressed)) {
+      iftb::decodeBuffer(patch.data(), patch.size(), uncompressed)) {
     return absl::InvalidArgumentError("Unsupported chunk type.");
   }
 
@@ -54,7 +55,8 @@ StatusOr<flat_hash_set<uint32_t>> IftbBinaryPatch::GidsInPatch(const FontData& p
   for (uint32_t i = 0; i < *glyph_count; i++) {
     auto gid = FontHelper::ReadUInt16(data.substr(gidsArrayOffset + 2 * i));
     if (!gid.ok()) {
-      return absl::InvalidArgumentError(StrCat("Failed to read gid at index ", i));
+      return absl::InvalidArgumentError(
+          StrCat("Failed to read gid at index ", i));
     }
     result.insert(*gid);
   }

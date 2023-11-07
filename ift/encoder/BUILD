@@ -17,6 +17,9 @@ cc_library(
     "@harfbuzz",
     "@woff2",
   ],
+  copts = [
+    "-DHB_EXPERIMENTAL_API",
+  ],
   visibility = [
     "//util:__pkg__",
     "//ift:__pkg__",

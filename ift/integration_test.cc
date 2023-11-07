@@ -12,14 +12,14 @@
 
 using absl::flat_hash_set;
 using absl::StrCat;
-using ift::encoder::Encoder;
 using ift::IFTClient;
+using ift::encoder::Encoder;
+using ift::proto::IFTB_ENCODING;
+using ift::proto::PatchEncoding;
+using ift::proto::PER_TABLE_SHARED_BROTLI_ENCODING;
 using patch_subset::FontData;
 using patch_subset::hb_set_unique_ptr;
 using patch_subset::make_hb_set;
-using ift::proto::PatchEncoding;
-using ift::proto::PER_TABLE_SHARED_BROTLI_ENCODING;
-using ift::proto::IFTB_ENCODING;
 
 namespace ift {
 
@@ -56,7 +56,7 @@ class IntegrationTest : public ::testing::Test {
     for (int i = 1; i <= 4; i++) {
       for (uint32_t gid : iftb_subset_gids_[i]) {
         uint32_t cp = hb_map_get(gid_to_unicode, gid);
-        assert(cp != (uint32_t) -1);
+        assert(cp != (uint32_t)-1);
         iftb_subsets_[i].insert(cp);
       }
     }
@@ -77,7 +77,7 @@ class IntegrationTest : public ::testing::Test {
   }
 
   hb_map_t* GidToUnicodeMap(hb_face_t* face) {
-    hb_map_t* unicode_to_gid = hb_map_create ();
+    hb_map_t* unicode_to_gid = hb_map_create();
     hb_face_collect_nominal_glyph_mapping(face, unicode_to_gid, nullptr);
 
     hb_map_t* gid_to_unicode = hb_map_create();
@@ -102,12 +102,7 @@ class IntegrationTest : public ::testing::Test {
 TEST_F(IntegrationTest, MixedMode) {
   Encoder encoder;
   encoder.SetUrlTemplate("$2$1");
-  auto sc = encoder.SetId({
-    0x3c2bfda0,
-    0x890625c9,
-    0x40c644de,
-    0xb1195627
-  });
+  auto sc = encoder.SetId({0x3c2bfda0, 0x890625c9, 0x40c644de, 0xb1195627});
   ASSERT_TRUE(sc.ok()) << sc;
 
   for (int i = 1; i <= 4; i++) {
@@ -140,7 +135,8 @@ TEST_F(IntegrationTest, MixedMode) {
   auto patches = client->PatchUrlsFor(*input);
   ASSERT_TRUE(patches.ok()) << patches.status();
 
-  for (PatchEncoding target_encoding : {PER_TABLE_SHARED_BROTLI_ENCODING, IFTB_ENCODING}) {
+  for (PatchEncoding target_encoding :
+       {PER_TABLE_SHARED_BROTLI_ENCODING, IFTB_ENCODING}) {
     for (const auto& p : *patches) {
       std::string url = p.first;
       PatchEncoding encoding = p.second;
@@ -177,9 +173,10 @@ TEST_F(IntegrationTest, MixedMode) {
   ASSERT_TRUE(hb_set_has(unicodes.get(), 163));
   ASSERT_TRUE(hb_set_has(unicodes.get(), 164));
   ASSERT_TRUE(hb_set_has(unicodes.get(), 169));
-  
+
   // TODO check glyph presence as well.
-  //   - We can extract the functions in iftb_binary_patch_test for dealing with glyf/loca.
+  //   - We can extract the functions in iftb_binary_patch_test for dealing with
+  //   glyf/loca.
   //   - Need to ensure loca is long to use those.
 }
 
