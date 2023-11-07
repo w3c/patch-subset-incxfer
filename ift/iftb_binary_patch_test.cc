@@ -77,16 +77,36 @@ StatusOr<uint32_t> glyph_size(const FontData& font_data,
   return *end - *start;
 }
 
+TEST_F(IftbBinaryPatchTest, GidsInPatch) {
+  auto gids = IftbBinaryPatch::GidsInPatch(chunk1);
+  ASSERT_TRUE(gids.ok()) << gids.status();
+
+  ASSERT_TRUE(gids->contains(313));
+  ASSERT_TRUE(gids->contains(354));
+  ASSERT_FALSE(gids->contains(71));
+  ASSERT_FALSE(gids->contains(802));
+
+  gids = IftbBinaryPatch::GidsInPatch(chunk4);
+  ASSERT_TRUE(gids.ok()) << gids.status();
+
+  ASSERT_TRUE(gids->contains(96));
+  ASSERT_TRUE(gids->contains(765));
+  ASSERT_TRUE(gids->contains(841));
+  ASSERT_TRUE(gids->contains(1032));
+  ASSERT_FALSE(gids->contains(313));
+  ASSERT_FALSE(gids->contains(354));
+}
+
 TEST_F(IftbBinaryPatchTest, SinglePatch) {
   FontData result;
   auto s = patcher.Patch(font, chunk2, &result);
   ASSERT_TRUE(s.ok()) << s;
   ASSERT_GT(result.size(), 1000);
 
-  /*
   auto ift_table = IFTTable::FromFont(result);
   ASSERT_TRUE(ift_table.ok()) << ift_table.status();
 
+  
   for (const auto& e : ift_table->GetPatchMap().GetEntries()) {
     uint32_t patch_index = e.patch_index;
     for (uint32_t codepoint : e.coverage.codepoints) {
@@ -97,6 +117,7 @@ TEST_F(IftbBinaryPatchTest, SinglePatch) {
     }
   }
 
+
   ASSERT_EQ(*glyph_size(result, 0xab), 0);
   ASSERT_EQ(*glyph_size(result, 0x2e8d), 0);
 
@@ -106,7 +127,6 @@ TEST_F(IftbBinaryPatchTest, SinglePatch) {
   ASSERT_LT(*glyph_size(result, 0xa5), 1000);
   ASSERT_GT(*glyph_size(result, 0x30d4), 1);
   ASSERT_LT(*glyph_size(result, 0x30d4), 1000);
-  */
 }
 
 TEST_F(IftbBinaryPatchTest, MultiplePatches) {

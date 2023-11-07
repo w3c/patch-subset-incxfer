@@ -26,6 +26,21 @@ class FontHelperTest : public ::testing::Test {
   hb_face_t* roboto_ab;
 };
 
+TEST_F(FontHelperTest, ReadUInt16) {
+  uint8_t input1[] = {0x12, 0x34, 0x56, 0x78};
+  auto s = FontHelper::ReadUInt16(string_view((const char*)input1, 4));
+  ASSERT_TRUE(s.ok()) << s.status();
+  ASSERT_EQ(*s, 0x1234);
+
+  uint8_t input2[] = {0x00, 0xFA};
+  s = FontHelper::ReadUInt16(string_view((const char*)input2, 2));
+  ASSERT_TRUE(s.ok()) << s.status();
+  ASSERT_EQ(*s, 0x00FA);
+
+  s = FontHelper::ReadUInt16(string_view((const char*)input1, 1));
+  ASSERT_FALSE(s.ok());
+}
+
 TEST_F(FontHelperTest, ReadUInt32) {
   uint8_t input1[] = {0x12, 0x34, 0x56, 0x78};
   auto s = FontHelper::ReadUInt32(string_view((const char*)input1, 4));
