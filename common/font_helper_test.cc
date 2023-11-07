@@ -1,8 +1,11 @@
 #include "common/font_helper.h"
+#include <cstdint>
 
+#include "absl/container/flat_hash_map.h"
 #include "gtest/gtest.h"
 
 using absl::string_view;
+using absl::flat_hash_map;
 
 namespace common {
 
@@ -68,6 +71,17 @@ TEST_F(FontHelperTest, Loca) {
 
   s = FontHelper::Loca(noto_sans_jp_otf);
   ASSERT_TRUE(absl::IsNotFound(s.status())) << s.status();
+}
+
+TEST_F(FontHelperTest, GidToUnicodeMap) {
+  auto map = FontHelper::GidToUnicodeMap(roboto_ab);
+
+  absl::flat_hash_map<uint32_t, uint32_t> expected = {
+    {69, 0x61},
+    {70, 0x62},
+  };
+
+  ASSERT_EQ(map, expected);
 }
 
 TEST_F(FontHelperTest, GetTags) {
