@@ -4,6 +4,7 @@
 
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "common/font_helper.h"
 #include "ift/proto/ift_table.h"
 #include "merger.h"
@@ -12,6 +13,7 @@
 using absl::flat_hash_set;
 using absl::Status;
 using absl::StatusOr;
+using absl::StrCat;
 using common::FontHelper;
 using ift::proto::IFTTable;
 using iftb::merger;
@@ -19,6 +21,46 @@ using iftb::sfnt;
 using patch_subset::FontData;
 
 namespace ift {
+
+StatusOr<flat_hash_set<uint32_t>> IftbBinaryPatch::GidsInPatch(const FontData& patch) {
+  // Format of the patch:
+  // 0:  uint32        version
+  // 4:  uint32        reserved
+  // 8:  uint32        id[4]
+  // 24: uint32        chunkIndex
+  // 28: uint32        length
+  // 32: uint32        glyphCount
+  // 36: uint8         tableCount
+  // 37: uint16        GIDs[glyphCount]
+  //     uint32        tables[tableCount]
+  //     Offset32      offsets[glyphCount * tableCount]
+  static constexpr int glyphCountOffset = 32;
+  static constexpr int gidsArrayOffset = 37;
+
+  merger merger;
+  std::string uncompressed;
+  if (HB_TAG('I', 'F', 'T', 'C') !=
+        iftb::decodeBuffer(patch.data(), patch.size(), uncompressed)) {
+    return absl::InvalidArgumentError("Unsupported chunk type.");
+  }
+
+  absl::string_view data = uncompressed;
+  auto glyph_count = FontHelper::ReadUInt32(data.substr(glyphCountOffset));
+  if (!glyph_count.ok()) {
+    return absl::InvalidArgumentError("Failed to read glyph count.");
+  }
+
+  flat_hash_set<uint32_t> result;
+  for (uint32_t i = 0; i < *glyph_count; i++) {
+    auto gid = FontHelper::ReadUInt16(data.substr(gidsArrayOffset + 2 * i));
+    if (!gid.ok()) {
+      return absl::InvalidArgumentError(StrCat("Failed to read gid at index ", i));
+    }
+    result.insert(*gid);
+  }
+
+  return result;
+}
 
 Status IftbBinaryPatch::Patch(const FontData& font_base, const FontData& patch,
                               FontData* font_derived /* OUT */) const {

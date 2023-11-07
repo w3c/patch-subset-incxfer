@@ -50,6 +50,14 @@ class FontHelper {
            (((uint32_t)bytes[2]) << 8) + ((uint32_t)bytes[3]);
   }
 
+  static absl::StatusOr<uint16_t> ReadUInt16(absl::string_view value) {
+    if (value.size() < 2) {
+      return absl::InvalidArgumentError("Need at least 2 bytes");
+    }
+    const uint8_t* bytes = (const uint8_t*)value.data();
+    return (((uint16_t)bytes[0]) << 8) + (((uint16_t)bytes[1])); 
+  }
+
   static absl::StatusOr<absl::string_view> Loca(hb_face_t* face) {
     hb_blob_t* loca_blob = hb_face_reference_table(face, FontHelper::kLoca);
     uint32_t loca_length = 0;
