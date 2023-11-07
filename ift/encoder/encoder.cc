@@ -47,21 +47,30 @@ using woff2::WOFF2StringOut;
 
 namespace ift::encoder {
 
-std::vector<const flat_hash_set<hb_codepoint_t>*> remaining(
-    const std::vector<const flat_hash_set<hb_codepoint_t>*>& subsets,
-    const flat_hash_set<hb_codepoint_t>* subset) {
-  std::vector<const flat_hash_set<hb_codepoint_t>*> remaining_subsets;
-  std::copy_if(
-      subsets.begin(), subsets.end(), std::back_inserter(remaining_subsets),
-      [&](const flat_hash_set<hb_codepoint_t>* s) { return s != subset; });
+std::vector<const Encoder::SubsetDefinition*> Encoder::Remaining(
+    const std::vector<const SubsetDefinition*>& subsets,
+    const SubsetDefinition* subset) const {
+  std::vector<const SubsetDefinition*> remaining_subsets;
+  std::copy_if(subsets.begin(), subsets.end(),
+               std::back_inserter(remaining_subsets),
+               [&](const SubsetDefinition* s) { return s != subset; });
   return remaining_subsets;
 }
 
-flat_hash_set<hb_codepoint_t> combine(const flat_hash_set<hb_codepoint_t>& s1,
-                                      const flat_hash_set<hb_codepoint_t>& s2) {
-  flat_hash_set<hb_codepoint_t> result;
-  std::copy(s1.begin(), s1.end(), std::inserter(result, result.begin()));
-  std::copy(s2.begin(), s2.end(), std::inserter(result, result.begin()));
+Encoder::SubsetDefinition Encoder::Combine(const SubsetDefinition& s1,
+                                           const SubsetDefinition& s2) const {
+  SubsetDefinition result;
+
+  std::copy(s1.codepoints.begin(), s1.codepoints.end(),
+            std::inserter(result.codepoints, result.codepoints.begin()));
+  std::copy(s2.codepoints.begin(), s2.codepoints.end(),
+            std::inserter(result.codepoints, result.codepoints.begin()));
+
+  std::copy(s1.gids.begin(), s1.gids.end(),
+            std::inserter(result.gids, result.gids.begin()));
+  std::copy(s2.gids.begin(), s2.gids.end(),
+            std::inserter(result.gids, result.gids.begin()));
+
   return result;
 }
 
@@ -130,14 +139,14 @@ Status Encoder::SetBaseSubsetFromIftbPatches(
     return excluded_cps.status();
   }
 
-  base_subset_.clear();
   uint32_t cp = HB_SET_VALUE_INVALID;
   while (hb_set_next(cps_in_font.get(), &cp)) {
     if (excluded_cps->contains(cp)) {
       continue;
     }
 
-    base_subset_.insert(cp);
+    // TODO(garretrieger): populate gids too.
+    base_subset_.codepoints.insert(cp);
   }
 
   for (uint32_t id : included_patches) {
@@ -155,7 +164,10 @@ Status Encoder::AddExtensionSubsetOfIftbPatches(
     return subset.status();
   }
 
-  extension_subsets_.push_back(std::move(*subset));
+  SubsetDefinition def;
+  def.codepoints = *subset;
+  // TODO(garretrieger): add gids too.
+  extension_subsets_.push_back(def);
   return absl::OkStatus();
 }
 
@@ -180,7 +192,7 @@ StatusOr<FontData> Encoder::Encode() {
     return absl::FailedPreconditionError("Encoder must have a face set.");
   }
 
-  std::vector<const flat_hash_set<uint32_t>*> subsets;
+  std::vector<const SubsetDefinition*> subsets;
   for (const auto& s : extension_subsets_) {
     subsets.push_back(&s);
   }
@@ -188,9 +200,9 @@ StatusOr<FontData> Encoder::Encode() {
   return Encode(base_subset_, subsets, true);
 }
 
-StatusOr<FontData> Encoder::Encode(
-    const flat_hash_set<hb_codepoint_t>& base_subset,
-    std::vector<const flat_hash_set<hb_codepoint_t>*> subsets, bool is_root) {
+StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
+                                   std::vector<const SubsetDefinition*> subsets,
+                                   bool is_root) {
   auto it = built_subsets_.find(base_subset);
   if (it != built_subsets_.end()) {
     FontData copy;
@@ -242,7 +254,7 @@ StatusOr<FontData> Encoder::Encode(
     ids.push_back(id);
 
     PatchMap::Coverage coverage;
-    coverage.codepoints = *s;
+    coverage.codepoints = s->codepoints;
     patch_map.AddEntry(coverage, id, encoding, as_extensions);
   }
 
@@ -276,9 +288,9 @@ StatusOr<FontData> Encoder::Encode(
   uint32_t i = 0;
   for (auto s : subsets) {
     uint32_t id = ids[i++];
-    std::vector<const flat_hash_set<hb_codepoint_t>*> remaining_subsets =
-        remaining(subsets, s);
-    flat_hash_set<hb_codepoint_t> combined_subset = combine(base_subset, *s);
+    std::vector<const SubsetDefinition*> remaining_subsets =
+        Remaining(subsets, s);
+    SubsetDefinition combined_subset = Combine(base_subset, *s);
     auto next = Encode(combined_subset, remaining_subsets, false);
     if (!next.ok()) {
       return next.status();
@@ -296,17 +308,30 @@ StatusOr<FontData> Encoder::Encode(
   return base;
 }
 
-StatusOr<FontData> Encoder::CutSubset(
-    hb_face_t* font, const flat_hash_set<hb_codepoint_t>& codepoints) {
+void Encoder::SubsetDefinition::ConfigureInput(hb_subset_input_t* input) const {
+  hb_set_t* unicodes = hb_subset_input_unicode_set(input);
+  for (hb_codepoint_t cp : codepoints) {
+    hb_set_add(unicodes, cp);
+  }
+
+  if (gids.empty()) {
+    return;
+  }
+
+  hb_set_t* gids_set = hb_subset_input_unicode_set(input);
+  for (hb_codepoint_t gid : gids) {
+    hb_set_add(gids_set, gid);
+  }
+}
+
+StatusOr<FontData> Encoder::CutSubset(hb_face_t* font,
+                                      const SubsetDefinition& def) {
   hb_subset_input_t* input = hb_subset_input_create_or_fail();
   if (!input) {
     return absl::InternalError("Failed to create subset input.");
   }
 
-  hb_set_t* unicodes = hb_subset_input_unicode_set(input);
-  for (hb_codepoint_t cp : codepoints) {
-    hb_set_add(unicodes, cp);
-  }
+  def.ConfigureInput(input);
 
   if (IsMixedMode()) {
     // Mixed mode requires stable gids and IFTB requirements to be met,

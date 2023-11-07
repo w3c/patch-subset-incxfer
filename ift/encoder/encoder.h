@@ -7,6 +7,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
+#include "hb-subset.h"
 #include "ift/per_table_brotli_binary_diff.h"
 #include "patch_subset/brotli_binary_diff.h"
 #include "patch_subset/font_data.h"
@@ -46,7 +47,7 @@ class Encoder {
     if (!base_subset_.empty()) {
       return absl::FailedPreconditionError("Base subset has already been set.");
     }
-    base_subset_ = base_subset;
+    base_subset_.codepoints = base_subset;
     return absl::OkStatus();
   }
 
@@ -56,7 +57,9 @@ class Encoder {
       const absl::flat_hash_set<uint32_t>& included_patches);
 
   void AddExtensionSubset(const absl::flat_hash_set<hb_codepoint_t>& subset) {
-    extension_subsets_.push_back(subset);
+    SubsetDefinition def;
+    def.codepoints = subset;
+    extension_subsets_.push_back(def);
   }
 
   absl::Status AddExtensionSubsetOfIftbPatches(
@@ -79,10 +82,10 @@ class Encoder {
     return patches_;
   }
 
-  /* 
+  /*
    * Create an IFT encoded version of 'font' that initially supports
-   * the configured base subset but can be extended via patches to support any combination of
-   * of extension subsets.
+   * the configured base subset but can be extended via patches to support any
+   * combination of of extension subsets.
    *
    * Returns: the IFT encoded initial font. Patches() will be populated with the
    * set of associated patch files.
@@ -97,6 +100,31 @@ class Encoder {
       absl::string_view font, bool glyf_transform = true);
 
  private:
+  struct SubsetDefinition {
+    absl::flat_hash_set<uint32_t> codepoints;
+    absl::flat_hash_set<uint32_t> gids;
+
+    bool empty() const { return codepoints.empty() && gids.empty(); }
+
+    bool operator==(const SubsetDefinition& other) const {
+      return codepoints == other.codepoints && gids == other.gids;
+    }
+
+    template <typename H>
+    friend H AbslHashValue(H h, const SubsetDefinition& s) {
+      return H::combine(std::move(h), s.codepoints, s.gids);
+    }
+
+    void ConfigureInput(hb_subset_input_t* input) const;
+  };
+
+  std::vector<const SubsetDefinition*> Remaining(
+      const std::vector<const SubsetDefinition*>& subsets,
+      const SubsetDefinition* subset) const;
+
+  SubsetDefinition Combine(const SubsetDefinition& s1,
+                           const SubsetDefinition& s2) const;
+
   /*
    * Create an IFT encoded version of 'font' that initially supports
    * 'base_subset' but can be extended via patches to support any combination of
@@ -106,17 +134,16 @@ class Encoder {
    * set of associated patch files.
    */
   absl::StatusOr<patch_subset::FontData> Encode(
-      const absl::flat_hash_set<hb_codepoint_t>& base_subset,
-      std::vector<const absl::flat_hash_set<hb_codepoint_t>*> subsets,
-      bool is_root = true);
+      const SubsetDefinition& base_subset,
+      std::vector<const SubsetDefinition*> subsets, bool is_root = true);
 
   absl::StatusOr<absl::flat_hash_set<uint32_t>> CodepointsForIftbPatches(
       const absl::flat_hash_set<uint32_t>& ids);
 
   bool IsMixedMode() const { return !existing_iftb_patches_.empty(); }
 
-  absl::StatusOr<patch_subset::FontData> CutSubset(
-      hb_face_t* font, const absl::flat_hash_set<hb_codepoint_t>& codepoints);
+  absl::StatusOr<patch_subset::FontData> CutSubset(hb_face_t* font,
+                                                   const SubsetDefinition& def);
 
   patch_subset::BrotliBinaryDiff binary_diff_;
   ift::PerTableBrotliBinaryDiff per_table_binary_diff_;
@@ -127,17 +154,15 @@ class Encoder {
   hb_face_t* face_ = nullptr;
   absl::btree_map<uint32_t, absl::flat_hash_set<uint32_t>>
       existing_iftb_patches_;
-  absl::flat_hash_set<hb_codepoint_t> base_subset_;
-  std::vector<absl::flat_hash_set<hb_codepoint_t>> extension_subsets_;
+  SubsetDefinition base_subset_;
+  std::vector<SubsetDefinition> extension_subsets_;
   // TODO(garretrieger): also track additional gids that should be
   //  included in a subset (coming from the IFTB patches). implement
   //  by having a custom struct for subsets which as a gid and codepoint set.
 
   // OUT
   uint32_t next_id_ = 0;
-  absl::flat_hash_map<absl::flat_hash_set<hb_codepoint_t>,
-                      patch_subset::FontData>
-      built_subsets_;
+  absl::flat_hash_map<SubsetDefinition, patch_subset::FontData> built_subsets_;
   absl::flat_hash_map<uint32_t, patch_subset::FontData> patches_;
 };
 
