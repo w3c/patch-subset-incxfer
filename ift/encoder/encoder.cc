@@ -94,6 +94,7 @@ Status Encoder::AddExistingIftbPatch(uint32_t id, const FontData& patch) {
   }
 
   existing_iftb_patches_[id] = subset;
+  next_id_ = std::max(next_id_, id + 1);
   return absl::OkStatus();
 }
 
