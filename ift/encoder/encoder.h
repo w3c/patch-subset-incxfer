@@ -129,6 +129,9 @@ class Encoder {
       existing_iftb_patches_;
   absl::flat_hash_set<hb_codepoint_t> base_subset_;
   std::vector<absl::flat_hash_set<hb_codepoint_t>> extension_subsets_;
+  // TODO(garretrieger): also track additional gids that should be
+  //  included in a subset (coming from the IFTB patches). implement
+  //  by having a custom struct for subsets which as a gid and codepoint set.
 
   // OUT
   uint32_t next_id_ = 0;

@@ -370,6 +370,7 @@ TEST_F(EncoderTest, Encode_ThreeSubsets_Mixed) {
   ASSERT_EQ(ift_table->GetPatchMap().GetEntries().size(), 3);
 
   const auto& entry0 = ift_table->GetPatchMap().GetEntries()[0];
+  ASSERT_EQ(entry0.patch_index, 3);
   ASSERT_FALSE(entry0.coverage.codepoints.contains(chunk0_cp));
   ASSERT_FALSE(entry0.coverage.codepoints.contains(chunk1_cp));
   ASSERT_FALSE(entry0.coverage.codepoints.contains(chunk2_cp));
@@ -377,6 +378,7 @@ TEST_F(EncoderTest, Encode_ThreeSubsets_Mixed) {
   ASSERT_FALSE(entry0.coverage.codepoints.contains(chunk4_cp));
 
   const auto& entry1 = ift_table->GetPatchMap().GetEntries()[1];
+  ASSERT_EQ(entry1.patch_index, 4);
   ASSERT_FALSE(entry1.coverage.codepoints.contains(chunk0_cp));
   ASSERT_FALSE(entry1.coverage.codepoints.contains(chunk1_cp));
   ASSERT_FALSE(entry1.coverage.codepoints.contains(chunk2_cp));
@@ -384,6 +386,7 @@ TEST_F(EncoderTest, Encode_ThreeSubsets_Mixed) {
   ASSERT_TRUE(entry1.coverage.codepoints.contains(chunk4_cp));
 
   const auto& entry2 = ift_table->GetPatchMap().GetEntries()[2];
+  ASSERT_EQ(entry2.patch_index, 5);
   ASSERT_FALSE(entry2.coverage.codepoints.contains(chunk0_cp));
   ASSERT_FALSE(entry2.coverage.codepoints.contains(chunk1_cp));
   ASSERT_FALSE(entry2.coverage.codepoints.contains(chunk2_cp));
