@@ -43,6 +43,7 @@ cc_test(
         "iftb_binary_patch_test.cc",
         "per_table_brotli_binary_diff_test.cc",
         "per_table_brotli_binary_patch_test.cc",
+        "integration_test.cc",
     ],
     data = [
         "//patch_subset:testdata",
@@ -53,6 +54,7 @@ cc_test(
         "//patch_subset:server",
         "//ift/proto:proto",
         "//ift/proto:IFT_cc_proto",
+        "//ift/encoder",
         "@com_google_absl//absl/container:btree",
         "@gtest//:gtest_main",
     ],
