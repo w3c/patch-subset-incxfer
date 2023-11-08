@@ -43,7 +43,10 @@ cc_test(
         "iftb_binary_patch_test.cc",
         "per_table_brotli_binary_diff_test.cc",
         "per_table_brotli_binary_patch_test.cc",
-        # TODO "integration_test.cc",
+        "integration_test.cc",
+    ],
+    copts = [
+        "-DHB_EXPERIMENTAL_API",
     ],
     data = [
         "//patch_subset:testdata",
