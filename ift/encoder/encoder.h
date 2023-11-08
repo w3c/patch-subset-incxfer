@@ -115,6 +115,8 @@ class Encoder {
       return H::combine(std::move(h), s.codepoints, s.gids);
     }
 
+    void Union(const SubsetDefinition& other);
+
     void ConfigureInput(hb_subset_input_t* input) const;
   };
 
@@ -137,7 +139,7 @@ class Encoder {
       const SubsetDefinition& base_subset,
       std::vector<const SubsetDefinition*> subsets, bool is_root = true);
 
-  absl::StatusOr<absl::flat_hash_set<uint32_t>> CodepointsForIftbPatches(
+  absl::StatusOr<SubsetDefinition> SubsetDefinitionForIftbPatches(
       const absl::flat_hash_set<uint32_t>& ids);
 
   bool IsMixedMode() const { return !existing_iftb_patches_.empty(); }
@@ -152,8 +154,7 @@ class Encoder {
   std::string url_template_ = "patch$5$4$3$2$1.br";
   uint32_t id_[4] = {0, 0, 0, 0};
   hb_face_t* face_ = nullptr;
-  absl::btree_map<uint32_t, absl::flat_hash_set<uint32_t>>
-      existing_iftb_patches_;
+  absl::btree_map<uint32_t, SubsetDefinition> existing_iftb_patches_;
   SubsetDefinition base_subset_;
   std::vector<SubsetDefinition> extension_subsets_;
   // TODO(garretrieger): also track additional gids that should be

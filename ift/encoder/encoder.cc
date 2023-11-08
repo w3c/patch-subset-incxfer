@@ -57,6 +57,13 @@ std::vector<const Encoder::SubsetDefinition*> Encoder::Remaining(
   return remaining_subsets;
 }
 
+void Encoder::SubsetDefinition::Union(const SubsetDefinition& other) {
+  std::copy(other.codepoints.begin(), other.codepoints.end(),
+            std::inserter(codepoints, codepoints.begin()));
+  std::copy(other.gids.begin(), other.gids.end(),
+            std::inserter(gids, gids.begin()));
+}
+
 Encoder::SubsetDefinition Encoder::Combine(const SubsetDefinition& s1,
                                            const SubsetDefinition& s2) const {
   SubsetDefinition result;
@@ -86,7 +93,7 @@ Status Encoder::AddExistingIftbPatch(uint32_t id, const FontData& patch) {
 
   uint32_t glyph_count = hb_face_get_glyph_count(face_);
 
-  flat_hash_set<uint32_t> subset;
+  SubsetDefinition subset;
   auto gid_to_unicode = FontHelper::GidToUnicodeMap(face_);
   for (uint32_t gid : *gids) {
     auto cp = gid_to_unicode.find(gid);
@@ -99,7 +106,8 @@ Status Encoder::AddExistingIftbPatch(uint32_t id, const FontData& patch) {
       continue;
     }
 
-    subset.insert(cp->second);
+    subset.gids.insert(gid);
+    subset.codepoints.insert(cp->second);
   }
 
   existing_iftb_patches_[id] = subset;
@@ -124,9 +132,6 @@ Status Encoder::SetBaseSubsetFromIftbPatches(
     }
   }
 
-  hb_set_unique_ptr cps_in_font = make_hb_set();
-  hb_face_collect_unicodes(face_, cps_in_font.get());
-
   flat_hash_set<uint32_t> excluded_patches;
   for (const auto& p : existing_iftb_patches_) {
     if (!included_patches.contains(p.first)) {
@@ -134,19 +139,25 @@ Status Encoder::SetBaseSubsetFromIftbPatches(
     }
   }
 
-  auto excluded_cps = CodepointsForIftbPatches(excluded_patches);
-  if (!excluded_cps.ok()) {
-    return excluded_cps.status();
+  auto excluded = SubsetDefinitionForIftbPatches(excluded_patches);
+  if (!excluded.ok()) {
+    return excluded.status();
   }
 
+  uint32_t glyph_count = hb_face_get_glyph_count(face_);
+  for (uint32_t gid = 0; gid < glyph_count; gid++) {
+    if (!excluded->gids.contains(gid)) {
+      base_subset_.gids.insert(gid);
+    }
+  }
+
+  hb_set_unique_ptr cps_in_font = make_hb_set();
+  hb_face_collect_unicodes(face_, cps_in_font.get());
   uint32_t cp = HB_SET_VALUE_INVALID;
   while (hb_set_next(cps_in_font.get(), &cp)) {
-    if (excluded_cps->contains(cp)) {
-      continue;
+    if (!excluded->codepoints.contains(cp)) {
+      base_subset_.codepoints.insert(cp);
     }
-
-    // TODO(garretrieger): populate gids too.
-    base_subset_.codepoints.insert(cp);
   }
 
   for (uint32_t id : included_patches) {
@@ -159,30 +170,25 @@ Status Encoder::SetBaseSubsetFromIftbPatches(
 
 Status Encoder::AddExtensionSubsetOfIftbPatches(
     const flat_hash_set<uint32_t>& ids) {
-  auto subset = CodepointsForIftbPatches(ids);
+  auto subset = SubsetDefinitionForIftbPatches(ids);
   if (!subset.ok()) {
     return subset.status();
   }
 
-  SubsetDefinition def;
-  def.codepoints = *subset;
-  // TODO(garretrieger): add gids too.
-  extension_subsets_.push_back(def);
+  extension_subsets_.push_back(*subset);
   return absl::OkStatus();
 }
 
-StatusOr<flat_hash_set<uint32_t>> Encoder::CodepointsForIftbPatches(
+StatusOr<Encoder::SubsetDefinition> Encoder::SubsetDefinitionForIftbPatches(
     const flat_hash_set<uint32_t>& ids) {
-  flat_hash_set<uint32_t> result;
+  SubsetDefinition result;
   for (uint32_t id : ids) {
     auto p = existing_iftb_patches_.find(id);
     if (p == existing_iftb_patches_.end()) {
       return absl::InvalidArgumentError(
           StrCat("IFTB patch id, ", id, ", not found."));
     }
-
-    std::copy(p->second.begin(), p->second.end(),
-              std::inserter(result, result.begin()));
+    result.Union(p->second);
   }
   return result;
 }
@@ -243,7 +249,7 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
 
   std::vector<uint32_t> ids;
   for (const auto& e : existing_iftb_patches_) {
-    patch_map.AddEntry(e.second, e.first, IFTB_ENCODING);
+    patch_map.AddEntry(e.second.codepoints, e.first, IFTB_ENCODING);
   }
 
   bool as_extensions = IsMixedMode();
@@ -318,7 +324,8 @@ void Encoder::SubsetDefinition::ConfigureInput(hb_subset_input_t* input) const {
     return;
   }
 
-  hb_set_t* gids_set = hb_subset_input_unicode_set(input);
+  hb_set_t* gids_set = hb_subset_input_glyph_set(input);
+  hb_set_add(gids_set, 0);
   for (hb_codepoint_t gid : gids) {
     hb_set_add(gids_set, gid);
   }
