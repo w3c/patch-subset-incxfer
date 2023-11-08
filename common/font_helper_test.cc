@@ -4,6 +4,7 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "gtest/gtest.h"
+#include "hb-subset.h"
 
 using absl::flat_hash_map;
 using absl::string_view;
@@ -103,6 +104,27 @@ TEST_F(FontHelperTest, GetOrderedTags) {
   EXPECT_EQ(s[1], "maxp");
   EXPECT_EQ(s[16], "glyf");
   EXPECT_EQ(s[17], "fpgm");
+}
+
+TEST_F(FontHelperTest, ApplyIftbTableOrdering) {
+  hb_subset_input_t* input = hb_subset_input_create_or_fail();
+  hb_subset_input_keep_everything(input);
+
+  hb_face_t* subset = hb_subset_or_fail(roboto_ab, input);
+  hb_subset_input_destroy(input);
+  FontHelper::ApplyIftbTableOrdering(subset);
+
+  hb_blob_t* blob = hb_face_reference_blob(subset);
+  hb_face_destroy(subset);
+
+  hb_face_t* subset_concrete = hb_face_create(blob, 0);
+  hb_blob_destroy(blob);
+
+  auto s = FontHelper::ToStrings(FontHelper::GetOrderedTags(subset_concrete));
+  EXPECT_EQ(s[s.size() - 2], "glyf");
+  EXPECT_EQ(s[s.size() - 1], "loca");
+
+  hb_face_destroy(subset_concrete);
 }
 
 TEST_F(FontHelperTest, ToString) {
