@@ -39,7 +39,9 @@ class FontHelper {
   constexpr static hb_tag_t kIFTB = HB_TAG('I', 'F', 'T', 'B');
   constexpr static hb_tag_t kLoca = HB_TAG('l', 'o', 'c', 'a');
   constexpr static hb_tag_t kGlyf = HB_TAG('g', 'l', 'y', 'f');
+  constexpr static hb_tag_t kGvar = HB_TAG('g', 'v', 'a', 'r');
   constexpr static hb_tag_t kCFF = HB_TAG('C', 'F', 'F', ' ');
+  constexpr static hb_tag_t kCFF2 = HB_TAG('C', 'F', 'F', '2');
 
   static absl::StatusOr<uint32_t> ReadUInt32(absl::string_view value) {
     if (value.size() < 4) {
@@ -102,6 +104,7 @@ class FontHelper {
       hb_face_t* face);
   static absl::flat_hash_set<hb_tag_t> GetTags(hb_face_t* face);
   static std::vector<hb_tag_t> GetOrderedTags(hb_face_t* face);
+  static void ApplyIftbTableOrdering(hb_face_t* face);
   static std::vector<std::string> ToStrings(const std::vector<hb_tag_t>& input);
   static std::string ToString(hb_tag_t tag);
 };

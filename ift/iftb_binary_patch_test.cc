@@ -50,17 +50,7 @@ class IftbBinaryPatchTest : public ::testing::Test {
             HB_SUBSET_FLAGS_IFTB_REQUIREMENTS | HB_SUBSET_FLAGS_NOTDEF_OUTLINE);
 
     hb_face_t* subset = hb_subset_or_fail(face, input);
-    std::vector<hb_tag_t> tags = FontHelper::GetOrderedTags(subset);
-    std::vector<hb_tag_t> new_order;
-    for (hb_tag_t t : tags) {
-      if (t != FontHelper::kGlyf && t != FontHelper::kLoca) {
-        new_order.push_back(t);
-      }
-    }
-    new_order.push_back(FontHelper::kGlyf);
-    new_order.push_back(FontHelper::kLoca);
-    new_order.push_back(0);
-    hb_face_builder_sort_tables(subset, new_order.data());
+    FontHelper::ApplyIftbTableOrdering(subset);
 
     FontData result(subset);
 
