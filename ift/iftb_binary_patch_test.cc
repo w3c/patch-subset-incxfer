@@ -1,14 +1,19 @@
 #include "ift/iftb_binary_patch.h"
 
+#include <fstream>
+
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "common/font_helper.h"
 #include "gtest/gtest.h"
+#include "hb-subset.h"
 #include "hb.h"
 #include "ift/proto/ift_table.h"
 #include "patch_subset/font_data.h"
 
+using absl::flat_hash_set;
 using absl::StatusOr;
+using absl::StrCat;
 using absl::string_view;
 using common::FontHelper;
 using ift::proto::IFTTable;
@@ -33,6 +38,39 @@ class IftbBinaryPatchTest : public ::testing::Test {
     return result;
   }
 
+  FontData Subset(const FontData& font, flat_hash_set<uint32_t> gids) {
+    hb_face_t* face = font.reference_face();
+    hb_subset_input_t* input = hb_subset_input_create_or_fail();
+    for (uint32_t gid : gids) {
+      hb_set_add(hb_subset_input_glyph_set(input), gid);
+    }
+    hb_subset_input_set_flags(
+        input,
+        HB_SUBSET_FLAGS_RETAIN_GIDS | HB_SUBSET_FLAGS_PASSTHROUGH_UNRECOGNIZED |
+            HB_SUBSET_FLAGS_IFTB_REQUIREMENTS | HB_SUBSET_FLAGS_NOTDEF_OUTLINE);
+
+    hb_face_t* subset = hb_subset_or_fail(face, input);
+    std::vector<hb_tag_t> tags = FontHelper::GetOrderedTags(subset);
+    std::vector<hb_tag_t> new_order;
+    for (hb_tag_t t : tags) {
+      if (t != FontHelper::kGlyf && t != FontHelper::kLoca) {
+        new_order.push_back(t);
+      }
+    }
+    new_order.push_back(FontHelper::kGlyf);
+    new_order.push_back(FontHelper::kLoca);
+    new_order.push_back(0);
+    hb_face_builder_sort_tables(subset, new_order.data());
+
+    FontData result(subset);
+
+    hb_face_destroy(subset);
+    hb_subset_input_destroy(input);
+    hb_face_destroy(face);
+
+    return result;
+  }
+
   FontData font;
   FontData chunk1;
   FontData chunk2;
@@ -53,6 +91,9 @@ StatusOr<uint32_t> glyph_size(const FontData& font_data,
 
   hb_codepoint_t gid;
   hb_font_get_nominal_glyph(font, codepoint, &gid);
+  if (gid == 0) {
+    return absl::NotFoundError(StrCat("No cmap for ", codepoint));
+  }
 
   auto loca = FontHelper::Loca(face);
   if (!loca.ok()) {
@@ -118,6 +159,47 @@ TEST_F(IftbBinaryPatchTest, SinglePatch) {
 
   ASSERT_EQ(*glyph_size(result, 0xab), 0);
   ASSERT_EQ(*glyph_size(result, 0x2e8d), 0);
+
+  // TODO(garretrieger): check glyph is equal to corresponding glyph in the
+  // original file.
+  ASSERT_GT(*glyph_size(result, 0xa5), 1);
+  ASSERT_LT(*glyph_size(result, 0xa5), 1000);
+  ASSERT_GT(*glyph_size(result, 0x30d4), 1);
+  ASSERT_LT(*glyph_size(result, 0x30d4), 1000);
+}
+
+TEST_F(IftbBinaryPatchTest, SinglePatchOnSubset) {
+  auto gids = IftbBinaryPatch::GidsInPatch(chunk2);
+  gids->insert(0);
+  ASSERT_TRUE(gids.ok()) << gids.status();
+
+  FontData subset = Subset(font, *gids);
+  ASSERT_GT(subset.size(), 500);
+
+  FontData result;
+  auto s = patcher.Patch(subset, chunk2, &result);
+  ASSERT_TRUE(s.ok()) << s;
+  ASSERT_GT(result.size(), subset.size());
+  auto sc = glyph_size(result, 0xa5);
+  ASSERT_TRUE(sc.ok()) << sc.status();
+
+  auto ift_table = IFTTable::FromFont(result);
+  ASSERT_TRUE(ift_table.ok()) << ift_table.status();
+
+  for (const auto& e : ift_table->GetPatchMap().GetEntries()) {
+    uint32_t patch_index = e.patch_index;
+    for (uint32_t codepoint : e.coverage.codepoints) {
+      ASSERT_NE(patch_index, 2);
+      // spot check a couple of codepoints that should be removed.
+      ASSERT_NE(codepoint, 0xa5);
+      ASSERT_NE(codepoint, 0x30d4);
+    }
+  }
+
+  sc = glyph_size(result, 0xab);
+  ASSERT_TRUE(absl::IsNotFound(sc.status())) << sc.status();
+  sc = glyph_size(result, 0x2e8d);
+  ASSERT_TRUE(absl::IsNotFound(sc.status())) << sc.status();
 
   // TODO(garretrieger): check glyph is equal to corresponding glyph in the
   // original file.
