@@ -59,6 +59,7 @@ class EncoderTest : public ::testing::Test {
   FontData chunk2;
   FontData chunk3;
   FontData chunk4;
+
   uint32_t chunk0_cp = 0x47;
   uint32_t chunk1_cp = 0xb7;
   uint32_t chunk2_cp = 0xb2;
