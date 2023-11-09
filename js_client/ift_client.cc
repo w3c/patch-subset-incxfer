@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
+#include "absl/container/flat_hash_set.h"
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -21,15 +23,20 @@
 
 using namespace emscripten;
 
+using absl::flat_hash_map;
+using absl::flat_hash_set;
 using absl::string_view;
 using ift::IFTClient;
-using ift::patch_set;
 using ift::encoder::Encoder;
 using ift::proto::DEFAULT_ENCODING;
 using ift::proto::PatchEncoding;
 using patch_subset::FontData;
 using patch_subset::hb_set_unique_ptr;
 using patch_subset::make_hb_set;
+
+typedef flat_hash_map<std::string, uint32_t> patch_set;
+
+class State;
 
 struct RequestContext {
   RequestContext(const patch_set& urls_, val& callback_)
@@ -40,10 +47,10 @@ struct RequestContext {
   void UrlSuceeded(const std::string& url, FontData data) {
     auto it = urls.find(url);
     if (it != urls.end()) {
-      PatchEncoding encoding = it->second;
-      patches_[encoding].push_back(std::move(data));
+      uint32_t id = it->second;
+      client->AddPatch(id, data);
     } else {
-      LOG(WARNING) << "No encoding found for url.";
+      LOG(WARNING) << "No id found for url.";
       failed_ = true;
     }
 
@@ -57,7 +64,6 @@ struct RequestContext {
 
   patch_set urls;
   val callback;
-
   IFTClient* client;
 
  private:
@@ -76,21 +82,31 @@ struct RequestContext {
       return;
     }
 
-    for (const auto& e : patches_) {
-      PatchEncoding encoding = e.first;
-      const std::vector<FontData>& patches = e.second;
-      auto sc = client->ApplyPatches(patches, encoding);
-      if (!sc.ok()) {
-        LOG(WARNING) << "Patch application failed: " << sc.message();
-        callback(false);
-        return;
-      }
+    auto state = client->Process();
+    if (!state.ok()) {
+      LOG(WARNING) << "IFTClient::Process failed: " << state.status().message();
+      callback(false);
+      return;
     }
 
-    callback(true);
+    if (*state == IFTClient::READY) {
+      callback(true);
+      return;
+    }
+
+    if (*state == IFTClient::NEEDS_PATCHES) {
+      // TODO(garretrieger): retrigger state.extend to cause any outstanding
+      // patches to be fetched.
+      LOG(WARNING)
+          << "Need additional patches, but this is currently unsupported.";
+      callback(false);
+      return;
+    }
+
+    LOG(WARNING) << "Unknown client state: " << *state;
+    callback(false);
   }
 
-  absl::flat_hash_map<PatchEncoding, std::vector<FontData>> patches_;
   bool failed_ = false;
 };
 
@@ -124,14 +140,12 @@ void RequestFailed(emscripten_fetch_t* fetch) {
   emscripten_fetch_close(fetch);
 }
 
-class State;
-
 struct InitRequestContext {
-  InitRequestContext(val& callback_, hb_set_unique_ptr& codepoints_)
+  InitRequestContext(val& callback_, flat_hash_set<uint32_t>& codepoints_)
       : callback(std::move(callback_)), codepoints(std::move(codepoints_)) {}
   State* state;
   val callback;
-  hb_set_unique_ptr codepoints;
+  flat_hash_set<uint32_t> codepoints;
 };
 
 static void InitRequestSucceeded(emscripten_fetch_t* fetch);
@@ -150,22 +164,24 @@ class State {
   }
 
   void extend(val codepoints_js, val callback) {
-    // TODO(garretrieger): if there is in flight extension request, queue up
-    // the codepoints instead of initiating new requests.
-    std::vector<int> codepoints =
+    std::vector<int> codepoints_vector =
         convertJSArrayToNumberVector<int>(codepoints_js);
-    hb_set_unique_ptr additional_codepoints = make_hb_set();
 
-    for (int cp : codepoints) {
-      hb_set_add(additional_codepoints.get(), cp);
-    }
+    flat_hash_set<uint32_t> codepoints;
+    std::copy(codepoints_vector.begin(), codepoints_vector.end(),
+              std::inserter(codepoints, codepoints.begin()));
 
-    extend_(std::move(additional_codepoints), std::move(callback));
+    extend_(std::move(codepoints), std::move(callback));
   }
 
   void init_client(IFTClient&& client) { client_ = std::move(client); }
 
-  void extend_(hb_set_unique_ptr codepoints, val callback) {
+  void extend_(flat_hash_set<uint32_t> codepoints, val callback) {
+    // TODO(garretrieger): queue up and save any codepoints seen so far if the
+    // init request
+    //                     is in flight.
+    // TODO(garretrieger): track in flight URLs so we don't re-issue the
+    // requests for them.
     if (!client_) {
       // This will load the init font file and then re-run extend once we have
       // it.
@@ -173,24 +189,30 @@ class State {
       return;
     }
 
-    auto urls = client_->PatchUrlsFor(*codepoints);
-    if (!urls.ok()) {
-      LOG(WARNING) << "Failed to calculate patch URLs: "
-                   << urls.status().message();
-      callback(urls.ok());
+    auto sc = client_->AddDesiredCodepoints(codepoints);
+    if (!sc.ok()) {
+      LOG(WARNING) << "Failed to add desired codepoints to the client: "
+                   << sc.message();
+      callback(false);
       return;
     }
 
-    if (urls->empty()) {
+    patch_set urls;
+    for (uint32_t id : client_->PatchesNeeded()) {
+      std::string url = client_->PatchToUrl(id);
+      urls[url] = id;
+    }
+
+    if (urls.empty()) {
       callback(true);
       return;
     }
 
-    DoRequest(*urls, callback);
+    DoRequest(urls, callback);
   }
 
  private:
-  void DoInitRequest(hb_set_unique_ptr codepoints, val& callback) {
+  void DoInitRequest(flat_hash_set<uint32_t> codepoints, val& callback) {
     InitRequestContext* context = new InitRequestContext(callback, codepoints);
     context->state = this;
 

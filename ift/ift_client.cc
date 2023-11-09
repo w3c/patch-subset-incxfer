@@ -95,6 +95,12 @@ Status IFTClient::AddDesiredCodepoints(
   std::copy(codepoints.begin(), codepoints.end(),
             std::inserter(target_codepoints_, target_codepoints_.begin()));
 
+  // TODO(garretrieger): in some cases this may cause a needed patch
+  // to be replaced. However, the client  may still have fetched
+  // and added that replaced patch. Make sure the client supports this
+  // situation seemlessly (ignoring the no longer needed patch and should
+  // not attempt to apply it). Add a test in he integration tests which
+  // exercises this case.
   auto s = ComputeOutstandingPatches();
   if (!s.ok()) {
     status_ = s;
