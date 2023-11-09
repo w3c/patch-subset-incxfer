@@ -33,6 +33,11 @@ class Encoder {
     }
   }
 
+  Encoder(const Encoder&) = delete;
+  Encoder(Encoder&& other) = delete;
+  Encoder& operator=(const Encoder&) = delete;
+  Encoder& operator=(Encoder&& other) = delete;
+
   void SetUrlTemplate(const std::string& value) { url_template_ = value; }
 
   const std::string& UrlTemplate() const { return url_template_; }
