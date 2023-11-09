@@ -12,6 +12,7 @@
 
 using absl::btree_set;
 using absl::flat_hash_set;
+using absl::Status;
 using absl::StrCat;
 using ift::IFTClient;
 using ift::encoder::Encoder;
@@ -23,6 +24,10 @@ using patch_subset::hb_set_unique_ptr;
 using patch_subset::make_hb_set;
 
 namespace ift {
+
+// TODO(garretrieger): test a case where an additional patch is required after
+// initial
+//                     dependent patch application.
 
 class IntegrationTest : public ::testing::Test {
  protected:
@@ -61,6 +66,48 @@ class IntegrationTest : public ::testing::Test {
     return result;
   }
 
+  Status InitEncoder(Encoder& encoder) {
+    encoder.SetUrlTemplate("$2$1");
+    {
+      hb_face_t* face = noto_sans_jp_.reference_face();
+      encoder.SetFace(face);
+      hb_face_destroy(face);
+    }
+    auto sc = encoder.SetId({0x3c2bfda0, 0x890625c9, 0x40c644de, 0xb1195627});
+    if (!sc.ok()) {
+      return sc;
+    }
+
+    for (int i = 1; i <= 4; i++) {
+      auto sc = encoder.AddExistingIftbPatch(i, iftb_patches_[i]);
+      if (!sc.ok()) {
+        return sc;
+      }
+    }
+
+    return absl::OkStatus();
+  }
+
+  Status AddPatches(IFTClient& client, Encoder& encoder) {
+    auto patches = client.PatchesNeeded();
+    for (const auto& id : patches) {
+      FontData patch_data;
+      if (id <= 4) {
+        patch_data.shallow_copy(iftb_patches_[id]);
+      } else {
+        auto it = encoder.Patches().find(id);
+        if (it == encoder.Patches().end()) {
+          return absl::InternalError(StrCat("Patch ", id, " was not found."));
+        }
+        patch_data.shallow_copy(it->second);
+      }
+
+      client.AddPatch(id, patch_data);
+    }
+
+    return absl::OkStatus();
+  }
+
   FontData noto_sans_jp_;
   std::vector<FontData> iftb_patches_;
 
@@ -73,19 +120,8 @@ class IntegrationTest : public ::testing::Test {
 
 TEST_F(IntegrationTest, MixedMode) {
   Encoder encoder;
-  encoder.SetUrlTemplate("$2$1");
-  {
-    hb_face_t* face = noto_sans_jp_.reference_face();
-    encoder.SetFace(face);
-    hb_face_destroy(face);
-  }
-  auto sc = encoder.SetId({0x3c2bfda0, 0x890625c9, 0x40c644de, 0xb1195627});
+  auto sc = InitEncoder(encoder);
   ASSERT_TRUE(sc.ok()) << sc;
-
-  for (int i = 1; i <= 4; i++) {
-    auto sc = encoder.AddExistingIftbPatch(i, iftb_patches_[i]);
-    ASSERT_TRUE(sc.ok()) << sc;
-  }
 
   // target paritions: {{0, 1}, {2}, {3, 4}}
   sc = encoder.SetBaseSubsetFromIftbPatches({1});
@@ -106,36 +142,18 @@ TEST_F(IntegrationTest, MixedMode) {
   auto client = IFTClient::NewClient(std::move(*encoded));
   ASSERT_TRUE(client.ok()) << client.status();
 
-  hb_set_unique_ptr input = make_hb_set(2, chunk3_cp, chunk4_cp);
-  auto patches = client->PatchUrlsFor(*input);
-  ASSERT_TRUE(patches.ok()) << patches.status();
-  ASSERT_EQ(patches->size(), 3);  // 1 shared brotli and 2 iftb.
+  sc = client->AddDesiredCodepoints({chunk3_cp, chunk4_cp});
+  ASSERT_TRUE(sc.ok()) << sc;
 
-  for (PatchEncoding target_encoding :
-       {PER_TABLE_SHARED_BROTLI_ENCODING, IFTB_ENCODING}) {
-    for (const auto& p : *patches) {
-      std::string url = p.first;
-      PatchEncoding encoding = p.second;
-      uint32_t id = std::stoul(url);
+  auto patches = client->PatchesNeeded();
+  ASSERT_EQ(patches.size(), 3);  // 1 shared brotli and 2 iftb.
 
-      if (encoding != target_encoding) {
-        continue;
-      }
+  sc = AddPatches(*client, encoder);
+  ASSERT_TRUE(sc.ok()) << sc;
 
-      std::vector<FontData> patch_data;
-      patch_data.resize(1);
-      if (id <= 4) {
-        patch_data[0].shallow_copy(iftb_patches_[id]);
-      } else {
-        auto it = encoder.Patches().find(id);
-        ASSERT_TRUE(it != encoder.Patches().end());
-        patch_data[0].shallow_copy(it->second);
-      }
-
-      auto s = client->ApplyPatches(patch_data, encoding);
-      ASSERT_TRUE(s.ok()) << s;
-    }
-  }
+  auto state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::READY);
 
   codepoints = ToCodepointsSet(client->GetFontData());
   ASSERT_TRUE(codepoints.contains(chunk0_cp));
@@ -147,6 +165,57 @@ TEST_F(IntegrationTest, MixedMode) {
   // TODO(garretrieger): check glyph presence as well.
   //   - We can extract the functions in iftb_binary_patch_test for dealing with
   //   glyf/loca.
+}
+
+TEST_F(IntegrationTest, MixedMode_SequentialDependentPatches) {
+  Encoder encoder;
+  auto sc = InitEncoder(encoder);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  // target paritions: {{0, 1}, {2}, {3}, {4}}
+  sc = encoder.SetBaseSubsetFromIftbPatches({1});
+  sc.Update(encoder.AddExtensionSubsetOfIftbPatches({2}));
+  sc.Update(encoder.AddExtensionSubsetOfIftbPatches({3}));
+  sc.Update(encoder.AddExtensionSubsetOfIftbPatches({4}));
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  auto encoded = encoder.Encode();
+  ASSERT_TRUE(encoded.ok()) << encoded.status();
+
+  auto client = IFTClient::NewClient(std::move(*encoded));
+  ASSERT_TRUE(client.ok()) << client.status();
+
+  sc = client->AddDesiredCodepoints({chunk3_cp, chunk4_cp});
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  auto patches = client->PatchesNeeded();
+  ASSERT_EQ(patches.size(), 3);  // 1 shared brotli and 2 iftb.
+
+  sc = AddPatches(*client, encoder);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  auto state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
+
+  // the first application round would have added one of {3}
+  // and {4}. now that one is applied, the second is still needed.
+  patches = client->PatchesNeeded();
+  ASSERT_EQ(patches.size(), 1);  // 1 shared brotli
+
+  sc = AddPatches(*client, encoder);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::READY);
+
+  auto codepoints = ToCodepointsSet(client->GetFontData());
+  ASSERT_TRUE(codepoints.contains(chunk0_cp));
+  ASSERT_TRUE(codepoints.contains(chunk1_cp));
+  ASSERT_FALSE(codepoints.contains(chunk2_cp));
+  ASSERT_TRUE(codepoints.contains(chunk3_cp));
+  ASSERT_TRUE(codepoints.contains(chunk4_cp));
 }
 
 }  // namespace ift
