@@ -32,6 +32,7 @@ cc_binary(
     name = "ift_client",
     srcs = [
         "ift_client.cc",
+        "ift_client.h",
     ],
     linkopts = DEFAULT_EMSCRIPTEN_LINKOPTS,
     copts = [
