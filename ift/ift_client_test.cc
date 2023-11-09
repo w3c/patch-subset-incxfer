@@ -10,6 +10,7 @@
 #include "patch_subset/sparse_bit_set.h"
 
 using absl::btree_set;
+using absl::flat_hash_set;
 using absl::IsInvalidArgument;
 using ift::proto::IFT;
 using ift::proto::IFTB_ENCODING;
@@ -22,6 +23,11 @@ using patch_subset::make_hb_set;
 using patch_subset::SparseBitSet;
 
 namespace ift {
+
+static constexpr uint32_t kSampleFont = 0;
+static constexpr uint32_t kComplexFont = 1;
+static constexpr uint32_t kInvalidFont = 2;
+static constexpr uint32_t kLeaf = 3;
 
 class IFTClientTest : public ::testing::Test {
  protected:
@@ -71,6 +77,11 @@ class IFTClientTest : public ::testing::Test {
     m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
     m->set_patch_encoding(SHARED_BROTLI_ENCODING);
 
+    m = complex.add_subset_mapping();
+    set = make_hb_set(3, 11, 12, 25);
+    m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
+    m->set_patch_encoding(SHARED_BROTLI_ENCODING);
+
     // Invalid Test Font
     IFT invalid;
     invalid.set_default_patch_encoding(IFTB_ENCODING);
@@ -95,19 +106,27 @@ class IFTClientTest : public ::testing::Test {
         hb_blob_create_from_file("patch_subset/testdata/Roboto-Regular.ab.ttf");
     hb_face_t* face = hb_face_create(blob, 0);
     hb_blob_destroy(blob);
-    roboto_ab.set(face);
+    fonts[kLeaf].set(face);
 
     auto font = IFTTable::AddToFont(face, sample);
-    sample_font.set(font->reference_face());
+    hb_face_t* new_face = font->reference_face();
+    fonts[kSampleFont].set(new_face);
+    hb_face_destroy(new_face);
 
     font = IFTTable::AddToFont(face, complex);
-    complex_font.set(font->reference_face());
+    new_face = font->reference_face();
+    fonts[kComplexFont].set(new_face);
+    hb_face_destroy(new_face);
 
     font = IFTTable::AddToFont(face, invalid);
-    invalid_font.set(font->reference_face());
+    new_face = font->reference_face();
+    fonts[kInvalidFont].set(new_face);
+    hb_face_destroy(new_face);
 
     iftb_font = from_file("ift/testdata/NotoSansJP-Regular.ift.ttf");
     chunk1 = from_file("ift/testdata/NotoSansJP-Regular.subset_iftb/chunk1.br");
+
+    hb_face_destroy(face);
   }
 
   FontData from_file(const char* filename) {
@@ -117,151 +136,68 @@ class IFTClientTest : public ::testing::Test {
     return result;
   }
 
-  FontData roboto_ab;
-  FontData sample_font;
-  FontData complex_font;
-  FontData invalid_font;
+  FontData fonts[4];
 
   FontData iftb_font;
   FontData chunk1;
 };
 
-TEST_F(IFTClientTest, PatchUrls) {
-  hb_set_unique_ptr codepoints_1 = make_hb_set(1, 30);
-  hb_set_unique_ptr codepoints_2 = make_hb_set(2, 55, 57);
-  hb_set_unique_ptr codepoints_3 = make_hb_set(2, 32, 56);
-  hb_set_unique_ptr codepoints_4 = make_hb_set(0);
-  hb_set_unique_ptr codepoints_5 = make_hb_set(1, 112);
-  hb_set_unique_ptr codepoints_6 = make_hb_set(1, 30, 112);
+typedef flat_hash_set<uint32_t> uint_set;
+struct PatchesNeededTestCase {
+  PatchesNeededTestCase(uint32_t font_id_, uint_set input_, uint_set expected_)
+      : font_id(font_id_), input(input_), expected(expected_) {}
 
-  std::string url_1 = "https://localhost/patches/09.patch";
-  std::string url_2 = "https://localhost/patches/2a.patch";
+  uint32_t font_id;
+  uint_set input;
+  uint_set expected;
+};
 
-  patch_set expected_1{std::pair(url_1, IFTB_ENCODING)};
-  patch_set expected_2{std::pair(url_2, SHARED_BROTLI_ENCODING)};
-  patch_set expected_3{std::pair(url_1, IFTB_ENCODING),
-                       std::pair(url_2, SHARED_BROTLI_ENCODING)};
-  patch_set expected_4{};
-  patch_set expected_5{};
-  patch_set expected_6{std::pair(url_1, IFTB_ENCODING)};
+class IFTClientParameterizedTest
+    : public IFTClientTest,
+      public testing::WithParamInterface<PatchesNeededTestCase> {};
 
-  auto client = IFTClient::NewClient(std::move(sample_font));
+TEST_P(IFTClientParameterizedTest, PatchesNeeded) {
+  auto p = GetParam();
+
+  FontData font;
+  font.copy(fonts[p.font_id].str());
+
+  auto client = IFTClient::NewClient(std::move(font));
   ASSERT_TRUE(client.ok()) << client.status();
 
-  auto r = client->PatchUrlsFor(*codepoints_1);
-  ASSERT_TRUE(r.ok()) << r.status();
-  ASSERT_EQ(expected_1, *r);
-
-  r = client->PatchUrlsFor(*codepoints_2);
-  ASSERT_TRUE(r.ok()) << r.status();
-  ASSERT_EQ(expected_2, *r);
-
-  r = client->PatchUrlsFor(*codepoints_3);
-  ASSERT_TRUE(r.ok()) << r.status();
-  ASSERT_EQ(expected_3, *r);
-
-  r = client->PatchUrlsFor(*codepoints_4);
-  ASSERT_TRUE(r.ok()) << r.status();
-  ASSERT_EQ(expected_4, *r);
-
-  r = client->PatchUrlsFor(*codepoints_5);
-  ASSERT_TRUE(r.ok()) << r.status();
-  ASSERT_EQ(expected_5, *r);
-
-  r = client->PatchUrlsFor(*codepoints_6);
-  ASSERT_TRUE(r.ok()) << r.status();
-  ASSERT_EQ(expected_6, *r);
+  auto s = client->AddDesiredCodepoints(p.input);
+  ASSERT_TRUE(s.ok()) << s;
+  ASSERT_EQ(client->PatchesNeeded(), p.expected);
 }
 
-TEST_F(IFTClientTest, PatchUrls_Complex) {
-  std::string url_1 = "1.patch";
-  std::string url_2 = "2.patch";
-  std::string url_3 = "3.patch";
-  std::string url_4 = "4.patch";
-  std::string url_5 = "5.patch";
+INSTANTIATE_TEST_SUITE_P(
+    TargetCodepoints, IFTClientParameterizedTest,
+    testing::Values(PatchesNeededTestCase(kSampleFont, {30}, {0x09}),
+                    PatchesNeededTestCase(kSampleFont, {55, 57}, {0x2a}),
+                    PatchesNeededTestCase(kSampleFont, {32, 56}, {0x09, 0x2a}),
+                    PatchesNeededTestCase(kSampleFont, {}, {}),
+                    PatchesNeededTestCase(kSampleFont, {112}, {}),
+                    PatchesNeededTestCase(kSampleFont, {30, 112}, {0x09}),
 
-  auto client = IFTClient::NewClient(std::move(complex_font));
-  ASSERT_TRUE(client.ok()) << client.status();
+                    PatchesNeededTestCase(kComplexFont, {4, 6}, {1, 2}),
+                    PatchesNeededTestCase(kComplexFont, {4, 11, 12}, {1, 3, 4}),
+                    PatchesNeededTestCase(kComplexFont, {12}, {5}),
 
-  hb_set_unique_ptr codepoints = make_hb_set(2, 4, 6);
-  patch_set expected{std::pair(url_1, IFTB_ENCODING),
-                     std::pair(url_2, IFTB_ENCODING)};
-  auto r = client->PatchUrlsFor(*codepoints);
-  ASSERT_TRUE(r.ok()) << r.status();
-  ASSERT_EQ(expected, *r);
+                    PatchesNeededTestCase(kComplexFont, {5, 100}, {1}),
+                    PatchesNeededTestCase(kComplexFont, {100}, {}),
 
-  codepoints = make_hb_set(3, 4, 11, 12);
-  expected = {std::pair(url_1, IFTB_ENCODING), std::pair(url_3, IFTB_ENCODING),
-              std::pair(url_4, SHARED_BROTLI_ENCODING)};
-  r = client->PatchUrlsFor(*codepoints);
-  ASSERT_TRUE(r.ok()) << r.status();
-  ASSERT_EQ(expected, *r);
+                    PatchesNeededTestCase(kInvalidFont, {6}, {1}),
+                    PatchesNeededTestCase(kInvalidFont, {6, 8}, {1}),
 
-  codepoints = make_hb_set(1, 12);
-  expected = {std::pair(url_5, SHARED_BROTLI_ENCODING)};
-  r = client->PatchUrlsFor(*codepoints);
-  ASSERT_TRUE(r.ok()) << r.status();
-  ASSERT_EQ(expected, *r);
-}
-
-TEST_F(IFTClientTest, PatchUrls_NoMatch) {
-  std::string url_1 = "1.patch";
-
-  auto client = IFTClient::NewClient(std::move(complex_font));
-  ASSERT_TRUE(client.ok()) << client.status();
-
-  hb_set_unique_ptr codepoints = make_hb_set(2, 5, 100);
-  patch_set expected{std::pair(url_1, IFTB_ENCODING)};
-  auto r = client->PatchUrlsFor(*codepoints);
-  ASSERT_TRUE(r.ok()) << r.status();
-  ASSERT_EQ(expected, *r);
-
-  codepoints = make_hb_set(1, 100);
-  expected = {};
-  r = client->PatchUrlsFor(*codepoints);
-  ASSERT_TRUE(r.ok()) << r.status();
-  ASSERT_EQ(expected, *r);
-}
-
-TEST_F(IFTClientTest, PatchUrls_RepeatedPatchIndices) {
-  std::string url_1 = "1.patch";
-
-  auto client = IFTClient::NewClient(std::move(invalid_font));
-  ASSERT_TRUE(client.ok()) << client.status();
-
-  hb_set_unique_ptr codepoints = make_hb_set(1, 6);
-  patch_set expected{std::pair(url_1, IFTB_ENCODING)};
-  auto r = client->PatchUrlsFor(*codepoints);
-  ASSERT_TRUE(r.ok()) << r.status();
-  ASSERT_EQ(expected, *r);
-
-  codepoints = make_hb_set(1, 6, 8);
-  expected = {std::pair(url_1, IFTB_ENCODING)};
-  r = client->PatchUrlsFor(*codepoints);
-  ASSERT_TRUE(r.ok()) << r.status();
-  ASSERT_EQ(expected, *r);
-}
+                    PatchesNeededTestCase(kLeaf, {30}, {})));
 
 TEST_F(IFTClientTest, PatchUrls_InvalidRepeatedPatchIndices) {
-  auto client = IFTClient::NewClient(std::move(invalid_font));
+  auto client = IFTClient::NewClient(std::move(fonts[kInvalidFont]));
   ASSERT_TRUE(client.ok()) << client.status();
 
   hb_set_unique_ptr codepoints = make_hb_set(1, 4);
-  auto r = client->PatchUrlsFor(*codepoints);
-  ASSERT_TRUE(absl::IsInternal(r.status())) << r.status();
-}
-
-TEST_F(IFTClientTest, PatchUrls_Leaf) {
-  hb_set_unique_ptr codepoints_1 = make_hb_set(1, 30);
-
-  patch_set expected;
-
-  auto client = IFTClient::NewClient(std::move(roboto_ab));
-  ASSERT_TRUE(client.ok()) << client.status();
-
-  auto r = client->PatchUrlsFor(*codepoints_1);
-  ASSERT_TRUE(r.ok()) << r.status();
-  ASSERT_EQ(expected, *r);
+  auto s = client->AddDesiredCodepoints({4});
+  ASSERT_TRUE(absl::IsInternal(s)) << s;
 }
 
 TEST_F(IFTClientTest, ApplyPatches_IFTB) {
@@ -271,85 +207,22 @@ TEST_F(IFTClientTest, ApplyPatches_IFTB) {
   auto client = IFTClient::NewClient(std::move(iftb_font));
   ASSERT_TRUE(client.ok()) << client.status();
 
-  auto s = client->ApplyPatches(patches, IFTB_ENCODING);
-  ASSERT_TRUE(s.ok()) << s;
-}
-
-TEST_F(IFTClientTest, ApplyPatches_SharedBrotli) {
-  std::string d1 = "abc";
-  std::string d2 = "abcdef";
-  std::string d3 = "abcdefhij";
-  FontData f1(d1);
-  FontData f2(d2);
-  FontData f3(d3);
-
-  BrotliBinaryDiff differ;
-  FontData f1_to_f2;
-  auto s = differ.Diff(f1, f2, &f1_to_f2);
+  auto s = client->AddDesiredCodepoints({0xb7});
   ASSERT_TRUE(s.ok()) << s;
 
-  FontData f2_to_f3;
-  s = differ.Diff(f2, f3, &f2_to_f3);
-  ASSERT_TRUE(s.ok()) << s;
+  uint_set expected = {1};
+  ASSERT_EQ(client->PatchesNeeded(), expected);
+  auto state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
 
-  {
-    auto client = IFTClient::NewClient(std::move(f1));
-    ASSERT_TRUE(client.ok()) << client.status();
+  client->AddPatch(1, patches[0]);
 
-    std::vector<FontData> patch_set_1;
-    patch_set_1.emplace_back(f1_to_f2.str());
-    auto s = client->ApplyPatches(patch_set_1, SHARED_BROTLI_ENCODING);
-    ASSERT_TRUE(s.ok()) << s;
-    ASSERT_EQ(client->GetFontData().str(), f2.str());
+  ASSERT_TRUE(client->PatchesNeeded().empty());
 
-    std::vector<FontData> patch_set_2;
-    patch_set_2.emplace_back(f2_to_f3.str());
-    s = client->ApplyPatches(patch_set_2, SHARED_BROTLI_ENCODING);
-    ASSERT_TRUE(s.ok()) << s;
-    ASSERT_EQ(client->GetFontData().str(), f3.str());
-  }
-
-  {
-    f1.copy(d1);
-    auto client = IFTClient::NewClient(std::move(f1));
-    ASSERT_TRUE(client.ok()) << client.status();
-
-    std::vector<FontData> patch_set_1;
-    patch_set_1.emplace_back(f1_to_f2.str());
-    patch_set_1.emplace_back(f2_to_f3.str());
-    auto s = client->ApplyPatches(patch_set_1, SHARED_BROTLI_ENCODING);
-    ASSERT_TRUE(IsInvalidArgument(s)) << s;
-  }
-}
-
-TEST_F(IFTClientTest, ApplyPatches_LeafHasNoMappings) {
-  FontData f1;
-  f1.copy(sample_font.str());
-  FontData f2;
-  f2.copy(roboto_ab.str());
-
-  BrotliBinaryDiff differ;
-  FontData f1_to_f2;
-  auto s1 = differ.Diff(f1, f2, &f1_to_f2);
-  ASSERT_TRUE(s1.ok()) << s1;
-
-  auto client = IFTClient::NewClient(std::move(f1));
-  ASSERT_TRUE(client.ok()) << client.status();
-
-  hb_set_unique_ptr codepoints = make_hb_set(1, 30);
-  auto patches = client->PatchUrlsFor(*codepoints);
-  ASSERT_TRUE(patches.ok()) << patches.status();
-  ASSERT_FALSE(patches->empty());
-
-  std::vector<FontData> patch_set_1;
-  patch_set_1.emplace_back(f1_to_f2.str());
-  auto s2 = client->ApplyPatches(patch_set_1, SHARED_BROTLI_ENCODING);
-  ASSERT_TRUE(s2.ok()) << s2;
-  ASSERT_EQ(client->GetFontData().str(), f2.str());
-
-  patches = client->PatchUrlsFor(*codepoints);
-  ASSERT_TRUE(patches.ok()) << patches.status();
-  ASSERT_TRUE(patches->empty());
+  state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::READY);
 }
 
 TEST_F(IFTClientTest, PatchToUrl_NoFormatters) {
