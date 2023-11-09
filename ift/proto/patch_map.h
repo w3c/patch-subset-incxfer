@@ -16,6 +16,11 @@ namespace ift::proto {
  */
 class PatchMap {
  public:
+  static bool IsDependent(PatchEncoding encoding) {
+    return encoding == SHARED_BROTLI_ENCODING ||
+           encoding == PER_TABLE_SHARED_BROTLI_ENCODING;
+  }
+
   struct Coverage {
     // TODO(garretrieger): move constructors?
     static absl::StatusOr<Coverage> FromProto(
@@ -66,10 +71,7 @@ class PatchMap {
                  ift::proto::PatchEncoding default_encoding,
                  ift::proto::SubsetMapping* out) const;
 
-    bool IsDependent() const {
-      return encoding == SHARED_BROTLI_ENCODING ||
-             encoding == PER_TABLE_SHARED_BROTLI_ENCODING;
-    }
+    bool IsDependent() const { return PatchMap::IsDependent(encoding); }
 
     Coverage coverage;
     uint32_t patch_index;
