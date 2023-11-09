@@ -12,6 +12,7 @@
 #include "hb.h"
 #include "ift/encoder/encoder.h"
 #include "ift/ift_client.h"
+#include "ift/iftb_binary_patch.h"
 #include "patch_subset/font_data.h"
 
 /*
@@ -37,6 +38,7 @@ using absl::flat_hash_set;
 using absl::Status;
 using absl::StatusOr;
 using absl::StrCat;
+using ift::IftbBinaryPatch;
 using ift::IFTClient;
 using ift::encoder::Encoder;
 using patch_subset::FontData;
@@ -174,6 +176,7 @@ int main(int argc, char** argv) {
     hb_face_destroy(input_font);
   }
 
+  bool id_set = false;
   bool first = true;
   if (mixed_mode) {
     // Load and write out iftb patches
@@ -190,6 +193,19 @@ int main(int argc, char** argv) {
 
       for (uint32_t id : ordered) {
         FontData iftb_patch = load_iftb_patch(id);
+        if (!id_set) {
+          uint32_t id[4];
+          auto sc = IftbBinaryPatch::IdInPatch(iftb_patch, id);
+          sc.Update(encoder.SetId(id));
+          if (!sc.ok()) {
+            std::cout << "Failed setting encoder id: " << sc.message()
+                      << std::endl;
+            return -1;
+          }
+          printf(" set id to %x %x %x %x\n", id[0], id[1], id[2], id[3]);
+          id_set = true;
+        }
+
         auto sc = encoder.AddExistingIftbPatch(id, iftb_patch);
         if (!sc.ok()) {
           std::cout << "Failed adding existing iftb patch: " << sc.message()

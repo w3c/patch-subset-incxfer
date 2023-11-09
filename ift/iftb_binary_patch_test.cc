@@ -128,6 +128,17 @@ TEST_F(IftbBinaryPatchTest, GidsInPatch) {
   ASSERT_FALSE(gids->contains(354));
 }
 
+TEST_F(IftbBinaryPatchTest, IdInPatch) {
+  uint32_t id[4];
+  auto sc = IftbBinaryPatch::IdInPatch(chunk1, id);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  ASSERT_EQ(id[0], 0x3c2bfda0);
+  ASSERT_EQ(id[1], 0x890625c9);
+  ASSERT_EQ(id[2], 0x40c644de);
+  ASSERT_EQ(id[3], 0xb1195627);
+}
+
 TEST_F(IftbBinaryPatchTest, SinglePatch) {
   FontData result;
   auto s = patcher.Patch(font, chunk2, &result);

@@ -64,6 +64,27 @@ StatusOr<flat_hash_set<uint32_t>> IftbBinaryPatch::GidsInPatch(
   return result;
 }
 
+Status IftbBinaryPatch::IdInPatch(const patch_subset::FontData& patch,
+                                  uint32_t id_out[4]) {
+  static constexpr int idOffset = 8;
+  std::string uncompressed;
+  if (HB_TAG('I', 'F', 'T', 'C') !=
+      iftb::decodeBuffer(patch.data(), patch.size(), uncompressed)) {
+    return absl::InvalidArgumentError("Unsupported chunk type.");
+  }
+
+  absl::string_view data = uncompressed;
+  for (int i = 0; i < 4; i++) {
+    auto val = FontHelper::ReadUInt32(data.substr(idOffset + i * 4));
+    if (!val.ok()) {
+      return val.status();
+    }
+    id_out[i] = *val;
+  }
+
+  return absl::OkStatus();
+}
+
 Status IftbBinaryPatch::Patch(const FontData& font_base, const FontData& patch,
                               FontData* font_derived /* OUT */) const {
   std::vector<FontData> patches;
