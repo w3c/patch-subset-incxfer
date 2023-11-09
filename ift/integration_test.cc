@@ -25,10 +25,6 @@ using patch_subset::make_hb_set;
 
 namespace ift {
 
-// TODO(garretrieger): test a case where an additional patch is required after
-// initial
-//                     dependent patch application.
-
 class IntegrationTest : public ::testing::Test {
  protected:
   IntegrationTest() {
@@ -66,7 +62,7 @@ class IntegrationTest : public ::testing::Test {
     return result;
   }
 
-  Status InitEncoder(Encoder& encoder) {
+  Status InitEncoderForIftb(Encoder& encoder) {
     encoder.SetUrlTemplate("$2$1");
     {
       hb_face_t* face = noto_sans_jp_.reference_face();
@@ -118,9 +114,15 @@ class IntegrationTest : public ::testing::Test {
   uint32_t chunk4_cp = 0xa8;
 };
 
+// TODO(garretrieger): add IFTB only test case.
+// TODO(garretrieger): add shared brotli only test case.
+// TODO(garretrieger): add test case where changing the
+//  target codepoints causes the dependent patch selection
+//  to change.
+
 TEST_F(IntegrationTest, MixedMode) {
   Encoder encoder;
-  auto sc = InitEncoder(encoder);
+  auto sc = InitEncoderForIftb(encoder);
   ASSERT_TRUE(sc.ok()) << sc;
 
   // target paritions: {{0, 1}, {2}, {3, 4}}
@@ -169,7 +171,7 @@ TEST_F(IntegrationTest, MixedMode) {
 
 TEST_F(IntegrationTest, MixedMode_SequentialDependentPatches) {
   Encoder encoder;
-  auto sc = InitEncoder(encoder);
+  auto sc = InitEncoderForIftb(encoder);
   ASSERT_TRUE(sc.ok()) << sc;
 
   // target paritions: {{0, 1}, {2}, {3}, {4}}
