@@ -62,6 +62,8 @@ Status PerTableBrotliBinaryPatch::Patch(const FontData& font_base,
     hb_blob_destroy(blob);
   }
 
+  FontHelper::ApplyIftbTableOrdering(new_face);
+
   hb_blob_t* new_face_blob = hb_face_reference_blob(new_face);
   font_derived->set(new_face_blob);
   hb_blob_destroy(new_face_blob);
