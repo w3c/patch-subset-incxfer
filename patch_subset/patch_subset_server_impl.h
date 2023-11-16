@@ -5,16 +5,16 @@
 
 #include "absl/log/log.h"
 #include "absl/status/status.h"
+#include "common/binary_diff.h"
+#include "common/brotli_binary_diff.h"
+#include "common/file_font_provider.h"
+#include "common/font_provider.h"
 #include "hb.h"
-#include "patch_subset/binary_diff.h"
-#include "patch_subset/brotli_binary_diff.h"
 #include "patch_subset/cbor/client_state.h"
 #include "patch_subset/cbor/patch_request.h"
 #include "patch_subset/codepoint_mapper.h"
 #include "patch_subset/codepoint_predictor.h"
 #include "patch_subset/fast_hasher.h"
-#include "patch_subset/file_font_provider.h"
-#include "patch_subset/font_provider.h"
 #include "patch_subset/frequency_codepoint_predictor.h"
 #include "patch_subset/harfbuzz_subsetter.h"
 #include "patch_subset/hasher.h"
@@ -50,8 +50,8 @@ class ServerConfig {
   // remap codepoints
   bool remap_codepoints = false;
 
-  virtual FontProvider* CreateFontProvider() const {
-    return new FileFontProvider(font_directory);
+  virtual common::FontProvider* CreateFontProvider() const {
+    return new common::FileFontProvider(font_directory);
   }
 
   CodepointMapper* CreateCodepointMapper() const {
@@ -101,10 +101,10 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
     Hasher* hasher = new FastHasher();
     return std::unique_ptr<PatchSubsetServer>(new PatchSubsetServerImpl(
         config.max_predicted_codepoints,
-        std::unique_ptr<FontProvider>(config.CreateFontProvider()),
+        std::unique_ptr<common::FontProvider>(config.CreateFontProvider()),
         std::unique_ptr<Subsetter>(new HarfbuzzSubsetter()),
-        std::unique_ptr<BinaryDiff>(new BrotliBinaryDiff()),
-        std::unique_ptr<BinaryDiff>(new VCDIFFBinaryDiff()),
+        std::unique_ptr<common::BinaryDiff>(new common::BrotliBinaryDiff()),
+        std::unique_ptr<common::BinaryDiff>(new VCDIFFBinaryDiff()),
         std::unique_ptr<Hasher>(hasher),
         std::unique_ptr<CodepointMapper>(config.CreateCodepointMapper()),
         std::unique_ptr<IntegerListChecksum>(
@@ -115,10 +115,11 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
 
   // Takes ownership of font_provider, subsetter, and binary_diff.
   PatchSubsetServerImpl(
-      int max_predicted_codepoints, std::unique_ptr<FontProvider> font_provider,
+      int max_predicted_codepoints,
+      std::unique_ptr<common::FontProvider> font_provider,
       std::unique_ptr<Subsetter> subsetter,
-      std::unique_ptr<BinaryDiff> brotli_binary_diff,
-      std::unique_ptr<BinaryDiff> vcdiff_binary_diff,
+      std::unique_ptr<common::BinaryDiff> brotli_binary_diff,
+      std::unique_ptr<common::BinaryDiff> vcdiff_binary_diff,
       std::unique_ptr<Hasher> hasher,
       std::unique_ptr<CodepointMapper> codepoint_mapper,
       std::unique_ptr<IntegerListChecksum> integer_list_checksum,
@@ -138,7 +139,7 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
   absl::Status Handle(const std::string& font_id,
                       const std::vector<std::string>& accept_encoding,
                       const patch_subset::cbor::PatchRequest& request,
-                      patch_subset::FontData& response, /* OUT */
+                      common::FontData& response, /* OUT */
                       std::string& content_encoding /* OUT */) override;
 
  private:
@@ -162,27 +163,28 @@ class PatchSubsetServerImpl : public PatchSubsetServer {
   void ValidatePatchBase(uint64_t base_checksum, RequestState* state) const;
 
   absl::Status ConstructResponse(const RequestState& state,
-                                 patch_subset::FontData& response,
+                                 common::FontData& response,
                                  std::string& content_encoding) const;
 
-  absl::Status ValidateChecksum(uint64_t checksum, const FontData& data) const;
+  absl::Status ValidateChecksum(uint64_t checksum,
+                                const common::FontData& data) const;
 
   absl::Status CreateClientState(
       const RequestState& state,
       patch_subset::cbor::ClientState& client_state) const;
 
-  void AddVariableAxesData(const FontData& font_data,
+  void AddVariableAxesData(const common::FontData& font_data,
                            patch_subset::cbor::ClientState& client_state) const;
 
-  const BinaryDiff* DiffFor(const std::vector<std::string>& accept_encoding,
-                            bool is_patch,
-                            std::string& encoding /* OUT */) const;
+  const common::BinaryDiff* DiffFor(
+      const std::vector<std::string>& accept_encoding, bool is_patch,
+      std::string& encoding /* OUT */) const;
 
   int max_predicted_codepoints_;
-  std::unique_ptr<FontProvider> font_provider_;
+  std::unique_ptr<common::FontProvider> font_provider_;
   std::unique_ptr<Subsetter> subsetter_;
-  std::unique_ptr<BinaryDiff> brotli_binary_diff_;
-  std::unique_ptr<BinaryDiff> vcdiff_binary_diff_;
+  std::unique_ptr<common::BinaryDiff> brotli_binary_diff_;
+  std::unique_ptr<common::BinaryDiff> vcdiff_binary_diff_;
   std::unique_ptr<Hasher> hasher_;
   std::unique_ptr<CodepointMapper> codepoint_mapper_;
   std::unique_ptr<IntegerListChecksum> integer_list_checksum_;

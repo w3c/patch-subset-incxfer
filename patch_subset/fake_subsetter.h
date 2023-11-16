@@ -5,9 +5,9 @@
 
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "common/font_data.h"
 #include "hb.h"
 #include "patch_subset/cbor/client_state.h"
-#include "patch_subset/font_data.h"
 #include "patch_subset/subsetter.h"
 
 namespace patch_subset {
@@ -19,9 +19,9 @@ class FakeSubsetter : public Subsetter {
  public:
   FakeSubsetter() {}
 
-  absl::Status Subset(const FontData& font, const hb_set_t& codepoints,
+  absl::Status Subset(const common::FontData& font, const hb_set_t& codepoints,
                       const std::string& state_table,
-                      FontData* subset /* OUT */) const override {
+                      common::FontData* subset /* OUT */) const override {
     if (font.empty()) {
       return absl::InternalError("empty font");
     }
@@ -46,7 +46,7 @@ class FakeSubsetter : public Subsetter {
     return absl::OkStatus();
   }
 
-  void CodepointsInFont(const FontData& font,
+  void CodepointsInFont(const common::FontData& font,
                         hb_set_t* codepoints) const override {
     // a - f
     hb_set_add(codepoints, 0x61);

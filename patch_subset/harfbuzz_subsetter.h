@@ -2,8 +2,8 @@
 #define PATCH_SUBSET_HARFBUZZ_SUBSETTER_H_
 
 #include "absl/status/status.h"
+#include "common/font_data.h"
 #include "hb.h"
-#include "patch_subset/font_data.h"
 #include "patch_subset/subsetter.h"
 
 namespace patch_subset {
@@ -13,15 +13,15 @@ class HarfbuzzSubsetter : public Subsetter {
  public:
   HarfbuzzSubsetter() {}
 
-  absl::Status Subset(const FontData& font, const hb_set_t& codepoints,
+  absl::Status Subset(const common::FontData& font, const hb_set_t& codepoints,
                       const std::string& client_state_table,
-                      FontData* subset /* OUT */) const override;
+                      common::FontData* subset /* OUT */) const override;
 
-  void CodepointsInFont(const FontData& font,
+  void CodepointsInFont(const common::FontData& font,
                         hb_set_t* codepoints) const override;
 
  private:
-  bool ShouldRetainGids(const FontData& font) const;
+  bool ShouldRetainGids(const common::FontData& font) const;
 };
 
 }  // namespace patch_subset

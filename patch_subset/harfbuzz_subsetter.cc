@@ -2,13 +2,16 @@
 
 #include "absl/log/log.h"
 #include "absl/status/status.h"
+#include "common/font_data.h"
+#include "common/hb_set_unique_ptr.h"
 #include "hb-subset.h"
-#include "hb_set_unique_ptr.h"
-#include "patch_subset/font_data.h"
 
 namespace patch_subset {
 
 using absl::Status;
+using common::FontData;
+using common::hb_set_unique_ptr;
+using common::make_hb_set;
 
 static unsigned int kRetainGidsThreshold = 5000;
 

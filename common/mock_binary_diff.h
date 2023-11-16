@@ -1,13 +1,13 @@
-#ifndef PATCH_SUBSET_MOCK_BINARY_DIFF_H_
-#define PATCH_SUBSET_MOCK_BINARY_DIFF_H_
+#ifndef COMMON_MOCK_BINARY_DIFF_H_
+#define COMMON_MOCK_BINARY_DIFF_H_
 
 #include <string>
 
+#include "common/binary_diff.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "patch_subset/binary_diff.h"
 
-namespace patch_subset {
+namespace common {
 
 class MockBinaryDiff : public BinaryDiff {
  public:
@@ -17,6 +17,6 @@ class MockBinaryDiff : public BinaryDiff {
               (const override));
 };
 
-}  // namespace patch_subset
+}  // namespace common
 
-#endif  // PATCH_SUBSET_MOCK_BINARY_DIFF_H_
+#endif  // COMMON_MOCK_BINARY_DIFF_H_

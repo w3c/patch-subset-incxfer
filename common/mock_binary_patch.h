@@ -1,14 +1,14 @@
-#ifndef PATCH_SUBSET_MOCK_BINARY_PATCH_H_
-#define PATCH_SUBSET_MOCK_BINARY_PATCH_H_
+#ifndef COMMON_MOCK_BINARY_PATCH_H_
+#define COMMON_MOCK_BINARY_PATCH_H_
 
 #include <string>
 
 #include "absl/strings/string_view.h"
+#include "common/binary_patch.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "patch_subset/binary_patch.h"
 
-namespace patch_subset {
+namespace common {
 
 class MockBinaryPatch : public BinaryPatch {
  public:
@@ -39,6 +39,6 @@ class ApplyPatch {
   ::absl::string_view patched_;
 };
 
-}  // namespace patch_subset
+}  // namespace common
 
-#endif  // PATCH_SUBSET_MOCK_BINARY_PATCH_H_
+#endif  // COMMON_MOCK_BINARY_PATCH_H_

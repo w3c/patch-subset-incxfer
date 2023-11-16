@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "absl/status/status.h"
-#include "patch_subset/brotli_binary_diff.h"
+#include "common/brotli_binary_diff.h"
 #include "patch_subset/memory_request_logger.h"
 #include "patch_subset/request_logger.h"
 
@@ -20,7 +20,7 @@ class BrotliRequestLogger : public RequestLogger {
  public:
   BrotliRequestLogger(MemoryRequestLogger* memory_request_logger)
       : memory_request_logger_(memory_request_logger),
-        brotli_diff_(new BrotliBinaryDiff()) {}
+        brotli_diff_(new common::BrotliBinaryDiff()) {}
 
   absl::Status LogRequest(const std::string& request_data,
                           const std::string& response_data) override;
@@ -30,7 +30,7 @@ class BrotliRequestLogger : public RequestLogger {
                                  std::string* output_data);
 
   MemoryRequestLogger* memory_request_logger_;
-  std::unique_ptr<BrotliBinaryDiff> brotli_diff_;
+  std::unique_ptr<common::BrotliBinaryDiff> brotli_diff_;
 };
 
 }  // namespace patch_subset

@@ -1,8 +1,8 @@
 #include "absl/status/status.h"
 #include "absl/types/span.h"
+#include "common/file_font_provider.h"
+#include "common/font_provider.h"
 #include "gtest/gtest.h"
-#include "patch_subset/file_font_provider.h"
-#include "patch_subset/font_provider.h"
 #include "patch_subset/vcdiff_binary_diff.h"
 #include "patch_subset/vcdiff_binary_patch.h"
 
@@ -10,6 +10,11 @@ namespace patch_subset {
 
 using absl::Span;
 using absl::Status;
+using common::BinaryDiff;
+using common::BinaryPatch;
+using common::FileFontProvider;
+using common::FontData;
+using common::FontProvider;
 
 class VCDIFFPatchingTest : public ::testing::Test {
  protected:

@@ -1,12 +1,14 @@
 #include "patch_subset/codepoint_map.h"
 
 #include "absl/log/log.h"
+#include "common/hb_set_unique_ptr.h"
 #include "hb.h"
-#include "patch_subset/hb_set_unique_ptr.h"
 
 namespace patch_subset {
 
 using absl::Status;
+using common::hb_set_unique_ptr;
+using common::make_hb_set;
 
 void CodepointMap::Clear() {
   encode_map.clear();
