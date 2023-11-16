@@ -8,10 +8,10 @@
 #include "absl/status/status.h"
 #include "absl/types/span.h"
 #include "brotli/brotli_font_diff.h"
+#include "common/brotli_binary_diff.h"
+#include "common/brotli_binary_patch.h"
+#include "common/hb_set_unique_ptr.h"
 #include "hb-subset.h"
-#include "patch_subset/brotli_binary_diff.h"
-#include "patch_subset/brotli_binary_patch.h"
-#include "patch_subset/hb_set_unique_ptr.h"
 
 using namespace std::chrono;
 using std::vector;
@@ -20,11 +20,11 @@ using absl::Span;
 using absl::Status;
 using absl::string_view;
 using brotli::BrotliFontDiff;
-using patch_subset::BrotliBinaryDiff;
-using patch_subset::BrotliBinaryPatch;
-using patch_subset::FontData;
-using patch_subset::hb_set_unique_ptr;
-using patch_subset::make_hb_set;
+using common::BrotliBinaryDiff;
+using common::BrotliBinaryPatch;
+using common::FontData;
+using common::hb_set_unique_ptr;
+using common::make_hb_set;
 
 constexpr bool DUMP_STATE = false;
 constexpr unsigned STATIC_QUALITY = 11;

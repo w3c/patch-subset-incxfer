@@ -19,7 +19,7 @@ cc_library(
         "//visibility:public",
     ],
     deps = [
-        "//patch_subset:common",
+        "//common",
         "@brotli//:brotlienc",
         "@com_google_absl//absl/types:span",
     ],
@@ -51,7 +51,7 @@ cc_test(
     ],
     deps = [
         ":encoding",
-        "//patch_subset:client",
+        "//common",
         "@brotli//:brotlienc",
         "@com_google_absl//absl/types:span",
         "@gtest//:gtest_main",

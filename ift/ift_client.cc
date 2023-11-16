@@ -6,12 +6,12 @@
 #include "absl/container/btree_set.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "common/binary_patch.h"
+#include "common/font_data.h"
 #include "hb.h"
 #include "ift/proto/IFT.pb.h"
 #include "ift/proto/ift_table.h"
 #include "ift/proto/patch_map.h"
-#include "patch_subset/binary_patch.h"
-#include "patch_subset/font_data.h"
 
 using absl::btree_set;
 using absl::flat_hash_map;
@@ -19,18 +19,18 @@ using absl::flat_hash_set;
 using absl::Status;
 using absl::StatusOr;
 using absl::StrCat;
+using common::BinaryPatch;
+using common::FontData;
 using ift::proto::IFTB_ENCODING;
 using ift::proto::IFTTable;
 using ift::proto::PatchEncoding;
 using ift::proto::PatchMap;
 using ift::proto::PER_TABLE_SHARED_BROTLI_ENCODING;
 using ift::proto::SHARED_BROTLI_ENCODING;
-using patch_subset::BinaryPatch;
-using patch_subset::FontData;
 
 namespace ift {
 
-StatusOr<IFTClient> IFTClient::NewClient(patch_subset::FontData&& font) {
+StatusOr<IFTClient> IFTClient::NewClient(common::FontData&& font) {
   IFTClient client;
   auto s = client.SetFont(std::move(font));
   if (!s.ok()) {
@@ -344,7 +344,7 @@ StatusOr<const BinaryPatch*> IFTClient::PatcherFor(
   }
 }
 
-Status IFTClient::SetFont(patch_subset::FontData&& new_font) {
+Status IFTClient::SetFont(common::FontData&& new_font) {
   hb_face_t* face = new_font.reference_face();
 
   auto table = IFTTable::FromFont(face);

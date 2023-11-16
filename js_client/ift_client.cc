@@ -16,24 +16,24 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
+#include "common/font_data.h"
+#include "common/hb_set_unique_ptr.h"
 #include "ift/encoder/encoder.h"
 #include "ift/ift_client.h"
 #include "ift/proto/IFT.pb.h"
-#include "patch_subset/font_data.h"
-#include "patch_subset/hb_set_unique_ptr.h"
 
 using namespace emscripten;
 
 using absl::flat_hash_map;
 using absl::flat_hash_set;
 using absl::string_view;
+using common::FontData;
+using common::hb_set_unique_ptr;
+using common::make_hb_set;
 using ift::IFTClient;
 using ift::encoder::Encoder;
 using ift::proto::DEFAULT_ENCODING;
 using ift::proto::PatchEncoding;
-using patch_subset::FontData;
-using patch_subset::hb_set_unique_ptr;
-using patch_subset::make_hb_set;
 
 void RequestSucceeded(emscripten_fetch_t* fetch) {
   std::string url(fetch->url);

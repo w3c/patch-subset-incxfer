@@ -7,10 +7,10 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
+#include "common/brotli_binary_diff.h"
+#include "common/font_data.h"
 #include "hb-subset.h"
 #include "ift/per_table_brotli_binary_diff.h"
-#include "patch_subset/brotli_binary_diff.h"
-#include "patch_subset/font_data.h"
 
 namespace ift::encoder {
 
@@ -42,8 +42,7 @@ class Encoder {
 
   const std::string& UrlTemplate() const { return url_template_; }
 
-  absl::Status AddExistingIftbPatch(uint32_t id,
-                                    const patch_subset::FontData& patch);
+  absl::Status AddExistingIftbPatch(uint32_t id, const common::FontData& patch);
 
   void SetFace(hb_face_t* face) { face_ = hb_face_reference(face); }
 
@@ -83,7 +82,7 @@ class Encoder {
 
   absl::Span<const uint32_t> Id() const { return id_; }
 
-  const absl::flat_hash_map<uint32_t, patch_subset::FontData>& Patches() const {
+  const absl::flat_hash_map<uint32_t, common::FontData>& Patches() const {
     return patches_;
   }
 
@@ -95,13 +94,12 @@ class Encoder {
    * Returns: the IFT encoded initial font. Patches() will be populated with the
    * set of associated patch files.
    */
-  absl::StatusOr<patch_subset::FontData> Encode();
+  absl::StatusOr<common::FontData> Encode();
 
-  static absl::StatusOr<patch_subset::FontData> EncodeWoff2(
+  static absl::StatusOr<common::FontData> EncodeWoff2(
       absl::string_view font, bool glyf_transform = true);
-  static absl::StatusOr<patch_subset::FontData> DecodeWoff2(
-      absl::string_view font);
-  static absl::StatusOr<patch_subset::FontData> RoundTripWoff2(
+  static absl::StatusOr<common::FontData> DecodeWoff2(absl::string_view font);
+  static absl::StatusOr<common::FontData> RoundTripWoff2(
       absl::string_view font, bool glyf_transform = true);
 
  private:
@@ -140,7 +138,7 @@ class Encoder {
    * Returns: the IFT encoded initial font. Patches() will be populated with the
    * set of associated patch files.
    */
-  absl::StatusOr<patch_subset::FontData> Encode(
+  absl::StatusOr<common::FontData> Encode(
       const SubsetDefinition& base_subset,
       std::vector<const SubsetDefinition*> subsets, bool is_root = true);
 
@@ -149,10 +147,10 @@ class Encoder {
 
   bool IsMixedMode() const { return !existing_iftb_patches_.empty(); }
 
-  absl::StatusOr<patch_subset::FontData> CutSubset(hb_face_t* font,
-                                                   const SubsetDefinition& def);
+  absl::StatusOr<common::FontData> CutSubset(hb_face_t* font,
+                                             const SubsetDefinition& def);
 
-  patch_subset::BrotliBinaryDiff binary_diff_;
+  common::BrotliBinaryDiff binary_diff_;
   ift::PerTableBrotliBinaryDiff per_table_binary_diff_;
 
   // IN
@@ -168,8 +166,8 @@ class Encoder {
 
   // OUT
   uint32_t next_id_ = 0;
-  absl::flat_hash_map<SubsetDefinition, patch_subset::FontData> built_subsets_;
-  absl::flat_hash_map<uint32_t, patch_subset::FontData> patches_;
+  absl::flat_hash_map<SubsetDefinition, common::FontData> built_subsets_;
+  absl::flat_hash_map<uint32_t, common::FontData> patches_;
 };
 
 }  // namespace ift::encoder

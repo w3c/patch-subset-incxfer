@@ -13,25 +13,27 @@
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "common/brotli_binary_patch.h"
+#include "common/hb_set_unique_ptr.h"
 #include "hb.h"
-#include "patch_subset/brotli_binary_patch.h"
 #include "patch_subset/cbor/client_state.h"
 #include "patch_subset/cbor/patch_request.h"
 #include "patch_subset/compressed_set.h"
 #include "patch_subset/fast_hasher.h"
-#include "patch_subset/hb_set_unique_ptr.h"
 #include "patch_subset/integer_list_checksum_impl.h"
 
 using namespace emscripten;
 using absl::Status;
 using absl::StatusOr;
+using common::BinaryPatch;
+using common::BrotliBinaryPatch;
+using common::FontData;
+using common::hb_set_unique_ptr;
+using common::make_hb_set;
 using patch_subset::CompressedSet;
 using patch_subset::FastHasher;
-using patch_subset::FontData;
-using patch_subset::hb_set_unique_ptr;
 using patch_subset::IntegerListChecksum;
 using patch_subset::IntegerListChecksumImpl;
-using patch_subset::make_hb_set;
 using patch_subset::PatchSubsetClient;
 using patch_subset::cbor::ClientState;
 using patch_subset::cbor::PatchRequest;
@@ -133,12 +135,10 @@ class State {
       : _font_id(font_id),
         _hasher(),
         _subset(),
-        _client(std::unique_ptr<patch_subset::BinaryPatch>(
-                    new patch_subset::BrotliBinaryPatch()),
-                std::unique_ptr<patch_subset::Hasher>(
-                    new patch_subset::FastHasher()),
+        _client(std::unique_ptr<BinaryPatch>(new BrotliBinaryPatch()),
+                std::unique_ptr<patch_subset::Hasher>(new FastHasher()),
                 std::unique_ptr<patch_subset::IntegerListChecksum>(
-                    new patch_subset::IntegerListChecksumImpl(&_hasher))) {}
+                    new IntegerListChecksumImpl(&_hasher))) {}
 
   void init_from(std::string buffer) { _subset.copy(buffer); }
 

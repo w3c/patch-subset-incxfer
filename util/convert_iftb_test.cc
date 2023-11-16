@@ -3,14 +3,14 @@
 #include <set>
 #include <string>
 
+#include "common/sparse_bit_set.h"
 #include "gtest/gtest.h"
 #include "hb.h"
 #include "ift/proto/IFT.pb.h"
-#include "patch_subset/sparse_bit_set.h"
 
+using ::common::SparseBitSet;
 using ::ift::proto::IFT;
 using ::ift::proto::SubsetMapping;
-using ::patch_subset::SparseBitSet;
 
 namespace util {
 

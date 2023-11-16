@@ -2,9 +2,9 @@
 #define BROTLI_BROTLI_FONT_DIFF_H_
 
 #include "absl/status/status.h"
+#include "common/font_data.h"
+#include "common/hb_set_unique_ptr.h"
 #include "hb-subset.h"
-#include "patch_subset/font_data.h"
-#include "patch_subset/hb_set_unique_ptr.h"
 
 namespace brotli {
 
@@ -28,11 +28,11 @@ class BrotliFontDiff {
 
   absl::Status Diff(hb_subset_plan_t* base_plan, hb_blob_t* base,
                     hb_subset_plan_t* derived_plan, hb_blob_t* derived,
-                    patch_subset::FontData* patch) const;
+                    common::FontData* patch) const;
 
  private:
-  patch_subset::hb_set_unique_ptr immutable_tables_;
-  patch_subset::hb_set_unique_ptr custom_diff_tables_;
+  common::hb_set_unique_ptr immutable_tables_;
+  common::hb_set_unique_ptr custom_diff_tables_;
 };
 
 }  // namespace brotli

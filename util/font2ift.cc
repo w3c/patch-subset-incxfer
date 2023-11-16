@@ -9,11 +9,11 @@
 #include "absl/flags/parse.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "common/font_data.h"
 #include "hb.h"
 #include "ift/encoder/encoder.h"
 #include "ift/ift_client.h"
 #include "ift/iftb_binary_patch.h"
-#include "patch_subset/font_data.h"
 
 /*
  * Utility that converts a standard font file into an IFT font file.
@@ -38,10 +38,10 @@ using absl::flat_hash_set;
 using absl::Status;
 using absl::StatusOr;
 using absl::StrCat;
+using common::FontData;
 using ift::IftbBinaryPatch;
 using ift::IFTClient;
 using ift::encoder::Encoder;
-using patch_subset::FontData;
 
 FontData load_iftb_patch(uint32_t index) {
   std::string path = IFTClient::PatchToUrl(

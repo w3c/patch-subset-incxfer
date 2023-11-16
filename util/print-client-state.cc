@@ -6,11 +6,11 @@
 #include <string>
 
 #include "absl/status/status.h"
+#include "common/font_data.h"
 #include "patch_subset/cbor/client_state.h"
-#include "patch_subset/font_data.h"
 
 using absl::Status;
-using patch_subset::FontData;
+using common::FontData;
 using patch_subset::cbor::ClientState;
 
 void print_ordering(const std::vector<int32_t>& ordering) {
@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  patch_subset::FontData font(std::string_view(buffer, size));
+  common::FontData font(std::string_view(buffer, size));
   hb_face_t* face = font.reference_face();
   auto r = ClientState::FromFont(face);
   hb_face_destroy(face);

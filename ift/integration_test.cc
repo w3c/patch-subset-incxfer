@@ -3,25 +3,25 @@
 
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/str_cat.h"
+#include "common/font_data.h"
+#include "common/hb_set_unique_ptr.h"
 #include "gtest/gtest.h"
 #include "hb.h"
 #include "ift/encoder/encoder.h"
 #include "ift/ift_client.h"
-#include "patch_subset/font_data.h"
-#include "patch_subset/hb_set_unique_ptr.h"
 
 using absl::btree_set;
 using absl::flat_hash_set;
 using absl::Status;
 using absl::StrCat;
+using common::FontData;
+using common::hb_set_unique_ptr;
+using common::make_hb_set;
 using ift::IFTClient;
 using ift::encoder::Encoder;
 using ift::proto::IFTB_ENCODING;
 using ift::proto::PatchEncoding;
 using ift::proto::PER_TABLE_SHARED_BROTLI_ENCODING;
-using patch_subset::FontData;
-using patch_subset::hb_set_unique_ptr;
-using patch_subset::make_hb_set;
 
 namespace ift {
 
@@ -49,7 +49,7 @@ class IntegrationTest : public ::testing::Test {
   btree_set<uint32_t> ToCodepointsSet(const FontData& font_data) {
     hb_face_t* face = font_data.reference_face();
 
-    hb_set_unique_ptr codepoints = patch_subset::make_hb_set();
+    hb_set_unique_ptr codepoints = make_hb_set();
     hb_face_collect_unicodes(face, codepoints.get());
     hb_face_destroy(face);
 

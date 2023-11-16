@@ -4,20 +4,20 @@
 
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
+#include "common/font_data.h"
 #include "common/font_helper.h"
 #include "gtest/gtest.h"
 #include "hb-subset.h"
 #include "hb.h"
 #include "ift/proto/ift_table.h"
-#include "patch_subset/font_data.h"
 
 using absl::flat_hash_set;
 using absl::StatusOr;
 using absl::StrCat;
 using absl::string_view;
+using common::FontData;
 using common::FontHelper;
 using ift::proto::IFTTable;
-using patch_subset::FontData;
 
 namespace ift {
 

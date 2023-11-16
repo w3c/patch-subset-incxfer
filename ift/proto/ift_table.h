@@ -6,10 +6,10 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
+#include "common/font_data.h"
 #include "hb.h"
 #include "ift/proto/IFT.pb.h"
 #include "ift/proto/patch_map.h"
-#include "patch_subset/font_data.h"
 
 namespace ift::proto {
 
@@ -27,7 +27,7 @@ class IFTTable {
   /*
    * Returns the IFT table found in 'font'.
    */
-  static absl::StatusOr<IFTTable> FromFont(const patch_subset::FontData& font);
+  static absl::StatusOr<IFTTable> FromFont(const common::FontData& font);
 
   /*
    * Converts IFT proto into an IFTTable object.
@@ -41,7 +41,7 @@ class IFTTable {
    * if present will be be removed and tables in the final font will be ordered
    * according to IFTB ordering requirements.
    */
-  static absl::StatusOr<patch_subset::FontData> AddToFont(
+  static absl::StatusOr<common::FontData> AddToFont(
       hb_face_t* face, const IFT& proto, const IFT* extension_proto = nullptr,
       bool iftb_conversion = false);
 
