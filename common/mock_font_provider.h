@@ -1,12 +1,12 @@
-#ifndef PATCH_SUBSET_MOCK_FONT_PROVIDER_H_
-#define PATCH_SUBSET_MOCK_FONT_PROVIDER_H_
+#ifndef COMMON_MOCK_FONT_PROVIDER_H_
+#define COMMON_MOCK_FONT_PROVIDER_H_
 
 #include <string>
 
+#include "common/font_provider.h"
 #include "gtest/gtest.h"
-#include "patch_subset/font_provider.h"
 
-namespace patch_subset {
+namespace common {
 
 // Provides fonts by loading them from a directory on the file system.
 class MockFontProvider : public FontProvider {
@@ -15,6 +15,6 @@ class MockFontProvider : public FontProvider {
               (const override));
 };
 
-}  // namespace patch_subset
+}  // namespace common
 
-#endif  // PATCH_SUBSET_MOCK_FONT_PROVIDER_H_
+#endif  // COMMON_MOCK_FONT_PROVIDER_H_

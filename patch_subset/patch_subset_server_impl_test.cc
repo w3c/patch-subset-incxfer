@@ -3,6 +3,9 @@
 #include <algorithm>
 
 #include "absl/strings/string_view.h"
+#include "common/hb_set_unique_ptr.h"
+#include "common/mock_binary_diff.h"
+#include "common/mock_font_provider.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "hb.h"
@@ -10,10 +13,7 @@
 #include "patch_subset/compressed_set.h"
 #include "patch_subset/encodings.h"
 #include "patch_subset/fake_subsetter.h"
-#include "patch_subset/hb_set_unique_ptr.h"
-#include "patch_subset/mock_binary_diff.h"
 #include "patch_subset/mock_codepoint_predictor.h"
-#include "patch_subset/mock_font_provider.h"
 #include "patch_subset/mock_hasher.h"
 #include "patch_subset/mock_integer_list_checksum.h"
 #include "patch_subset/simple_codepoint_mapper.h"
@@ -22,6 +22,14 @@ namespace patch_subset {
 
 using absl::Status;
 using absl::string_view;
+using common::BinaryDiff;
+using common::FontData;
+using common::FontProvider;
+using common::hb_set_unique_ptr;
+using common::make_hb_set;
+using common::make_hb_set_from_ranges;
+using common::MockBinaryDiff;
+using common::MockFontProvider;
 using patch_subset::MockIntegerListChecksum;
 using patch_subset::cbor::ClientState;
 using patch_subset::cbor::PatchRequest;

@@ -4,13 +4,14 @@
 
 #include "absl/log/log.h"
 #include "absl/status/status.h"
+#include "common/font_data.h"
 #include "google/vcencoder.h"
-#include "patch_subset/font_data.h"
 
 namespace patch_subset {
 
 using absl::Status;
 using absl::string_view;
+using common::FontData;
 
 Status VCDIFFBinaryDiff::Diff(const FontData& font_base,
                               const FontData& font_derived,

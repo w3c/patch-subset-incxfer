@@ -2,20 +2,21 @@
 #define PATCH_SUBSET_VCDIFF_BINARY_PATCH_H_
 
 #include "absl/status/status.h"
-#include "patch_subset/binary_patch.h"
-#include "patch_subset/font_data.h"
+#include "common/binary_patch.h"
+#include "common/font_data.h"
 
 namespace patch_subset {
 
 // Applies a patch that was created using vcdiff.
-class VCDIFFBinaryPatch : public BinaryPatch {
+class VCDIFFBinaryPatch : public common::BinaryPatch {
  public:
-  absl::Status Patch(const FontData& font_base, const FontData& patch,
-                     FontData* font_derived /* OUT */) const override;
+  absl::Status Patch(const common::FontData& font_base,
+                     const common::FontData& patch,
+                     common::FontData* font_derived /* OUT */) const override;
 
-  absl::Status Patch(const FontData& font_base,
-                     const std::vector<FontData>& patch,
-                     FontData* font_derived) const override;
+  absl::Status Patch(const common::FontData& font_base,
+                     const std::vector<common::FontData>& patch,
+                     common::FontData* font_derived) const override;
 };
 
 }  // namespace patch_subset

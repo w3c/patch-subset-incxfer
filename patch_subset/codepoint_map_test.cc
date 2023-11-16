@@ -1,12 +1,14 @@
 #include "patch_subset/codepoint_map.h"
 
 #include "absl/status/status.h"
+#include "common/hb_set_unique_ptr.h"
 #include "gtest/gtest.h"
-#include "patch_subset/hb_set_unique_ptr.h"
 
 namespace patch_subset {
 
 using absl::Status;
+using common::hb_set_unique_ptr;
+using common::make_hb_set;
 
 class CodepointMapTest : public ::testing::Test {
  protected:

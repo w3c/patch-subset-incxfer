@@ -1,13 +1,14 @@
+#include "common/brotli_binary_diff.h"
+#include "common/brotli_binary_patch.h"
+#include "common/file_font_provider.h"
+#include "common/font_data.h"
+#include "common/hb_set_unique_ptr.h"
 #include "gtest/gtest.h"
-#include "patch_subset/brotli_binary_diff.h"
-#include "patch_subset/brotli_binary_patch.h"
 #include "patch_subset/codepoint_mapper.h"
 #include "patch_subset/compressed_set.h"
 #include "patch_subset/encodings.h"
 #include "patch_subset/fast_hasher.h"
-#include "patch_subset/file_font_provider.h"
 #include "patch_subset/harfbuzz_subsetter.h"
-#include "patch_subset/hb_set_unique_ptr.h"
 #include "patch_subset/noop_codepoint_predictor.h"
 #include "patch_subset/patch_subset_server_impl.h"
 #include "patch_subset/vcdiff_binary_diff.h"
@@ -17,6 +18,15 @@ namespace patch_subset {
 
 using absl::Status;
 using absl::string_view;
+using common::BinaryDiff;
+using common::BinaryPatch;
+using common::BrotliBinaryDiff;
+using common::BrotliBinaryPatch;
+using common::FileFontProvider;
+using common::FontData;
+using common::FontProvider;
+using common::hb_set_unique_ptr;
+using common::make_hb_set_from_ranges;
 using patch_subset::cbor::AxisInterval;
 using patch_subset::cbor::AxisSpace;
 using patch_subset::cbor::ClientState;

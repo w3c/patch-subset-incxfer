@@ -4,12 +4,12 @@
 #include <vector>
 
 #include "absl/status/status.h"
-#include "patch_subset/brotli_binary_diff.h"
-#include "patch_subset/font_data.h"
+#include "common/font_data.h"
 
 namespace patch_subset {
 
 using absl::Status;
+using common::FontData;
 
 Status BrotliRequestLogger::LogRequest(const std::string& request_data,
                                        const std::string& response_data) {

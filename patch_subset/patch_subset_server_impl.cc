@@ -4,6 +4,7 @@
 
 #include "absl/log/log.h"
 #include "absl/strings/string_view.h"
+#include "common/hb_set_unique_ptr.h"
 #include "hb-ot.h"
 #include "hb-subset.h"
 #include "hb.h"
@@ -13,12 +14,15 @@
 #include "patch_subset/codepoint_mapper.h"
 #include "patch_subset/compressed_set.h"
 #include "patch_subset/encodings.h"
-#include "patch_subset/hb_set_unique_ptr.h"
 
 namespace patch_subset {
 
 using absl::Status;
 using absl::string_view;
+using common::BinaryDiff;
+using common::FontData;
+using common::hb_set_unique_ptr;
+using common::make_hb_set;
 using patch_subset::cbor::AxisInterval;
 using patch_subset::cbor::AxisSpace;
 using patch_subset::cbor::ClientState;

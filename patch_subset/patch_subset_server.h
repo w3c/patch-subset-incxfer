@@ -2,8 +2,8 @@
 #define PATCH_SUBSET_PATCH_SUBSET_SERVER_H_
 
 #include "absl/status/status.h"
+#include "common/font_data.h"
 #include "patch_subset/cbor/patch_request.h"
-#include "patch_subset/font_data.h"
 
 namespace patch_subset {
 
@@ -21,7 +21,7 @@ class PatchSubsetServer {
   virtual absl::Status Handle(const std::string& font_id,
                               const std::vector<std::string>& accept_encoding,
                               const patch_subset::cbor::PatchRequest& request,
-                              patch_subset::FontData& response, /* OUT */
+                              common::FontData& response, /* OUT */
                               std::string& content_encoding /* OUT */) = 0;
 };
 

@@ -4,14 +4,17 @@
 
 #include "absl/status/status.h"
 #include "analysis/pfe_methods/unicode_range_data/slicing_strategy.pb.h"
+#include "common/hb_set_unique_ptr.h"
 #include "gtest/gtest.h"
-#include "patch_subset/hb_set_unique_ptr.h"
 
 namespace patch_subset {
 
 using analysis::pfe_methods::unicode_range_data::Codepoint;
 using analysis::pfe_methods::unicode_range_data::SlicingStrategy;
 using analysis::pfe_methods::unicode_range_data::Subset;
+using common::hb_set_unique_ptr;
+using common::make_hb_set;
+using common::make_hb_set_from_ranges;
 
 class FrequencyCodepointPredictorTest : public ::testing::Test {
  protected:

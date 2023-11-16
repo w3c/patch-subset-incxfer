@@ -2,14 +2,20 @@
 
 #include <memory>
 
+#include "common/file_font_provider.h"
+#include "common/hb_set_unique_ptr.h"
 #include "gtest/gtest.h"
 #include "hb.h"
-#include "patch_subset/file_font_provider.h"
-#include "patch_subset/hb_set_unique_ptr.h"
 
 namespace patch_subset {
 
 using absl::Status;
+using common::FileFontProvider;
+using common::FontData;
+using common::FontProvider;
+using common::hb_set_unique_ptr;
+using common::make_hb_set;
+using common::make_hb_set_from_ranges;
 
 class HarfbuzzSubsetterTest : public ::testing::Test {
  protected:
