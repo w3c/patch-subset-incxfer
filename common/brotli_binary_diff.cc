@@ -1,13 +1,13 @@
-#include "patch_subset/brotli_binary_diff.h"
+#include "common/brotli_binary_diff.h"
 
 #include <vector>
 
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "brotli/shared_brotli_encoder.h"
-#include "patch_subset/font_data.h"
+#include "common/font_data.h"
 
-namespace patch_subset {
+namespace common {
 
 using absl::Status;
 using absl::string_view;
@@ -62,4 +62,4 @@ Status BrotliBinaryDiff::Diff(const FontData& font_base, string_view data,
   return absl::OkStatus();
 }
 
-}  // namespace patch_subset
+}  // namespace common

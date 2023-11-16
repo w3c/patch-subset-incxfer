@@ -5,8 +5,8 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
+#include "common/font_data.h"
 #include "hb.h"
-#include "patch_subset/font_data.h"
 
 namespace common {
 
@@ -75,14 +75,14 @@ class FontHelper {
     return result;
   }
 
-  static patch_subset::FontData TableData(hb_face_t* face, hb_tag_t tag) {
+  static FontData TableData(hb_face_t* face, hb_tag_t tag) {
     hb_blob_t* blob = hb_face_reference_table(face, tag);
-    patch_subset::FontData result(blob);
+    FontData result(blob);
     hb_blob_destroy(blob);
     return result;
   }
 
-  static patch_subset::FontData BuildFont(
+  static FontData BuildFont(
       const absl::flat_hash_map<hb_tag_t, std::string> tables) {
     hb_face_t* builder = hb_face_builder_create();
     for (const auto& e : tables) {
@@ -94,7 +94,7 @@ class FontHelper {
     }
 
     hb_blob_t* blob = hb_face_reference_blob(builder);
-    patch_subset::FontData result(blob);
+    FontData result(blob);
     hb_blob_destroy(blob);
     hb_face_destroy(builder);
     return result;

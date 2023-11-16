@@ -1,13 +1,13 @@
-#ifndef PATCH_SUBSET_BROTLI_BINARY_DIFF_H_
-#define PATCH_SUBSET_BROTLI_BINARY_DIFF_H_
+#ifndef COMMON_BROTLI_BINARY_DIFF_H_
+#define COMMON_BROTLI_BINARY_DIFF_H_
 
 #include <vector>
 
 #include "absl/status/status.h"
-#include "patch_subset/binary_diff.h"
-#include "patch_subset/font_data.h"
+#include "common/binary_diff.h"
+#include "common/font_data.h"
 
-namespace patch_subset {
+namespace common {
 
 // Computes a binary diff using brotli compression
 // with a shared dictionary.
@@ -28,6 +28,6 @@ class BrotliBinaryDiff : public BinaryDiff {
   unsigned quality_;
 };
 
-}  // namespace patch_subset
+}  // namespace common
 
-#endif  // PATCH_SUBSET_BROTLI_BINARY_DIFF_H_
+#endif  // COMMON_BROTLI_BINARY_DIFF_H_

@@ -1,18 +1,18 @@
-#include "patch_subset/brotli_binary_patch.h"
+#include "common/brotli_binary_patch.h"
 
 #include <vector>
 
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "brotli/decode.h"
-#include "patch_subset/binary_patch.h"
-#include "patch_subset/font_data.h"
+#include "common/binary_patch.h"
+#include "common/font_data.h"
 
 typedef std::unique_ptr<BrotliDecoderState,
                         decltype(&BrotliDecoderDestroyInstance)>
     DecoderStatePointer;
 
-namespace patch_subset {
+namespace common {
 
 using absl::Status;
 using absl::string_view;
@@ -115,4 +115,4 @@ Status BrotliBinaryPatch::Patch(const FontData& font_base,
       "Brotli binary patches cannot be applied independently");
 }
 
-}  // namespace patch_subset
+}  // namespace common

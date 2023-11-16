@@ -1,12 +1,12 @@
 #include "absl/status/status.h"
 #include "absl/types/span.h"
+#include "common/brotli_binary_diff.h"
+#include "common/brotli_binary_patch.h"
+#include "common/file_font_provider.h"
+#include "common/font_provider.h"
 #include "gtest/gtest.h"
-#include "patch_subset/brotli_binary_diff.h"
-#include "patch_subset/brotli_binary_patch.h"
-#include "patch_subset/file_font_provider.h"
-#include "patch_subset/font_provider.h"
 
-namespace patch_subset {
+namespace common {
 
 using absl::Span;
 using absl::Status;
@@ -109,4 +109,4 @@ TEST_F(BrotliPatchingTest, StitchingWithBase) {
   EXPECT_EQ(Span<const char>(patched), Span<const char>(subset_b_));
 }
 
-}  // namespace patch_subset
+}  // namespace common

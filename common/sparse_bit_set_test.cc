@@ -1,14 +1,14 @@
-#include "patch_subset/sparse_bit_set.h"
+#include "common/sparse_bit_set.h"
 
 #include <bitset>
 #include <vector>
 
 #include "absl/status/status.h"
+#include "common/hb_set_unique_ptr.h"
 #include "gtest/gtest.h"
 #include "hb.h"
-#include "patch_subset/hb_set_unique_ptr.h"
 
-namespace patch_subset {
+namespace common {
 
 using absl::Status;
 using std::bitset;
@@ -672,4 +672,4 @@ TEST_F(SparseBitSetTest, RegressionTest32BitRanges) {
   TestEncodeDecode(make_hb_set(2, 1, 2546490705), BF32);
 }
 
-}  // namespace patch_subset
+}  // namespace common

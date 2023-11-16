@@ -1,12 +1,12 @@
-#ifndef PATCH_SUBSET_FONT_PROVIDER_H_
-#define PATCH_SUBSET_FONT_PROVIDER_H_
+#ifndef COMMON_FONT_PROVIDER_H_
+#define COMMON_FONT_PROVIDER_H_
 
 #include <string>
 
 #include "absl/status/status.h"
-#include "patch_subset/font_data.h"
+#include "common/font_data.h"
 
-namespace patch_subset {
+namespace common {
 
 // Interface for an object which can provide font binaries associated
 // with a key.
@@ -20,6 +20,6 @@ class FontProvider {
   virtual absl::Status GetFont(const std::string& id, FontData* out) const = 0;
 };
 
-}  // namespace patch_subset
+}  // namespace common
 
-#endif  // PATCH_SUBSET_FONT_PROVIDER_H_
+#endif  // COMMON_FONT_PROVIDER_H_

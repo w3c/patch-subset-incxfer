@@ -1,12 +1,12 @@
-#ifndef PATCH_SUBSET_BIT_INPUT_BUFFER_H_
-#define PATCH_SUBSET_BIT_INPUT_BUFFER_H_
+#ifndef COMMON_BIT_INPUT_BUFFER_H_
+#define COMMON_BIT_INPUT_BUFFER_H_
 
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "patch_subset/branch_factor.h"
+#include "common/branch_factor.h"
 
-namespace patch_subset {
+namespace common {
 
 /*
  * A class for reading from an encoded sparse bit set. Groups of 4, 8, 16 or 32
@@ -34,6 +34,6 @@ class BitInputBuffer {
   bool first_nibble;
 };
 
-}  // namespace patch_subset
+}  // namespace common
 
-#endif  // PATCH_SUBSET_BIT_INPUT_BUFFER_H_
+#endif  // COMMON_BIT_INPUT_BUFFER_H_

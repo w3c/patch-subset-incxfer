@@ -1,9 +1,9 @@
-#ifndef PATCH_SUBSET_BRANCH_FACTOR_H_
-#define PATCH_SUBSET_BRANCH_FACTOR_H_
+#ifndef COMMON_BRANCH_FACTOR_H_
+#define COMMON_BRANCH_FACTOR_H_
 
 #include <stdint.h>
 
-namespace patch_subset {
+namespace common {
 
 enum BranchFactor { BF2, BF4, BF8, BF32 };
 
@@ -37,6 +37,6 @@ const uint32_t kBFTwigSizeBitMask[]{0b11, 0b1111, 0b111111, 0b1111111111};
 // Max depth of trees. Enough to encode the entire 32 bit range 0..0xFFFFFFFF.
 const uint32_t kBFMaxDepth[]{32, 16, 11, 7};
 
-}  // namespace patch_subset
+}  // namespace common
 
-#endif  // PATCH_SUBSET_BRANCH_FACTOR_H_
+#endif  // COMMON_BRANCH_FACTOR_H_
