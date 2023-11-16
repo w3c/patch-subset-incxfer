@@ -21,6 +21,13 @@ class PatchMap {
            encoding == PER_TABLE_SHARED_BROTLI_ENCODING;
   }
 
+  enum Modification {
+    MODIFIED_NEITHER,
+    MODIFIED_MAIN,
+    MODIFIED_EXTENSION,
+    MODIFIED_BOTH,
+  };
+
   struct Coverage {
     // TODO(garretrieger): move constructors?
     static absl::StatusOr<Coverage> FromProto(
@@ -100,7 +107,8 @@ class PatchMap {
 
   void AddEntry(const Coverage& coverage, uint32_t patch_index,
                 ift::proto::PatchEncoding, bool is_extension = false);
-  void RemoveEntries(uint32_t patch_index);
+
+  Modification RemoveEntries(uint32_t patch_index);
 
  private:
   // TODO(garretrieger): keep an index which maps from patch_index to entry

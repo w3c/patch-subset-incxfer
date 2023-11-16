@@ -54,9 +54,16 @@ class IFTTable {
   const std::string& GetUrlTemplate() const { return url_template_; }
 
   /*
-   * Adds a copy of this table to the supplied 'face'.
+   * Converts this abstract representation to the proto representation.
+   * This method generates the proto for the main "IFT " table.
    */
-  absl::StatusOr<patch_subset::FontData> AddToFont(hb_face_t* face);
+  IFT CreateMainTable();
+
+  /*
+   * Converts this abstract representation to the proto representation.
+   * This method generates the proto for the extension "IFTX" table.
+   */
+  IFT CreateExtensionTable();
 
  private:
   std::string url_template_;
