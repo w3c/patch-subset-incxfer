@@ -186,7 +186,9 @@ TEST_F(IFTTableTest, RoundTrip_WithExtension) {
   table.GetPatchMap().AddEntry({30}, 3, SHARED_BROTLI_ENCODING, true);
   table.GetPatchMap().AddEntry({40}, 4, SHARED_BROTLI_ENCODING, true);
 
-  auto font = table.AddToFont(roboto_ab);
+  IFT main = table.CreateMainTable();
+  IFT ext = table.CreateExtensionTable();
+  auto font = IFTTable::AddToFont(roboto_ab, main, &ext);
   ASSERT_TRUE(font.ok()) << font.status();
 
   auto table_from_font = IFTTable::FromFont(*font);

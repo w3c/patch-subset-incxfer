@@ -207,7 +207,7 @@ TEST_F(PatchMapTest, RemoveEntries) {
   auto map = PatchMap::FromProto(sample);
   ASSERT_TRUE(map.ok()) << map.status();
 
-  map->RemoveEntries(1);
+  ASSERT_EQ(map->RemoveEntries(1), PatchMap::MODIFIED_MAIN);
 
   PatchMap expected = {
       {{55, 56, 57}, 2, IFTB_ENCODING},
@@ -224,7 +224,7 @@ TEST_F(PatchMapTest, RemoveEntries_Multiple) {
   map.AddEntry({7, 8}, 3, SHARED_BROTLI_ENCODING);
   map.AddEntry({9, 10}, 5, SHARED_BROTLI_ENCODING);
 
-  map.RemoveEntries(3);
+  ASSERT_EQ(map.RemoveEntries(3), PatchMap::MODIFIED_MAIN);
 
   PatchMap expected = {
       {{3, 4}, 1, SHARED_BROTLI_ENCODING},
@@ -243,7 +243,7 @@ TEST_F(PatchMapTest, RemoveEntries_NotFound) {
   map.AddEntry({7, 8}, 3, SHARED_BROTLI_ENCODING);
   map.AddEntry({9, 10}, 5, SHARED_BROTLI_ENCODING);
 
-  map.RemoveEntries(7);
+  ASSERT_EQ(map.RemoveEntries(7), PatchMap::MODIFIED_NEITHER);
 
   PatchMap expected = {
       {{1, 2}, 3, SHARED_BROTLI_ENCODING},  {{3, 4}, 1, SHARED_BROTLI_ENCODING},
@@ -254,12 +254,41 @@ TEST_F(PatchMapTest, RemoveEntries_NotFound) {
   ASSERT_EQ(map, expected);
 }
 
+TEST_F(PatchMapTest, RemoveEntries_Extension) {
+  PatchMap map;
+  map.AddEntry({1, 2}, 3, SHARED_BROTLI_ENCODING);
+  map.AddEntry({3, 4}, 1, SHARED_BROTLI_ENCODING);
+  map.AddEntry({5, 6}, 2, SHARED_BROTLI_ENCODING);
+  map.AddEntry({7, 8}, 3, SHARED_BROTLI_ENCODING, true);
+  map.AddEntry({9, 10}, 5, SHARED_BROTLI_ENCODING, true);
+
+  ASSERT_EQ(map.RemoveEntries(5), PatchMap::MODIFIED_EXTENSION);
+
+  PatchMap expected = {
+      {{1, 2}, 3, SHARED_BROTLI_ENCODING},
+      {{3, 4}, 1, SHARED_BROTLI_ENCODING},
+      {{5, 6}, 2, SHARED_BROTLI_ENCODING},
+      {{7, 8}, 3, SHARED_BROTLI_ENCODING, true},
+  };
+
+  ASSERT_EQ(map, expected);
+
+  ASSERT_EQ(map.RemoveEntries(3), PatchMap::MODIFIED_BOTH);
+
+  expected = {
+      {{3, 4}, 1, SHARED_BROTLI_ENCODING},
+      {{5, 6}, 2, SHARED_BROTLI_ENCODING},
+  };
+
+  ASSERT_EQ(map, expected);
+}
+
 TEST_F(PatchMapTest, RemovePatches_All) {
   auto map = PatchMap::FromProto(sample);
   ASSERT_TRUE(map.ok()) << map.status();
 
-  map->RemoveEntries(1);
-  map->RemoveEntries(2);
+  ASSERT_EQ(map->RemoveEntries(1), PatchMap::MODIFIED_MAIN);
+  ASSERT_EQ(map->RemoveEntries(2), PatchMap::MODIFIED_MAIN);
 
   PatchMap expected = {};
   ASSERT_EQ(*map, expected);

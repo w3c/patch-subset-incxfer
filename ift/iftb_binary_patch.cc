@@ -7,6 +7,7 @@
 #include "absl/strings/str_cat.h"
 #include "common/font_helper.h"
 #include "ift/proto/ift_table.h"
+#include "ift/proto/patch_map.h"
 #include "merger.h"
 #include "patch_subset/font_data.h"
 
@@ -15,7 +16,9 @@ using absl::Status;
 using absl::StatusOr;
 using absl::StrCat;
 using common::FontHelper;
+using ift::proto::IFT;
 using ift::proto::IFTTable;
+using ift::proto::PatchMap;
 using iftb::merger;
 using iftb::sfnt;
 using patch_subset::FontData;
@@ -170,8 +173,12 @@ Status IftbBinaryPatch::Patch(const FontData& font_base,
   // sfnt.write() needs to be called to realize table directory changes
   sfnt.write(false);
 
+  bool touched_ext = false;
   for (uint32_t patch_index : patch_indices) {
-    ift_table->GetPatchMap().RemoveEntries(patch_index);
+    auto modification = ift_table->GetPatchMap().RemoveEntries(patch_index);
+    touched_ext =
+        touched_ext || (modification == PatchMap::MODIFIED_EXTENSION ||
+                        modification == PatchMap::MODIFIED_BOTH);
   }
 
   hb_blob_t* blob = hb_blob_create(new_font_data.data(), new_length,
@@ -179,7 +186,11 @@ Status IftbBinaryPatch::Patch(const FontData& font_base,
   face = hb_face_create(blob, 0);
   hb_blob_destroy(blob);
 
-  auto result = ift_table->AddToFont(face);
+  IFT main_proto = ift_table->CreateMainTable();
+  IFT ext_proto = ift_table->CreateExtensionTable();
+  auto result =
+      IFTTable::AddToFont(face, main_proto, touched_ext ? &ext_proto : nullptr);
+
   hb_face_destroy(face);
   if (!result.ok()) {
     return result.status();

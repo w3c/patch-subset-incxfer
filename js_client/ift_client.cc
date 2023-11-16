@@ -162,7 +162,8 @@ void State::Process() {
   if (inflight_urls_.empty()) {
     auto state = client_->Process();
     if (!state.ok()) {
-      LOG(WARNING) << "Failed to process in the client: " << sc.message();
+      LOG(WARNING) << "Failed to process in the client: "
+                   << state.status().message();
       SendCallbacks(false);
       return;
     }

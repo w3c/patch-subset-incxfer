@@ -25,7 +25,7 @@ namespace ift::encoder {
 class Encoder {
  public:
   Encoder()
-      : binary_diff_(11), per_table_binary_diff_({"IFT", "glyf", "loca"}) {}
+      : binary_diff_(11), per_table_binary_diff_({"IFT ", "glyf", "loca"}) {}
 
   ~Encoder() {
     if (face_) {

@@ -58,7 +58,7 @@ StatusOr<IFTTable> IFTTable::FromFont(hb_face_t* face) {
   data_string = ift_table.string();
   ift_proto.Clear();
   if (!ift_proto.ParseFromString(data_string)) {
-    return absl::InternalError("Unable to parse 'IFT ' table.");
+    return absl::InternalError("Unable to parse 'IFTX' table.");
   }
 
   auto s = ift->GetPatchMap().AddFromProto(ift_proto, true);
@@ -189,7 +189,7 @@ StatusOr<FontData> IFTTable::AddToFont(hb_face_t* face, const IFT& proto,
   return new_font_data;
 }
 
-StatusOr<FontData> IFTTable::AddToFont(hb_face_t* face) {
+IFT IFTTable::CreateMainTable() {
   IFT proto;
   proto.set_url_template(url_template_);
   proto.add_id(id_[0]);
@@ -198,14 +198,15 @@ StatusOr<FontData> IFTTable::AddToFont(hb_face_t* face) {
   proto.add_id(id_[3]);
   proto.set_default_patch_encoding(default_encoding_);
   patch_map_.AddToProto(proto);
+  return proto;
+}
 
-  bool has_extension_entries = HasExtensionEntries();
+IFT IFTTable::CreateExtensionTable() {
   IFT ext_proto;
-  if (has_extension_entries) {
+  if (HasExtensionEntries()) {
     patch_map_.AddToProto(ext_proto, true);
   }
-
-  return AddToFont(face, proto, has_extension_entries ? &ext_proto : nullptr);
+  return ext_proto;
 }
 
 void IFTTable::GetId(uint32_t out[4]) const {

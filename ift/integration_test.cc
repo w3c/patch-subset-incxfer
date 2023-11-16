@@ -169,6 +169,61 @@ TEST_F(IntegrationTest, MixedMode) {
   //   glyf/loca.
 }
 
+TEST_F(IntegrationTest, MixedMode_Complex) {
+  Encoder encoder;
+  auto sc = InitEncoderForIftb(encoder);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  // target paritions: {{0}, {1, 2}, {3, 4}}
+  sc = encoder.SetBaseSubsetFromIftbPatches({});
+  sc.Update(encoder.AddExtensionSubsetOfIftbPatches({1, 2}));
+  sc.Update(encoder.AddExtensionSubsetOfIftbPatches({3, 4}));
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  auto encoded = encoder.Encode();
+  ASSERT_TRUE(encoded.ok()) << encoded.status();
+
+  auto client = IFTClient::NewClient(std::move(*encoded));
+  ASSERT_TRUE(client.ok()) << client.status();
+
+  // Phase 1
+  sc = client->AddDesiredCodepoints({chunk1_cp});
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  auto patches = client->PatchesNeeded();
+  ASSERT_EQ(patches.size(), 2);  // 1 shared brotli and 1 iftb.
+
+  sc = AddPatches(*client, encoder);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  auto state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::READY);
+
+  // Phase 2
+  sc = client->AddDesiredCodepoints({chunk3_cp});
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  patches = client->PatchesNeeded();
+  ASSERT_EQ(patches.size(), 2);  // 1 shared brotli and 1 iftb.
+
+  sc = AddPatches(*client, encoder);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::READY);
+
+  // Check the results
+  auto codepoints = ToCodepointsSet(client->GetFontData());
+  ASSERT_TRUE(codepoints.contains(chunk0_cp));
+  ASSERT_TRUE(codepoints.contains(chunk1_cp));
+  ASSERT_TRUE(codepoints.contains(chunk2_cp));
+  ASSERT_TRUE(codepoints.contains(chunk3_cp));
+  ASSERT_TRUE(codepoints.contains(chunk4_cp));
+  // TODO(garretrieger): also check glyph presence
+}
+
 TEST_F(IntegrationTest, MixedMode_SequentialDependentPatches) {
   Encoder encoder;
   auto sc = InitEncoderForIftb(encoder);

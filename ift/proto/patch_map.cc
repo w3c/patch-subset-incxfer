@@ -179,14 +179,32 @@ void PatchMap::AddEntry(const PatchMap::Coverage& coverage,
   entries_.push_back(std::move(e));
 }
 
-void PatchMap::RemoveEntries(uint32_t patch_index) {
+PatchMap::Modification PatchMap::RemoveEntries(uint32_t patch_index) {
+  bool modified_ext = false;
+  bool modified_main = false;
   for (auto it = entries_.begin(); it != entries_.end();) {
     if (it->patch_index == patch_index) {
+      modified_main = modified_main || !it->extension_entry;
+      modified_ext = modified_ext || it->extension_entry;
       entries_.erase(it);
       continue;
     }
     ++it;
   }
+
+  if (modified_ext && modified_main) {
+    return MODIFIED_BOTH;
+  }
+
+  if (modified_ext) {
+    return MODIFIED_EXTENSION;
+  }
+
+  if (modified_main) {
+    return MODIFIED_MAIN;
+  }
+
+  return MODIFIED_NEITHER;
 }
 
 }  // namespace ift::proto
