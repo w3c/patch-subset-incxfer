@@ -3,14 +3,14 @@
 
 #include "absl/container/btree_map.h"
 #include "absl/status/statusor.h"
+#include "common/binary_patch.h"
+#include "common/brotli_binary_patch.h"
+#include "common/font_data.h"
 #include "hb.h"
 #include "ift/iftb_binary_patch.h"
 #include "ift/per_table_brotli_binary_patch.h"
 #include "ift/proto/IFT.pb.h"
 #include "ift/proto/ift_table.h"
-#include "patch_subset/binary_patch.h"
-#include "patch_subset/brotli_binary_patch.h"
-#include "patch_subset/font_data.h"
 
 namespace ift {
 
@@ -25,11 +25,11 @@ class IFTClient {
     READY,
   };
 
-  static absl::StatusOr<IFTClient> NewClient(patch_subset::FontData&& font);
+  static absl::StatusOr<IFTClient> NewClient(common::FontData&& font);
 
  private:
   IFTClient()
-      : brotli_binary_patch_(new patch_subset::BrotliBinaryPatch()),
+      : brotli_binary_patch_(new common::BrotliBinaryPatch()),
         iftb_binary_patch_(new ift::IftbBinaryPatch()),
         per_table_binary_patch_(new ift::PerTableBrotliBinaryPatch()),
         status_(absl::OkStatus()) {}
@@ -90,7 +90,7 @@ class IFTClient {
    * this font will have been extended to support all codepoints add via
    * AddDesiredCodepoints().
    */
-  const patch_subset::FontData& GetFontData() { return font_; }
+  const common::FontData& GetFontData() { return font_; }
 
   /*
    * Returns the list of patches that need to be provided to finish processing
@@ -108,7 +108,7 @@ class IFTClient {
   /*
    * Adds patch data for a patch with the given id.
    */
-  void AddPatch(uint32_t id, const patch_subset::FontData& font_data);
+  void AddPatch(uint32_t id, const common::FontData& font_data);
 
   /*
    * Call once requested patches have been supplied by AddPatch() in order to
@@ -122,21 +122,21 @@ class IFTClient {
  private:
   absl::Status ComputeOutstandingPatches();
 
-  absl::Status ApplyPatches(const std::vector<patch_subset::FontData>& patches,
+  absl::Status ApplyPatches(const std::vector<common::FontData>& patches,
                             ift::proto::PatchEncoding encoding);
 
-  absl::StatusOr<const patch_subset::BinaryPatch*> PatcherFor(
+  absl::StatusOr<const common::BinaryPatch*> PatcherFor(
       ift::proto::PatchEncoding encoding) const;
 
-  absl::Status SetFont(patch_subset::FontData&& new_font);
+  absl::Status SetFont(common::FontData&& new_font);
 
   void UpdateIndex();
 
-  patch_subset::FontData font_;
+  common::FontData font_;
   hb_face_t* face_ = nullptr;
   std::optional<ift::proto::IFTTable> ift_table_;
 
-  std::unique_ptr<patch_subset::BinaryPatch> brotli_binary_patch_;
+  std::unique_ptr<common::BinaryPatch> brotli_binary_patch_;
   std::unique_ptr<ift::IftbBinaryPatch> iftb_binary_patch_;
   std::unique_ptr<ift::PerTableBrotliBinaryPatch> per_table_binary_patch_;
 
@@ -144,7 +144,7 @@ class IFTClient {
       codepoint_to_entries_index_;
   absl::flat_hash_set<uint32_t> target_codepoints_;
   absl::flat_hash_set<uint32_t> outstanding_patches_;
-  absl::flat_hash_map<uint32_t, patch_subset::FontData> pending_patches_;
+  absl::flat_hash_map<uint32_t, common::FontData> pending_patches_;
   absl::flat_hash_map<uint32_t, ift::proto::PatchEncoding> patch_to_encoding_;
   absl::Status status_;
 };

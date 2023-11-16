@@ -4,16 +4,16 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
 #include "absl/types/span.h"
+#include "common/hb_set_unique_ptr.h"
+#include "common/sparse_bit_set.h"
 #include "ift/proto/IFT.pb.h"
-#include "patch_subset/hb_set_unique_ptr.h"
-#include "patch_subset/sparse_bit_set.h"
 
 using absl::Span;
 using absl::Status;
 using absl::StatusOr;
-using patch_subset::hb_set_unique_ptr;
-using patch_subset::make_hb_set;
-using patch_subset::SparseBitSet;
+using common::hb_set_unique_ptr;
+using common::make_hb_set;
+using common::SparseBitSet;
 
 namespace ift::proto {
 
@@ -52,7 +52,7 @@ void PatchMap::Coverage::ToProto(SubsetMapping* out) const {
     hb_set_add(set.get(), cp - bias);
   }
 
-  std::string encoded = patch_subset::SparseBitSet::Encode(*set);
+  std::string encoded = common::SparseBitSet::Encode(*set);
   out->set_bias(bias);
   out->set_codepoint_set(encoded);
 }

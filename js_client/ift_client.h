@@ -32,7 +32,7 @@ class State {
   }
   void Process();
   void Failure() { SendCallbacks(false); }
-  void UrlLoaded(std::string url, const patch_subset::FontData& data);
+  void UrlLoaded(std::string url, const common::FontData& data);
 
  private:
   void SendInitRequest();

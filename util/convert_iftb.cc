@@ -11,11 +11,11 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
+#include "common/font_data.h"
 #include "hb.h"
 #include "ift/proto/IFT.pb.h"
 #include "ift/proto/ift_table.h"
 #include "ift/proto/patch_map.h"
-#include "patch_subset/font_data.h"
 
 using absl::btree_map;
 using absl::btree_set;
@@ -24,11 +24,11 @@ using absl::flat_hash_set;
 using absl::Status;
 using absl::StatusOr;
 using absl::string_view;
+using common::FontData;
 using ift::proto::IFT;
 using ift::proto::IFTB_ENCODING;
 using ift::proto::IFTTable;
 using ift::proto::PatchMap;
-using patch_subset::FontData;
 
 namespace util {
 

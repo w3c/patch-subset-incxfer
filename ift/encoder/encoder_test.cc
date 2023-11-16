@@ -7,14 +7,14 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
+#include "common/binary_patch.h"
+#include "common/brotli_binary_patch.h"
+#include "common/font_data.h"
 #include "common/font_helper.h"
+#include "common/hb_set_unique_ptr.h"
 #include "gtest/gtest.h"
 #include "ift/per_table_brotli_binary_patch.h"
 #include "ift/proto/ift_table.h"
-#include "patch_subset/binary_patch.h"
-#include "patch_subset/brotli_binary_patch.h"
-#include "patch_subset/font_data.h"
-#include "patch_subset/hb_set_unique_ptr.h"
 
 using absl::btree_map;
 using absl::btree_set;
@@ -24,16 +24,17 @@ using absl::Span;
 using absl::Status;
 using absl::StrCat;
 using absl::string_view;
+using common::BinaryPatch;
+using common::BrotliBinaryPatch;
+using common::FontData;
 using common::FontHelper;
+using common::hb_set_unique_ptr;
+using common::make_hb_set;
 using ift::proto::DEFAULT_ENCODING;
 using ift::proto::IFTTable;
 using ift::proto::PatchEncoding;
 using ift::proto::PER_TABLE_SHARED_BROTLI_ENCODING;
 using ift::proto::SHARED_BROTLI_ENCODING;
-using patch_subset::BinaryPatch;
-using patch_subset::BrotliBinaryPatch;
-using patch_subset::FontData;
-using patch_subset::hb_set_unique_ptr;
 
 namespace ift::encoder {
 
@@ -76,7 +77,7 @@ class EncoderTest : public ::testing::Test {
   btree_set<uint32_t> ToCodepointsSet(const FontData& font_data) {
     hb_face_t* face = font_data.reference_face();
 
-    hb_set_unique_ptr codepoints = patch_subset::make_hb_set();
+    hb_set_unique_ptr codepoints = make_hb_set();
     hb_face_collect_unicodes(face, codepoints.get());
     hb_face_destroy(face);
 

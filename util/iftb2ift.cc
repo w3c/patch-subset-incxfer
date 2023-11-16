@@ -8,11 +8,11 @@
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
+#include "common/font_data.h"
 #include "hb.h"
 #include "ift/encoder/encoder.h"
 #include "ift/proto/IFT.pb.h"
 #include "ift/proto/ift_table.h"
-#include "patch_subset/font_data.h"
 #include "util/convert_iftb.h"
 
 /*
@@ -27,11 +27,11 @@
 ABSL_FLAG(std::string, output_format, "font",
           "Format of the output: 'text', 'proto', 'font', or 'woff2'.");
 
+using common::FontData;
 using google::protobuf::TextFormat;
 using ift::encoder::Encoder;
 using ift::proto::IFT;
 using ift::proto::IFTTable;
-using patch_subset::FontData;
 using util::convert_iftb;
 
 hb_face_t* load_font(const char* filename) {

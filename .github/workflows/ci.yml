@@ -22,13 +22,13 @@ jobs:
 
       - name: Test
         run: |
-          "${GITHUB_WORKSPACE}/bin/bazel" test //analysis/... //patch_subset/... //util/... //ift/... --test_output=all
+          "${GITHUB_WORKSPACE}/bin/bazel" test //analysis/... //patch_subset/... //util/... //ift/... //common/... --test_output=all
         env:
           CC: gcc-9
 
       - name: Build Webassembly
         run: |
-          "${GITHUB_WORKSPACE}/bin/bazel" build --copt=-Os js_client:patch_subset_wasm
+          "${GITHUB_WORKSPACE}/bin/bazel" build --copt=-Os js_client:patch_subset_wasm js_client:ift_wasm
         env:
           CC: gcc-9
 
@@ -43,7 +43,7 @@ jobs:
           brew install bazelisk
 
       - name: Run Tests
-        run: bazel test //analysis/... //patch_subset/... //util/... //ift/... --test_output=all
+        run: bazel test //analysis/... //patch_subset/... //util/... //ift/... //common/... --test_output=all
     
   check_formatting:
     name: Check Formatting

@@ -6,14 +6,14 @@
 #include "brotli/hmtx_differ.h"
 #include "brotli/loca_differ.h"
 #include "brotli/table_range.h"
-#include "patch_subset/hb_set_unique_ptr.h"
+#include "common/hb_set_unique_ptr.h"
 
 namespace brotli {
 
 using absl::Span;
 using absl::Status;
-using patch_subset::FontData;
-using patch_subset::hb_set_unique_ptr;
+using common::FontData;
+using common::hb_set_unique_ptr;
 
 static bool HasTable(hb_face_t* face, hb_tag_t tag) {
   hb_blob_t* table = hb_face_reference_table(face, tag);

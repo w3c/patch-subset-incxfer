@@ -1,14 +1,14 @@
 #include "ift/per_table_brotli_binary_patch.h"
 
+#include "common/font_data.h"
 #include "common/font_helper.h"
 #include "hb.h"
 #include "ift/proto/IFT.pb.h"
-#include "patch_subset/font_data.h"
 
 using absl::Status;
+using common::FontData;
 using common::FontHelper;
 using ift::proto::PerTablePatch;
-using patch_subset::FontData;
 
 namespace ift {
 

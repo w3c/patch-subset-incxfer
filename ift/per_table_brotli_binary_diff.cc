@@ -1,17 +1,17 @@
 #include "ift/per_table_brotli_binary_diff.h"
 
 #include "absl/container/flat_hash_set.h"
+#include "common/font_data.h"
 #include "common/font_helper.h"
 #include "hb.h"
 #include "ift/proto/IFT.pb.h"
-#include "patch_subset/font_data.h"
 
 using absl::btree_set;
 using absl::flat_hash_set;
 using absl::Status;
+using common::FontData;
 using common::FontHelper;
 using ift::proto::PerTablePatch;
-using patch_subset::FontData;
 
 namespace ift {
 

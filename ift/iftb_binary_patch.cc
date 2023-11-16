@@ -5,23 +5,23 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "common/font_data.h"
 #include "common/font_helper.h"
 #include "ift/proto/ift_table.h"
 #include "ift/proto/patch_map.h"
 #include "merger.h"
-#include "patch_subset/font_data.h"
 
 using absl::flat_hash_set;
 using absl::Status;
 using absl::StatusOr;
 using absl::StrCat;
+using common::FontData;
 using common::FontHelper;
 using ift::proto::IFT;
 using ift::proto::IFTTable;
 using ift::proto::PatchMap;
 using iftb::merger;
 using iftb::sfnt;
-using patch_subset::FontData;
 
 namespace ift {
 
@@ -67,8 +67,7 @@ StatusOr<flat_hash_set<uint32_t>> IftbBinaryPatch::GidsInPatch(
   return result;
 }
 
-Status IftbBinaryPatch::IdInPatch(const patch_subset::FontData& patch,
-                                  uint32_t id_out[4]) {
+Status IftbBinaryPatch::IdInPatch(const FontData& patch, uint32_t id_out[4]) {
   static constexpr int idOffset = 8;
   std::string uncompressed;
   if (HB_TAG('I', 'F', 'T', 'C') !=

@@ -9,7 +9,7 @@ DEFAULT_EMSCRIPTEN_LINKOPTS = [
     "-s EXPORT_NAME=createModule",  # Not used, but good to specify
     "-s SINGLE_FILE=1",  # Pack all webassembly into base64
     "-s FETCH=1",  # Enable fetch API
-    "-s INITIAL_MEMORY=65536000"
+    "-s INITIAL_MEMORY=65536000",
 ]
 
 cc_binary(
@@ -19,11 +19,12 @@ cc_binary(
     ],
     linkopts = DEFAULT_EMSCRIPTEN_LINKOPTS,
     deps = [
+        "//common",
         "//patch_subset:client",
         "//patch_subset:common",
-        "@com_google_absl//absl/strings",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
         "@harfbuzz",
     ],
 )
@@ -34,19 +35,18 @@ cc_binary(
         "ift_client.cc",
         "ift_client.h",
     ],
-    linkopts = DEFAULT_EMSCRIPTEN_LINKOPTS,
     copts = [
         "-Wno-unused-function",
     ],
+    linkopts = DEFAULT_EMSCRIPTEN_LINKOPTS,
     deps = [
+        "//common",
         "//ift:client",
         "//ift/encoder",
-        "//patch_subset:common",
         "@com_google_absl//absl/container:btree",
-        "@com_google_absl//absl/strings",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
-      
+        "@com_google_absl//absl/strings",
     ],
 )
 

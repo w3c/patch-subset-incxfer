@@ -16,8 +16,9 @@ cc_binary(
         "print-request.cc",
     ],
     deps = [
-        "//patch_subset/cbor",
+        "//common",
         "//patch_subset:common",
+        "//patch_subset/cbor",
         "@base64",
         "@harfbuzz",
     ],
@@ -29,8 +30,9 @@ cc_binary(
         "print-client-state.cc",
     ],
     deps = [
-        "//patch_subset/cbor",
+        "//common",
         "//patch_subset:common",
+        "//patch_subset/cbor",
         "@harfbuzz",
     ],
 )
@@ -69,21 +71,21 @@ cc_library(
         "convert_iftb.cc",
         "convert_iftb.h",
     ],
+    data = [
+        "testdata/Roboto-Regular.Awesome.ttf",
+        "testdata/convert-iftb-sample.txt",
+    ],
     deps = [
-        "//patch_subset:common",
         "//ift/proto",
-        "//ift/proto:IFT_cc_proto",        
+        "//ift/proto:IFT_cc_proto",
+        "//patch_subset:common",
+        "@com_google_absl//absl/container:btree",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
-        "@com_google_absl//absl/container:btree",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
         "@harfbuzz",
     ],
-    data = [
-        "testdata/convert-iftb-sample.txt",
-        "testdata/Roboto-Regular.Awesome.ttf",
-    ]
 )
 
 cc_test(
@@ -104,9 +106,10 @@ cc_binary(
         "precompress-test.cc",
     ],
     deps = [
+        "//brotli:encoding",
+        "//common",
         "//patch_subset:client",
         "//patch_subset:common",
-        "//brotli:encoding",
         "@harfbuzz",
     ],
 )

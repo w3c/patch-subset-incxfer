@@ -2,19 +2,19 @@
 
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
+#include "common/brotli_binary_patch.h"
+#include "common/font_data.h"
 #include "common/font_helper.h"
 #include "gtest/gtest.h"
 #include "hb.h"
 #include "ift/proto/ift_table.h"
-#include "patch_subset/brotli_binary_patch.h"
-#include "patch_subset/font_data.h"
 
 using absl::StatusOr;
 using absl::string_view;
+using common::BrotliBinaryPatch;
+using common::FontData;
 using common::FontHelper;
 using ift::proto::PerTablePatch;
-using patch_subset::BrotliBinaryPatch;
-using patch_subset::FontData;
 
 namespace ift {
 

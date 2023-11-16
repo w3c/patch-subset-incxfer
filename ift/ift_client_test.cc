@@ -1,26 +1,26 @@
 #include "ift/ift_client.h"
 
 #include "absl/container/btree_set.h"
+#include "common/brotli_binary_diff.h"
+#include "common/font_data.h"
+#include "common/hb_set_unique_ptr.h"
+#include "common/sparse_bit_set.h"
 #include "gtest/gtest.h"
 #include "ift/proto/IFT.pb.h"
 #include "ift/proto/ift_table.h"
-#include "patch_subset/brotli_binary_diff.h"
-#include "patch_subset/font_data.h"
-#include "patch_subset/hb_set_unique_ptr.h"
-#include "patch_subset/sparse_bit_set.h"
 
 using absl::btree_set;
 using absl::flat_hash_set;
 using absl::IsInvalidArgument;
+using common::BrotliBinaryDiff;
+using common::FontData;
+using common::hb_set_unique_ptr;
+using common::make_hb_set;
+using common::SparseBitSet;
 using ift::proto::IFT;
 using ift::proto::IFTB_ENCODING;
 using ift::proto::IFTTable;
 using ift::proto::SHARED_BROTLI_ENCODING;
-using patch_subset::BrotliBinaryDiff;
-using patch_subset::FontData;
-using patch_subset::hb_set_unique_ptr;
-using patch_subset::make_hb_set;
-using patch_subset::SparseBitSet;
 
 namespace ift {
 
