@@ -1,11 +1,11 @@
-#include "patch_subset/bit_output_buffer.h"
+#include "common/bit_output_buffer.h"
 
 #include <bitset>
 #include <string>
 
 #include "gtest/gtest.h"
 
-namespace patch_subset {
+namespace common {
 
 using std::bitset;
 using std::string;
@@ -138,4 +138,4 @@ TEST_F(BitOutputBufferTest, EmptyBuffer) {
             Bits(BitOutputBuffer(BranchFactor::BF32, 11).to_string()));
 }
 
-}  // namespace patch_subset
+}  // namespace common

@@ -1,8 +1,8 @@
-#include "patch_subset/branch_factor.h"
+#include "common/branch_factor.h"
 
 #include "gtest/gtest.h"
 
-namespace patch_subset {
+namespace common {
 
 class BranchFactorTest : public ::testing::Test {};
 
@@ -20,4 +20,4 @@ TEST_F(BranchFactorTest, TwigSizes) {
   EXPECT_EQ(kBFNodeSize[BF32] * kBFNodeSize[BF32], kBFTwigSize[BF32]);
 }
 
-}  // namespace patch_subset
+}  // namespace common

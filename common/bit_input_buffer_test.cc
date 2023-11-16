@@ -1,11 +1,11 @@
-#include "patch_subset/bit_input_buffer.h"
+#include "common/bit_input_buffer.h"
 
 #include <bitset>
 #include <string>
 
 #include "gtest/gtest.h"
 
-namespace patch_subset {
+namespace common {
 
 using std::bitset;
 using std::string;
@@ -113,4 +113,4 @@ TEST_F(BitInputBufferTest, ReservedBitIgnored) {
   }
 }
 
-}  // namespace patch_subset
+}  // namespace common

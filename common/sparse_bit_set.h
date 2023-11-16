@@ -1,14 +1,14 @@
-#ifndef PATCH_SUBSET_SPARSE_BIT_SET_H_
-#define PATCH_SUBSET_SPARSE_BIT_SET_H_
+#ifndef COMMON_SPARSE_BIT_SET_H_
+#define COMMON_SPARSE_BIT_SET_H_
 
 #include <vector>
 
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
+#include "common/branch_factor.h"
 #include "hb.h"
-#include "patch_subset/branch_factor.h"
 
-namespace patch_subset {
+namespace common {
 
 /*
  * A read only data structure which represents a set of non-negative integers
@@ -60,6 +60,6 @@ class SparseBitSet {
   static std::string Encode(const hb_set_t& set);
 };
 
-}  // namespace patch_subset
+}  // namespace common
 
-#endif  // PATCH_SUBSET_SPARSE_BIT_SET_H_
+#endif  // COMMON_SPARSE_BIT_SET_H_

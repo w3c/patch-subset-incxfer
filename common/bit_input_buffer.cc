@@ -1,4 +1,4 @@
-#include "patch_subset/bit_input_buffer.h"
+#include "common/bit_input_buffer.h"
 
 #include <string>
 
@@ -6,7 +6,7 @@
 
 using absl::string_view;
 
-namespace patch_subset {
+namespace common {
 
 static const uint32_t kBitsPerByte = 8;
 static const uint32_t kBitsPerTwoBytes = 16;
@@ -107,4 +107,4 @@ static uint32_t DecodeDepth(string_view bits) {
   return ((first_byte & 0b01111100u) >> 2) + 1;
 }
 
-}  // namespace patch_subset
+}  // namespace common

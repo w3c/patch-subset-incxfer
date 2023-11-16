@@ -1,11 +1,11 @@
-#ifndef PATCH_SUBSET_FILE_FONT_PROVIDER_H_
-#define PATCH_SUBSET_FILE_FONT_PROVIDER_H_
+#ifndef COMMON_FILE_FONT_PROVIDER_H_
+#define COMMON_FILE_FONT_PROVIDER_H_
 
 #include <string>
 
-#include "patch_subset/font_provider.h"
+#include "common/font_provider.h"
 
-namespace patch_subset {
+namespace common {
 
 // Provides fonts by loading them from a directory on the file system.
 class FileFontProvider : public FontProvider {
@@ -19,6 +19,6 @@ class FileFontProvider : public FontProvider {
   std::string base_directory_;
 };
 
-}  // namespace patch_subset
+}  // namespace common
 
-#endif  // PATCH_SUBSET_FILE_FONT_PROVIDER_H_
+#endif  // COMMON_FILE_FONT_PROVIDER_H_

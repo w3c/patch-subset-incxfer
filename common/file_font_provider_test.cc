@@ -1,11 +1,11 @@
-#include "patch_subset/file_font_provider.h"
+#include "common/file_font_provider.h"
 
 #include <string>
 
+#include "common/font_provider.h"
 #include "gtest/gtest.h"
-#include "patch_subset/font_provider.h"
 
-namespace patch_subset {
+namespace common {
 
 using absl::Status;
 
@@ -34,4 +34,4 @@ TEST_F(FileFontProviderTest, FontNotFound) {
       font_provider_.get()->GetFont("nothere.txt", &font_data)));
 }
 
-}  // namespace patch_subset
+}  // namespace common

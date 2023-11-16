@@ -1,5 +1,5 @@
-#ifndef PATCH_SUBSET_FONT_DATA_H_
-#define PATCH_SUBSET_FONT_DATA_H_
+#ifndef COMMON_FONT_DATA_H_
+#define COMMON_FONT_DATA_H_
 
 #include <cstring>
 #include <memory>
@@ -8,7 +8,7 @@
 #include "absl/types/span.h"
 #include "hb.h"
 
-namespace patch_subset {
+namespace common {
 
 // Holds the binary data for a font.
 class FontData {
@@ -172,6 +172,6 @@ class FontData {
   hb_face_t* saved_face_;
 };
 
-}  // namespace patch_subset
+}  // namespace common
 
-#endif  // PATCH_SUBSET_FONT_DATA_H_
+#endif  // COMMON_FONT_DATA_H_

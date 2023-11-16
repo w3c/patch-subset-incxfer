@@ -1,4 +1,4 @@
-#include "patch_subset/bit_output_buffer.h"
+#include "common/bit_output_buffer.h"
 
 #include <string>
 
@@ -7,7 +7,7 @@
 using ::absl::string_view;
 using std::string;
 
-namespace patch_subset {
+namespace common {
 
 static const unsigned int kBitsPerByte = 8;
 static const unsigned int kBitsPerNibble = 4;
@@ -90,4 +90,4 @@ static uint8_t EncodeFirstByte(BranchFactor branch_factor, unsigned int depth) {
   return result;
 }
 
-}  // namespace patch_subset
+}  // namespace common

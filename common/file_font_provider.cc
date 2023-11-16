@@ -1,4 +1,4 @@
-#include "patch_subset/file_font_provider.h"
+#include "common/file_font_provider.h"
 
 #include <fstream>
 #include <iostream>
@@ -7,9 +7,9 @@
 
 #include "absl/log/log.h"
 #include "absl/status/status.h"
-#include "patch_subset/font_data.h"
+#include "common/font_data.h"
 
-namespace patch_subset {
+namespace common {
 
 using absl::Status;
 
@@ -27,4 +27,4 @@ Status FileFontProvider::GetFont(const std::string& id, FontData* out) const {
   return absl::OkStatus();
 }
 
-}  // namespace patch_subset
+}  // namespace common

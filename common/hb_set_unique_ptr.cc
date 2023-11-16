@@ -1,11 +1,11 @@
-#include "patch_subset/hb_set_unique_ptr.h"
+#include "common/hb_set_unique_ptr.h"
 
 #include <cstdarg>
 #include <memory>
 
 #include "hb.h"
 
-namespace patch_subset {
+namespace common {
 
 hb_set_unique_ptr make_hb_set() {
   return hb_set_unique_ptr(hb_set_create(), &hb_set_destroy);
@@ -39,4 +39,4 @@ hb_set_unique_ptr make_hb_set_from_ranges(int number_of_ranges, ...) {
   return result;
 }
 
-}  // namespace patch_subset
+}  // namespace common

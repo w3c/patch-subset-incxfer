@@ -1,10 +1,10 @@
 #include <vector>
 
+#include "common/bit_input_buffer.h"
+#include "common/bit_output_buffer.h"
 #include "gtest/gtest.h"
-#include "patch_subset/bit_input_buffer.h"
-#include "patch_subset/bit_output_buffer.h"
 
-namespace patch_subset {
+namespace common {
 
 using std::string;
 using std::vector;
@@ -66,4 +66,4 @@ TEST_F(BitBufferTest, Transcode32) {
                   BF32, 5);
 }
 
-}  // namespace patch_subset
+}  // namespace common

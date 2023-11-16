@@ -1,15 +1,15 @@
-#include "patch_subset/sparse_bit_set.h"
+#include "common/sparse_bit_set.h"
 
 #include <unordered_map>
 #include <vector>
 
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
+#include "common/bit_input_buffer.h"
+#include "common/bit_output_buffer.h"
 #include "hb.h"
-#include "patch_subset/bit_input_buffer.h"
-#include "patch_subset/bit_output_buffer.h"
 
-namespace patch_subset {
+namespace common {
 
 using absl::Status;
 using absl::string_view;
@@ -698,4 +698,4 @@ string SparseBitSet::Encode(const hb_set_t& set) {
   return EncodeSet(codepoints, branch_factor, filled_twigs);
 }
 
-}  // namespace patch_subset
+}  // namespace common
