@@ -3,6 +3,7 @@
 #include <cstdint>
 
 #include "absl/container/flat_hash_map.h"
+#include "common/font_data.h"
 #include "gtest/gtest.h"
 #include "hb-subset.h"
 
@@ -13,22 +14,20 @@ namespace common {
 
 class FontHelperTest : public ::testing::Test {
  protected:
-  FontHelperTest() {
-    hb_blob_t* blob =
-        hb_blob_create_from_file("patch_subset/testdata/Roboto-Regular.ab.ttf");
-    roboto_ab = hb_face_create(blob, 0);
-    hb_blob_destroy(blob);
+  FontHelperTest()
+      : noto_sans_jp_otf(make_hb_face(nullptr)),
+        roboto_ab(make_hb_face(nullptr)) {
+    hb_blob_unique_ptr blob = make_hb_blob(hb_blob_create_from_file(
+        "patch_subset/testdata/Roboto-Regular.ab.ttf"));
+    roboto_ab = make_hb_face(hb_face_create(blob.get(), 0));
 
-    blob = hb_blob_create_from_file(
-        "patch_subset/testdata/NotoSansJP-Regular.otf");
-    noto_sans_jp_otf = hb_face_create(blob, 0);
-    hb_blob_destroy(blob);
+    blob = make_hb_blob(hb_blob_create_from_file(
+        "patch_subset/testdata/NotoSansJP-Regular.otf"));
+    noto_sans_jp_otf = make_hb_face(hb_face_create(blob.get(), 0));
   }
 
-  ~FontHelperTest() { hb_face_destroy(roboto_ab); }
-
-  hb_face_t* noto_sans_jp_otf;
-  hb_face_t* roboto_ab;
+  hb_face_unique_ptr noto_sans_jp_otf;
+  hb_face_unique_ptr roboto_ab;
 };
 
 TEST_F(FontHelperTest, ReadUInt16) {
@@ -62,21 +61,20 @@ TEST_F(FontHelperTest, ReadUInt32) {
 }
 
 TEST_F(FontHelperTest, Loca) {
-  auto s = FontHelper::Loca(roboto_ab);
+  auto s = FontHelper::Loca(roboto_ab.get());
   ASSERT_TRUE(s.ok()) << s.status();
-  hb_blob_t* loca_blob =
-      hb_face_reference_table(roboto_ab, HB_TAG('l', 'o', 'c', 'a'));
+  hb_blob_unique_ptr loca_blob = make_hb_blob(
+      hb_face_reference_table(roboto_ab.get(), HB_TAG('l', 'o', 'c', 'a')));
   uint32_t length = 0;
-  EXPECT_EQ(s->data(), hb_blob_get_data(loca_blob, &length));
+  EXPECT_EQ(s->data(), hb_blob_get_data(loca_blob.get(), &length));
   EXPECT_EQ(s->size(), length);
-  hb_blob_destroy(loca_blob);
 
-  s = FontHelper::Loca(noto_sans_jp_otf);
+  s = FontHelper::Loca(noto_sans_jp_otf.get());
   ASSERT_TRUE(absl::IsNotFound(s.status())) << s.status();
 }
 
 TEST_F(FontHelperTest, GidToUnicodeMap) {
-  auto map = FontHelper::GidToUnicodeMap(roboto_ab);
+  auto map = FontHelper::GidToUnicodeMap(roboto_ab.get());
 
   absl::flat_hash_map<uint32_t, uint32_t> expected = {
       {69, 0x61},
@@ -87,19 +85,19 @@ TEST_F(FontHelperTest, GidToUnicodeMap) {
 }
 
 TEST_F(FontHelperTest, GetTags) {
-  auto s = FontHelper::GetTags(roboto_ab);
+  auto s = FontHelper::GetTags(roboto_ab.get());
   ASSERT_TRUE(s.contains(FontHelper::kLoca));
   ASSERT_TRUE(s.contains(FontHelper::kGlyf));
   ASSERT_FALSE(s.contains(FontHelper::kCFF));
 
-  s = FontHelper::GetTags(noto_sans_jp_otf);
+  s = FontHelper::GetTags(noto_sans_jp_otf.get());
   ASSERT_FALSE(s.contains(FontHelper::kLoca));
   ASSERT_FALSE(s.contains(FontHelper::kGlyf));
   ASSERT_TRUE(s.contains(FontHelper::kCFF));
 }
 
 TEST_F(FontHelperTest, GetOrderedTags) {
-  auto s = FontHelper::ToStrings(FontHelper::GetOrderedTags(roboto_ab));
+  auto s = FontHelper::ToStrings(FontHelper::GetOrderedTags(roboto_ab.get()));
   EXPECT_EQ(s[0], "gasp");
   EXPECT_EQ(s[1], "maxp");
   EXPECT_EQ(s[16], "glyf");
@@ -110,21 +108,19 @@ TEST_F(FontHelperTest, ApplyIftbTableOrdering) {
   hb_subset_input_t* input = hb_subset_input_create_or_fail();
   hb_subset_input_keep_everything(input);
 
-  hb_face_t* subset = hb_subset_or_fail(roboto_ab, input);
+  hb_face_unique_ptr subset =
+      make_hb_face(hb_subset_or_fail(roboto_ab.get(), input));
   hb_subset_input_destroy(input);
-  FontHelper::ApplyIftbTableOrdering(subset);
+  FontHelper::ApplyIftbTableOrdering(subset.get());
 
-  hb_blob_t* blob = hb_face_reference_blob(subset);
-  hb_face_destroy(subset);
+  hb_blob_unique_ptr blob = make_hb_blob(hb_face_reference_blob(subset.get()));
+  hb_face_unique_ptr subset_concrete =
+      make_hb_face(hb_face_create(blob.get(), 0));
 
-  hb_face_t* subset_concrete = hb_face_create(blob, 0);
-  hb_blob_destroy(blob);
-
-  auto s = FontHelper::ToStrings(FontHelper::GetOrderedTags(subset_concrete));
+  auto s =
+      FontHelper::ToStrings(FontHelper::GetOrderedTags(subset_concrete.get()));
   EXPECT_EQ(s[s.size() - 2], "glyf");
   EXPECT_EQ(s[s.size() - 1], "loca");
-
-  hb_face_destroy(subset_concrete);
 }
 
 TEST_F(FontHelperTest, ToString) {
@@ -139,9 +135,9 @@ TEST_F(FontHelperTest, BuildFont) {
   };
   auto font = FontHelper::BuildFont(tables);
 
-  hb_face_t* face = font.reference_face();
-  auto table_1 = FontHelper::TableData(face, HB_TAG('a', 'b', 'c', 'd'));
-  auto table_2 = FontHelper::TableData(face, HB_TAG('d', 'e', 'f', 'g'));
+  hb_face_unique_ptr face = font.face();
+  auto table_1 = FontHelper::TableData(face.get(), HB_TAG('a', 'b', 'c', 'd'));
+  auto table_2 = FontHelper::TableData(face.get(), HB_TAG('d', 'e', 'f', 'g'));
 
   ASSERT_EQ(table_1.str(), "table_1");
   ASSERT_EQ(table_2.str(), "table_2");

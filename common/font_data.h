@@ -12,11 +12,21 @@ namespace common {
 
 typedef std::unique_ptr<hb_face_t, decltype(&hb_face_destroy)>
     hb_face_unique_ptr;
+typedef std::unique_ptr<hb_font_t, decltype(&hb_font_destroy)>
+    hb_font_unique_ptr;
 typedef std::unique_ptr<hb_blob_t, decltype(&hb_blob_destroy)>
     hb_blob_unique_ptr;
 
 static hb_face_unique_ptr make_hb_face(hb_face_t* face) {
   return hb_face_unique_ptr(face, &hb_face_destroy);
+}
+
+static hb_font_unique_ptr make_hb_font(hb_font_t* font) {
+  return hb_font_unique_ptr(font, &hb_font_destroy);
+}
+
+static hb_face_unique_ptr make_hb_face_builder() {
+  return hb_face_unique_ptr(hb_face_builder_create(), &hb_face_destroy);
 }
 
 static hb_blob_unique_ptr make_hb_blob(hb_blob_t* blob) {
@@ -43,6 +53,13 @@ class FontData {
       : buffer_(make_hb_blob()), saved_face_(make_hb_face(nullptr)) {
     set(face);
   }
+
+  explicit FontData(hb_blob_unique_ptr blob)
+      : buffer_(std::move(blob)), saved_face_(make_hb_face(nullptr)) {}
+
+  explicit FontData(hb_face_unique_ptr face)
+      : buffer_(make_hb_blob(hb_face_reference_blob(face.get()))),
+        saved_face_(std::move(face)) {}
 
   explicit FontData(::absl::string_view data)
       : buffer_(make_hb_blob()), saved_face_(make_hb_face(nullptr)) {
@@ -163,6 +180,10 @@ class FontData {
       saved_face_ = make_hb_face(nullptr);
     }
   }
+
+  hb_face_unique_ptr face() const { return make_hb_face(reference_face()); }
+
+  hb_blob_unique_ptr blob() const { return make_hb_blob(reference_blob()); }
 
   hb_face_t* reference_face() const {
     if (saved_face_) {

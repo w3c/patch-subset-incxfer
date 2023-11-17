@@ -21,6 +21,7 @@ using absl::StatusOr;
 using absl::StrCat;
 using common::BinaryPatch;
 using common::FontData;
+using ift::proto::DEFAULT_ENCODING;
 using ift::proto::IFTB_ENCODING;
 using ift::proto::IFTTable;
 using ift::proto::PatchEncoding;
@@ -135,7 +136,7 @@ StatusOr<IFTClient::State> IFTClient::Process() {
   //   Return early if there are new outstanding patches.
   // - Otherwise apply all pending independent patches.
   std::optional<uint32_t> dependent_patch;
-  PatchEncoding dependent_patch_encoding;
+  PatchEncoding dependent_patch_encoding = DEFAULT_ENCODING;
   std::vector<FontData> dependent_patch_data;
   for (const auto& p : pending_patches_) {
     uint32_t id = p.first;
