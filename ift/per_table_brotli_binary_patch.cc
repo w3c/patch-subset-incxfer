@@ -8,6 +8,9 @@
 using absl::Status;
 using common::FontData;
 using common::FontHelper;
+using common::hb_blob_unique_ptr;
+using common::hb_face_unique_ptr;
+using common::make_hb_face_builder;
 using ift::proto::PerTablePatch;
 
 namespace ift {
@@ -20,8 +23,8 @@ Status PerTableBrotliBinaryPatch::Patch(const FontData& font_base,
     return absl::InternalError("Failed to decode patch protobuf.");
   }
 
-  hb_face_t* base = font_base.reference_face();
-  auto tags = FontHelper::GetTags(base);
+  hb_face_unique_ptr base = font_base.face();
+  auto tags = FontHelper::GetTags(base.get());
 
   // Some tags might be new so add all tags in the patch's table list.
   for (const auto& e : proto.table_patches()) {
@@ -34,9 +37,9 @@ Status PerTableBrotliBinaryPatch::Patch(const FontData& font_base,
     tags.erase(HB_TAG(tag[0], tag[1], tag[2], tag[3]));
   }
 
-  hb_face_t* new_face = hb_face_builder_create();
+  hb_face_unique_ptr new_face = make_hb_face_builder();
   for (hb_tag_t t : tags) {
-    FontData data = FontHelper::TableData(base, t);
+    FontData data = FontHelper::TableData(base.get(), t);
     FontData patch;
 
     FontData derived;
@@ -48,8 +51,6 @@ Status PerTableBrotliBinaryPatch::Patch(const FontData& font_base,
 
       auto sc = binary_patch_.Patch(data, patch, &derived);
       if (!sc.ok()) {
-        hb_face_destroy(base);
-        hb_face_destroy(new_face);
         return sc;
       }
     } else {
@@ -57,17 +58,15 @@ Status PerTableBrotliBinaryPatch::Patch(const FontData& font_base,
       derived.shallow_copy(data);
     }
 
-    hb_blob_t* blob = derived.reference_blob();
-    hb_face_builder_add_table(new_face, t, blob);
-    hb_blob_destroy(blob);
+    hb_blob_unique_ptr blob = derived.blob();
+    hb_face_builder_add_table(new_face.get(), t, blob.get());
   }
 
-  FontHelper::ApplyIftbTableOrdering(new_face);
+  FontHelper::ApplyIftbTableOrdering(new_face.get());
 
-  hb_blob_t* new_face_blob = hb_face_reference_blob(new_face);
-  font_derived->set(new_face_blob);
-  hb_blob_destroy(new_face_blob);
-  hb_face_destroy(base);
+  hb_blob_unique_ptr new_face_blob =
+      common::make_hb_blob(hb_face_reference_blob(new_face.get()));
+  font_derived->set(new_face_blob.get());
 
   return absl::OkStatus();
 }

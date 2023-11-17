@@ -17,6 +17,12 @@ using absl::StrCat;
 using absl::string_view;
 using common::FontData;
 using common::FontHelper;
+using common::hb_blob_unique_ptr;
+using common::hb_face_unique_ptr;
+using common::hb_font_unique_ptr;
+using common::make_hb_blob;
+using common::make_hb_face;
+using common::make_hb_font;
 using ift::proto::IFTTable;
 
 namespace ift {
@@ -32,14 +38,11 @@ class IftbBinaryPatchTest : public ::testing::Test {
   }
 
   FontData from_file(const char* filename) {
-    hb_blob_t* blob = hb_blob_create_from_file(filename);
-    FontData result(blob);
-    hb_blob_destroy(blob);
-    return result;
+    return FontData(make_hb_blob(hb_blob_create_from_file(filename)));
   }
 
   FontData Subset(const FontData& font, flat_hash_set<uint32_t> gids) {
-    hb_face_t* face = font.reference_face();
+    hb_face_unique_ptr face = font.face();
     hb_subset_input_t* input = hb_subset_input_create_or_fail();
     for (uint32_t gid : gids) {
       hb_set_add(hb_subset_input_glyph_set(input), gid);
@@ -49,15 +52,13 @@ class IftbBinaryPatchTest : public ::testing::Test {
         HB_SUBSET_FLAGS_RETAIN_GIDS | HB_SUBSET_FLAGS_PASSTHROUGH_UNRECOGNIZED |
             HB_SUBSET_FLAGS_IFTB_REQUIREMENTS | HB_SUBSET_FLAGS_NOTDEF_OUTLINE);
 
-    hb_face_t* subset = hb_subset_or_fail(face, input);
-    FontHelper::ApplyIftbTableOrdering(subset);
+    hb_face_unique_ptr subset =
+        make_hb_face(hb_subset_or_fail(face.get(), input));
+    FontHelper::ApplyIftbTableOrdering(subset.get());
 
-    FontData result(subset);
+    FontData result(std::move(subset));
 
-    hb_face_destroy(subset);
     hb_subset_input_destroy(input);
-    hb_face_destroy(face);
-
     return result;
   }
 
@@ -76,27 +77,22 @@ StatusOr<uint32_t> loca_value(string_view loca, hb_codepoint_t index) {
 
 StatusOr<uint32_t> glyph_size(const FontData& font_data,
                               hb_codepoint_t codepoint) {
-  hb_face_t* face = font_data.reference_face();
-  hb_font_t* font = hb_font_create(face);
+  hb_face_unique_ptr face = font_data.face();
+  hb_font_unique_ptr font = make_hb_font(hb_font_create(face.get()));
 
   hb_codepoint_t gid;
-  hb_font_get_nominal_glyph(font, codepoint, &gid);
+  hb_font_get_nominal_glyph(font.get(), codepoint, &gid);
   if (gid == 0) {
     return absl::NotFoundError(StrCat("No cmap for ", codepoint));
   }
 
-  auto loca = FontHelper::Loca(face);
+  auto loca = FontHelper::Loca(face.get());
   if (!loca.ok()) {
-    hb_font_destroy(font);
-    hb_face_destroy(face);
     return loca.status();
   }
 
   auto start = loca_value(*loca, gid);
   auto end = loca_value(*loca, gid + 1);
-
-  hb_font_destroy(font);
-  hb_face_destroy(face);
 
   if (!start.ok()) {
     return start.status();

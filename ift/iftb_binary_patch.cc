@@ -17,6 +17,10 @@ using absl::StatusOr;
 using absl::StrCat;
 using common::FontData;
 using common::FontHelper;
+using common::hb_blob_unique_ptr;
+using common::hb_face_unique_ptr;
+using common::make_hb_blob;
+using common::make_hb_face;
 using ift::proto::IFT;
 using ift::proto::IFTTable;
 using ift::proto::PatchMap;
@@ -146,9 +150,8 @@ Status IftbBinaryPatch::Patch(const FontData& font_base,
     return absl::InvalidArgumentError("Failed to read input font file.");
   }
 
-  hb_face_t* face = font_base.reference_face();
-  unsigned num_glyphs = hb_face_get_glyph_count(face);
-  hb_face_destroy(face);
+  hb_face_unique_ptr face = font_base.face();
+  unsigned num_glyphs = hb_face_get_glyph_count(face.get());
 
   uint32_t new_length = merger.calcLayout(
       sfnt, num_glyphs, 0 /* TODO(garretrieger): add CFF charstrings offset */);
@@ -180,17 +183,16 @@ Status IftbBinaryPatch::Patch(const FontData& font_base,
                         modification == PatchMap::MODIFIED_BOTH);
   }
 
-  hb_blob_t* blob = hb_blob_create(new_font_data.data(), new_length,
-                                   HB_MEMORY_MODE_READONLY, nullptr, nullptr);
-  face = hb_face_create(blob, 0);
-  hb_blob_destroy(blob);
+  hb_blob_unique_ptr blob =
+      make_hb_blob(hb_blob_create(new_font_data.data(), new_length,
+                                  HB_MEMORY_MODE_READONLY, nullptr, nullptr));
+  face = make_hb_face(hb_face_create(blob.get(), 0));
 
   IFT main_proto = ift_table->CreateMainTable();
   IFT ext_proto = ift_table->CreateExtensionTable();
-  auto result =
-      IFTTable::AddToFont(face, main_proto, touched_ext ? &ext_proto : nullptr);
+  auto result = IFTTable::AddToFont(face.get(), main_proto,
+                                    touched_ext ? &ext_proto : nullptr);
 
-  hb_face_destroy(face);
   if (!result.ok()) {
     return result.status();
   }
