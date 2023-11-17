@@ -10,36 +10,54 @@
 
 namespace common {
 
+typedef std::unique_ptr<hb_face_t, decltype(&hb_face_destroy)>
+    hb_face_unique_ptr;
+typedef std::unique_ptr<hb_blob_t, decltype(&hb_blob_destroy)>
+    hb_blob_unique_ptr;
+
+static hb_face_unique_ptr make_hb_face(hb_face_t* face) {
+  return hb_face_unique_ptr(face, &hb_face_destroy);
+}
+
+static hb_blob_unique_ptr make_hb_blob(hb_blob_t* blob) {
+  return hb_blob_unique_ptr(blob, &hb_blob_destroy);
+}
+
+static hb_blob_unique_ptr make_hb_blob() {
+  return hb_blob_unique_ptr(hb_blob_get_empty(), &hb_blob_destroy);
+}
+
 // Holds the binary data for a font.
 class FontData {
  public:
-  FontData() : buffer_(hb_blob_get_empty()), saved_face_(nullptr) {}
+  FontData() : buffer_(make_hb_blob()), saved_face_(make_hb_face(nullptr)) {}
 
   // TODO(garretrieger): construct from span
 
   explicit FontData(hb_blob_t* blob)
-      : buffer_(hb_blob_get_empty()), saved_face_(nullptr) {
+      : buffer_(make_hb_blob()), saved_face_(make_hb_face(nullptr)) {
     set(blob);
   }
 
   explicit FontData(hb_face_t* face)
-      : buffer_(hb_blob_get_empty()), saved_face_(nullptr) {
+      : buffer_(make_hb_blob()), saved_face_(make_hb_face(nullptr)) {
     set(face);
   }
 
   explicit FontData(::absl::string_view data)
-      : buffer_(hb_blob_get_empty()), saved_face_(nullptr) {
+      : buffer_(make_hb_blob()), saved_face_(make_hb_face(nullptr)) {
     copy(data);
   }
 
   FontData(const FontData&) = delete;
 
-  FontData(FontData&& other) : buffer_(nullptr) {
-    buffer_ = other.buffer_;
-    saved_face_ = other.saved_face_;
+  FontData(FontData&& other)
+      : buffer_(make_hb_blob(nullptr)), saved_face_(make_hb_face(nullptr)) {
+    buffer_ = std::move(other.buffer_);
+    saved_face_ = std::move(other.saved_face_);
 
-    other.buffer_ = hb_blob_get_empty();
-    other.saved_face_ = nullptr;
+    other.buffer_ = make_hb_blob();
+    other.saved_face_ = make_hb_face(nullptr);
   }
 
   FontData& operator=(const FontData&) = delete;
@@ -50,11 +68,11 @@ class FontData {
     }
     reset();
 
-    buffer_ = other.buffer_;
-    saved_face_ = other.saved_face_;
+    buffer_ = std::move(other.buffer_);
+    saved_face_ = std::move(other.saved_face_);
 
-    other.buffer_ = hb_blob_get_empty();
-    other.saved_face_ = nullptr;
+    other.buffer_ = make_hb_blob();
+    other.saved_face_ = make_hb_face(nullptr);
 
     return *this;
   }
@@ -98,31 +116,28 @@ class FontData {
 
   void set(hb_blob_t* blob) {
     reset();
-    buffer_ = hb_blob_reference(blob);
+    buffer_ = make_hb_blob(hb_blob_reference(blob));
   }
 
   void set(hb_face_t* face) {
     reset();
 
-    saved_face_ = hb_face_reference(face);
-
-    hb_blob_t* blob = hb_face_reference_blob(face);
-    buffer_ = hb_blob_reference(blob);
-    hb_blob_destroy(blob);
+    saved_face_ = make_hb_face(hb_face_reference(face));
+    buffer_ = make_hb_blob(hb_face_reference_blob(face));
   }
 
   void set(hb_face_t* face, hb_blob_t* blob) {
     reset();
 
-    saved_face_ = hb_face_reference(face);
-    buffer_ = hb_blob_reference(blob);
+    saved_face_ = make_hb_face(hb_face_reference(face));
+    buffer_ = make_hb_blob(hb_blob_reference(blob));
   }
 
   void shallow_copy(const FontData& other) {
     if (other.saved_face_) {
-      set(other.saved_face_);
+      set(other.saved_face_.get());
     } else {
-      set(other.buffer_);
+      set(other.buffer_.get());
     }
   }
 
@@ -133,43 +148,41 @@ class FontData {
     reset();
     char* buffer = reinterpret_cast<char*>(malloc(length));
     memcpy(buffer, data, length);
-    buffer_ =
-        hb_blob_create(buffer, length, HB_MEMORY_MODE_READONLY, buffer, &free);
+    buffer_ = make_hb_blob(
+        hb_blob_create(buffer, length, HB_MEMORY_MODE_READONLY, buffer, &free));
   }
 
   void copy(::absl::string_view data) { copy(data.data(), data.size()); }
 
   void reset() {
-    if (buffer_ != hb_blob_get_empty()) {
-      hb_blob_destroy(buffer_);
-      buffer_ = hb_blob_get_empty();
+    if (buffer_.get() != hb_blob_get_empty()) {
+      buffer_ = make_hb_blob();
     }
 
-    if (saved_face_ != nullptr) {
-      hb_face_destroy(saved_face_);
-      saved_face_ = nullptr;
+    if (saved_face_.get() != nullptr) {
+      saved_face_ = make_hb_face(nullptr);
     }
   }
 
   hb_face_t* reference_face() const {
     if (saved_face_) {
-      return hb_face_reference(saved_face_);
+      return hb_face_reference(saved_face_.get());
     }
-    return hb_face_create(buffer_, 0);
+    return hb_face_create(buffer_.get(), 0);
   }
 
-  hb_blob_t* reference_blob() const { return hb_blob_reference(buffer_); }
+  hb_blob_t* reference_blob() const { return hb_blob_reference(buffer_.get()); }
 
   const char* data() const {
     unsigned int size;
-    return hb_blob_get_data(buffer_, &size);
+    return hb_blob_get_data(buffer_.get(), &size);
   }
 
-  unsigned int size() const { return hb_blob_get_length(buffer_); }
+  unsigned int size() const { return hb_blob_get_length(buffer_.get()); }
 
  private:
-  hb_blob_t* buffer_;
-  hb_face_t* saved_face_;
+  hb_blob_unique_ptr buffer_;
+  hb_face_unique_ptr saved_face_;
 };
 
 }  // namespace common
