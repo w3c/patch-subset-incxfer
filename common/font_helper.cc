@@ -3,10 +3,72 @@
 #include <cstdint>
 
 #include "absl/container/flat_hash_map.h"
+#include "common/font_data.h"
 
 using absl::flat_hash_map;
+using common::FontData;
 
 namespace common {
+
+absl::StatusOr<absl::string_view> FontHelper::GlyfData(const hb_face_t* face,
+                                                       uint32_t gid) {
+  auto loca = Loca(face);
+  if (!loca.ok()) {
+    return loca.status();
+  }
+
+  FontData head = TableData(face, kHead);
+  if (head.size() < 52) {
+    return absl::InvalidArgumentError("invalid head table, too short.");
+  }
+
+  bool is_short_loca = !head.str()[51];
+  uint32_t width = is_short_loca ? 2 : 4;
+  uint32_t start_index = gid * width;
+  uint32_t end_index = (gid + 1) * width;
+
+  if (loca->size() < end_index + width) {
+    return absl::InvalidArgumentError("invalid loca table, too short.");
+  }
+
+  uint32_t glyph_data_start = 0;
+  uint32_t glyph_data_end = 0;
+  if (is_short_loca) {
+    auto glyph_start = ReadUInt16(loca->substr(start_index));
+    auto glyph_end = ReadUInt16(loca->substr(end_index));
+    if (!glyph_start.ok()) {
+      return glyph_start.status();
+    }
+    if (!glyph_end.ok()) {
+      return glyph_end.status();
+    }
+    glyph_data_start = *glyph_start * 2;
+    glyph_data_end = *glyph_end * 2;
+  } else {
+    auto glyph_start = ReadUInt32(loca->substr(start_index));
+    auto glyph_end = ReadUInt32(loca->substr(end_index));
+    if (!glyph_start.ok()) {
+      return glyph_start.status();
+    }
+    if (!glyph_end.ok()) {
+      return glyph_end.status();
+    }
+    glyph_data_start = *glyph_start;
+    glyph_data_end = *glyph_end;
+  }
+
+  if (glyph_data_end < glyph_data_start) {
+    return absl::InvalidArgumentError(
+        "invalid loca entry, end is less than start.");
+  }
+
+  auto glyf = TableData(face, kGlyf);
+  if (glyf.size() < glyph_data_end) {
+    return absl::InvalidArgumentError("invalid glyf table, too short.");
+  }
+
+  return glyf.str().substr(glyph_data_start, glyph_data_end - glyph_data_start);
+}
 
 flat_hash_map<uint32_t, uint32_t> FontHelper::GidToUnicodeMap(hb_face_t* face) {
   hb_map_t* unicode_to_gid = hb_map_create();

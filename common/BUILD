@@ -77,6 +77,7 @@ cc_test(
     ],
     data = [
         "//patch_subset:testdata",
+        "//ift:testdata",
     ],
     deps = [
         ":common",

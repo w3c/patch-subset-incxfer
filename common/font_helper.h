@@ -39,6 +39,7 @@ class FontHelper {
   constexpr static hb_tag_t kIFTB = HB_TAG('I', 'F', 'T', 'B');
   constexpr static hb_tag_t kLoca = HB_TAG('l', 'o', 'c', 'a');
   constexpr static hb_tag_t kGlyf = HB_TAG('g', 'l', 'y', 'f');
+  constexpr static hb_tag_t kHead = HB_TAG('h', 'e', 'a', 'd');
   constexpr static hb_tag_t kGvar = HB_TAG('g', 'v', 'a', 'r');
   constexpr static hb_tag_t kCFF = HB_TAG('C', 'F', 'F', ' ');
   constexpr static hb_tag_t kCFF2 = HB_TAG('C', 'F', 'F', '2');
@@ -60,22 +61,18 @@ class FontHelper {
     return (((uint16_t)bytes[0]) << 8) + (((uint16_t)bytes[1]));
   }
 
-  static absl::StatusOr<absl::string_view> Loca(hb_face_t* face) {
-    hb_blob_t* loca_blob = hb_face_reference_table(face, FontHelper::kLoca);
-    uint32_t loca_length = 0;
-    const uint8_t* loca = reinterpret_cast<const uint8_t*>(
-        hb_blob_get_data(loca_blob, &loca_length));
-    if (!loca_length) {
-      return absl::NotFoundError("loca table not found in face.");
+  static absl::StatusOr<absl::string_view> GlyfData(const hb_face_t* face,
+                                                    uint32_t gid);
+
+  static absl::StatusOr<absl::string_view> Loca(const hb_face_t* face) {
+    auto result = FontHelper::TableData(face, kLoca).str();
+    if (result.empty()) {
+      return absl::NotFoundError("loca table was not found.");
     }
-
-    absl::string_view result((const char*)loca, loca_length);
-
-    hb_blob_destroy(loca_blob);
     return result;
   }
 
-  static FontData TableData(hb_face_t* face, hb_tag_t tag) {
+  static FontData TableData(const hb_face_t* face, hb_tag_t tag) {
     hb_blob_t* blob = hb_face_reference_table(face, tag);
     FontData result(blob);
     hb_blob_destroy(blob);
