@@ -103,8 +103,6 @@ TEST_F(FontHelperTest, GlyfData_Long) {
   data = FontHelper::GlyfData(noto_sans_ift_ttf.get(), 1055);
   ASSERT_TRUE(data.ok()) << data.status();
   ASSERT_EQ(data->size(), 0);
-
-  // TODO
 }
 
 TEST_F(FontHelperTest, Loca) {
