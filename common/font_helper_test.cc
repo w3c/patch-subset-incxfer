@@ -16,6 +16,7 @@ class FontHelperTest : public ::testing::Test {
  protected:
   FontHelperTest()
       : noto_sans_jp_otf(make_hb_face(nullptr)),
+        noto_sans_ift_ttf(make_hb_face(nullptr)),
         roboto_ab(make_hb_face(nullptr)) {
     hb_blob_unique_ptr blob = make_hb_blob(hb_blob_create_from_file(
         "patch_subset/testdata/Roboto-Regular.ab.ttf"));
@@ -24,9 +25,14 @@ class FontHelperTest : public ::testing::Test {
     blob = make_hb_blob(hb_blob_create_from_file(
         "patch_subset/testdata/NotoSansJP-Regular.otf"));
     noto_sans_jp_otf = make_hb_face(hb_face_create(blob.get(), 0));
+
+    blob = make_hb_blob(
+        hb_blob_create_from_file("ift/testdata/NotoSansJP-Regular.ift.ttf"));
+    noto_sans_ift_ttf = make_hb_face(hb_face_create(blob.get(), 0));
   }
 
   hb_face_unique_ptr noto_sans_jp_otf;
+  hb_face_unique_ptr noto_sans_ift_ttf;
   hb_face_unique_ptr roboto_ab;
 };
 
@@ -58,6 +64,47 @@ TEST_F(FontHelperTest, ReadUInt32) {
 
   s = FontHelper::ReadUInt32(string_view((const char*)input1, 3));
   ASSERT_FALSE(s.ok());
+}
+
+TEST_F(FontHelperTest, GlyfData_Short) {
+  auto data = FontHelper::GlyfData(roboto_ab.get(), 0);
+  ASSERT_TRUE(data.ok()) << data.status();
+  ASSERT_EQ(data->size(), 0);
+
+  data = FontHelper::GlyfData(roboto_ab.get(), 45);
+  ASSERT_TRUE(data.ok()) << data.status();
+  ASSERT_EQ(data->size(), 0);
+
+  data = FontHelper::GlyfData(roboto_ab.get(), 69);
+  ASSERT_TRUE(data.ok()) << data.status();
+  ASSERT_GT(data->size(), 0);
+
+  data = FontHelper::GlyfData(roboto_ab.get(), 70);
+  ASSERT_TRUE(data.ok()) << data.status();
+  ASSERT_GT(data->size(), 0);
+
+  data = FontHelper::GlyfData(roboto_ab.get(), 71);
+  ASSERT_TRUE(absl::IsInvalidArgument(data.status())) << data.status();
+}
+
+TEST_F(FontHelperTest, GlyfData_Long) {
+  auto data = FontHelper::GlyfData(noto_sans_ift_ttf.get(), 0);
+  ASSERT_TRUE(data.ok()) << data.status();
+  ASSERT_EQ(data->size(), 0);
+
+  data = FontHelper::GlyfData(noto_sans_ift_ttf.get(), 52);
+  ASSERT_TRUE(data.ok()) << data.status();
+  ASSERT_GT(data->size(), 0);
+
+  data = FontHelper::GlyfData(noto_sans_ift_ttf.get(), 72);
+  ASSERT_TRUE(data.ok()) << data.status();
+  ASSERT_GT(data->size(), 0);
+
+  data = FontHelper::GlyfData(noto_sans_ift_ttf.get(), 1055);
+  ASSERT_TRUE(data.ok()) << data.status();
+  ASSERT_EQ(data->size(), 0);
+
+  // TODO
 }
 
 TEST_F(FontHelperTest, Loca) {
