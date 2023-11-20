@@ -96,6 +96,8 @@ Status Encoder::AddExistingIftbPatch(uint32_t id, const FontData& patch) {
   SubsetDefinition subset;
   auto gid_to_unicode = FontHelper::GidToUnicodeMap(face_);
   for (uint32_t gid : *gids) {
+    subset.gids.insert(gid);
+
     auto cp = gid_to_unicode.find(gid);
     if (cp == gid_to_unicode.end()) {
       if (gid >= glyph_count) {
@@ -106,7 +108,6 @@ Status Encoder::AddExistingIftbPatch(uint32_t id, const FontData& patch) {
       continue;
     }
 
-    subset.gids.insert(gid);
     subset.codepoints.insert(cp->second);
   }
 
@@ -164,6 +165,14 @@ Status Encoder::SetBaseSubsetFromIftbPatches(
     // remove all patches that have been placed into the base subset.
     existing_iftb_patches_.erase(id);
   }
+
+  // TODO(garretrieger):
+  //   This is a hack, the IFTB merger does not support loca len changing.
+  //   so always include the last gid in the base subset to force the
+  //   loca table to remain at the full length from the start. This should
+  //   be removed once that limitation is fixed in the IFTB merger.
+  uint32_t gid_count = hb_face_get_glyph_count(face_);
+  if (gid_count > 0) base_subset_.gids.insert(gid_count - 1);
 
   return absl::OkStatus();
 }
