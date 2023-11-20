@@ -4,6 +4,7 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/str_cat.h"
 #include "common/font_data.h"
+#include "common/font_helper.h"
 #include "common/hb_set_unique_ptr.h"
 #include "gtest/gtest.h"
 #include "hb.h"
@@ -15,6 +16,7 @@ using absl::flat_hash_set;
 using absl::Status;
 using absl::StrCat;
 using common::FontData;
+using common::FontHelper;
 using common::hb_set_unique_ptr;
 using common::make_hb_set;
 using ift::IFTClient;
@@ -142,6 +144,13 @@ class IntegrationTest : public ::testing::Test {
   uint32_t chunk2_cp = 0xb2;
   uint32_t chunk3_cp = 0xeb;
   uint32_t chunk4_cp = 0xa8;
+
+  uint32_t chunk0_gid = 40;
+  uint32_t chunk1_gid = 117;
+  uint32_t chunk2_gid = 112;
+  uint32_t chunk2_gid_non_cmapped = 900;
+  uint32_t chunk3_gid = 169;
+  uint32_t chunk4_gid = 103;
 };
 
 // TODO(garretrieger): add IFTB only test case.
@@ -356,9 +365,14 @@ TEST_F(IntegrationTest, MixedMode) {
   ASSERT_TRUE(codepoints.contains(chunk3_cp));
   ASSERT_TRUE(codepoints.contains(chunk4_cp));
 
-  // TODO(garretrieger): check glyph presence as well.
-  //   - We can extract the functions in iftb_binary_patch_test for dealing with
-  //   glyf/loca.
+  auto face = client->GetFontData().face();
+  ASSERT_TRUE(!FontHelper::GlyfData(face.get(), chunk0_gid)->empty());
+  ASSERT_TRUE(!FontHelper::GlyfData(face.get(), chunk1_gid)->empty());
+  ASSERT_FALSE(!FontHelper::GlyfData(face.get(), chunk2_gid)->empty());
+  ASSERT_FALSE(
+      !FontHelper::GlyfData(face.get(), chunk2_gid_non_cmapped)->empty());
+  ASSERT_TRUE(!FontHelper::GlyfData(face.get(), chunk3_gid)->empty());
+  ASSERT_TRUE(!FontHelper::GlyfData(face.get(), chunk4_gid)->empty());
 }
 
 TEST_F(IntegrationTest, MixedMode_LocaLenChange) {
@@ -437,6 +451,13 @@ TEST_F(IntegrationTest, MixedMode_LocaLenChange) {
   ASSERT_TRUE(codepoints.contains(chunk2_cp));
   ASSERT_TRUE(codepoints.contains(chunk3_cp));
   ASSERT_FALSE(codepoints.contains(chunk4_cp));
+
+  ASSERT_TRUE(!FontHelper::GlyfData(face.get(), chunk0_gid)->empty());
+  ASSERT_FALSE(!FontHelper::GlyfData(face.get(), chunk1_gid)->empty());
+  ASSERT_TRUE(!FontHelper::GlyfData(face.get(), chunk2_gid)->empty());
+  ASSERT_TRUE(!FontHelper::GlyfData(face.get(), chunk3_gid)->empty());
+  ASSERT_FALSE(!FontHelper::GlyfData(face.get(), chunk4_gid)->empty());
+  ASSERT_TRUE(!FontHelper::GlyfData(face.get(), gid_count_3 - 1)->empty());
 }
 
 TEST_F(IntegrationTest, MixedMode_Complex) {
@@ -491,7 +512,13 @@ TEST_F(IntegrationTest, MixedMode_Complex) {
   ASSERT_TRUE(codepoints.contains(chunk2_cp));
   ASSERT_TRUE(codepoints.contains(chunk3_cp));
   ASSERT_TRUE(codepoints.contains(chunk4_cp));
-  // TODO(garretrieger): also check glyph presence
+
+  auto face = client->GetFontData().face();
+  ASSERT_TRUE(!FontHelper::GlyfData(face.get(), chunk0_gid)->empty());
+  ASSERT_TRUE(!FontHelper::GlyfData(face.get(), chunk1_gid)->empty());
+  ASSERT_FALSE(!FontHelper::GlyfData(face.get(), chunk2_gid)->empty());
+  ASSERT_TRUE(!FontHelper::GlyfData(face.get(), chunk3_gid)->empty());
+  ASSERT_FALSE(!FontHelper::GlyfData(face.get(), chunk4_gid)->empty());
 }
 
 TEST_F(IntegrationTest, MixedMode_SequentialDependentPatches) {
