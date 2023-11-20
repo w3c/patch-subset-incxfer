@@ -143,9 +143,8 @@ Status IftbBinaryPatch::Patch(const FontData& font_base,
     return absl::InvalidArgumentError("Failed to unpack the chunks.");
   }
 
-  std::string font_data = font_base.string();
   sfnt sfnt;
-  sfnt.setBuffer(font_data);
+  sfnt.setBuffer((char*)font_base.data(), font_base.size());
   if (!sfnt.read()) {
     return absl::InvalidArgumentError("Failed to read input font file.");
   }
@@ -167,7 +166,7 @@ Status IftbBinaryPatch::Patch(const FontData& font_base,
   std::string new_font_data;
   new_font_data.resize(new_length, 0);
 
-  if (!merger.merge(sfnt, font_data.data(), new_font_data.data())) {
+  if (!merger.merge(sfnt, (char*)font_base.data(), new_font_data.data())) {
     return absl::InvalidArgumentError("IFTB Patch merging failed.");
   }
 

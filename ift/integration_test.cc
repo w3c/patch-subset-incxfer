@@ -361,6 +361,84 @@ TEST_F(IntegrationTest, MixedMode) {
   //   glyf/loca.
 }
 
+TEST_F(IntegrationTest, MixedMode_LocaLenChange) {
+  Encoder encoder;
+  auto sc = InitEncoderForIftb(encoder);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  // target paritions: {{0}, {1}, {2}, {3}, {4}}
+  sc = encoder.SetBaseSubsetFromIftbPatches({});
+  sc.Update(encoder.AddExtensionSubsetOfIftbPatches({1}));
+  sc.Update(encoder.AddExtensionSubsetOfIftbPatches({2}));
+  sc.Update(encoder.AddExtensionSubsetOfIftbPatches({3}));
+  sc.Update(encoder.AddExtensionSubsetOfIftbPatches({4}));
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  auto encoded = encoder.Encode();
+  ASSERT_TRUE(encoded.ok()) << encoded.status();
+
+  auto codepoints = ToCodepointsSet(*encoded);
+  ASSERT_TRUE(codepoints.contains(chunk0_cp));
+  ASSERT_FALSE(codepoints.contains(chunk1_cp));
+  ASSERT_FALSE(codepoints.contains(chunk2_cp));
+  ASSERT_FALSE(codepoints.contains(chunk3_cp));
+  ASSERT_FALSE(codepoints.contains(chunk4_cp));
+
+  // ### Phase 1 ###
+  auto client = IFTClient::NewClient(std::move(*encoded));
+  ASSERT_TRUE(client.ok()) << client.status();
+  auto face = client->GetFontData().face();
+  uint32_t gid_count_1 = hb_face_get_glyph_count(face.get());
+
+  sc = client->AddDesiredCodepoints({chunk3_cp});
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  auto patches = client->PatchesNeeded();
+  ASSERT_EQ(patches.size(), 2);  // 1 shared brotli and 1 iftb.
+
+  sc = AddPatchesIftb(*client, encoder);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  auto state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::READY);
+
+  face = client->GetFontData().face();
+  uint32_t gid_count_2 = hb_face_get_glyph_count(face.get());
+
+  // ### Phase 2 ###
+  sc = client->AddDesiredCodepoints({chunk2_cp});
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  patches = client->PatchesNeeded();
+  ASSERT_EQ(patches.size(), 2);  // 1 shared brotli and 1 iftb.
+
+  sc = AddPatchesIftb(*client, encoder);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::READY);
+
+  face = client->GetFontData().face();
+  uint32_t gid_count_3 = hb_face_get_glyph_count(face.get());
+
+  // ### Checks ###
+
+  // To avoid loca len change the encoder ensures that a full len
+  // loca exists in the base font. So gid count should be consistent
+  // at each point
+  ASSERT_EQ(gid_count_1, gid_count_2);
+  ASSERT_EQ(gid_count_2, gid_count_3);
+
+  codepoints = ToCodepointsSet(client->GetFontData());
+  ASSERT_TRUE(codepoints.contains(chunk0_cp));
+  ASSERT_FALSE(codepoints.contains(chunk1_cp));
+  ASSERT_TRUE(codepoints.contains(chunk2_cp));
+  ASSERT_TRUE(codepoints.contains(chunk3_cp));
+  ASSERT_FALSE(codepoints.contains(chunk4_cp));
+}
+
 TEST_F(IntegrationTest, MixedMode_Complex) {
   Encoder encoder;
   auto sc = InitEncoderForIftb(encoder);
