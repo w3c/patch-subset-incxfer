@@ -109,6 +109,22 @@ Status IFTClient::AddDesiredCodepoints(
   return s;
 }
 
+Status IFTClient::AddDesiredFeatures(
+    const absl::flat_hash_set<hb_tag_t>& features) {
+  if (!status_.ok()) {
+    return status_;
+  }
+
+  std::copy(features.begin(), features.end(),
+            std::inserter(target_features_, target_features_.begin()));
+
+  auto s = ComputeOutstandingPatches();
+  if (!s.ok()) {
+    status_ = s;
+  }
+  return s;
+}
+
 void IFTClient::AddPatch(uint32_t id, const FontData& font_data) {
   outstanding_patches_.erase(id);
   pending_patches_[id].shallow_copy(font_data);
@@ -235,11 +251,10 @@ StatusOr<IFTClient::State> IFTClient::Process() {
 Status IFTClient::ComputeOutstandingPatches() {
   // Patch matching algorithm works like this:
   // 1. Identify all patches listed in the IFT table which intersect the input
-  // codepoints.
+  //    codepoints.
   // 2. Keep all of those that are independent.
   // 3. Of the matched dependent patches, keep only one. Select the patch with
-  // the largest
-  //    coverage.
+  //    the largest coverage.
 
   if (!ift_table_) {
     outstanding_patches_.clear();
@@ -247,47 +262,18 @@ Status IFTClient::ComputeOutstandingPatches() {
     return absl::OkStatus();
   }
 
+  absl::flat_hash_set<uint32_t> candidate_indices = FindCandidateIndices();
   absl::flat_hash_set<uint32_t> independent_entry_indices;
   // keep dep entries sorted so that ties during single entry selection
   // are broken consistently.
   absl::btree_set<uint32_t> dependent_entry_indices;
-
-  for (uint32_t cp : target_codepoints_) {
-    auto indices = codepoint_to_entries_index_.find(cp);
-    if (indices == codepoint_to_entries_index_.end()) {
-      continue;
-    }
-
-    for (uint32_t index : indices->second) {
-      const auto& entry = ift_table_->GetPatchMap().GetEntries().at(index);
-
-      if (entry.IsDependent()) {
-        dependent_entry_indices.insert(index);
-      } else {
-        independent_entry_indices.insert(index);
-      }
-    }
-  }
+  IntersectingEntries(candidate_indices, independent_entry_indices,
+                      dependent_entry_indices);
 
   if (!dependent_entry_indices.empty()) {
     // Pick at most one dependent patches to keep.
-    // TODO(garretrieger): use intersection size with additional_codepoints
-    // instead.
-    // TODO(garretrieger): merge coverages when multiple entries have the same
-    // patch index.
-
-    uint32_t selected_entry_index;
-    uint32_t max_size = 0;
-    for (uint32_t entry_index : dependent_entry_indices) {
-      const PatchMap::Entry& entry =
-          ift_table_->GetPatchMap().GetEntries().at(entry_index);
-      if (entry.coverage.codepoints.size() > max_size) {
-        max_size = entry.coverage.codepoints.size();
-        selected_entry_index = entry_index;
-      }
-    }
-
-    independent_entry_indices.insert(selected_entry_index);
+    independent_entry_indices.insert(
+        SelectDependentEntry(dependent_entry_indices));
   }
 
   outstanding_patches_.clear();
@@ -366,6 +352,63 @@ Status IFTClient::SetFont(common::FontData&& new_font) {
   return absl::OkStatus();
 }
 
+flat_hash_set<uint32_t> IFTClient::FindCandidateIndices() const {
+  flat_hash_set<uint32_t> candidate_indices;
+  for (uint32_t cp : target_codepoints_) {
+    auto indices = codepoint_to_entries_index_.find(cp);
+    if (indices != codepoint_to_entries_index_.end()) {
+      std::copy(indices->second.begin(), indices->second.end(),
+                std::inserter(candidate_indices, candidate_indices.begin()));
+    }
+  }
+
+  auto indices = codepoint_to_entries_index_.find(ALL_CODEPOINTS);
+  if (indices != codepoint_to_entries_index_.end()) {
+    std::copy(indices->second.begin(), indices->second.end(),
+              std::inserter(candidate_indices, candidate_indices.begin()));
+  }
+
+  return candidate_indices;
+}
+
+void IFTClient::IntersectingEntries(
+    const absl::flat_hash_set<uint32_t>& candidate_indices,
+    absl::flat_hash_set<uint32_t>& independent_entry_indices,
+    absl::btree_set<uint32_t>& dependent_entry_indices) {
+  for (uint32_t index : candidate_indices) {
+    const auto& entry = ift_table_->GetPatchMap().GetEntries().at(index);
+
+    if (!entry.coverage.Intersects(target_codepoints_, target_features_)) {
+      continue;
+    }
+
+    if (entry.IsDependent()) {
+      dependent_entry_indices.insert(index);
+    } else {
+      independent_entry_indices.insert(index);
+    }
+  }
+}
+
+uint32_t IFTClient::SelectDependentEntry(
+    const absl::btree_set<uint32_t>& dependent_entry_indices) {
+  // TODO(garretrieger): use intersection size with additional_codepoints
+  // instead.
+  // TODO(garretrieger): merge coverages when multiple entries have the same
+  // patch index.
+  uint32_t selected_entry_index;
+  uint32_t max_size = 0;
+  for (uint32_t entry_index : dependent_entry_indices) {
+    const PatchMap::Entry& entry =
+        ift_table_->GetPatchMap().GetEntries().at(entry_index);
+    if (entry.coverage.codepoints.size() > max_size) {
+      max_size = entry.coverage.codepoints.size();
+      selected_entry_index = entry_index;
+    }
+  }
+  return selected_entry_index;
+}
+
 void IFTClient::UpdateIndex() {
   codepoint_to_entries_index_.clear();
   if (!ift_table_) {
@@ -374,9 +417,14 @@ void IFTClient::UpdateIndex() {
 
   uint32_t entry_index = 0;
   for (const auto& e : ift_table_->GetPatchMap().GetEntries()) {
-    for (uint32_t cp : e.coverage.codepoints) {
-      codepoint_to_entries_index_[cp].push_back(entry_index);
+    if (!e.coverage.codepoints.empty()) {
+      for (uint32_t cp : e.coverage.codepoints) {
+        codepoint_to_entries_index_[cp].push_back(entry_index);
+      }
+    } else {
+      codepoint_to_entries_index_[ALL_CODEPOINTS].push_back(entry_index);
     }
+
     entry_index++;
   }
 }

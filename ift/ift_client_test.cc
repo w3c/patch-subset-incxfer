@@ -28,6 +28,10 @@ static constexpr uint32_t kSampleFont = 0;
 static constexpr uint32_t kComplexFont = 1;
 static constexpr uint32_t kInvalidFont = 2;
 static constexpr uint32_t kLeaf = 3;
+static constexpr uint32_t kFontWithFeatures = 4;
+
+static constexpr uint32_t kLiga = HB_TAG('l', 'i', 'g', 'a');
+static constexpr uint32_t kLigaNo = 30;
 
 class IFTClientTest : public ::testing::Test {
  protected:
@@ -102,6 +106,45 @@ class IFTClientTest : public ::testing::Test {
     m->set_id_delta(-1);
     m->set_patch_encoding(SHARED_BROTLI_ENCODING);
 
+    // With Features
+    IFT sample_with_features = sample;
+    m = sample_with_features.add_subset_mapping();
+    set = make_hb_set(3, 0, 1, 2);
+    m->set_bias(20);
+    m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
+    m->set_id_delta(10);  // 0x35 (53)
+    m->add_feature_index(kLigaNo);
+    m->set_patch_encoding(IFTB_ENCODING);
+
+    m = sample_with_features.add_subset_mapping();
+    set = make_hb_set(3, 0, 1);
+    m->set_bias(60);
+    m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
+    m->set_id_delta(0);  // 0x36 (54)
+    m->add_feature_index(kLigaNo);
+    m->set_patch_encoding(SHARED_BROTLI_ENCODING);
+
+    m = sample_with_features.add_subset_mapping();
+    set = make_hb_set(3, 0, 1, 2, 3);
+    m->set_bias(70);
+    m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
+    m->set_id_delta(0);  // 0x37 (55)
+    m->add_feature_index(kLigaNo);
+    m->set_patch_encoding(SHARED_BROTLI_ENCODING);
+
+    m = sample_with_features.add_subset_mapping();
+    set = make_hb_set(4, 0, 1, 2, 3, 4);
+    m->set_bias(80);
+    m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
+    m->set_id_delta(0);  // 0x38 (56)
+    m->add_feature_index(kLigaNo);
+    m->set_patch_encoding(SHARED_BROTLI_ENCODING);
+
+    m = sample_with_features.add_subset_mapping();
+    m->set_id_delta(7);  // 0x40 (64)
+    m->add_feature_index(kLigaNo);
+    m->set_patch_encoding(IFTB_ENCODING);
+
     hb_blob_t* blob =
         hb_blob_create_from_file("patch_subset/testdata/Roboto-Regular.ab.ttf");
     hb_face_t* face = hb_face_create(blob, 0);
@@ -109,19 +152,20 @@ class IFTClientTest : public ::testing::Test {
     fonts[kLeaf].set(face);
 
     auto font = IFTTable::AddToFont(face, sample);
-    hb_face_t* new_face = font->reference_face();
-    fonts[kSampleFont].set(new_face);
-    hb_face_destroy(new_face);
+    auto new_face = font->face();
+    fonts[kSampleFont].set(new_face.get());
 
     font = IFTTable::AddToFont(face, complex);
-    new_face = font->reference_face();
-    fonts[kComplexFont].set(new_face);
-    hb_face_destroy(new_face);
+    new_face = font->face();
+    fonts[kComplexFont].set(new_face.get());
 
     font = IFTTable::AddToFont(face, invalid);
-    new_face = font->reference_face();
-    fonts[kInvalidFont].set(new_face);
-    hb_face_destroy(new_face);
+    new_face = font->face();
+    fonts[kInvalidFont].set(new_face.get());
+
+    font = IFTTable::AddToFont(face, sample_with_features);
+    new_face = font->face();
+    fonts[kFontWithFeatures].set(new_face.get());
 
     iftb_font = from_file("ift/testdata/NotoSansJP-Regular.ift.ttf");
     chunk1 = from_file("ift/testdata/NotoSansJP-Regular.subset_iftb/chunk1.br");
@@ -136,7 +180,7 @@ class IFTClientTest : public ::testing::Test {
     return result;
   }
 
-  FontData fonts[4];
+  FontData fonts[5];
 
   FontData iftb_font;
   FontData chunk1;
@@ -144,11 +188,16 @@ class IFTClientTest : public ::testing::Test {
 
 typedef flat_hash_set<uint32_t> uint_set;
 struct PatchesNeededTestCase {
-  PatchesNeededTestCase(uint32_t font_id_, uint_set input_, uint_set expected_)
-      : font_id(font_id_), input(input_), expected(expected_) {}
+  PatchesNeededTestCase(uint32_t font_id_, uint_set codepoints_,
+                        uint_set features_, uint_set expected_)
+      : font_id(font_id_),
+        codepoints(codepoints_),
+        features(features_),
+        expected(expected_) {}
 
   uint32_t font_id;
-  uint_set input;
+  uint_set codepoints;
+  uint_set features;
   uint_set expected;
 };
 
@@ -165,31 +214,57 @@ TEST_P(IFTClientParameterizedTest, PatchesNeeded) {
   auto client = IFTClient::NewClient(std::move(font));
   ASSERT_TRUE(client.ok()) << client.status();
 
-  auto s = client->AddDesiredCodepoints(p.input);
-  ASSERT_TRUE(s.ok()) << s;
+  if (!p.codepoints.empty()) {
+    auto s = client->AddDesiredCodepoints(p.codepoints);
+    ASSERT_TRUE(s.ok()) << s;
+  }
+
+  if (!p.features.empty()) {
+    auto s = client->AddDesiredFeatures(p.features);
+    ASSERT_TRUE(s.ok()) << s;
+  }
+
   ASSERT_EQ(client->PatchesNeeded(), p.expected);
 }
 
 INSTANTIATE_TEST_SUITE_P(
     TargetCodepoints, IFTClientParameterizedTest,
-    testing::Values(PatchesNeededTestCase(kSampleFont, {30}, {0x09}),
-                    PatchesNeededTestCase(kSampleFont, {55, 57}, {0x2a}),
-                    PatchesNeededTestCase(kSampleFont, {32, 56}, {0x09, 0x2a}),
-                    PatchesNeededTestCase(kSampleFont, {}, {}),
-                    PatchesNeededTestCase(kSampleFont, {112}, {}),
-                    PatchesNeededTestCase(kSampleFont, {30, 112}, {0x09}),
+    testing::Values(
+        PatchesNeededTestCase(kSampleFont, {30}, {}, {0x09}),
+        PatchesNeededTestCase(kSampleFont, {55, 57}, {}, {0x2a}),
+        PatchesNeededTestCase(kSampleFont, {32, 56}, {}, {0x09, 0x2a}),
+        PatchesNeededTestCase(kSampleFont, {32, 56}, {kLiga}, {0x09, 0x2a}),
+        PatchesNeededTestCase(kSampleFont, {}, {}, {}),
+        PatchesNeededTestCase(kSampleFont, {112}, {}, {}),
+        PatchesNeededTestCase(kSampleFont, {30, 112}, {}, {0x09}),
 
-                    PatchesNeededTestCase(kComplexFont, {4, 6}, {1, 2}),
-                    PatchesNeededTestCase(kComplexFont, {4, 11, 12}, {1, 3, 4}),
-                    PatchesNeededTestCase(kComplexFont, {12}, {5}),
+        PatchesNeededTestCase(kFontWithFeatures, {21}, {kLiga}, {0x35, 0x40}),
+        PatchesNeededTestCase(kFontWithFeatures, {32, 56, 21}, {kLiga},
+                              {0x09, 0x2a, 0x35, 0x40}),
+        PatchesNeededTestCase(kFontWithFeatures, {32, 56}, {kLiga},
+                              {0x09, 0x2a, 0x40}),
+        PatchesNeededTestCase(kFontWithFeatures, {100}, {kLiga}, {0x40}),
 
-                    PatchesNeededTestCase(kComplexFont, {5, 100}, {1}),
-                    PatchesNeededTestCase(kComplexFont, {100}, {}),
+        // dependent entry prioritization:
+        // - goes to the largest codepoint set, with ties broken by entry order.
+        PatchesNeededTestCase(kFontWithFeatures, {56, 60}, {kLiga},
+                              {0x2a, 0x40}),
+        PatchesNeededTestCase(kFontWithFeatures, {56, 70}, {kLiga},
+                              {0x2a, 0x40}),
+        PatchesNeededTestCase(kFontWithFeatures, {56, 80}, {kLiga},
+                              {0x38, 0x40}),
 
-                    PatchesNeededTestCase(kInvalidFont, {6}, {1}),
-                    PatchesNeededTestCase(kInvalidFont, {6, 8}, {1}),
+        PatchesNeededTestCase(kComplexFont, {4, 6}, {}, {1, 2}),
+        PatchesNeededTestCase(kComplexFont, {4, 11, 12}, {}, {1, 3, 4}),
+        PatchesNeededTestCase(kComplexFont, {12}, {}, {5}),
 
-                    PatchesNeededTestCase(kLeaf, {30}, {})));
+        PatchesNeededTestCase(kComplexFont, {5, 100}, {}, {1}),
+        PatchesNeededTestCase(kComplexFont, {100}, {}, {}),
+
+        PatchesNeededTestCase(kInvalidFont, {6}, {}, {1}),
+        PatchesNeededTestCase(kInvalidFont, {6, 8}, {}, {1}),
+
+        PatchesNeededTestCase(kLeaf, {30}, {}, {})));
 
 TEST_F(IFTClientTest, PatchUrls_InvalidRepeatedPatchIndices) {
   auto client = IFTClient::NewClient(std::move(fonts[kInvalidFont]));
