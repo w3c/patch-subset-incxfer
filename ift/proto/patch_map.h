@@ -7,6 +7,7 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
 #include "absl/types/span.h"
+#include "hb.h"
 #include "ift/proto/IFT.pb.h"
 
 namespace ift::proto {
@@ -47,9 +48,12 @@ class PatchMap {
 
     void ToProto(ift::proto::SubsetMapping* out) const;
 
+    bool Intersects(const absl::flat_hash_set<uint32_t>& codepoints,
+                    const absl::flat_hash_set<hb_tag_t>& features) const;
+
     // TODO(garretrieger): use hb sets instead?
     absl::flat_hash_set<uint32_t> codepoints;
-    absl::flat_hash_set<uint32_t> features;
+    absl::flat_hash_set<hb_tag_t> features;
   };
 
   struct Entry {
