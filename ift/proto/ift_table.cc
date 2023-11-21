@@ -8,6 +8,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "common/font_helper.h"
 #include "common/hb_set_unique_ptr.h"

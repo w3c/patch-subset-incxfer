@@ -74,9 +74,9 @@ http_archive(
 
 http_archive(
     name = "com_google_absl",
-    sha256 = "b1cbb5265bbf328ea839c5190e011709f1dd2103219f386d88c764216390244d",
-    strip_prefix = "abseil-cpp-3020b58f0d987073b8adab204426f82c3f60b283",
-    urls = ["https://github.com/abseil/abseil-cpp/archive/3020b58f0d987073b8adab204426f82c3f60b283.zip"],
+    sha256 = "914dffffeb36742c42eaa9f5d10197ea67ab8b19f034f0a98acf975ea10e0989",
+    strip_prefix = "abseil-cpp-8c488c44d893e23b043fa081a4e213a3b9441433",
+    urls = ["https://github.com/abseil/abseil-cpp/archive/8c488c44d893e23b043fa081a4e213a3b9441433.zip"],
 )
 
 http_archive(
@@ -130,6 +130,14 @@ http_archive(
     sha256 = "a24060e6a0c9c7c7f601ec076564f4198ce3a38328f92cc9a32d9d1a7828b7b7",
     strip_prefix = "binned-ift-reference-b2f144293ae0f8f3311c6a31bace15ac11ba39ea",
     urls = ["https://github.com/garretrieger/binned-ift-reference/archive/b2f144293ae0f8f3311c6a31bace15ac11ba39ea.zip"],
+)
+
+http_archive(
+    name = "ift_spec",
+    build_file = "//third_party:ift_spec.BUILD",
+    sha256 = "3c8e7f78c49272b89b878a61729b1863b9f37c722f6623ee2eb146adccb41333",
+    strip_prefix = "IFT-01037d264f657f9164f9522b8b16a7bab2e6917c",
+    urls = ["https://github.com/w3c/IFT/archive/01037d264f657f9164f9522b8b16a7bab2e6917c.zip"],
 )
 
 # libcbor
