@@ -1,7 +1,7 @@
 #ifndef IFT_IFT_CLIENT_H_
 #define IFT_IFT_CLIENT_H_
 
-#include "absl/container/btree_map.h"
+#include "absl/container/btree_set.h"
 #include "absl/status/statusor.h"
 #include "common/binary_patch.h"
 #include "common/brotli_binary_patch.h"
@@ -106,6 +106,13 @@ class IFTClient {
       const absl::flat_hash_set<uint32_t>& codepoints);
 
   /*
+   * Adds a feature tag to the target subset that the font should be extended
+   * to cover.
+   */
+  absl::Status AddDesiredFeatures(
+      const absl::flat_hash_set<hb_tag_t>& features);
+
+  /*
    * Adds patch data for a patch with the given id.
    */
   void AddPatch(uint32_t id, const common::FontData& font_data);
@@ -132,6 +139,16 @@ class IFTClient {
 
   void UpdateIndex();
 
+  absl::flat_hash_set<uint32_t> FindCandidateIndices() const;
+
+  void IntersectingEntries(
+      const absl::flat_hash_set<uint32_t>& candidate_indices,
+      absl::flat_hash_set<uint32_t>& independent_entry_indices,
+      absl::btree_set<uint32_t>& dependent_entry_indices);
+
+  uint32_t SelectDependentEntry(
+      const absl::btree_set<uint32_t>& dependent_entry_indices);
+
   common::FontData font_;
   hb_face_t* face_ = nullptr;
   std::optional<ift::proto::IFTTable> ift_table_;
@@ -140,9 +157,11 @@ class IFTClient {
   std::unique_ptr<ift::IftbBinaryPatch> iftb_binary_patch_;
   std::unique_ptr<ift::PerTableBrotliBinaryPatch> per_table_binary_patch_;
 
+  static constexpr uint32_t ALL_CODEPOINTS = (uint32_t)-1;
   absl::flat_hash_map<uint32_t, std::vector<uint32_t>>
       codepoint_to_entries_index_;
   absl::flat_hash_set<uint32_t> target_codepoints_;
+  absl::flat_hash_set<hb_tag_t> target_features_;
   absl::flat_hash_set<uint32_t> outstanding_patches_;
   absl::flat_hash_map<uint32_t, common::FontData> pending_patches_;
   absl::flat_hash_map<uint32_t, ift::proto::PatchEncoding> patch_to_encoding_;
