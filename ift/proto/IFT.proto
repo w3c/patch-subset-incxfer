@@ -42,7 +42,7 @@ message SubsetMapping {
   bytes codepoint_set = 2;
 
   // List of features encoded using known ids, or the 4 byte tag as a uint32.
-  uint32 features = 5;
+  repeated uint32 feature_index = 5;
 
   // Re-use previously defined subset definitions, must have indices less than the index
   // for this entry (ensures no cycles). Any referenced definitions are unioned into this

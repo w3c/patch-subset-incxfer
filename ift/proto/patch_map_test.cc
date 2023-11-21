@@ -86,12 +86,23 @@ class PatchMapTest : public ::testing::Test {
     m->set_bias(0);
     m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
     m->set_id_delta(1);
+
+    sample_with_features = sample;
+    m = sample_with_features.add_subset_mapping();
+    set = make_hb_set(3, 10, 11, 12);
+    m->set_bias(20);
+    m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
+    m->set_id_delta(0);
+    m->set_patch_encoding(IFTB_ENCODING);
+    m->add_feature_index(55);  // stch
+    m->add_feature_index(91);  // mgrk
   }
 
   IFT empty;
   IFT sample;
   IFT overlap_sample;
   IFT complex_ids;
+  IFT sample_with_features;
 };
 
 std::string Diff(const IFT& a, const IFT& b) {
@@ -147,6 +158,23 @@ TEST_F(PatchMapTest, Mapping) {
       {{30, 32}, 1, SHARED_BROTLI_ENCODING},
       {{55, 56, 57}, 2, IFTB_ENCODING},
   };
+
+  ASSERT_EQ(*map, expected);
+}
+
+TEST_F(PatchMapTest, Mapping_WithFeatures) {
+  auto map = PatchMap::FromProto(sample_with_features);
+  ASSERT_TRUE(map.ok()) << map.status();
+
+  PatchMap expected = {
+      {{30, 32}, 1, SHARED_BROTLI_ENCODING},
+      {{55, 56, 57}, 2, IFTB_ENCODING},
+  };
+
+  PatchMap::Coverage features = {30, 31, 32};
+  features.features.insert(HB_TAG('s', 't', 'c', 'h'));
+  features.features.insert(HB_TAG('m', 'g', 'r', 'k'));
+  expected.AddEntry(features, 3, IFTB_ENCODING);
 
   ASSERT_EQ(*map, expected);
 }
@@ -331,6 +359,48 @@ TEST_F(PatchMapTest, AddToProto) {
       << Diff(expected, proto);
 }
 
+TEST_F(PatchMapTest, AddToProto_WithFeatures) {
+  PatchMap map = {
+      {{23, 25, 28}, 0, SHARED_BROTLI_ENCODING},
+      {{25, 28, 37}, 1, SHARED_BROTLI_ENCODING},
+  };
+
+  PatchMap::Coverage features = {30, 31};
+  features.features.insert(HB_TAG('s', 't', 'c', 'h'));
+  features.features.insert(HB_TAG('m', 'g', 'r', 'k'));
+  map.AddEntry(features, 2, SHARED_BROTLI_ENCODING);
+
+  IFT expected;
+  expected.set_default_patch_encoding(SHARED_BROTLI_ENCODING);
+
+  auto* m = expected.add_subset_mapping();
+  hb_set_unique_ptr set = make_hb_set(3, 0, 2, 5);
+  m->set_bias(23);
+  m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
+  m->set_id_delta(-1);
+
+  m = expected.add_subset_mapping();
+  set = make_hb_set(3, 0, 3, 12);
+  m->set_bias(25);
+  m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
+  m->set_id_delta(0);
+
+  m = expected.add_subset_mapping();
+  set = make_hb_set(2, 0, 1);
+  m->set_bias(30);
+  m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
+  m->set_id_delta(0);
+  m->add_feature_index(91);  // mgrk
+  m->add_feature_index(55);  // stch
+
+  IFT proto;
+  proto.set_default_patch_encoding(SHARED_BROTLI_ENCODING);
+  map.AddToProto(proto);
+
+  ASSERT_TRUE(MessageDifferencer::Equals(expected, proto))
+      << Diff(expected, proto);
+}
+
 TEST_F(PatchMapTest, AddToProto_ExtensionFilter) {
   PatchMap map = {
       {{23, 25, 28}, 0, SHARED_BROTLI_ENCODING},
@@ -421,6 +491,60 @@ TEST_F(PatchMapTest, IsDependent) {
   ASSERT_TRUE(PatchMap::Entry({}, 0, SHARED_BROTLI_ENCODING).IsDependent());
   ASSERT_TRUE(
       PatchMap::Entry({}, 0, PER_TABLE_SHARED_BROTLI_ENCODING).IsDependent());
+}
+
+TEST_F(PatchMapTest, CoverageIntersection) {
+  // important cases:
+  // - input unspecified vs coverage specified
+  // - input specified vs coverage specified
+  // - input specified vs coverage unspecified
+  // - input unspecified vs coverage unspecified
+  PatchMap::Coverage codepoints({1, 2, 3});
+  PatchMap::Coverage codepoints_features({1, 2, 3});
+  codepoints_features.features = {HB_TAG('a', 'b', 'c', 'd')};
+  PatchMap::Coverage features;
+  features.features = {HB_TAG('a', 'b', 'c', 'd')};
+  PatchMap::Coverage empty;
+
+  flat_hash_set<uint32_t> codepoints_in_match = {2, 7};
+  flat_hash_set<uint32_t> codepoints_in_no_match = {5};
+  flat_hash_set<uint32_t> features_in_match = {HB_TAG('a', 'b', 'c', 'd'),
+                                               HB_TAG('y', 'y', 'y', 'y')};
+  flat_hash_set<uint32_t> features_in_no_match = {HB_TAG('x', 'x', 'x', 'x')};
+  flat_hash_set<uint32_t> unspecified_in;
+
+  ASSERT_FALSE(codepoints.Intersects(unspecified_in, unspecified_in));
+  ASSERT_FALSE(codepoints_features.Intersects(unspecified_in, unspecified_in));
+  ASSERT_FALSE(features.Intersects(unspecified_in, unspecified_in));
+  ASSERT_TRUE(empty.Intersects(unspecified_in, unspecified_in));
+
+  ASSERT_TRUE(codepoints.Intersects(codepoints_in_match, unspecified_in));
+  ASSERT_TRUE(codepoints.Intersects(codepoints_in_match, features_in_match));
+  ASSERT_TRUE(codepoints.Intersects(codepoints_in_match, features_in_no_match));
+  ASSERT_FALSE(codepoints.Intersects(codepoints_in_no_match, unspecified_in));
+  ASSERT_FALSE(
+      codepoints.Intersects(codepoints_in_no_match, features_in_match));
+  ASSERT_FALSE(
+      codepoints.Intersects(codepoints_in_no_match, features_in_no_match));
+
+  ASSERT_TRUE(features.Intersects(unspecified_in, features_in_match));
+  ASSERT_TRUE(features.Intersects(codepoints_in_match, features_in_match));
+  ASSERT_TRUE(features.Intersects(codepoints_in_no_match, features_in_match));
+  ASSERT_FALSE(features.Intersects(unspecified_in, features_in_no_match));
+  ASSERT_FALSE(features.Intersects(codepoints_in_match, features_in_no_match));
+  ASSERT_FALSE(
+      features.Intersects(codepoints_in_no_match, features_in_no_match));
+
+  ASSERT_TRUE(
+      codepoints_features.Intersects(codepoints_in_match, features_in_match));
+  ASSERT_FALSE(
+      codepoints_features.Intersects(unspecified_in, features_in_match));
+  ASSERT_FALSE(
+      codepoints_features.Intersects(codepoints_in_match, unspecified_in));
+  ASSERT_FALSE(codepoints_features.Intersects(codepoints_in_no_match,
+                                              features_in_match));
+  ASSERT_FALSE(codepoints_features.Intersects(codepoints_in_match,
+                                              features_in_no_match));
 }
 
 }  // namespace ift::proto

@@ -15,6 +15,7 @@ cc_library(
   ],
   deps = [
       ":IFT_cc_proto",
+      "//ift/feature_registry",
       "//common",
       "//patch_subset:common",
       "@com_google_absl//absl/status:statusor",

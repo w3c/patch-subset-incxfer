@@ -1,19 +1,26 @@
 #include "ift/proto/patch_map.h"
 
+#include <iterator>
+
 #include "absl/container/btree_set.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
 #include "absl/types/span.h"
 #include "common/hb_set_unique_ptr.h"
 #include "common/sparse_bit_set.h"
+#include "ift/feature_registry/feature_registry.h"
 #include "ift/proto/IFT.pb.h"
 
+using absl::btree_set;
+using absl::flat_hash_set;
 using absl::Span;
 using absl::Status;
 using absl::StatusOr;
 using common::hb_set_unique_ptr;
 using common::make_hb_set;
 using common::SparseBitSet;
+using ift::feature_registry::FeatureTagToIndex;
+using ift::feature_registry::IndexToFeatureTag;
 
 namespace ift::proto {
 
@@ -31,6 +38,10 @@ StatusOr<PatchMap::Coverage> PatchMap::Coverage::FromProto(
   while (hb_set_next(codepoints.get(), &cp)) {
     uint32_t actual_cp = cp + bias;
     coverage.codepoints.insert(actual_cp);
+  }
+
+  for (uint32_t feature_index : mapping.feature_index()) {
+    coverage.features.insert(IndexToFeatureTag(feature_index));
   }
 
   return coverage;
@@ -55,6 +66,58 @@ void PatchMap::Coverage::ToProto(SubsetMapping* out) const {
   std::string encoded = common::SparseBitSet::Encode(*set);
   out->set_bias(bias);
   out->set_codepoint_set(encoded);
+
+  btree_set<hb_tag_t> sorted_features;
+  std::copy(features.begin(), features.end(),
+            std::inserter(sorted_features, sorted_features.begin()));
+
+  for (hb_tag_t feature_tag : sorted_features) {
+    out->add_feature_index(FeatureTagToIndex(feature_tag));
+  }
+}
+
+static bool sets_intersect(const flat_hash_set<uint32_t>& a,
+                           const flat_hash_set<uint32_t>& b) {
+  bool a_smaller = a.size() < b.size();
+  const auto& smaller = a_smaller ? a : b;
+  const auto& larger = a_smaller ? b : a;
+  for (uint32_t v : smaller) {
+    if (larger.contains(v)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool PatchMap::Coverage::Intersects(
+    const flat_hash_set<uint32_t>& codepoints_in,
+    const flat_hash_set<hb_tag_t>& features_in) const {
+  // If an input set is unspecified (empty), it is considered to not match the
+  // corresponding coverage set if that set is specified (not empty).
+  if (codepoints_in.empty() && !codepoints.empty()) {
+    return false;
+  }
+
+  if (features_in.empty() && !features.empty()) {
+    return false;
+  }
+
+  // Otherwise, if the coverage set is unspecified (empty) it is considered to
+  // match all things so only check for intersections if the input and coverage
+  // sets are non-empty.
+  if (!codepoints_in.empty() && !codepoints.empty()) {
+    if (!sets_intersect(codepoints_in, codepoints)) {
+      return false;
+    }
+  }
+
+  if (!features_in.empty() && !features.empty()) {
+    if (!sets_intersect(features_in, features)) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 StatusOr<PatchMap::Entry> PatchMap::Entry::FromProto(
@@ -136,6 +199,9 @@ void PrintTo(const PatchMap::Coverage& coverage, std::ostream* os) {
   std::copy(coverage.codepoints.begin(), coverage.codepoints.end(),
             std::inserter(sorted_codepoints, sorted_codepoints.begin()));
 
+  if (!coverage.features.empty()) {
+    *os << "{";
+  }
   *os << "{";
   for (auto it = sorted_codepoints.begin(); it != sorted_codepoints.end();
        it++) {
@@ -146,6 +212,27 @@ void PrintTo(const PatchMap::Coverage& coverage, std::ostream* os) {
     }
   }
   *os << "}";
+  if (coverage.features.empty()) {
+    return;
+  }
+
+  *os << ", {";
+  absl::btree_set<hb_tag_t> sorted_features;
+  std::copy(coverage.features.begin(), coverage.features.end(),
+            std::inserter(sorted_features, sorted_features.begin()));
+
+  for (auto it = sorted_features.begin(); it != sorted_features.end(); it++) {
+    std::string tag;
+    tag.resize(5);
+    snprintf(tag.data(), 5, "%c%c%c%c", HB_UNTAG(*it));
+    tag.resize(4);
+    *os << tag;
+    auto next = it;
+    if (++next != sorted_features.end()) {
+      *os << ", ";
+    }
+  }
+  *os << "}}";
 }
 
 void PrintTo(const PatchMap::Entry& entry, std::ostream* os) {
