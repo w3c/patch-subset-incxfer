@@ -1,6 +1,7 @@
 #include "patch_subset/codepoint_map.h"
 
 #include "absl/log/log.h"
+#include "absl/strings/str_cat.h"
 #include "common/hb_set_unique_ptr.h"
 #include "hb.h"
 
