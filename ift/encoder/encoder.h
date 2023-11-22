@@ -205,7 +205,8 @@ class Encoder {
   uint32_t id_[4] = {0, 0, 0, 0};
   hb_face_t* face_ = nullptr;
   absl::btree_map<uint32_t, SubsetDefinition> existing_iftb_patches_;
-  absl::btree_map<uint32_t, std::pair<uint32_t, hb_tag_t>>
+  absl::flat_hash_map<uint32_t,
+                      absl::flat_hash_map<hb_tag_t, absl::btree_set<uint32_t>>>
       iftb_feature_mappings_;
   SubsetDefinition base_subset_;
   std::vector<SubsetDefinition> extension_subsets_;

@@ -144,12 +144,8 @@ Status Encoder::AddIftbFeatureSpecificPatch(uint32_t original_id, uint32_t id,
         StrCat("IFTB patch ", id,
                " has not been supplied via AddExistingIftbPatch()"));
   }
-  if (iftb_feature_mappings_.contains(id)) {
-    return absl::InvalidArgumentError(
-        StrCat("A feature mapping already exists for ", id));
-  }
 
-  iftb_feature_mappings_[id] = std::make_pair(original_id, feature_tag);
+  iftb_feature_mappings_[id][feature_tag].insert(original_id);
   return absl::OkStatus();
 }
 
@@ -275,21 +271,27 @@ Status Encoder::PopulateIftbPatchMap(PatchMap& patch_map) {
 
     // this is a feature specific entry and so uses the subset definition from
     // another patch + a feature tag.
-    uint32_t original_id = it->second.first;
-    hb_tag_t feature_tag = it->second.second;
-    auto original = existing_iftb_patches_.find(original_id);
-    if (original == existing_iftb_patches_.end()) {
-      return absl::InvalidArgumentError(
-          StrCat("Original iftb patch ", original_id, " not found."));
+    for (const auto& [feature_tag, indices] : it->second) {
+      PatchMap::Coverage coverage;
+      coverage.features.insert(feature_tag);
+
+      for (uint32_t original_id : indices) {
+        auto original = existing_iftb_patches_.find(original_id);
+        if (original == existing_iftb_patches_.end()) {
+          return absl::InvalidArgumentError(
+              StrCat("Original iftb patch ", original_id, " not found."));
+        }
+        const auto& original_def = original->second;
+
+        // TODO(garretrieger): optimize the patch map and use "subset indices"
+        //  instead of respecifying the codepoint subset.
+        std::copy(
+            original_def.codepoints.begin(), original_def.codepoints.end(),
+            std::inserter(coverage.codepoints, coverage.codepoints.begin()));
+      }
+
+      patch_map.AddEntry(coverage, id, IFTB_ENCODING);
     }
-    const auto& original_def = original->second;
-    
-    PatchMap::Coverage coverage;
-    // TODO(garretrieger): optimize the patch map and use "subset indices"
-    //  instead of respecifying the codepoint subset.
-    coverage.codepoints = original_def.codepoints;
-    coverage.features.insert(feature_tag);
-    patch_map.AddEntry(coverage, id, IFTB_ENCODING);
   }
   return absl::OkStatus();
 }
@@ -349,6 +351,7 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
 
     PatchMap::Coverage coverage;
     coverage.codepoints = s->codepoints;
+    coverage.features = s->feature_tags;
     patch_map.AddEntry(coverage, id, encoding, as_extensions);
   }
 
