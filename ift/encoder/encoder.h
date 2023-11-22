@@ -46,8 +46,15 @@ class Encoder {
 
   void SetFace(hb_face_t* face) { face_ = hb_face_reference(face); }
 
+  /*
+   * Configure the base subset to cover the provided codepoints, and the set of
+   * layout features retained by default in the harfbuzz subsetter.
+   */
   absl::Status SetBaseSubset(
       const absl::flat_hash_set<hb_codepoint_t>& base_subset) {
+    // TODO(garretrieger): add an argument which provides a set of additional
+    // layout
+    //   features to include in the base subset.
     if (!base_subset_.empty()) {
       return absl::FailedPreconditionError("Base subset has already been set.");
     }
@@ -66,8 +73,25 @@ class Encoder {
     extension_subsets_.push_back(def);
   }
 
+  /*
+   * Configure an extension subset for the dependent graph formed the glyphs
+   * available in one or more IFTB patches (previously provided by calls too
+   * AddExistingIftbPatch())
+   */
   absl::Status AddExtensionSubsetOfIftbPatches(
       const absl::flat_hash_set<uint32_t>& ids);
+
+  /*
+   * Marks the provided group offeature tags as optional. In the dependent
+   * patch graph it will be possible to add support for the features at any
+   * node via a patch. Once enabled data for all codepoints and those features
+   * will always be available.
+   */
+  void AddOptionalFeatureGroup(
+      const absl::flat_hash_set<hb_tag_t>& feature_tag);
+
+  // TODO(garretrieger): add support for specifying IFTB patch + feature tag
+  // mappings
 
   absl::Status SetId(absl::Span<const uint32_t> id) {
     if (id.size() != 4) {
@@ -106,16 +130,20 @@ class Encoder {
   struct SubsetDefinition {
     absl::flat_hash_set<uint32_t> codepoints;
     absl::flat_hash_set<uint32_t> gids;
+    absl::flat_hash_set<hb_tag_t> feature_tags;
 
-    bool empty() const { return codepoints.empty() && gids.empty(); }
+    bool empty() const {
+      return codepoints.empty() && gids.empty() && feature_tags.empty();
+    }
 
     bool operator==(const SubsetDefinition& other) const {
-      return codepoints == other.codepoints && gids == other.gids;
+      return codepoints == other.codepoints && gids == other.gids &&
+             feature_tags == other.feature_tags;
     }
 
     template <typename H>
     friend H AbslHashValue(H h, const SubsetDefinition& s) {
-      return H::combine(std::move(h), s.codepoints, s.gids);
+      return H::combine(std::move(h), s.codepoints, s.gids, s.feature_tags);
     }
 
     void Union(const SubsetDefinition& other);

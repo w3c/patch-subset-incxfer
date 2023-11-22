@@ -1,6 +1,7 @@
 #ifndef COMMON_FONT_HELPER_H_
 #define COMMON_FONT_HELPER_H_
 
+#include "absl/container/btree_set.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
@@ -43,6 +44,8 @@ class FontHelper {
   constexpr static hb_tag_t kGvar = HB_TAG('g', 'v', 'a', 'r');
   constexpr static hb_tag_t kCFF = HB_TAG('C', 'F', 'F', ' ');
   constexpr static hb_tag_t kCFF2 = HB_TAG('C', 'F', 'F', '2');
+  constexpr static hb_tag_t kGSUB = HB_TAG('G', 'S', 'U', 'B');
+  constexpr static hb_tag_t kGPOS = HB_TAG('G', 'P', 'O', 'S');
 
   static absl::StatusOr<uint32_t> ReadUInt32(absl::string_view value) {
     if (value.size() < 4) {
@@ -99,10 +102,18 @@ class FontHelper {
 
   static absl::flat_hash_map<uint32_t, uint32_t> GidToUnicodeMap(
       hb_face_t* face);
+
   static absl::flat_hash_set<hb_tag_t> GetTags(hb_face_t* face);
   static std::vector<hb_tag_t> GetOrderedTags(hb_face_t* face);
+
+  static absl::btree_set<hb_tag_t> GetFeatureTags(hb_face_t* face);
+  static absl::btree_set<hb_tag_t> GetNonDefaultFeatureTags(hb_face_t* face);
+
   static void ApplyIftbTableOrdering(hb_face_t* face);
+
   static std::vector<std::string> ToStrings(const std::vector<hb_tag_t>& input);
+  static std::vector<std::string> ToStrings(
+      const absl::btree_set<hb_tag_t>& input);
   static std::string ToString(hb_tag_t tag);
 };
 

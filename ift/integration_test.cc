@@ -154,6 +154,7 @@ class IntegrationTest : public ::testing::Test {
 };
 
 // TODO(garretrieger): add IFTB only test case.
+// TODO(garretrieger): add test that uses feature tags.
 
 TEST_F(IntegrationTest, SharedBrotliOnly) {
   Encoder encoder;

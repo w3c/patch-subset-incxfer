@@ -17,10 +17,15 @@ class FontHelperTest : public ::testing::Test {
   FontHelperTest()
       : noto_sans_jp_otf(make_hb_face(nullptr)),
         noto_sans_ift_ttf(make_hb_face(nullptr)),
-        roboto_ab(make_hb_face(nullptr)) {
+        roboto_ab(make_hb_face(nullptr)),
+        roboto(make_hb_face(nullptr)) {
     hb_blob_unique_ptr blob = make_hb_blob(hb_blob_create_from_file(
         "patch_subset/testdata/Roboto-Regular.ab.ttf"));
     roboto_ab = make_hb_face(hb_face_create(blob.get(), 0));
+
+    blob = make_hb_blob(
+        hb_blob_create_from_file("patch_subset/testdata/Roboto-Regular.ttf"));
+    roboto = make_hb_face(hb_face_create(blob.get(), 0));
 
     blob = make_hb_blob(hb_blob_create_from_file(
         "patch_subset/testdata/NotoSansJP-Regular.otf"));
@@ -34,6 +39,7 @@ class FontHelperTest : public ::testing::Test {
   hb_face_unique_ptr noto_sans_jp_otf;
   hb_face_unique_ptr noto_sans_ift_ttf;
   hb_face_unique_ptr roboto_ab;
+  hb_face_unique_ptr roboto;
 };
 
 TEST_F(FontHelperTest, ReadUInt16) {
@@ -147,6 +153,32 @@ TEST_F(FontHelperTest, GetOrderedTags) {
   EXPECT_EQ(s[1], "maxp");
   EXPECT_EQ(s[16], "glyf");
   EXPECT_EQ(s[17], "fpgm");
+}
+
+TEST_F(FontHelperTest, GetFeatureTags) {
+  auto tags = FontHelper::GetFeatureTags(roboto.get());
+
+  // GSUB
+  EXPECT_TRUE(tags.contains(HB_TAG('c', '2', 's', 'c')));
+  EXPECT_TRUE(tags.contains(HB_TAG('l', 'i', 'g', 'a')));
+  EXPECT_TRUE(tags.contains(HB_TAG('t', 'n', 'u', 'm')));
+
+  // GPOS
+  EXPECT_TRUE(tags.contains(HB_TAG('c', 'p', 's', 'p')));
+  EXPECT_TRUE(tags.contains(HB_TAG('k', 'e', 'r', 'n')));
+}
+
+TEST_F(FontHelperTest, GetNonDefaultFeatureTags) {
+  auto tags = FontHelper::GetNonDefaultFeatureTags(roboto.get());
+
+  // GSUB
+  EXPECT_TRUE(tags.contains(HB_TAG('c', '2', 's', 'c')));
+  EXPECT_FALSE(tags.contains(HB_TAG('l', 'i', 'g', 'a')));
+  EXPECT_TRUE(tags.contains(HB_TAG('t', 'n', 'u', 'm')));
+
+  // GPOS
+  EXPECT_TRUE(tags.contains(HB_TAG('c', 'p', 's', 'p')));
+  EXPECT_FALSE(tags.contains(HB_TAG('k', 'e', 'r', 'n')));
 }
 
 TEST_F(FontHelperTest, ApplyIftbTableOrdering) {

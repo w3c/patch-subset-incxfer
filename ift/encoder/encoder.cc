@@ -62,22 +62,38 @@ void Encoder::SubsetDefinition::Union(const SubsetDefinition& other) {
             std::inserter(codepoints, codepoints.begin()));
   std::copy(other.gids.begin(), other.gids.end(),
             std::inserter(gids, gids.begin()));
+  std::copy(other.feature_tags.begin(), other.feature_tags.end(),
+            std::inserter(feature_tags, feature_tags.begin()));
+}
+
+void Encoder::SubsetDefinition::ConfigureInput(hb_subset_input_t* input) const {
+  hb_set_t* unicodes = hb_subset_input_unicode_set(input);
+  for (hb_codepoint_t cp : codepoints) {
+    hb_set_add(unicodes, cp);
+  }
+
+  hb_set_t* features =
+      hb_subset_input_set(input, HB_SUBSET_SETS_LAYOUT_FEATURE_TAG);
+  for (hb_tag_t tag : feature_tags) {
+    hb_set_add(features, tag);
+  }
+
+  if (gids.empty()) {
+    return;
+  }
+
+  hb_set_t* gids_set = hb_subset_input_glyph_set(input);
+  hb_set_add(gids_set, 0);
+  for (hb_codepoint_t gid : gids) {
+    hb_set_add(gids_set, gid);
+  }
 }
 
 Encoder::SubsetDefinition Encoder::Combine(const SubsetDefinition& s1,
                                            const SubsetDefinition& s2) const {
   SubsetDefinition result;
-
-  std::copy(s1.codepoints.begin(), s1.codepoints.end(),
-            std::inserter(result.codepoints, result.codepoints.begin()));
-  std::copy(s2.codepoints.begin(), s2.codepoints.end(),
-            std::inserter(result.codepoints, result.codepoints.begin()));
-
-  std::copy(s1.gids.begin(), s1.gids.end(),
-            std::inserter(result.gids, result.gids.begin()));
-  std::copy(s2.gids.begin(), s2.gids.end(),
-            std::inserter(result.gids, result.gids.begin()));
-
+  result.Union(s1);
+  result.Union(s2);
   return result;
 }
 
@@ -186,6 +202,13 @@ Status Encoder::AddExtensionSubsetOfIftbPatches(
 
   extension_subsets_.push_back(*subset);
   return absl::OkStatus();
+}
+
+void Encoder::AddOptionalFeatureGroup(
+    const flat_hash_set<hb_tag_t>& feature_tags) {
+  SubsetDefinition def;
+  def.feature_tags = feature_tags;
+  extension_subsets_.push_back(def);
 }
 
 StatusOr<Encoder::SubsetDefinition> Encoder::SubsetDefinitionForIftbPatches(
@@ -321,23 +344,6 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
   }
 
   return base;
-}
-
-void Encoder::SubsetDefinition::ConfigureInput(hb_subset_input_t* input) const {
-  hb_set_t* unicodes = hb_subset_input_unicode_set(input);
-  for (hb_codepoint_t cp : codepoints) {
-    hb_set_add(unicodes, cp);
-  }
-
-  if (gids.empty()) {
-    return;
-  }
-
-  hb_set_t* gids_set = hb_subset_input_glyph_set(input);
-  hb_set_add(gids_set, 0);
-  for (hb_codepoint_t gid : gids) {
-    hb_set_add(gids_set, gid);
-  }
 }
 
 StatusOr<FontData> Encoder::CutSubset(hb_face_t* font,
