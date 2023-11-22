@@ -430,6 +430,71 @@ TEST_F(EncoderTest, Encode_ThreeSubsets_Mixed) {
   ASSERT_TRUE(entry2.coverage.codepoints.contains(chunk4_cp));
 }
 
+TEST_F(EncoderTest, Encode_ThreeSubsets_Mixed_WithFeatureMappings) {
+  Encoder encoder;
+  {
+    hb_face_t* face = noto_sans_jp.reference_face();
+    encoder.SetFace(face);
+    hb_face_destroy(face);
+  }
+
+  auto s = encoder.AddExistingIftbPatch(1, chunk1);
+  s.Update(encoder.AddExistingIftbPatch(2, chunk2));
+  s.Update(encoder.AddExistingIftbPatch(3, chunk3));
+  s.Update(encoder.AddExistingIftbPatch(4, chunk4));
+  s.Update(
+      encoder.AddIftbFeatureSpecificPatch(3, 4, HB_TAG('c', 'c', 'm', 'p')));
+  ASSERT_TRUE(s.ok()) << s;
+
+  // Partitions {1}, {2, 3, 4}, +ccmp
+  s.Update(encoder.SetBaseSubsetFromIftbPatches({1}));
+  s.Update(encoder.AddExtensionSubsetOfIftbPatches({2, 3, 4}));
+  encoder.AddOptionalFeatureGroup({HB_TAG('c', 'c', 'm', 'p')});
+  ASSERT_TRUE(s.ok()) << s;
+
+  auto base = encoder.Encode();
+  ASSERT_TRUE(base.ok()) << base.status();
+
+  ASSERT_EQ(encoder.Patches().size(), 4);
+
+  auto ift_table = IFTTable::FromFont(*base);
+  ASSERT_TRUE(ift_table.ok()) << ift_table.status();
+
+  // expected patches:
+  // - chunk 2 (iftb)
+  // - chunk 3 (iftb)
+  // - chunk 4 (iftb), triggered by ccmap + chunk 3
+  // - shared brotli patches...
+  ASSERT_GT(ift_table->GetPatchMap().GetEntries().size(), 4);
+
+  const auto& entry0 = ift_table->GetPatchMap().GetEntries()[0];
+  ASSERT_EQ(entry0.patch_index, 2);
+  ASSERT_FALSE(entry0.coverage.codepoints.contains(chunk0_cp));
+  ASSERT_FALSE(entry0.coverage.codepoints.contains(chunk1_cp));
+  ASSERT_TRUE(entry0.coverage.codepoints.contains(chunk2_cp));
+  ASSERT_FALSE(entry0.coverage.codepoints.contains(chunk3_cp));
+  ASSERT_FALSE(entry0.coverage.codepoints.contains(chunk4_cp));
+  ASSERT_TRUE(entry0.coverage.features.empty());
+
+  const auto& entry1 = ift_table->GetPatchMap().GetEntries()[1];
+  ASSERT_EQ(entry1.patch_index, 3);
+  ASSERT_FALSE(entry1.coverage.codepoints.contains(chunk0_cp));
+  ASSERT_FALSE(entry1.coverage.codepoints.contains(chunk1_cp));
+  ASSERT_FALSE(entry1.coverage.codepoints.contains(chunk2_cp));
+  ASSERT_TRUE(entry1.coverage.codepoints.contains(chunk3_cp));
+  ASSERT_FALSE(entry1.coverage.codepoints.contains(chunk4_cp));
+  ASSERT_TRUE(entry1.coverage.features.empty());
+
+  const auto& entry2 = ift_table->GetPatchMap().GetEntries()[2];
+  ASSERT_EQ(entry2.patch_index, 4);
+  ASSERT_FALSE(entry2.coverage.codepoints.contains(chunk0_cp));
+  ASSERT_FALSE(entry2.coverage.codepoints.contains(chunk1_cp));
+  ASSERT_FALSE(entry2.coverage.codepoints.contains(chunk2_cp));
+  ASSERT_TRUE(entry2.coverage.codepoints.contains(chunk3_cp));
+  ASSERT_FALSE(entry2.coverage.codepoints.contains(chunk4_cp));
+  ASSERT_TRUE(entry2.coverage.features.contains(HB_TAG('c', 'c', 'm', 'p')));
+}
+
 TEST_F(EncoderTest, Encode_FourSubsets) {
   absl::flat_hash_set<hb_codepoint_t> s1 = {'b'};
   absl::flat_hash_set<hb_codepoint_t> s2 = {'c'};
