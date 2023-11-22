@@ -2,9 +2,13 @@
 
 #include <cstdint>
 
+#include "absl/container/btree_set.h"
 #include "absl/container/flat_hash_map.h"
 #include "common/font_data.h"
+#include "hb-ot.h"
+#include "hb-subset.h"
 
+using absl::btree_set;
 using absl::flat_hash_map;
 using common::FontData;
 
@@ -115,6 +119,47 @@ std::vector<hb_tag_t> FontHelper::GetOrderedTags(hb_face_t* face) {
   return ordered_tags;
 }
 
+void GetFeatureTagsFrom(hb_face_t* face, hb_tag_t table,
+                        btree_set<hb_tag_t>& tag_set) {
+  constexpr uint32_t max_tags = 32;
+  hb_tag_t feature_tags[max_tags];
+  unsigned tag_count = max_tags;
+  unsigned offset = 0;
+
+  while (((void)hb_ot_layout_table_get_feature_tags(face, table, offset,
+                                                    &tag_count, feature_tags),
+          tag_count)) {
+    for (unsigned i = 0; i < tag_count; i++) {
+      hb_tag_t tag = feature_tags[i];
+      tag_set.insert(tag);
+    }
+    offset += tag_count;
+  }
+}
+
+btree_set<hb_tag_t> FontHelper::GetFeatureTags(hb_face_t* face) {
+  btree_set<hb_tag_t> tag_set;
+  GetFeatureTagsFrom(face, kGSUB, tag_set);
+  GetFeatureTagsFrom(face, kGPOS, tag_set);
+  return tag_set;
+}
+
+absl::btree_set<hb_tag_t> FontHelper::GetNonDefaultFeatureTags(
+    hb_face_t* face) {
+  auto tag_set = GetFeatureTags(face);
+
+  hb_subset_input_t* input = hb_subset_input_create_or_fail();
+  hb_set_t* default_tags =
+      hb_subset_input_set(input, HB_SUBSET_SETS_LAYOUT_FEATURE_TAG);
+  hb_tag_t tag = HB_SET_VALUE_INVALID;
+  while (hb_set_next(default_tags, &tag)) {
+    tag_set.erase(tag);
+  }
+  hb_subset_input_destroy(input);
+
+  return tag_set;
+}
+
 void FontHelper::ApplyIftbTableOrdering(hb_face_t* subset) {
   std::vector<hb_tag_t> tags = GetOrderedTags(subset);
   std::vector<hb_tag_t> new_order;
@@ -149,7 +194,15 @@ std::vector<std::string> FontHelper::ToStrings(
   for (hb_tag_t tag : tags) {
     result.push_back(ToString(tag));
   }
+  return result;
+}
 
+std::vector<std::string> FontHelper::ToStrings(
+    const btree_set<hb_tag_t>& input) {
+  std::vector<std::string> result;
+  for (hb_tag_t tag : input) {
+    result.push_back(ToString(tag));
+  }
   return result;
 }
 

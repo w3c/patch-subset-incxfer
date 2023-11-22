@@ -44,6 +44,7 @@ class EncoderTest : public ::testing::Test {
  protected:
   EncoderTest() {
     font = from_file("patch_subset/testdata/Roboto-Regular.abcd.ttf");
+    full_font = from_file("patch_subset/testdata/Roboto-Regular.ttf");
     woff2_font = from_file("patch_subset/testdata/Roboto-Regular.abcd.woff2");
     noto_sans_jp = from_file("ift/testdata/NotoSansJP-Regular.subset.ttf");
 
@@ -54,6 +55,7 @@ class EncoderTest : public ::testing::Test {
   }
 
   FontData font;
+  FontData full_font;
   FontData woff2_font;
   FontData noto_sans_jp;
   FontData chunk1;
@@ -90,10 +92,28 @@ class EncoderTest : public ::testing::Test {
     return result;
   }
 
-  std::string ToCodepoints(const FontData& font_data) {
+  std::string ToNodeName(const FontData& font_data) {
     std::string result;
     for (uint32_t cp : ToCodepointsSet(font_data)) {
       result.push_back(cp);
+    }
+
+    auto face = font_data.face();
+    auto feature_tags = FontHelper::GetNonDefaultFeatureTags(face.get());
+    if (feature_tags.empty()) {
+      return result;
+    }
+
+    result += "|";
+
+    bool first = true;
+    auto string_tags = FontHelper::ToStrings(feature_tags);
+    for (const std::string& tag : string_tags) {
+      if (!first) {
+        result += ",";
+      }
+      result += tag;
+      first = true;
     }
 
     return result;
@@ -103,7 +123,7 @@ class EncoderTest : public ::testing::Test {
     auto ift_table = IFTTable::FromFont(base);
 
     btree_set<uint32_t> base_set = ToCodepointsSet(base);
-    std::string node = ToCodepoints(base);
+    std::string node = ToNodeName(base);
     auto it = out.find(node);
     if (it != out.end()) {
       return absl::OkStatus();
@@ -116,7 +136,7 @@ class EncoderTest : public ::testing::Test {
     }
 
     PatchEncoding encoding = DEFAULT_ENCODING;
-    flat_hash_map<uint32_t, btree_set<uint32_t>> subsets;
+    flat_hash_set<uint32_t> subsets;
     for (const auto& e : ift_table->GetPatchMap().GetEntries()) {
       if (e.encoding != SHARED_BROTLI_ENCODING &&
           e.encoding != PER_TABLE_SHARED_BROTLI_ENCODING) {
@@ -129,17 +149,7 @@ class EncoderTest : public ::testing::Test {
       if (encoding != e.encoding) {
         return absl::InternalError("Inconsistent encodings.");
       }
-      uint32_t id = e.patch_index;
-      for (uint32_t cp : e.coverage.codepoints) {
-        subsets[id].insert(cp);
-      }
-    }
-
-    // add the base set to all entries.
-    for (auto& p : subsets) {
-      for (uint32_t cp : base_set) {
-        p.second.insert(cp);
-      }
+      subsets.insert(e.patch_index);
     }
 
     PerTableBrotliBinaryPatch per_table_patcher;
@@ -147,15 +157,7 @@ class EncoderTest : public ::testing::Test {
     const BinaryPatch* patcher = (encoding == SHARED_BROTLI_ENCODING)
                                      ? (BinaryPatch*)&brotli_patcher
                                      : (BinaryPatch*)&per_table_patcher;
-    for (auto p : subsets) {
-      uint32_t id = p.first;
-      std::string child;
-      for (auto cp : p.second) {
-        child.push_back(cp);
-      }
-
-      out[node].insert(child);
-
+    for (uint32_t id : subsets) {
       auto it = encoder.Patches().find(id);
       if (it == encoder.Patches().end()) {
         return absl::InternalError("patch not found.");
@@ -167,6 +169,8 @@ class EncoderTest : public ::testing::Test {
       if (!sc.ok()) {
         return sc;
       }
+      std::string child = ToNodeName(derived);
+      out[node].insert(child);
 
       sc = ToGraph(encoder, derived, out);
       if (!sc.ok()) {
@@ -241,7 +245,7 @@ TEST_F(EncoderTest, DontClobberBaseSubset) {
 }
 
 TEST_F(EncoderTest, Encode_OneSubset) {
-  ASSERT_EQ(ToCodepoints(font), "abcd");
+  ASSERT_EQ(ToNodeName(font), "abcd");
 
   Encoder encoder;
   hb_face_t* face = font.reference_face();
@@ -253,7 +257,7 @@ TEST_F(EncoderTest, Encode_OneSubset) {
   hb_face_destroy(face);
 
   ASSERT_TRUE(base.ok()) << base.status();
-  ASSERT_EQ(ToCodepoints(*base), "ad");
+  ASSERT_EQ(ToNodeName(*base), "ad");
   ASSERT_TRUE(encoder.Patches().empty());
 
   graph g;
@@ -277,7 +281,7 @@ TEST_F(EncoderTest, Encode_TwoSubsets) {
   hb_face_destroy(face);
 
   ASSERT_TRUE(base.ok()) << base.status();
-  ASSERT_EQ(ToCodepoints(*base), "ad");
+  ASSERT_EQ(ToNodeName(*base), "ad");
   ASSERT_FALSE(encoder.Patches().empty());
 
   graph g;
@@ -285,6 +289,36 @@ TEST_F(EncoderTest, Encode_TwoSubsets) {
   ASSERT_TRUE(sc.ok()) << sc;
 
   graph expected{{"ad", {"abcd"}}, {"abcd", {}}};
+  ASSERT_EQ(g, expected);
+}
+
+TEST_F(EncoderTest, Encode_TwoSubsetsAndOptionalFeature) {
+  absl::flat_hash_set<hb_codepoint_t> s1 = {'B', 'C'};
+  Encoder encoder;
+  hb_face_t* face = full_font.reference_face();
+  encoder.SetFace(face);
+  auto s = encoder.SetBaseSubset({'A', 'D'});
+  ASSERT_TRUE(s.ok()) << s;
+  encoder.AddExtensionSubset(s1);
+  encoder.AddOptionalFeatureGroup({HB_TAG('c', '2', 's', 'c')});
+
+  auto base = encoder.Encode();
+  hb_face_destroy(face);
+
+  ASSERT_TRUE(base.ok()) << base.status();
+  ASSERT_EQ(ToNodeName(*base), "AD");
+  ASSERT_FALSE(encoder.Patches().empty());
+
+  graph g;
+  auto sc = ToGraph(encoder, *base, g);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  graph expected{
+      {"AD", {"ABCD", "AD|c2sc"}},
+      {"AD|c2sc", {"ABCD|c2sc"}},
+      {"ABCD", {"ABCD|c2sc"}},
+      {"ABCD|c2sc", {}},
+  };
   ASSERT_EQ(g, expected);
 }
 
@@ -303,7 +337,7 @@ TEST_F(EncoderTest, Encode_ThreeSubsets) {
   hb_face_destroy(face);
 
   ASSERT_TRUE(base.ok()) << base.status();
-  ASSERT_EQ(ToCodepoints(*base), "a");
+  ASSERT_EQ(ToNodeName(*base), "a");
   ASSERT_EQ(encoder.Patches().size(), 4);
 
   graph g;
@@ -413,7 +447,7 @@ TEST_F(EncoderTest, Encode_FourSubsets) {
   hb_face_destroy(face);
 
   ASSERT_TRUE(base.ok()) << base.status();
-  ASSERT_EQ(ToCodepoints(*base), "a");
+  ASSERT_EQ(ToNodeName(*base), "a");
   ASSERT_EQ(encoder.Patches().size(), 12);
 
   graph g;
