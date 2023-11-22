@@ -132,8 +132,33 @@ Status Encoder::AddExistingIftbPatch(uint32_t id, const FontData& patch) {
   return absl::OkStatus();
 }
 
+Status Encoder::AddIftbFeatureSpecificPatch(uint32_t original_id, uint32_t id,
+                                            hb_tag_t feature_tag) {
+  if (!existing_iftb_patches_.contains(original_id)) {
+    return absl::InvalidArgumentError(
+        StrCat("IFTB patch ", original_id,
+               " has not been supplied via AddExistingIftbPatch()"));
+  }
+  if (!existing_iftb_patches_.contains(id)) {
+    return absl::InvalidArgumentError(
+        StrCat("IFTB patch ", id,
+               " has not been supplied via AddExistingIftbPatch()"));
+  }
+  if (iftb_feature_mappings_.contains(id)) {
+    return absl::InvalidArgumentError(
+        StrCat("A feature mapping already exists for ", id));
+  }
+
+  iftb_feature_mappings_[id] = std::make_pair(original_id, feature_tag);
+  return absl::OkStatus();
+}
+
 Status Encoder::SetBaseSubsetFromIftbPatches(
     const flat_hash_set<uint32_t>& included_patches) {
+  // TODO(garretrieger): handle the case where a patch included in the
+  //  base subset has associated feature specific patches. We could
+  //  merge those in as well, or create special entries for them that only
+  //  utilize feature tag to trigger.
   if (!face_) {
     return absl::FailedPreconditionError("Encoder must have a face set.");
   }
@@ -238,6 +263,37 @@ StatusOr<FontData> Encoder::Encode() {
   return Encode(base_subset_, subsets, true);
 }
 
+Status Encoder::PopulateIftbPatchMap(PatchMap& patch_map) {
+  for (const auto& e : existing_iftb_patches_) {
+    uint32_t id = e.first;
+    auto it = iftb_feature_mappings_.find(id);
+    if (it == iftb_feature_mappings_.end()) {
+      // Just a regular entry mapped by codepoints only.
+      patch_map.AddEntry(e.second.codepoints, e.first, IFTB_ENCODING);
+      continue;
+    }
+
+    // this is a feature specific entry and so uses the subset definition from
+    // another patch + a feature tag.
+    uint32_t original_id = it->second.first;
+    hb_tag_t feature_tag = it->second.second;
+    auto original = existing_iftb_patches_.find(original_id);
+    if (original == existing_iftb_patches_.end()) {
+      return absl::InvalidArgumentError(
+          StrCat("Original iftb patch ", original_id, " not found."));
+    }
+    const auto& original_def = original->second;
+    
+    PatchMap::Coverage coverage;
+    // TODO(garretrieger): optimize the patch map and use "subset indices"
+    //  instead of respecifying the codepoint subset.
+    coverage.codepoints = original_def.codepoints;
+    coverage.features.insert(feature_tag);
+    patch_map.AddEntry(coverage, id, IFTB_ENCODING);
+  }
+  return absl::OkStatus();
+}
+
 StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
                                    std::vector<const SubsetDefinition*> subsets,
                                    bool is_root) {
@@ -278,12 +334,12 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
   }
 
   PatchMap patch_map;
-
-  std::vector<uint32_t> ids;
-  for (const auto& e : existing_iftb_patches_) {
-    patch_map.AddEntry(e.second.codepoints, e.first, IFTB_ENCODING);
+  auto sc = PopulateIftbPatchMap(patch_map);
+  if (!sc.ok()) {
+    return sc;
   }
 
+  std::vector<uint32_t> ids;
   bool as_extensions = IsMixedMode();
   PatchEncoding encoding =
       IsMixedMode() ? PER_TABLE_SHARED_BROTLI_ENCODING : SHARED_BROTLI_ENCODING;

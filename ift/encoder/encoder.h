@@ -2,6 +2,7 @@
 #define IFT_ENCODER_ENCODER_H_
 
 #include "absl/container/btree_map.h"
+#include "absl/container/btree_set.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
@@ -11,6 +12,7 @@
 #include "common/font_data.h"
 #include "hb-subset.h"
 #include "ift/per_table_brotli_binary_diff.h"
+#include "ift/proto/patch_map.h"
 
 namespace ift::encoder {
 
@@ -42,7 +44,22 @@ class Encoder {
 
   const std::string& UrlTemplate() const { return url_template_; }
 
+  /*
+   * Adds an IFTB patch to be included in the encoded font identified by 'id'
+   * using the provided patch binary data.
+   */
   absl::Status AddExistingIftbPatch(uint32_t id, const common::FontData& patch);
+
+  /*
+   * Adds an IFTB patch identified by 'id' that will only be loaded if
+   * 'feature_tag' is in the  target subset and the IFTB patch 'original_id' has
+   * been loaded.
+   *
+   * The patches associated with 'original_id' and 'id' must have been
+   * previously supplied via AddExistingIftbPatch().
+   */
+  absl::Status AddIftbFeatureSpecificPatch(uint32_t original_id, uint32_t id,
+                                           hb_tag_t feature_tag);
 
   void SetFace(hb_face_t* face) { face_ = hb_face_reference(face); }
 
@@ -175,6 +192,8 @@ class Encoder {
 
   bool IsMixedMode() const { return !existing_iftb_patches_.empty(); }
 
+  absl::Status PopulateIftbPatchMap(ift::proto::PatchMap& patch_map);
+
   absl::StatusOr<common::FontData> CutSubset(hb_face_t* font,
                                              const SubsetDefinition& def);
 
@@ -186,6 +205,8 @@ class Encoder {
   uint32_t id_[4] = {0, 0, 0, 0};
   hb_face_t* face_ = nullptr;
   absl::btree_map<uint32_t, SubsetDefinition> existing_iftb_patches_;
+  absl::btree_map<uint32_t, std::pair<uint32_t, hb_tag_t>>
+      iftb_feature_mappings_;
   SubsetDefinition base_subset_;
   std::vector<SubsetDefinition> extension_subsets_;
   // TODO(garretrieger): also track additional gids that should be
