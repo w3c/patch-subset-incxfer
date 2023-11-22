@@ -365,10 +365,14 @@ TEST_F(PatchMapTest, AddToProto_WithFeatures) {
       {{25, 28, 37}, 1, SHARED_BROTLI_ENCODING},
   };
 
-  PatchMap::Coverage features = {30, 31};
-  features.features.insert(HB_TAG('s', 't', 'c', 'h'));
-  features.features.insert(HB_TAG('m', 'g', 'r', 'k'));
-  map.AddEntry(features, 2, SHARED_BROTLI_ENCODING);
+  PatchMap::Coverage features1 = {30, 31};
+  features1.features.insert(HB_TAG('s', 't', 'c', 'h'));
+  features1.features.insert(HB_TAG('m', 'g', 'r', 'k'));
+  map.AddEntry(features1, 2, SHARED_BROTLI_ENCODING);
+
+  PatchMap::Coverage features2 = {};
+  features2.features.insert(HB_TAG('m', 'g', 'r', 'k'));
+  map.AddEntry(features2, 3, SHARED_BROTLI_ENCODING);
 
   IFT expected;
   expected.set_default_patch_encoding(SHARED_BROTLI_ENCODING);
@@ -392,6 +396,10 @@ TEST_F(PatchMapTest, AddToProto_WithFeatures) {
   m->set_id_delta(0);
   m->add_feature_index(91);  // mgrk
   m->add_feature_index(55);  // stch
+
+  m = expected.add_subset_mapping();
+  m->set_id_delta(0);
+  m->add_feature_index(91);  // mgrk
 
   IFT proto;
   proto.set_default_patch_encoding(SHARED_BROTLI_ENCODING);
