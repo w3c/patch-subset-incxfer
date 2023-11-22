@@ -48,24 +48,22 @@ StatusOr<PatchMap::Coverage> PatchMap::Coverage::FromProto(
 }
 
 void PatchMap::Coverage::ToProto(SubsetMapping* out) const {
-  if (codepoints.empty()) {
-    return;
-  }
+  if (!codepoints.empty()) {
+    hb_set_unique_ptr set = make_hb_set();
+    for (uint32_t cp : codepoints) {
+      hb_set_add(set.get(), cp);
+    }
 
-  hb_set_unique_ptr set = make_hb_set();
-  for (uint32_t cp : codepoints) {
-    hb_set_add(set.get(), cp);
-  }
+    uint32_t bias = hb_set_get_min(set.get());
+    hb_set_clear(set.get());
+    for (uint32_t cp : codepoints) {
+      hb_set_add(set.get(), cp - bias);
+    }
 
-  uint32_t bias = hb_set_get_min(set.get());
-  hb_set_clear(set.get());
-  for (uint32_t cp : codepoints) {
-    hb_set_add(set.get(), cp - bias);
+    std::string encoded = common::SparseBitSet::Encode(*set);
+    out->set_bias(bias);
+    out->set_codepoint_set(encoded);
   }
-
-  std::string encoded = common::SparseBitSet::Encode(*set);
-  out->set_bias(bias);
-  out->set_codepoint_set(encoded);
 
   btree_set<hb_tag_t> sorted_features;
   std::copy(features.begin(), features.end(),
@@ -238,15 +236,16 @@ void PrintTo(const PatchMap::Coverage& coverage, std::ostream* os) {
 void PrintTo(const PatchMap::Entry& entry, std::ostream* os) {
   PrintTo(entry.coverage, os);
   *os << ", " << entry.patch_index << ", " << entry.encoding;
-  if (entry.extension_entry) {
-    *os << ", ext";
-  }
 }
 
 void PrintTo(const PatchMap& map, std::ostream* os) {
   *os << "[" << std::endl;
   for (const auto& e : map.entries_) {
-    *os << "  {";
+    if (e.extension_entry) {
+      *os << "  ExtEntry {";
+    } else {
+      *os << "  Entry {";
+    }
     PrintTo(e, os);
     *os << "}," << std::endl;
   }
