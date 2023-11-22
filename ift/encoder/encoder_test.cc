@@ -320,6 +320,13 @@ TEST_F(EncoderTest, Encode_TwoSubsetsAndOptionalFeature) {
       {"ABCD|c2sc", {}},
   };
   ASSERT_EQ(g, expected);
+
+  auto ift_table = IFTTable::FromFont(*base);
+  ASSERT_TRUE(ift_table.ok());
+
+  ASSERT_TRUE(
+      ift_table->GetPatchMap().GetEntries().at(1).coverage.features.contains(
+          HB_TAG('c', '2', 's', 'c')));
 }
 
 TEST_F(EncoderTest, Encode_ThreeSubsets) {
