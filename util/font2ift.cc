@@ -33,6 +33,11 @@ ABSL_FLAG(std::string, input_iftb_patch_template, "",
           "used in the output IFT font. If set the input codepoints files "
           "are interpretted as patch indices instead of codepoints.");
 
+ABSL_FLAG(uint32_t, jump_ahead, 1, "Number of levels to encode at each node.");
+
+ABSL_FLAG(std::vector<std::string>, optional_feature_tags, {},
+          "A list of features to make optionally available via a patch.");
+
 using absl::btree_set;
 using absl::flat_hash_set;
 using absl::Status;
@@ -42,6 +47,19 @@ using common::FontData;
 using ift::IftbBinaryPatch;
 using ift::IFTClient;
 using ift::encoder::Encoder;
+
+absl::flat_hash_set<hb_tag_t> StringsToTags(
+    const std::vector<std::string>& tag_strs) {
+  absl::flat_hash_set<hb_tag_t> tags;
+  for (const auto& tag_str : tag_strs) {
+    if (tag_str.size() != 4) {
+      continue;
+    }
+
+    tags.insert(HB_TAG(tag_str[0], tag_str[1], tag_str[2], tag_str[3]));
+  }
+  return tags;
+}
 
 FontData load_iftb_patch(uint32_t index) {
   std::string path = IFTClient::PatchToUrl(
@@ -175,6 +193,10 @@ int main(int argc, char** argv) {
     encoder.SetFace(input_font);
     hb_face_destroy(input_font);
   }
+
+  encoder.SetJumpAhead(absl::GetFlag(FLAGS_jump_ahead));
+  auto feature_tags_str = absl::GetFlag(FLAGS_optional_feature_tags);
+  encoder.AddOptionalFeatureGroup(StringsToTags(feature_tags_str));
 
   bool id_set = false;
   bool first = true;
