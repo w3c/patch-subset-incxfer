@@ -181,6 +181,76 @@ class EncoderTest : public ::testing::Test {
   }
 };
 
+TEST_F(EncoderTest, OutgoingEdges) {
+  Encoder encoder;
+  encoder.AddExtensionSubset({1, 2});
+  encoder.AddExtensionSubset({3, 4});
+  encoder.AddExtensionSubset({5, 6});
+  encoder.AddExtensionSubset({7, 8});
+
+  Encoder::SubsetDefinition s1{1, 2};
+  Encoder::SubsetDefinition s2{3, 4};
+  Encoder::SubsetDefinition s3{5, 6};
+  Encoder::SubsetDefinition s4{7, 8};
+
+  auto combos = encoder.OutgoingEdges(s2, 1);
+  std::vector<Encoder::SubsetDefinition> expected = {s1, s3, s4};
+  ASSERT_EQ(combos, expected);
+
+  combos = encoder.OutgoingEdges({1}, 1);
+  expected = {{2}, s2, s3, s4};
+  ASSERT_EQ(combos, expected);
+
+  combos = encoder.OutgoingEdges(s1, 2);
+  expected = {// l1
+              {3, 4},
+              {5, 6},
+              {7, 8},
+
+              // l2
+              {3, 4, 5, 6},
+              {3, 4, 7, 8},
+              {5, 6, 7, 8}};
+  ASSERT_EQ(combos, expected);
+
+  combos = encoder.OutgoingEdges(s1, 3);
+  expected = {// l1
+              {3, 4},
+              {5, 6},
+              {7, 8},
+
+              // l2
+              {3, 4, 5, 6},
+              {3, 4, 7, 8},
+              {5, 6, 7, 8},
+
+              // l3
+              {3, 4, 5, 6, 7, 8}};
+  ASSERT_EQ(combos, expected);
+
+  combos = encoder.OutgoingEdges({1, 3, 5, 7}, 3);
+  expected = {// l1
+              {2},
+              {4},
+              {6},
+              {8},
+
+              // l2
+              {2, 4},
+              {2, 6},
+              {2, 8},
+              {4, 6},
+              {4, 8},
+              {6, 8},
+
+              // l3
+              {2, 4, 6},
+              {2, 4, 8},
+              {2, 6, 8},
+              {4, 6, 8}};
+  ASSERT_EQ(combos, expected);
+}
+
 TEST_F(EncoderTest, MissingFace) {
   Encoder encoder;
   auto s1 = encoder.AddExistingIftbPatch(1, chunk1);
@@ -530,6 +600,44 @@ TEST_F(EncoderTest, Encode_FourSubsets) {
       {"a", {"ab", "ac", "ad"}}, {"ab", {"abc", "abd"}}, {"ac", {"abc", "acd"}},
       {"ad", {"abd", "acd"}},    {"abc", {"abcd"}},      {"abd", {"abcd"}},
       {"acd", {"abcd"}},         {"abcd", {}},
+  };
+  ASSERT_EQ(g, expected);
+}
+
+TEST_F(EncoderTest, Encode_FourSubsets_WithJumpAhead) {
+  absl::flat_hash_set<hb_codepoint_t> s1 = {'b'};
+  absl::flat_hash_set<hb_codepoint_t> s2 = {'c'};
+  absl::flat_hash_set<hb_codepoint_t> s3 = {'d'};
+  Encoder encoder;
+  hb_face_t* face = font.reference_face();
+  encoder.SetFace(face);
+  auto s = encoder.SetBaseSubset({'a'});
+  ASSERT_TRUE(s.ok()) << s;
+  encoder.AddExtensionSubset(s1);
+  encoder.AddExtensionSubset(s2);
+  encoder.AddExtensionSubset(s3);
+  encoder.SetJumpAhead(2);
+
+  auto base = encoder.Encode();
+  hb_face_destroy(face);
+
+  ASSERT_TRUE(base.ok()) << base.status();
+  ASSERT_EQ(ToNodeName(*base), "a");
+  ASSERT_EQ(encoder.Patches().size(), 18);
+
+  graph g;
+  auto sc = ToGraph(encoder, *base, g);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  graph expected{
+      {"a", {"ab", "ac", "ad", "abc", "abd", "acd"}},
+      {"ab", {"abc", "abd", "abcd"}},
+      {"ac", {"abc", "acd", "abcd"}},
+      {"ad", {"abd", "acd", "abcd"}},
+      {"abc", {"abcd"}},
+      {"abd", {"abcd"}},
+      {"acd", {"abcd"}},
+      {"abcd", {}},
   };
   ASSERT_EQ(g, expected);
 }

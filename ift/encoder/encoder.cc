@@ -20,6 +20,7 @@
 #include "woff2/encode.h"
 #include "woff2/output.h"
 
+using absl::btree_set;
 using absl::flat_hash_set;
 using absl::Status;
 using absl::StatusOr;
@@ -47,14 +48,95 @@ using woff2::WOFF2StringOut;
 
 namespace ift::encoder {
 
-std::vector<const Encoder::SubsetDefinition*> Encoder::Remaining(
-    const std::vector<const SubsetDefinition*>& subsets,
-    const SubsetDefinition* subset) const {
-  std::vector<const SubsetDefinition*> remaining_subsets;
-  std::copy_if(subsets.begin(), subsets.end(),
-               std::back_inserter(remaining_subsets),
-               [&](const SubsetDefinition* s) { return s != subset; });
-  return remaining_subsets;
+void PrintTo(const Encoder::SubsetDefinition& def, std::ostream* os) {
+  *os << "{";
+
+  btree_set<uint32_t> sorted;
+  for (uint32_t cp : def.codepoints) {
+    sorted.insert(cp);
+  }
+
+  bool first = true;
+  for (uint32_t cp : sorted) {
+    if (!first) {
+      *os << ", ";
+    }
+    first = false;
+    *os << cp;
+  }
+
+  *os << "}";
+}
+
+void Encoder::AddCombinations(const std::vector<const SubsetDefinition*>& in,
+                              uint32_t choose,
+                              std::vector<Encoder::SubsetDefinition>& out) {
+  if (!choose || in.size() < choose) {
+    return;
+  }
+
+  if (choose == 1) {
+    for (auto item : in) {
+      out.push_back(*item);
+    }
+    return;
+  }
+
+  for (auto it = in.begin(); it != in.end(); it++) {
+    auto it_inner = it + 1;
+    std::vector<const SubsetDefinition*> remaining;
+    std::copy(it_inner, in.end(), std::back_inserter(remaining));
+
+    std::vector<Encoder::SubsetDefinition> combinations;
+    AddCombinations(remaining, choose - 1, combinations);
+    for (auto& s : combinations) {
+      s.Union(**it);
+      out.push_back(std::move(s));
+    }
+  }
+}
+
+std::vector<Encoder::SubsetDefinition> Encoder::OutgoingEdges(
+    const SubsetDefinition& base_subset, uint32_t choose) const {
+  std::vector<SubsetDefinition> remaining_subsets;
+  for (const auto& s : extension_subsets_) {
+    SubsetDefinition filtered = s;
+    filtered.Subtract(base_subset);
+    if (filtered.empty()) {
+      continue;
+    }
+
+    remaining_subsets.push_back(std::move(filtered));
+  }
+
+  std::vector<const SubsetDefinition*> input;
+  for (const auto& s : remaining_subsets) {
+    input.push_back(&s);
+  }
+
+  std::vector<Encoder::SubsetDefinition> result;
+  for (uint32_t i = 1; i <= choose; i++) {
+    AddCombinations(input, i, result);
+  }
+
+  return result;
+}
+
+absl::flat_hash_set<uint32_t> subtract(const absl::flat_hash_set<uint32_t>& a,
+                                       const absl::flat_hash_set<uint32_t> b) {
+  absl::flat_hash_set<uint32_t> c;
+  for (uint32_t v : a) {
+    if (!b.contains(v)) {
+      c.insert(v);
+    }
+  }
+  return c;
+}
+
+void Encoder::SubsetDefinition::Subtract(const SubsetDefinition& other) {
+  codepoints = subtract(codepoints, other.codepoints);
+  gids = subtract(gids, other.gids);
+  feature_tags = subtract(feature_tags, other.feature_tags);
 }
 
 void Encoder::SubsetDefinition::Union(const SubsetDefinition& other) {
@@ -251,12 +333,7 @@ StatusOr<FontData> Encoder::Encode() {
     return absl::FailedPreconditionError("Encoder must have a face set.");
   }
 
-  std::vector<const SubsetDefinition*> subsets;
-  for (const auto& s : extension_subsets_) {
-    subsets.push_back(&s);
-  }
-
-  return Encode(base_subset_, subsets, true);
+  return Encode(base_subset_, true);
 }
 
 Status Encoder::PopulateIftbPatchMap(PatchMap& patch_map) {
@@ -297,7 +374,6 @@ Status Encoder::PopulateIftbPatchMap(PatchMap& patch_map) {
 }
 
 StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
-                                   std::vector<const SubsetDefinition*> subsets,
                                    bool is_root) {
   auto it = built_subsets_.find(base_subset);
   if (it != built_subsets_.end()) {
@@ -306,9 +382,8 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
     return copy;
   }
 
-  // TODO(garretrieger): when subsets are overlapping modify subsets at each
-  // iteration to remove
-  //                     codepoints which are in the base at this step.
+  std::vector<SubsetDefinition> subsets =
+      OutgoingEdges(base_subset, jump_ahead_);
 
   // The first subset forms the base file, the remaining subsets are made
   // reachable via patches.
@@ -345,13 +420,13 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
   bool as_extensions = IsMixedMode();
   PatchEncoding encoding =
       IsMixedMode() ? PER_TABLE_SHARED_BROTLI_ENCODING : SHARED_BROTLI_ENCODING;
-  for (auto s : subsets) {
+  for (const auto& s : subsets) {
     uint32_t id = next_id_++;
     ids.push_back(id);
 
     PatchMap::Coverage coverage;
-    coverage.codepoints = s->codepoints;
-    coverage.features = s->feature_tags;
+    coverage.codepoints = s.codepoints;
+    coverage.features = s.feature_tags;
     patch_map.AddEntry(coverage, id, encoding, as_extensions);
   }
 
@@ -383,12 +458,10 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
                                  : (BinaryDiff*)&binary_diff_;
 
   uint32_t i = 0;
-  for (auto s : subsets) {
+  for (const auto& s : subsets) {
     uint32_t id = ids[i++];
-    std::vector<const SubsetDefinition*> remaining_subsets =
-        Remaining(subsets, s);
-    SubsetDefinition combined_subset = Combine(base_subset, *s);
-    auto next = Encode(combined_subset, remaining_subsets, false);
+    SubsetDefinition combined_subset = Combine(base_subset, s);
+    auto next = Encode(combined_subset, false);
     if (!next.ok()) {
       return next.status();
     }
