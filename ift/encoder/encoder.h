@@ -1,6 +1,8 @@
 #ifndef IFT_ENCODER_ENCODER_H_
 #define IFT_ENCODER_ENCODER_H_
 
+#include <initializer_list>
+
 #include "absl/container/btree_map.h"
 #include "absl/container/btree_set.h"
 #include "absl/container/flat_hash_map.h"
@@ -43,6 +45,12 @@ class Encoder {
   void SetUrlTemplate(const std::string& value) { url_template_ = value; }
 
   const std::string& UrlTemplate() const { return url_template_; }
+
+  /*
+   * Configures how many graph levels can be reached from each node in the
+   * encoded graph. Defaults to 1.
+   */
+  void SetJumpAhead(uint32_t count) { this->jump_ahead_ = count; }
 
   /*
    * Adds an IFTB patch to be included in the encoded font identified by 'id'
@@ -143,8 +151,17 @@ class Encoder {
   static absl::StatusOr<common::FontData> RoundTripWoff2(
       absl::string_view font, bool glyf_transform = true);
 
- private:
+ public:
   struct SubsetDefinition {
+    SubsetDefinition() {}
+    SubsetDefinition(std::initializer_list<uint32_t> codepoints_in) {
+      for (uint32_t cp : codepoints_in) {
+        codepoints.insert(cp);
+      }
+    }
+
+    friend void PrintTo(const SubsetDefinition& point, std::ostream* os);
+
     absl::flat_hash_set<uint32_t> codepoints;
     absl::flat_hash_set<uint32_t> gids;
     absl::flat_hash_set<hb_tag_t> feature_tags;
@@ -165,13 +182,18 @@ class Encoder {
 
     void Union(const SubsetDefinition& other);
 
+    void Subtract(const SubsetDefinition& other);
+
     void ConfigureInput(hb_subset_input_t* input) const;
   };
 
-  std::vector<const SubsetDefinition*> Remaining(
-      const std::vector<const SubsetDefinition*>& subsets,
-      const SubsetDefinition* subset) const;
+  std::vector<SubsetDefinition> OutgoingEdges(const SubsetDefinition& base,
+                                              uint32_t choose) const;
 
+ private:
+  static void AddCombinations(const std::vector<const SubsetDefinition*>& in,
+                              uint32_t number,
+                              std::vector<SubsetDefinition>& out);
   SubsetDefinition Combine(const SubsetDefinition& s1,
                            const SubsetDefinition& s2) const;
 
@@ -183,9 +205,8 @@ class Encoder {
    * Returns: the IFT encoded initial font. Patches() will be populated with the
    * set of associated patch files.
    */
-  absl::StatusOr<common::FontData> Encode(
-      const SubsetDefinition& base_subset,
-      std::vector<const SubsetDefinition*> subsets, bool is_root = true);
+  absl::StatusOr<common::FontData> Encode(const SubsetDefinition& base_subset,
+                                          bool is_root = true);
 
   absl::StatusOr<SubsetDefinition> SubsetDefinitionForIftbPatches(
       const absl::flat_hash_set<uint32_t>& ids);
@@ -216,6 +237,7 @@ class Encoder {
 
   // OUT
   uint32_t next_id_ = 0;
+  uint32_t jump_ahead_ = 1;
   absl::flat_hash_map<SubsetDefinition, common::FontData> built_subsets_;
   absl::flat_hash_map<uint32_t, common::FontData> patches_;
 };
