@@ -397,11 +397,11 @@ uint32_t IFTClient::SelectDependentEntry(
   // TODO(garretrieger): merge coverages when multiple entries have the same
   // patch index.
   uint32_t selected_entry_index;
-  uint32_t max_size = 0;
+  int64_t max_size = -1;
   for (uint32_t entry_index : dependent_entry_indices) {
     const PatchMap::Entry& entry =
         ift_table_->GetPatchMap().GetEntries().at(entry_index);
-    if (entry.coverage.codepoints.size() > max_size) {
+    if (((int64_t)entry.coverage.codepoints.size()) > max_size) {
       max_size = entry.coverage.codepoints.size();
       selected_entry_index = entry_index;
     }
