@@ -72,7 +72,7 @@ class IFTClientTest : public ::testing::Test {
     m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
 
     m = complex.add_subset_mapping();
-    set = make_hb_set(4, 11, 20, 21, 22, 23);
+    set = make_hb_set(5, 11, 20, 21, 22, 23);
     m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
     m->set_patch_encoding(SHARED_BROTLI_ENCODING);
 
@@ -117,7 +117,7 @@ class IFTClientTest : public ::testing::Test {
     m->set_patch_encoding(IFTB_ENCODING);
 
     m = sample_with_features.add_subset_mapping();
-    set = make_hb_set(3, 0, 1);
+    set = make_hb_set(2, 0, 1);
     m->set_bias(60);
     m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
     m->set_id_delta(0);  // 0x36 (54)
@@ -125,7 +125,7 @@ class IFTClientTest : public ::testing::Test {
     m->set_patch_encoding(SHARED_BROTLI_ENCODING);
 
     m = sample_with_features.add_subset_mapping();
-    set = make_hb_set(3, 0, 1, 2, 3);
+    set = make_hb_set(4, 0, 1, 2, 3);
     m->set_bias(70);
     m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
     m->set_id_delta(0);  // 0x37 (55)
@@ -133,7 +133,7 @@ class IFTClientTest : public ::testing::Test {
     m->set_patch_encoding(SHARED_BROTLI_ENCODING);
 
     m = sample_with_features.add_subset_mapping();
-    set = make_hb_set(4, 0, 1, 2, 3, 4);
+    set = make_hb_set(5, 0, 1, 2, 3, 4);
     m->set_bias(80);
     m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
     m->set_id_delta(0);  // 0x38 (56)
@@ -246,16 +246,24 @@ INSTANTIATE_TEST_SUITE_P(
         PatchesNeededTestCase(kFontWithFeatures, {100}, {kLiga}, {0x40}),
 
         // dependent entry prioritization:
-        // - goes to the largest codepoint set, with ties broken by entry order.
-        PatchesNeededTestCase(kFontWithFeatures, {56, 60}, {kLiga},
-                              {0x2a, 0x40}),
-        PatchesNeededTestCase(kFontWithFeatures, {56, 70}, {kLiga},
-                              {0x2a, 0x40}),
-        PatchesNeededTestCase(kFontWithFeatures, {56, 80}, {kLiga},
-                              {0x38, 0x40}),
+        // - goes the the largest intersection with ties broken by smaller entry
+        // size
+        // - Input has the following entries
+        //   IFTB {30, 32},            0x09
+        //   SBR  {55, 56, 57},        0x2a
+        //   IFTB {20, 21, 22},        0x35
+        //   SBR  {60, 61},            0x36
+        //   SBR  {70, 71, 72, 73}     0x37
+        //   SBR  {80, 81, 82, 83, 84} 0x38
+        PatchesNeededTestCase(kFontWithFeatures, {60, 70, 71}, {kLiga},
+                              {0x37, 0x40}),
+        PatchesNeededTestCase(kFontWithFeatures, {60, 61, 70}, {kLiga},
+                              {0x36, 0x40}),
+        PatchesNeededTestCase(kFontWithFeatures, {60, 61, 70, 71}, {kLiga},
+                              {0x36, 0x40}),
 
         PatchesNeededTestCase(kComplexFont, {4, 6}, {}, {1, 2}),
-        PatchesNeededTestCase(kComplexFont, {4, 11, 12}, {}, {1, 3, 4}),
+        PatchesNeededTestCase(kComplexFont, {4, 11, 12}, {}, {1, 3, 5}),
         PatchesNeededTestCase(kComplexFont, {12}, {}, {5}),
 
         PatchesNeededTestCase(kComplexFont, {5, 100}, {}, {1}),
