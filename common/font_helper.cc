@@ -188,6 +188,10 @@ std::string FontHelper::ToString(hb_tag_t tag) {
   return tag_name;
 }
 
+hb_tag_t FontHelper::ToTag(const std::string& tag) {
+  return HB_TAG(tag[0], tag[1], tag[2], tag[3]);
+}
+
 std::vector<std::string> FontHelper::ToStrings(
     const std::vector<hb_tag_t>& tags) {
   std::vector<std::string> result;

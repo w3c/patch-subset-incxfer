@@ -115,6 +115,7 @@ class FontHelper {
   static std::vector<std::string> ToStrings(
       const absl::btree_set<hb_tag_t>& input);
   static std::string ToString(hb_tag_t tag);
+  static hb_tag_t ToTag(const std::string& tag);
 };
 
 }  // namespace common

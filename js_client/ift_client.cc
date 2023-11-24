@@ -21,6 +21,7 @@
 #include "ift/encoder/encoder.h"
 #include "ift/ift_client.h"
 #include "ift/proto/IFT.pb.h"
+#include "common/font_helper.h"
 
 using namespace emscripten;
 
@@ -30,6 +31,7 @@ using absl::string_view;
 using common::FontData;
 using common::hb_set_unique_ptr;
 using common::make_hb_set;
+using common::FontHelper;
 using ift::IFTClient;
 using ift::encoder::Encoder;
 using ift::proto::DEFAULT_ENCODING;
@@ -109,9 +111,16 @@ void InitRequestFailed(emscripten_fetch_t* fetch) {
   emscripten_fetch_close(fetch);
 }
 
-void State::extend(val codepoints_js, val callback) {
+void State::extend(val codepoints_js, val features_js, val callback) {
   std::vector<int> codepoints_vector =
       convertJSArrayToNumberVector<int>(codepoints_js);
+
+  std::vector<std::string> features_vector =
+      vecFromJSArray<std::string>(features_js);
+
+  for (const std::string& f : features_vector) {
+    pending_features_.insert(FontHelper::ToTag(f));
+  }
 
   std::copy(codepoints_vector.begin(), codepoints_vector.end(),
             std::inserter(pending_codepoints_, pending_codepoints_.begin()));
@@ -137,6 +146,9 @@ void State::Process() {
   }
 
   auto sc = client_->AddDesiredCodepoints(pending_codepoints_);
+  if (!pending_features_.empty()) {
+    sc.Update(client_->AddDesiredFeatures(pending_features_));
+  }
   if (!sc.ok()) {
     LOG(WARNING) << "Failed to add desired codepoints to the client: "
                  << sc.message();
