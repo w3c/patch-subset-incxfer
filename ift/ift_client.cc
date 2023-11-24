@@ -390,19 +390,42 @@ void IFTClient::IntersectingEntries(
   }
 }
 
+int intersection_size(const flat_hash_set<uint32_t>* a,
+                      const flat_hash_set<uint32_t>* b) {
+  const flat_hash_set<uint32_t>* smaller = a->size() < b->size() ? a : b;
+  const flat_hash_set<uint32_t>* larger = a->size() < b->size() ? b : a;
+
+  uint32_t count = 0;
+  for (uint32_t v : *smaller) {
+    if (larger->contains(v)) {
+      count++;
+    }
+  }
+  return count;
+}
+
 uint32_t IFTClient::SelectDependentEntry(
     const absl::btree_set<uint32_t>& dependent_entry_indices) {
-  // TODO(garretrieger): use intersection size with additional_codepoints
-  // instead.
   // TODO(garretrieger): merge coverages when multiple entries have the same
   // patch index.
   uint32_t selected_entry_index;
-  int64_t max_size = -1;
+  int64_t max_intersection = -1;
+  uint32_t min_size = (uint32_t)-1;
   for (uint32_t entry_index : dependent_entry_indices) {
     const PatchMap::Entry& entry =
         ift_table_->GetPatchMap().GetEntries().at(entry_index);
-    if (((int64_t)entry.coverage.codepoints.size()) > max_size) {
-      max_size = entry.coverage.codepoints.size();
+
+    uint32_t intersection_count =
+        intersection_size(&(entry.coverage.codepoints), &target_codepoints_);
+    uint32_t size = entry.coverage.codepoints.size();
+
+    if (intersection_count > max_intersection) {
+      max_intersection = intersection_count;
+      min_size = size;
+      selected_entry_index = entry_index;
+    } else if (intersection_count == max_intersection && size < min_size) {
+      // Break ties in intersection size to the smaller entry.
+      min_size = size;
       selected_entry_index = entry_index;
     }
   }

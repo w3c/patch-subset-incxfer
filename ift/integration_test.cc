@@ -312,7 +312,7 @@ TEST_F(IntegrationTest, SharedBrotli_AddCodepointsWhileInProgress) {
   encoder.AddExtensionSubset({0x45, 0x46, 0x47});
   encoder.AddExtensionSubset({0x48, 0x49, 0x4A});
   encoder.AddExtensionSubset({0x4B, 0x4C, 0x4D});
-  encoder.AddExtensionSubset({0x4E, 0x4F, 0x50, 0x51});
+  encoder.AddExtensionSubset({0x4E, 0x4F});
   ASSERT_TRUE(sc.ok()) << sc;
 
   auto encoded = encoder.Encode();
