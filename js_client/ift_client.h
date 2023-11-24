@@ -24,7 +24,9 @@ class State {
         emscripten::typed_memory_view(0, (uint32_t*)nullptr));
   }
 
-  void extend(emscripten::val codepoints_js, emscripten::val callback);
+  void extend(emscripten::val codepoints_js,
+              emscripten::val features_js,
+              emscripten::val callback);
 
   void InitClient(ift::IFTClient&& client) {
     client_ = std::move(client);
@@ -42,6 +44,7 @@ class State {
   std::string font_url_;
   std::optional<ift::IFTClient> client_;
   absl::flat_hash_set<uint32_t> pending_codepoints_;
+  absl::flat_hash_set<hb_tag_t> pending_features_;
   bool init_request_in_flight_ = false;
   patch_set inflight_urls_;
   std::vector<emscripten::val> callbacks_;
