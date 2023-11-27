@@ -33,6 +33,16 @@ ABSL_FLAG(std::string, input_iftb_patch_template, "",
           "used in the output IFT font. If set the input codepoints files "
           "are interpretted as patch indices instead of codepoints.");
 
+ABSL_FLAG(uint32_t, input_iftb_patch_count, 0,
+          "The number of input iftb patches there are. Should be set if using "
+          "'iftb_patch_groups'.");
+
+ABSL_FLAG(
+    uint32_t, iftb_patch_groups, 0,
+    "If using existing iftb patches this overrides input subsets and evenly "
+    "divides the iftb patches into the specified number of groups for "
+    "forming the non-outline data shared brotli patches.");
+
 ABSL_FLAG(uint32_t, jump_ahead, 1, "Number of levels to encode at each node.");
 
 ABSL_FLAG(std::vector<std::string>, optional_feature_tags, {},
@@ -161,12 +171,103 @@ int write_output(const Encoder& encoder, const FontData& base_font) {
   return 0;
 }
 
+StatusOr<std::vector<btree_set<uint32_t>>> get_iftb_patch_groups_from_args(
+    const std::vector<char*>& args) {
+  std::vector<btree_set<uint32_t>> result;
+
+  std::cout << ">> loading input iftb patches:" << std::endl;
+  for (size_t i = 2; i < args.size(); i++) {
+    auto s = load_unicodes_file(args[i]);
+    btree_set<uint32_t> ordered;
+    std::copy(s->begin(), s->end(), std::inserter(ordered, ordered.begin()));
+    if (!s.ok()) {
+      return s.status();
+    }
+
+    result.push_back(std::move(ordered));
+  }
+
+  return result;
+}
+
+std::vector<btree_set<uint32_t>> generate_iftb_patch_groups(
+    uint32_t num_groups, uint32_t num_patches) {
+  // don't include chunk 0 which is already in the base font.
+  uint32_t per_group = (num_patches - 1) / num_groups;
+  uint32_t remainder = (num_patches - 1) % num_groups;
+
+  std::vector<btree_set<uint32_t>> result;
+  uint32_t patch_idx = 1;
+  for (uint32_t i = 0; i < num_groups; i++) {
+    btree_set<uint32_t> group;
+    uint32_t count = per_group;
+    if (remainder > 0) {
+      count++;
+      remainder--;
+    }
+    for (uint32_t j = 0; j < count; j++) {
+      group.insert(patch_idx++);
+    }
+    result.push_back(std::move(group));
+  }
+
+  return result;
+}
+
+Status configure_mixed_mode(std::vector<btree_set<uint32_t>> iftb_patch_groups,
+                            Encoder& encoder) {
+  bool id_set = false;
+  for (const auto& grouping : iftb_patch_groups) {
+    for (uint32_t id : grouping) {
+      FontData iftb_patch = load_iftb_patch(id);
+      if (!id_set) {
+        uint32_t id[4];
+        auto sc = IftbBinaryPatch::IdInPatch(iftb_patch, id);
+        sc.Update(encoder.SetId(id));
+        if (!sc.ok()) {
+          return sc;
+        }
+        printf(" set id to %x %x %x %x\n", id[0], id[1], id[2], id[3]);
+        id_set = true;
+      }
+
+      auto sc = encoder.AddExistingIftbPatch(id, iftb_patch);
+      if (!sc.ok()) {
+        return sc;
+      }
+
+      write_patch(encoder, id, iftb_patch);
+    }
+  }
+
+  Status sc = encoder.SetBaseSubsetFromIftbPatches({});
+  if (!sc.ok()) {
+    return sc;
+  }
+  for (const auto& grouping : iftb_patch_groups) {
+    flat_hash_set<uint32_t> set;
+    std::copy(grouping.begin(), grouping.end(),
+              std::inserter(set, set.begin()));
+    sc = encoder.AddExtensionSubsetOfIftbPatches(set);
+    if (!sc.ok()) {
+      return sc;
+    }
+  }
+
+  return absl::OkStatus();
+}
+
 int main(int argc, char** argv) {
   auto args = absl::ParseCommandLine(argc, argv);
   // TODO(garretrieger): add support for taking arguments/config as a proto
   // file,
   //   where command line flags override the proto settings.
-  if (args.size() < 3) {
+  bool mixed_mode = !absl::GetFlag(FLAGS_input_iftb_patch_template).empty();
+  bool generated_groups = mixed_mode &&
+                          absl::GetFlag(FLAGS_iftb_patch_groups) &&
+                          absl::GetFlag(FLAGS_input_iftb_patch_count);
+
+  if (args.size() < (generated_groups ? 2 : 3)) {
     std::cerr
         << "creates an IFT font from <input font> that can incrementally load "
         << "the provided subsets." << std::endl
@@ -184,8 +285,6 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  bool mixed_mode = !absl::GetFlag(FLAGS_input_iftb_patch_template).empty();
-
   Encoder encoder;
   encoder.SetUrlTemplate(absl::GetFlag(FLAGS_url_template));
   {
@@ -198,77 +297,55 @@ int main(int argc, char** argv) {
   auto feature_tags_str = absl::GetFlag(FLAGS_optional_feature_tags);
   encoder.AddOptionalFeatureGroup(StringsToTags(feature_tags_str));
 
-  bool id_set = false;
-  bool first = true;
   if (mixed_mode) {
-    // Load and write out iftb patches
-    std::cout << ">> loading input iftb patches:" << std::endl;
+    std::cout << ">> configuring encoder with iftb patches:" << std::endl;
+    if (generated_groups) {
+      auto sc =
+          configure_mixed_mode(generate_iftb_patch_groups(
+                                   absl::GetFlag(FLAGS_iftb_patch_groups),
+                                   absl::GetFlag(FLAGS_input_iftb_patch_count)),
+                               encoder);
+      if (!sc.ok()) {
+        std::cerr
+            << "Failure configuring mixed mode with generated patch groups: "
+            << sc.message() << std::endl;
+        return -1;
+      }
+    } else {
+      auto groups = get_iftb_patch_groups_from_args(args);
+      if (!groups.ok()) {
+        std::cerr << "Failure loading input patch groups: "
+                  << groups.status().message() << std::endl;
+        return -1;
+      }
+      auto sc = configure_mixed_mode(*groups, encoder);
+      if (!sc.ok()) {
+        std::cerr
+            << "Failure configuring mixed mode with supplied patch groups: "
+            << sc.message() << std::endl;
+        return -1;
+      }
+    }
+  } else {
+    std::cout << ">> configuring encoder:" << std::endl;
+    bool first = true;
     for (size_t i = 2; i < args.size(); i++) {
       auto s = load_unicodes_file(args[i]);
-      btree_set<uint32_t> ordered;
-      std::copy(s->begin(), s->end(), std::inserter(ordered, ordered.begin()));
       if (!s.ok()) {
-        std::cerr << "Failed to load codepoint file (" << args[i]
-                  << "): " << s.status().message() << std::endl;
+        std::cerr << s.status().message() << std::endl;
         return -1;
       }
 
-      for (uint32_t id : ordered) {
-        FontData iftb_patch = load_iftb_patch(id);
-        if (!id_set) {
-          uint32_t id[4];
-          auto sc = IftbBinaryPatch::IdInPatch(iftb_patch, id);
-          sc.Update(encoder.SetId(id));
-          if (!sc.ok()) {
-            std::cout << "Failed setting encoder id: " << sc.message()
-                      << std::endl;
-            return -1;
-          }
-          printf(" set id to %x %x %x %x\n", id[0], id[1], id[2], id[3]);
-          id_set = true;
-        }
-
-        auto sc = encoder.AddExistingIftbPatch(id, iftb_patch);
+      Status sc;
+      if (first) {
+        sc = encoder.SetBaseSubset(*s);
         if (!sc.ok()) {
-          std::cout << "Failed adding existing iftb patch: " << sc.message()
-                    << std::endl;
+          std::cerr << sc.message() << std::endl;
           return -1;
         }
-
-        if (!first) {
-          write_patch(encoder, id, iftb_patch);
-        }
-      }
-
-      first = false;
-    }
-  }
-
-  std::cout << ">> configuring encoder:" << std::endl;
-  first = true;
-  for (size_t i = 2; i < args.size(); i++) {
-    auto s = load_unicodes_file(args[i]);
-    if (!s.ok()) {
-      std::cerr << s.status().message() << std::endl;
-      return -1;
-    }
-
-    Status sc;
-    if (first) {
-      sc = !mixed_mode ? encoder.SetBaseSubset(*s)
-                       : encoder.SetBaseSubsetFromIftbPatches(*s);
-      if (!sc.ok()) {
-        std::cerr << sc.message() << std::endl;
-        return -1;
-      }
-      first = false;
-    } else if (!mixed_mode) {
-      encoder.AddExtensionSubset(*s);
-    } else {
-      sc = encoder.AddExtensionSubsetOfIftbPatches(*s);
-      if (!sc.ok()) {
-        std::cerr << sc.message() << std::endl;
-        return -1;
+        first = false;
+      } else {
+        encoder.AddExtensionSubset(*s);
       }
     }
   }
