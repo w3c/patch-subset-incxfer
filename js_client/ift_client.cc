@@ -17,11 +17,11 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "common/font_data.h"
+#include "common/font_helper.h"
 #include "common/hb_set_unique_ptr.h"
 #include "ift/encoder/encoder.h"
 #include "ift/ift_client.h"
 #include "ift/proto/IFT.pb.h"
-#include "common/font_helper.h"
 
 using namespace emscripten;
 
@@ -29,9 +29,9 @@ using absl::flat_hash_map;
 using absl::flat_hash_set;
 using absl::string_view;
 using common::FontData;
+using common::FontHelper;
 using common::hb_set_unique_ptr;
 using common::make_hb_set;
-using common::FontHelper;
 using ift::IFTClient;
 using ift::encoder::Encoder;
 using ift::proto::DEFAULT_ENCODING;

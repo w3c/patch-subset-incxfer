@@ -24,8 +24,7 @@ class State {
         emscripten::typed_memory_view(0, (uint32_t*)nullptr));
   }
 
-  void extend(emscripten::val codepoints_js,
-              emscripten::val features_js,
+  void extend(emscripten::val codepoints_js, emscripten::val features_js,
               emscripten::val callback);
 
   void InitClient(ift::IFTClient&& client) {
