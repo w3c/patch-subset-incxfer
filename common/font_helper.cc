@@ -4,12 +4,14 @@
 
 #include "absl/container/btree_set.h"
 #include "absl/container/flat_hash_map.h"
+#include "absl/strings/str_cat.h"
 #include "common/font_data.h"
 #include "hb-ot.h"
 #include "hb-subset.h"
 
 using absl::btree_set;
 using absl::flat_hash_map;
+using absl::StrCat;
 using common::FontData;
 
 namespace common {
@@ -32,7 +34,8 @@ absl::StatusOr<absl::string_view> FontHelper::GlyfData(const hb_face_t* face,
   uint32_t end_index = (gid + 1) * width;
 
   if (loca->size() < end_index + width) {
-    return absl::InvalidArgumentError("invalid loca table, too short.");
+    return absl::NotFoundError(
+        StrCat("gid ", gid, "not found in loca, loca is too short."));
   }
 
   uint32_t glyph_data_start = 0;

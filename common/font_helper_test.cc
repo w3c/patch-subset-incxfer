@@ -90,7 +90,7 @@ TEST_F(FontHelperTest, GlyfData_Short) {
   ASSERT_GT(data->size(), 0);
 
   data = FontHelper::GlyfData(roboto_ab.get(), 71);
-  ASSERT_TRUE(absl::IsInvalidArgument(data.status())) << data.status();
+  ASSERT_TRUE(absl::IsNotFound(data.status())) << data.status();
 }
 
 TEST_F(FontHelperTest, GlyfData_Long) {

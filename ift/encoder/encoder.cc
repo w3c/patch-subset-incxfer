@@ -285,14 +285,6 @@ Status Encoder::SetBaseSubsetFromIftbPatches(
     existing_iftb_patches_.erase(id);
   }
 
-  // TODO(garretrieger):
-  //   This is a hack, the IFTB merger does not support loca len changing.
-  //   so always include the last gid in the base subset to force the
-  //   loca table to remain at the full length from the start. This should
-  //   be removed once that limitation is fixed in the IFTB merger.
-  uint32_t gid_count = hb_face_get_glyph_count(face_);
-  if (gid_count > 0) base_subset_.gids.insert(gid_count - 1);
-
   return absl::OkStatus();
 }
 
