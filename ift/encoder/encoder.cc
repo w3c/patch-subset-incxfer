@@ -390,20 +390,17 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
     return base;
   }
 
-  IFT ift_proto, iftx_proto;
-  ift_proto.set_url_template(UrlTemplate());
-  if (!IsMixedMode()) {
-    ift_proto.set_default_patch_encoding(SHARED_BROTLI_ENCODING);
-  } else {
-    ift_proto.set_default_patch_encoding(IFTB_ENCODING);
-    iftx_proto.set_default_patch_encoding(PER_TABLE_SHARED_BROTLI_ENCODING);
-  }
-  for (uint32_t p : Id()) {
-    ift_proto.add_id(p);
+  // TODO(garretrieger): if not retain gids, then insert a gid map into the IFT
+  // table.
+  IFTTable table;
+  table.SetUrlTemplate(UrlTemplate());
+  auto sc = table.SetId(Id());
+  if (!sc.ok()) {
+    return sc;
   }
 
-  PatchMap patch_map;
-  auto sc = PopulateIftbPatchMap(patch_map);
+  PatchMap& patch_map = table.GetPatchMap();
+  sc = PopulateIftbPatchMap(patch_map);
   if (!sc.ok()) {
     return sc;
   }
@@ -422,14 +419,8 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
     patch_map.AddEntry(coverage, id, encoding, as_extensions);
   }
 
-  patch_map.AddToProto(ift_proto);
-  if (IsMixedMode()) {
-    patch_map.AddToProto(iftx_proto, true);
-  }
-
   hb_face_t* face = base->reference_face();
-  auto new_base = IFTTable::AddToFont(
-      face, ift_proto, IsMixedMode() ? &iftx_proto : nullptr, true);
+  auto new_base = table.AddToFont(face, true);
   hb_face_destroy(face);
 
   if (!new_base.ok()) {
@@ -482,6 +473,8 @@ StatusOr<FontData> Encoder::CutSubset(hb_face_t* font,
   if (IsMixedMode()) {
     // Mixed mode requires stable gids and IFTB requirements to be met,
     // set flags accordingly.
+    // TODO(garretrieger): retain gids is optional based on
+    // 'retain_gids_in_mixed_mode_'
     hb_subset_input_set_flags(
         input, HB_SUBSET_FLAGS_RETAIN_GIDS | HB_SUBSET_FLAGS_IFTB_REQUIREMENTS |
                    HB_SUBSET_FLAGS_NOTDEF_OUTLINE |

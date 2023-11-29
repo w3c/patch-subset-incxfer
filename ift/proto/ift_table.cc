@@ -100,7 +100,6 @@ StatusOr<IFTTable> IFTTable::FromProto(IFT proto) {
   IFTTable table;
   table.patch_map_ = std::move(*map);
   table.url_template_ = proto.url_template();
-  table.default_encoding_ = proto.default_patch_encoding();
 
   if (proto.id_size() != 4 && proto.id_size() != 0) {
     return absl::InvalidArgumentError("id field must have a length of 4 or 0.");
@@ -225,7 +224,6 @@ IFT IFTTable::CreateMainTable() const {
   proto.add_id(id_[1]);
   proto.add_id(id_[2]);
   proto.add_id(id_[3]);
-  proto.set_default_patch_encoding(default_encoding_);
   patch_map_.AddToProto(proto);
 
   if (!glyph_map_.empty() && !HasExtensionEntries()) {
