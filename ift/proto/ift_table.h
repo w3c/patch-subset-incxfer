@@ -57,6 +57,17 @@ class IFTTable {
   absl::flat_hash_map<uint32_t, uint32_t>& GetGlyphMap() { return glyph_map_; }
 
   const std::string& GetUrlTemplate() const { return url_template_; }
+  void SetUrlTemplate(absl::string_view value) { url_template_ = value; }
+  absl::Status SetId(absl::Span<const uint32_t> id) {
+    if (id.size() != 4) {
+      return absl::InvalidArgumentError("ID must have length of 4.");
+    }
+    id_[0] = id[0];
+    id_[1] = id[1];
+    id_[2] = id[2];
+    id_[3] = id[3];
+    return absl::OkStatus();
+  }
 
   /*
    * Converts this abstract representation to the proto representation.
@@ -82,7 +93,6 @@ class IFTTable {
  private:
   std::string url_template_;
   uint32_t id_[4];
-  PatchEncoding default_encoding_;
   PatchMap patch_map_;
   absl::flat_hash_map<uint32_t, uint32_t> glyph_map_;
 };

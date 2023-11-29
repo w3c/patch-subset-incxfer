@@ -47,6 +47,14 @@ class Encoder {
   const std::string& UrlTemplate() const { return url_template_; }
 
   /*
+   * Configures the whether or not the encoder will retain gids when in mixed
+   * mode. Defaults to true.
+   */
+  void SetMixedModeRetainGids(bool value) {
+    this->retain_gids_in_mixed_mode_ = value;
+  }
+
+  /*
    * Configures how many graph levels can be reached from each node in the
    * encoded graph. Defaults to 1.
    */
@@ -225,6 +233,7 @@ class Encoder {
   std::string url_template_ = "patch$5$4$3$2$1.br";
   uint32_t id_[4] = {0, 0, 0, 0};
   hb_face_t* face_ = nullptr;
+  bool retain_gids_in_mixed_mode_ = true;
   absl::btree_map<uint32_t, SubsetDefinition> existing_iftb_patches_;
   absl::flat_hash_map<uint32_t,
                       absl::flat_hash_map<hb_tag_t, absl::btree_set<uint32_t>>>

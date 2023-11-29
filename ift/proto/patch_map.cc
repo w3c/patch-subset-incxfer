@@ -186,6 +186,14 @@ void PatchMap::AddToProto(IFT& ift_proto, bool extension_entries) const {
       continue;
     }
 
+    if (default_encoding == DEFAULT_ENCODING) {
+      // Assign an encoding if one has not been picked yet.
+      // This could be made smarter by picking the most commonly
+      // used encoding.
+      default_encoding = e.encoding;
+      ift_proto.set_default_patch_encoding(e.encoding);
+    }
+
     auto* m = ift_proto.add_subset_mapping();
     e.ToProto(last_patch_index, default_encoding, m);
     last_patch_index = e.patch_index;
