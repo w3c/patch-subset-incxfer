@@ -51,25 +51,40 @@ class IFTTable {
   PatchMap& GetPatchMap() { return patch_map_; }
   bool HasExtensionEntries() const;
 
+  const absl::flat_hash_map<uint32_t, uint32_t>& GetGlyphMap() const {
+    return glyph_map_;
+  }
+  absl::flat_hash_map<uint32_t, uint32_t>& GetGlyphMap() { return glyph_map_; }
+
   const std::string& GetUrlTemplate() const { return url_template_; }
 
   /*
    * Converts this abstract representation to the proto representation.
    * This method generates the proto for the main "IFT " table.
    */
-  IFT CreateMainTable();
+  IFT CreateMainTable() const;
 
   /*
    * Converts this abstract representation to the proto representation.
    * This method generates the proto for the extension "IFTX" table.
    */
-  IFT CreateExtensionTable();
+  IFT CreateExtensionTable() const;
+
+  /*
+   * Adds an encoded 'IFT ' table built from this IFT table to the font pointed
+   * to by face. By default this will maintain the physical orderng of tables
+   * already present in the font. If extension entries are present then an
+   * extension table (IFTX) will also be added.
+   */
+  absl::StatusOr<common::FontData> AddToFont(
+      hb_face_t* face, bool iftb_conversion = false) const;
 
  private:
   std::string url_template_;
   uint32_t id_[4];
   PatchEncoding default_encoding_;
   PatchMap patch_map_;
+  absl::flat_hash_map<uint32_t, uint32_t> glyph_map_;
 };
 
 }  // namespace ift::proto
