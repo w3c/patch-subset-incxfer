@@ -127,9 +127,9 @@ register_emscripten_toolchains()
 http_archive(
     name = "iftb",
     build_file = "//third_party:iftb.BUILD",
-    sha256 = "6ce23dc4a0527edaadbc9d50c15e219d832c22b496ff6841a3db01271d8bc207",
-    strip_prefix = "binned-ift-reference-d71240222e0b3be3d05dea58e51529d20797269d",
-    urls = ["https://github.com/garretrieger/binned-ift-reference/archive/d71240222e0b3be3d05dea58e51529d20797269d.zip"],
+    sha256 = "85e3be40a51db22c7a908db0f74a8a93451e1561d43695e9394d8719a50f0eaa",
+    strip_prefix = "binned-ift-reference-2235f63cd51598c8191487e5c196634910a514bf",
+    urls = ["https://github.com/garretrieger/binned-ift-reference/archive/2235f63cd51598c8191487e5c196634910a514bf.zip"],
 )
 
 http_archive(

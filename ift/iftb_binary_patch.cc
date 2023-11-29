@@ -124,6 +124,11 @@ Status IftbBinaryPatch::Patch(const FontData& font_base,
   ift_table->GetId(id);
   merger.setID(id);
 
+  if (!ift_table->GetGlyphMap().empty()) {
+    merger.addOldToNewGidMap(ift_table->GetGlyphMap().begin(),
+                             ift_table->GetGlyphMap().end());
+  }
+
   flat_hash_set<uint32_t> patch_indices;
   for (const FontData& patch : patches) {
     auto idx = get_chunk_index(patch);
