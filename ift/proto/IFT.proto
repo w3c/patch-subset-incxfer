@@ -31,6 +31,13 @@ message IFT {
   // next = 5
 }
 
+message AxisRange {
+  float start = 1;
+  float end = 2;
+
+  // next = 3;
+}
+
 // Maps from a subset description to a patch
 message SubsetMapping {
   // == KEY ==
@@ -44,19 +51,20 @@ message SubsetMapping {
   // List of features encoded using known ids, or the 4 byte tag as a uint32.
   repeated uint32 feature_index = 5;
 
+  // List of ranges per axis tag.
+  map<uint32, AxisRange> design_space = 7;
+
   // Re-use previously defined subset definitions, must have indices less than the index
   // for this entry (ensures no cycles). Any referenced definitions are unioned into this
   // one.
   repeated uint32 subset_indices = 6;
-
-  // TODO(garretrieger): add design space.
 
   // == VALUE ==
 
   int32 id_delta = 3;
   PatchEncoding patch_encoding = 4;
 
-  // next = 6
+  // next = 8
 }
 
 // Format for a table-wise shared brotli patch.

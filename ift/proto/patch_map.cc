@@ -44,6 +44,16 @@ StatusOr<PatchMap::Coverage> PatchMap::Coverage::FromProto(
     coverage.features.insert(IndexToFeatureTag(feature_index));
   }
 
+  for (const auto& entry : mapping.design_space()) {
+    hb_tag_t tag = entry.first;
+    auto range = AxisRange::FromProto(entry.second);
+    if (!range.ok()) {
+      return range.status();
+    }
+
+    coverage.design_space[tag] = *range;
+  }
+
   return coverage;
 }
 
@@ -72,6 +82,10 @@ void PatchMap::Coverage::ToProto(SubsetMapping* out) const {
   for (hb_tag_t feature_tag : sorted_features) {
     out->add_feature_index(FeatureTagToIndex(feature_tag));
   }
+
+  for (const auto& [tag, range] : design_space) {
+    range.ToProto(&(*out->mutable_design_space())[tag]);
+  }
 }
 
 static bool sets_intersect(const flat_hash_set<uint32_t>& a,
@@ -89,7 +103,8 @@ static bool sets_intersect(const flat_hash_set<uint32_t>& a,
 
 bool PatchMap::Coverage::Intersects(
     const flat_hash_set<uint32_t>& codepoints_in,
-    const flat_hash_set<hb_tag_t>& features_in) const {
+    const flat_hash_set<hb_tag_t>& features_in,
+    const absl::flat_hash_map<hb_tag_t, AxisRange>& design_space_in) const {
   // If an input set is unspecified (empty), it is considered to not match the
   // corresponding coverage set if that set is specified (not empty).
   if (codepoints_in.empty() && !codepoints.empty()) {
@@ -97,6 +112,10 @@ bool PatchMap::Coverage::Intersects(
   }
 
   if (features_in.empty() && !features.empty()) {
+    return false;
+  }
+
+  if (design_space_in.empty() && !design_space.empty()) {
     return false;
   }
 
@@ -111,6 +130,20 @@ bool PatchMap::Coverage::Intersects(
 
   if (!features_in.empty() && !features.empty()) {
     if (!sets_intersect(features_in, features)) {
+      return false;
+    }
+  }
+
+  if (!design_space_in.empty() && !design_space.empty()) {
+    bool has_intersection = false;
+    for (const auto& [tag, range] : design_space) {
+      auto e = design_space_in.find(tag);
+      if (e != design_space_in.end() && range.Intersects(e->second)) {
+        has_intersection = true;
+        break;
+      }
+    }
+    if (!has_intersection) {
       return false;
     }
   }
@@ -198,6 +231,10 @@ void PatchMap::AddToProto(IFT& ift_proto, bool extension_entries) const {
     e.ToProto(last_patch_index, default_encoding, m);
     last_patch_index = e.patch_index;
   }
+}
+
+void PrintTo(const PatchMap::AxisRange& range, std::ostream* os) {
+  *os << "[" << range.start() << ", " << range.end() << "]";
 }
 
 void PrintTo(const PatchMap::Coverage& coverage, std::ostream* os) {
