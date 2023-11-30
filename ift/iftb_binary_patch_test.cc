@@ -41,35 +41,19 @@ class IftbBinaryPatchTest : public ::testing::Test {
     return FontData(make_hb_blob(hb_blob_create_from_file(filename)));
   }
 
-  FontData Subset(const FontData& font, flat_hash_set<uint32_t> gids,
-                  bool retain_gids = true) {
+  FontData Subset(const FontData& font, flat_hash_set<uint32_t> gids) {
     hb_face_unique_ptr face = font.face();
     hb_subset_input_t* input = hb_subset_input_create_or_fail();
     for (uint32_t gid : gids) {
       hb_set_add(hb_subset_input_glyph_set(input), gid);
     }
-    hb_subset_input_set_flags(input, HB_SUBSET_FLAGS_PASSTHROUGH_UNRECOGNIZED |
-                                         HB_SUBSET_FLAGS_IFTB_REQUIREMENTS |
-                                         HB_SUBSET_FLAGS_NOTDEF_OUTLINE);
-
-    if (retain_gids) {
-      hb_subset_input_set_flags(input, hb_subset_input_get_flags(input) |
-                                           HB_SUBSET_FLAGS_RETAIN_GIDS);
-    }
+    hb_subset_input_set_flags(
+        input,
+        HB_SUBSET_FLAGS_RETAIN_GIDS | HB_SUBSET_FLAGS_PASSTHROUGH_UNRECOGNIZED |
+            HB_SUBSET_FLAGS_IFTB_REQUIREMENTS | HB_SUBSET_FLAGS_NOTDEF_OUTLINE);
 
     hb_subset_plan_t* plan = hb_subset_plan_create_or_fail(face.get(), input);
     hb_subset_input_destroy(input);
-
-    auto table = IFTTable::FromFont(font);
-    if (!retain_gids) {
-      // Insert a glyph map from the subsetter into the IFT table.
-      hb_map_t* gid_map = hb_subset_plan_old_to_new_glyph_mapping(plan);
-      int index = -1;
-      uint32_t old_gid = 0, new_gid = 0;
-      while (hb_map_next(gid_map, &index, &old_gid, &new_gid)) {
-        table->GetGlyphMap()[old_gid] = new_gid;
-      }
-    }
 
     hb_face_unique_ptr subset =
         make_hb_face(hb_subset_plan_execute_or_fail(plan));
@@ -79,14 +63,8 @@ class IftbBinaryPatchTest : public ::testing::Test {
     hb_blob_unique_ptr subset_data =
         make_hb_blob(hb_face_reference_blob(subset.get()));
 
-    if (retain_gids) {
-      FontData result(std::move(subset_data));
-      return result;
-    }
-
-    auto subset_face = make_hb_face(hb_face_create(subset_data.get(), 0));
-    auto result_with_table = table->AddToFont(subset_face.get());
-    return std::move(*result_with_table);
+    FontData result(std::move(subset_data));
+    return result;
   }
 
   FontData font;
@@ -195,43 +173,6 @@ TEST_F(IftbBinaryPatchTest, SinglePatchOnSubset) {
   ASSERT_TRUE(gids.ok()) << gids.status();
 
   FontData subset = Subset(font, *gids);
-  ASSERT_GT(subset.size(), 500);
-
-  FontData result;
-  auto s = patcher.Patch(subset, chunk2, &result);
-  ASSERT_TRUE(s.ok()) << s;
-  ASSERT_GT(result.size(), subset.size());
-  auto sc = glyph_size(result, 0xa5);
-  ASSERT_TRUE(sc.ok()) << sc.status();
-
-  auto ift_table = IFTTable::FromFont(result);
-  ASSERT_TRUE(ift_table.ok()) << ift_table.status();
-
-  for (const auto& e : ift_table->GetPatchMap().GetEntries()) {
-    uint32_t patch_index = e.patch_index;
-    for (uint32_t codepoint : e.coverage.codepoints) {
-      ASSERT_NE(patch_index, 2);
-      // spot check a couple of codepoints that should be removed.
-      ASSERT_NE(codepoint, 0xa5);
-      ASSERT_NE(codepoint, 0x30d4);
-    }
-  }
-
-  sc = glyph_size(result, 0xab);
-  ASSERT_TRUE(absl::IsNotFound(sc.status())) << sc.status();
-  sc = glyph_size(result, 0x2e8d);
-  ASSERT_TRUE(absl::IsNotFound(sc.status())) << sc.status();
-
-  ASSERT_EQ(*glyph_size(result, 0xa5), *glyph_size(original, 0xa5));
-  ASSERT_EQ(*glyph_size(result, 0x30d4), *glyph_size(original, 0x30d4));
-}
-
-TEST_F(IftbBinaryPatchTest, SinglePatchOnSubset_DontRetainGids) {
-  auto gids = IftbBinaryPatch::GidsInPatch(chunk2);
-  gids->insert(0);
-  ASSERT_TRUE(gids.ok()) << gids.status();
-
-  FontData subset = Subset(font, *gids, false);
   ASSERT_GT(subset.size(), 500);
 
   FontData result;

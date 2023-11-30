@@ -474,8 +474,7 @@ TEST_F(IntegrationTest, MixedMode_OptionalFeatureTags) {
   static constexpr uint32_t chunk5_gid = 989;
   static constexpr uint32_t chunk6_gid = 932;
   ASSERT_FALSE(FontHelper::GlyfData(face.get(), chunk2_gid)->empty());
-  ASSERT_TRUE(
-      absl::IsNotFound(FontHelper::GlyfData(face.get(), chunk5_gid).status()));
+  ASSERT_TRUE(FontHelper::GlyfData(face.get(), chunk5_gid)->empty());
 
   sc = client->AddDesiredFeatures({kVrt3});
   sc.Update(AddPatchesIftb(*client, encoder, feature_test_patches_));
@@ -576,10 +575,11 @@ TEST_F(IntegrationTest, MixedMode_LocaLenChange) {
 
   // ### Checks ###
 
-  // Loca len chaning is supported so we should see gid count
-  // increase or remain the same at each step.
-  ASSERT_LE(gid_count_1, gid_count_2);
-  ASSERT_LE(gid_count_2, gid_count_3);
+  // To avoid loca len change the encoder ensures that a full len
+  // loca exists in the base font. So gid count should be consistent
+  // at each point
+  ASSERT_EQ(gid_count_1, gid_count_2);
+  ASSERT_EQ(gid_count_2, gid_count_3);
 
   codepoints = ToCodepointsSet(client->GetFontData());
   ASSERT_TRUE(codepoints.contains(chunk0_cp));

@@ -285,6 +285,14 @@ Status Encoder::SetBaseSubsetFromIftbPatches(
     existing_iftb_patches_.erase(id);
   }
 
+  // TODO(garretrieger):
+  //   This is a hack, the IFTB merger does not support loca len changing.
+  //   so always include the last gid in the base subset to force the
+  //   loca table to remain at the full length from the start. This should
+  //   be removed once that limitation is fixed in the IFTB merger.
+  uint32_t gid_count = hb_face_get_glyph_count(face_);
+  if (gid_count > 0) base_subset_.gids.insert(gid_count - 1);
+
   return absl::OkStatus();
 }
 
@@ -390,8 +398,6 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
     return base;
   }
 
-  // TODO(garretrieger): if not retain gids, then insert a gid map into the IFT
-  // table.
   IFTTable table;
   table.SetUrlTemplate(UrlTemplate());
   auto sc = table.SetId(Id());
@@ -473,8 +479,6 @@ StatusOr<FontData> Encoder::CutSubset(hb_face_t* font,
   if (IsMixedMode()) {
     // Mixed mode requires stable gids and IFTB requirements to be met,
     // set flags accordingly.
-    // TODO(garretrieger): retain gids is optional based on
-    // 'retain_gids_in_mixed_mode_'
     hb_subset_input_set_flags(
         input, HB_SUBSET_FLAGS_RETAIN_GIDS | HB_SUBSET_FLAGS_IFTB_REQUIREMENTS |
                    HB_SUBSET_FLAGS_NOTDEF_OUTLINE |

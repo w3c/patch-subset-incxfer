@@ -28,9 +28,7 @@ message IFT {
 
   repeated SubsetMapping subset_mapping = 4;
   
-  GlyphMapping glyph_map = 5;
-
-  // next = 6
+  // next = 5
 }
 
 // Maps from a subset description to a patch
@@ -59,12 +57,6 @@ message SubsetMapping {
   PatchEncoding patch_encoding = 4;
 
   // next = 6
-}
-
-message GlyphMapping {
-  map<uint32, uint32> old_to_new = 1;
-
-  // next = 2
 }
 
 // Format for a table-wise shared brotli patch.

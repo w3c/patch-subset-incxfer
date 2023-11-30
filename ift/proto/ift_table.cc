@@ -33,14 +33,6 @@ namespace ift::proto {
 constexpr hb_tag_t IFT_TAG = HB_TAG('I', 'F', 'T', ' ');
 constexpr hb_tag_t IFTX_TAG = HB_TAG('I', 'F', 'T', 'X');
 
-flat_hash_map<uint32_t, uint32_t> GlyphMapFromProto(const IFT& proto) {
-  flat_hash_map<uint32_t, uint32_t> result;
-  for (const auto& e : proto.glyph_map().old_to_new()) {
-    result[e.first] = e.second;
-  }
-  return result;
-}
-
 StatusOr<IFTTable> IFTTable::FromFont(hb_face_t* face) {
   FontData ift_table = FontHelper::TableData(face, IFT_TAG);
   if (ift_table.empty()) {
@@ -76,11 +68,6 @@ StatusOr<IFTTable> IFTTable::FromFont(hb_face_t* face) {
     return s;
   }
 
-  auto additional_gid_map = GlyphMapFromProto(ift_proto);
-  for (const auto& e : additional_gid_map) {
-    ift->glyph_map_[e.first] = e.second;
-  }
-
   return ift;
 }
 
@@ -111,8 +98,6 @@ StatusOr<IFTTable> IFTTable::FromProto(IFT proto) {
       table.id_[i] = 0;
     }
   }
-
-  table.glyph_map_ = GlyphMapFromProto(proto);
 
   return table;
 }
@@ -226,12 +211,6 @@ IFT IFTTable::CreateMainTable() const {
   proto.add_id(id_[3]);
   patch_map_.AddToProto(proto);
 
-  if (!glyph_map_.empty() && !HasExtensionEntries()) {
-    auto* old_to_new = proto.mutable_glyph_map()->mutable_old_to_new();
-    for (const auto& e : glyph_map_) {
-      (*old_to_new)[e.first] = e.second;
-    }
-  }
   return proto;
 }
 
@@ -239,10 +218,6 @@ IFT IFTTable::CreateExtensionTable() const {
   IFT ext_proto;
   if (HasExtensionEntries()) {
     patch_map_.AddToProto(ext_proto, true);
-    auto* old_to_new = ext_proto.mutable_glyph_map()->mutable_old_to_new();
-    for (const auto& e : glyph_map_) {
-      (*old_to_new)[e.first] = e.second;
-    }
   }
   return ext_proto;
 }

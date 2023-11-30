@@ -203,50 +203,6 @@ TEST_F(IFTTableTest, RoundTrip_WithExtension) {
   ASSERT_EQ(expected, table_from_font->GetPatchMap());
 }
 
-TEST_F(IFTTableTest, CreateWithGlyphMap) {
-  IFTTable table;
-  table.GetGlyphMap()[123] = 456;
-
-  IFT main = table.CreateMainTable();
-  IFT ext = table.CreateExtensionTable();
-
-  ASSERT_EQ(main.glyph_map().old_to_new().at(123), 456);
-  ASSERT_TRUE(ext.glyph_map().old_to_new().empty());
-
-  table.GetPatchMap().AddEntry({30}, 3, SHARED_BROTLI_ENCODING, true);
-
-  main = table.CreateMainTable();
-  ext = table.CreateExtensionTable();
-
-  ASSERT_TRUE(main.glyph_map().old_to_new().empty());
-  ASSERT_EQ(ext.glyph_map().old_to_new().at(123), 456);
-}
-
-TEST_F(IFTTableTest, RoundTrip_WithExtension_AndGlyphMap) {
-  IFTTable table;
-  table.GetPatchMap().AddEntry({10}, 1, SHARED_BROTLI_ENCODING);
-  table.GetPatchMap().AddEntry({20}, 2, SHARED_BROTLI_ENCODING);
-  table.GetPatchMap().AddEntry({30}, 3, SHARED_BROTLI_ENCODING, true);
-  table.GetPatchMap().AddEntry({40}, 4, SHARED_BROTLI_ENCODING, true);
-  table.GetGlyphMap()[123] = 456;
-
-  auto font = table.AddToFont(roboto_ab.get());
-  ASSERT_TRUE(font.ok()) << font.status();
-
-  auto table_from_font = IFTTable::FromFont(*font);
-  ASSERT_TRUE(table_from_font.ok()) << table_from_font.status();
-
-  PatchMap expected = {
-      {{10}, 1, SHARED_BROTLI_ENCODING},
-      {{20}, 2, SHARED_BROTLI_ENCODING},
-      {{30}, 3, SHARED_BROTLI_ENCODING, true},
-      {{40}, 4, SHARED_BROTLI_ENCODING, true},
-  };
-  ASSERT_EQ(expected, table_from_font->GetPatchMap());
-  ASSERT_EQ(table_from_font->GetGlyphMap().size(), 1);
-  ASSERT_EQ(table_from_font->GetGlyphMap().at(123), 456);
-}
-
 TEST_F(IFTTableTest, HasExtensionEntries) {
   IFTTable table;
   table.GetPatchMap().AddEntry({10}, 1, SHARED_BROTLI_ENCODING);
