@@ -51,11 +51,6 @@ class IFTTable {
   PatchMap& GetPatchMap() { return patch_map_; }
   bool HasExtensionEntries() const;
 
-  const absl::flat_hash_map<uint32_t, uint32_t>& GetGlyphMap() const {
-    return glyph_map_;
-  }
-  absl::flat_hash_map<uint32_t, uint32_t>& GetGlyphMap() { return glyph_map_; }
-
   const std::string& GetUrlTemplate() const { return url_template_; }
   void SetUrlTemplate(absl::string_view value) { url_template_ = value; }
   absl::Status SetId(absl::Span<const uint32_t> id) {
@@ -94,7 +89,6 @@ class IFTTable {
   std::string url_template_;
   uint32_t id_[4];
   PatchMap patch_map_;
-  absl::flat_hash_map<uint32_t, uint32_t> glyph_map_;
 };
 
 }  // namespace ift::proto
