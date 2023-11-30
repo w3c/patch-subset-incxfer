@@ -4,8 +4,11 @@
 #include <cstdint>
 #include <initializer_list>
 
+#include "absl/container/btree_map.h"
+#include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "absl/types/span.h"
 #include "hb.h"
 #include "ift/proto/IFT.pb.h"
@@ -29,6 +32,48 @@ class PatchMap {
     MODIFIED_BOTH,
   };
 
+  struct AxisRange {
+    static AxisRange Point(float point) { return AxisRange(point, point); }
+
+    static absl::StatusOr<AxisRange> Range(float start, float end) {
+      if (end < start) {
+        return absl::InvalidArgumentError(
+            absl::StrCat("end (", end, ") is less than start (", start, ")"));
+      }
+      return AxisRange(start, end);
+    }
+
+    static absl::StatusOr<AxisRange> FromProto(
+        const ift::proto::AxisRange& range) {
+      return Range(range.start(), range.end());
+    }
+
+    friend void PrintTo(const AxisRange& point, std::ostream* os);
+
+    bool operator==(const AxisRange& other) const {
+      return other.start_ == start_ && other.end_ == end_;
+    }
+
+    bool Intersects(const AxisRange& other) const {
+      return other.end_ >= start_ && end_ >= other.start_;
+    }
+
+    void ToProto(ift::proto::AxisRange* out) const {
+      out->set_start(start_);
+      out->set_end(end_);
+    }
+
+    AxisRange() : start_(0), end_(0) {}
+
+    float start() const { return start_; }
+    float end() const { return end_; }
+
+   private:
+    float start_;
+    float end_;
+    AxisRange(float start, float end) : start_(start), end_(end) {}
+  };
+
   struct Coverage {
     // TODO(garretrieger): move constructors?
     static absl::StatusOr<Coverage> FromProto(
@@ -43,17 +88,21 @@ class PatchMap {
     friend void PrintTo(const Coverage& point, std::ostream* os);
 
     bool operator==(const Coverage& other) const {
-      return other.codepoints == codepoints && other.features == features;
+      return other.codepoints == codepoints && other.features == features &&
+             other.design_space == design_space;
     }
 
     void ToProto(ift::proto::SubsetMapping* out) const;
 
-    bool Intersects(const absl::flat_hash_set<uint32_t>& codepoints,
-                    const absl::flat_hash_set<hb_tag_t>& features) const;
+    bool Intersects(
+        const absl::flat_hash_set<uint32_t>& codepoints,
+        const absl::flat_hash_set<hb_tag_t>& features,
+        const absl::flat_hash_map<hb_tag_t, AxisRange>& design_space) const;
 
     // TODO(garretrieger): use hb sets instead?
     absl::flat_hash_set<uint32_t> codepoints;
     absl::flat_hash_set<hb_tag_t> features;
+    absl::btree_map<hb_tag_t, AxisRange> design_space;
   };
 
   struct Entry {
