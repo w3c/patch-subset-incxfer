@@ -113,6 +113,12 @@ class IFTClient {
       const absl::flat_hash_set<hb_tag_t>& features);
 
   /*
+   * Adds an axis range to the target subset taht the font should be extended
+   * to cover.
+   */
+  absl::Status AddDesiredDesignSpace(hb_tag_t axis_tag, float start, float end);
+
+  /*
    * Adds patch data for a patch with the given id.
    */
   void AddPatch(uint32_t id, const common::FontData& font_data);
@@ -160,8 +166,11 @@ class IFTClient {
   static constexpr uint32_t ALL_CODEPOINTS = (uint32_t)-1;
   absl::flat_hash_map<uint32_t, std::vector<uint32_t>>
       codepoint_to_entries_index_;
+
   absl::flat_hash_set<uint32_t> target_codepoints_;
   absl::flat_hash_set<hb_tag_t> target_features_;
+  absl::flat_hash_map<hb_tag_t, ift::proto::PatchMap::AxisRange> design_space_;
+
   absl::flat_hash_set<uint32_t> outstanding_patches_;
   absl::flat_hash_map<uint32_t, common::FontData> pending_patches_;
   absl::flat_hash_map<uint32_t, ift::proto::PatchEncoding> patch_to_encoding_;
