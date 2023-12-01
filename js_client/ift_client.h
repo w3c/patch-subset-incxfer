@@ -24,6 +24,7 @@ class State {
         emscripten::typed_memory_view(0, (uint32_t*)nullptr));
   }
 
+  void extend_axis(std::string tag, float point);
   void extend(emscripten::val codepoints_js, emscripten::val features_js,
               emscripten::val callback);
 
@@ -44,6 +45,7 @@ class State {
   std::optional<ift::IFTClient> client_;
   absl::flat_hash_set<uint32_t> pending_codepoints_;
   absl::flat_hash_set<hb_tag_t> pending_features_;
+  absl::flat_hash_map<hb_tag_t, ift::proto::PatchMap::AxisRange> pending_axes_;
   bool init_request_in_flight_ = false;
   patch_set inflight_urls_;
   std::vector<emscripten::val> callbacks_;

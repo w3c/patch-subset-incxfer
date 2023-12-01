@@ -22,6 +22,7 @@
 #include "ift/encoder/encoder.h"
 #include "ift/ift_client.h"
 #include "ift/proto/IFT.pb.h"
+#include "ift/proto/patch_map.h"
 
 using namespace emscripten;
 
@@ -36,6 +37,7 @@ using ift::IFTClient;
 using ift::encoder::Encoder;
 using ift::proto::DEFAULT_ENCODING;
 using ift::proto::PatchEncoding;
+using ift::proto::PatchMap;
 
 void RequestSucceeded(emscripten_fetch_t* fetch) {
   std::string url(fetch->url);
@@ -111,6 +113,10 @@ void InitRequestFailed(emscripten_fetch_t* fetch) {
   emscripten_fetch_close(fetch);
 }
 
+void State::extend_axis(std::string tag, float point) {
+  pending_axes_[FontHelper::ToTag(tag)] = PatchMap::AxisRange::Point(point);
+}
+
 void State::extend(val codepoints_js, val features_js, val callback) {
   std::vector<int> codepoints_vector =
       convertJSArrayToNumberVector<int>(codepoints_js);
@@ -148,6 +154,12 @@ void State::Process() {
   auto sc = client_->AddDesiredCodepoints(pending_codepoints_);
   if (!pending_features_.empty()) {
     sc.Update(client_->AddDesiredFeatures(pending_features_));
+  }
+  if (!pending_axes_.empty()) {
+    for (const auto& [tag, range] : pending_axes_) {
+      sc.Update(
+          client_->AddDesiredDesignSpace(tag, range.start(), range.end()));
+    }
   }
   if (!sc.ok()) {
     LOG(WARNING) << "Failed to add desired codepoints to the client: "
@@ -256,5 +268,6 @@ EMSCRIPTEN_BINDINGS(ift) {
   class_<State>("State")
       .constructor<std::string>()
       .function("font_data", &State::font_data)
+      .function("extend_axis", &State::extend_axis)
       .function("extend", &State::extend);
 }
