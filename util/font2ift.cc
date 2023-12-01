@@ -1,19 +1,23 @@
+#include <cstdio>
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <vector>
 
 #include "absl/container/btree_set.h"
+#include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "common/font_data.h"
+#include "common/font_helper.h"
 #include "hb.h"
 #include "ift/encoder/encoder.h"
 #include "ift/ift_client.h"
 #include "ift/iftb_binary_patch.h"
+#include "ift/proto/patch_map.h"
 
 /*
  * Utility that converts a standard font file into an IFT font file.
@@ -48,15 +52,63 @@ ABSL_FLAG(uint32_t, jump_ahead, 1, "Number of levels to encode at each node.");
 ABSL_FLAG(std::vector<std::string>, optional_feature_tags, {},
           "A list of features to make optionally available via a patch.");
 
+ABSL_FLAG(
+    std::vector<std::string>, base_design_space, {},
+    "Design space to cut the initial subset too. List of axis tag range pairs. "
+    "Example: wght=300,wdth=50:100");
+
+ABSL_FLAG(std::vector<std::string>, optional_design_space, {},
+          "Design space to make available via an optional patch. "
+          "List of axis tag range pairs. "
+          "Example: wght=300,wdth=50:100");
+
 using absl::btree_set;
+using absl::flat_hash_map;
 using absl::flat_hash_set;
 using absl::Status;
 using absl::StatusOr;
 using absl::StrCat;
 using common::FontData;
+using common::FontHelper;
 using ift::IftbBinaryPatch;
 using ift::IFTClient;
 using ift::encoder::Encoder;
+using ift::proto::PatchMap;
+
+StatusOr<flat_hash_map<hb_tag_t, PatchMap::AxisRange>> ParseDesignSpace(
+    const std::vector<std::string>& list) {
+  flat_hash_map<hb_tag_t, PatchMap::AxisRange> result;
+  for (std::string item : list) {
+    std::stringstream input(item);
+    std::string tag_str;
+    if (!getline(input, tag_str, '=')) {
+      return absl::InvalidArgumentError(StrCat("Failed parsing (1) ", item));
+    }
+
+    std::string value1, value2;
+    if (getline(input, value1, ':')) {
+      getline(input, value2);
+    }
+
+    hb_tag_t tag = FontHelper::ToTag(tag_str);
+    float start = std::stof(value1);
+
+    if (value2.empty()) {
+      result[tag] = PatchMap::AxisRange::Point(start);
+      continue;
+    }
+
+    float end = std::stof(value2);
+    auto r = PatchMap::AxisRange::Range(start, end);
+    if (!r.ok()) {
+      return r.status();
+    }
+
+    result[tag] = *r;
+  }
+
+  return result;
+}
 
 absl::flat_hash_set<hb_tag_t> StringsToTags(
     const std::vector<std::string>& tag_strs) {
@@ -297,6 +349,15 @@ int main(int argc, char** argv) {
   auto feature_tags_str = absl::GetFlag(FLAGS_optional_feature_tags);
   encoder.AddOptionalFeatureGroup(StringsToTags(feature_tags_str));
 
+  if (!absl::GetFlag(FLAGS_optional_design_space).empty()) {
+    auto ds = ParseDesignSpace(absl::GetFlag(FLAGS_optional_design_space));
+    if (!ds.ok()) {
+      std::cerr << ds.status().message() << std::endl;
+      return -1;
+    }
+    encoder.AddOptionalDesignSpace(*ds);
+  }
+
   if (mixed_mode) {
     std::cout << ">> configuring encoder with iftb patches:" << std::endl;
     if (generated_groups) {
@@ -338,7 +399,17 @@ int main(int argc, char** argv) {
 
       Status sc;
       if (first) {
-        sc = encoder.SetBaseSubset(*s);
+        Encoder::SubsetDefinition base;
+        base.codepoints = *s;
+        if (!absl::GetFlag(FLAGS_base_design_space).empty()) {
+          auto ds = ParseDesignSpace(absl::GetFlag(FLAGS_base_design_space));
+          if (!ds.ok()) {
+            std::cerr << ds.status().message() << std::endl;
+            return -1;
+          }
+          base.design_space = *ds;
+        }
+        sc = encoder.SetBaseSubsetFromDef(base);
         if (!sc.ok()) {
           std::cerr << sc.message() << std::endl;
           return -1;
