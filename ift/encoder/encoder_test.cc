@@ -15,6 +15,7 @@
 #include "gtest/gtest.h"
 #include "ift/per_table_brotli_binary_patch.h"
 #include "ift/proto/ift_table.h"
+#include "ift/proto/patch_map.h"
 
 using absl::btree_map;
 using absl::btree_set;
@@ -33,12 +34,15 @@ using common::make_hb_set;
 using ift::proto::DEFAULT_ENCODING;
 using ift::proto::IFTTable;
 using ift::proto::PatchEncoding;
+using ift::proto::PatchMap;
 using ift::proto::PER_TABLE_SHARED_BROTLI_ENCODING;
 using ift::proto::SHARED_BROTLI_ENCODING;
 
 namespace ift::encoder {
 
 typedef btree_map<std::string, btree_set<std::string>> graph;
+constexpr hb_tag_t kWght = HB_TAG('w', 'g', 'h', 't');
+constexpr hb_tag_t kWdth = HB_TAG('w', 'd', 't', 'h');
 
 class EncoderTest : public ::testing::Test {
  protected:
@@ -46,6 +50,7 @@ class EncoderTest : public ::testing::Test {
     font = from_file("patch_subset/testdata/Roboto-Regular.abcd.ttf");
     full_font = from_file("patch_subset/testdata/Roboto-Regular.ttf");
     woff2_font = from_file("patch_subset/testdata/Roboto-Regular.abcd.woff2");
+    vf_font = from_file("patch_subset/testdata/Roboto[wdth,wght].ttf");
     noto_sans_jp = from_file("ift/testdata/NotoSansJP-Regular.subset.ttf");
 
     chunk1 = from_file("ift/testdata/NotoSansJP-Regular.subset_iftb/chunk1.br");
@@ -57,6 +62,7 @@ class EncoderTest : public ::testing::Test {
   FontData font;
   FontData full_font;
   FontData woff2_font;
+  FontData vf_font;
   FontData noto_sans_jp;
   FontData chunk1;
   FontData chunk2;
@@ -92,6 +98,30 @@ class EncoderTest : public ::testing::Test {
     return result;
   }
 
+  std::string GetVarInfo(const FontData& font_data) {
+    auto face = font_data.face();
+    constexpr uint32_t max_axes = 5;
+    hb_ot_var_axis_info_t info[max_axes];
+
+    uint32_t count = max_axes;
+    hb_ot_var_get_axis_infos(face.get(), 0, &count, info);
+
+    std::string result = "";
+    bool first = true;
+    for (uint32_t i = 0; i < count; i++) {
+      std::string tag = FontHelper::ToString(info[i].tag);
+      float min = info[i].min_value;
+      float max = info[i].max_value;
+      if (!first) {
+        result = StrCat(result, ";");
+      }
+      first = false;
+      result = StrCat(result, tag, "[", min, ",", max, "]");
+    }
+
+    return result;
+  }
+
   std::string ToNodeName(const FontData& font_data) {
     std::string result;
     for (uint32_t cp : ToCodepointsSet(font_data)) {
@@ -100,20 +130,23 @@ class EncoderTest : public ::testing::Test {
 
     auto face = font_data.face();
     auto feature_tags = FontHelper::GetNonDefaultFeatureTags(face.get());
-    if (feature_tags.empty()) {
-      return result;
+    if (!feature_tags.empty()) {
+      result += "|";
+
+      bool first = true;
+      auto string_tags = FontHelper::ToStrings(feature_tags);
+      for (const std::string& tag : string_tags) {
+        if (!first) {
+          result += ",";
+        }
+        result += tag;
+        first = true;
+      }
     }
 
-    result += "|";
-
-    bool first = true;
-    auto string_tags = FontHelper::ToStrings(feature_tags);
-    for (const std::string& tag : string_tags) {
-      if (!first) {
-        result += ",";
-      }
-      result += tag;
-      first = true;
+    std::string var_info = GetVarInfo(font_data);
+    if (!var_info.empty()) {
+      result = StrCat(result, " ", var_info);
     }
 
     return result;
@@ -248,6 +281,109 @@ TEST_F(EncoderTest, OutgoingEdges) {
               {2, 4, 8},
               {2, 6, 8},
               {4, 6, 8}};
+  ASSERT_EQ(combos, expected);
+}
+
+TEST_F(EncoderTest, OutgoingEdges_DesignSpace_PointToRange) {
+  Encoder::SubsetDefinition base{1, 2};
+  base.design_space[kWght] = PatchMap::AxisRange::Point(300);
+
+  Encoder encoder;
+  encoder.AddExtensionSubset({3, 4});
+  encoder.AddOptionalDesignSpace(
+      {{kWght, *PatchMap::AxisRange::Range(300, 400)}});
+
+  Encoder::SubsetDefinition s1{3, 4};
+
+  Encoder::SubsetDefinition s2{};
+  s2.design_space[kWght] = *PatchMap::AxisRange::Range(300, 400);
+
+  Encoder::SubsetDefinition s3{3, 4};
+  s3.design_space[kWght] = *PatchMap::AxisRange::Range(300, 400);
+
+  auto combos = encoder.OutgoingEdges(base, 2);
+  std::vector<Encoder::SubsetDefinition> expected = {s1, s2, s3};
+  ASSERT_EQ(combos, expected);
+}
+
+TEST_F(EncoderTest, OutgoingEdges_DesignSpace_AddAxis_1) {
+  Encoder::SubsetDefinition base{1, 2};
+  base.design_space[kWght] = *PatchMap::AxisRange::Range(200, 500);
+
+  Encoder encoder;
+  encoder.AddExtensionSubset({3, 4});
+  encoder.AddOptionalDesignSpace(
+      {{kWdth, *PatchMap::AxisRange::Range(300, 400)}});
+
+  Encoder::SubsetDefinition s1{3, 4};
+
+  Encoder::SubsetDefinition s2{};
+  s2.design_space[kWdth] = *PatchMap::AxisRange::Range(300, 400);
+
+  Encoder::SubsetDefinition s3{3, 4};
+  s3.design_space[kWdth] = *PatchMap::AxisRange::Range(300, 400);
+
+  auto combos = encoder.OutgoingEdges(base, 2);
+  std::vector<Encoder::SubsetDefinition> expected = {s1, s2, s3};
+  ASSERT_EQ(combos, expected);
+}
+
+TEST_F(EncoderTest, OutgoingEdges_DesignSpace_AddAxis_OverlappingAxisRange) {
+  Encoder::SubsetDefinition base{1, 2};
+  base.design_space[kWght] = *PatchMap::AxisRange::Range(200, 500);
+
+  Encoder encoder;
+  encoder.AddExtensionSubset({3, 4});
+  encoder.AddOptionalDesignSpace({
+      {kWght, *PatchMap::AxisRange::Range(300, 700)},
+      {kWdth, *PatchMap::AxisRange::Range(300, 400)},
+  });
+
+  Encoder::SubsetDefinition s1{3, 4};
+
+  Encoder::SubsetDefinition s2{};
+  // TODO(garretrieger): since the current subtract implementation is limited
+  //   we don't support partially subtracting a range. Once support is
+  //   available this case can be updated to check wght range is partially
+  //   subtracted instead of being ignored.
+  s2.design_space[kWdth] = *PatchMap::AxisRange::Range(300, 400);
+
+  Encoder::SubsetDefinition s3{3, 4};
+  s3.design_space[kWdth] = *PatchMap::AxisRange::Range(300, 400);
+
+  auto combos = encoder.OutgoingEdges(base, 2);
+  std::vector<Encoder::SubsetDefinition> expected = {s1, s2, s3};
+  ASSERT_EQ(combos, expected);
+}
+
+// TODO(garretrieger): Once the union implementation is updated to
+//  support unioning the same axis add tests for that.
+
+TEST_F(EncoderTest, OutgoingEdges_DesignSpace_AddAxis_MergeSpace) {
+  Encoder::SubsetDefinition base{1, 2};
+  base.design_space[kWght] = PatchMap::AxisRange::Point(300);
+  base.design_space[kWdth] = PatchMap::AxisRange::Point(75);
+
+  Encoder encoder;
+  encoder.AddOptionalDesignSpace({
+      {kWght, *PatchMap::AxisRange::Range(300, 700)},
+  });
+  encoder.AddOptionalDesignSpace({
+      {kWdth, *PatchMap::AxisRange::Range(50, 100)},
+  });
+
+  Encoder::SubsetDefinition s1{};
+  s1.design_space[kWght] = *PatchMap::AxisRange::Range(300, 700);
+
+  Encoder::SubsetDefinition s2{};
+  s2.design_space[kWdth] = *PatchMap::AxisRange::Range(50, 100);
+
+  Encoder::SubsetDefinition s3{};
+  s3.design_space[kWght] = *PatchMap::AxisRange::Range(300, 700);
+  s3.design_space[kWdth] = *PatchMap::AxisRange::Range(50, 100);
+
+  auto combos = encoder.OutgoingEdges(base, 2);
+  std::vector<Encoder::SubsetDefinition> expected = {s1, s2, s3};
   ASSERT_EQ(combos, expected);
 }
 
@@ -426,6 +562,40 @@ TEST_F(EncoderTest, Encode_ThreeSubsets) {
       {"ab", {"abc"}},
       {"ac", {"abc"}},
       {"abc", {}},
+  };
+  ASSERT_EQ(g, expected);
+}
+
+TEST_F(EncoderTest, Encode_ThreeSubsets_VF) {
+  Encoder encoder;
+  hb_face_t* face = vf_font.reference_face();
+  encoder.SetFace(face);
+
+  Encoder::SubsetDefinition base_def{'a'};
+  base_def.design_space[kWdth] = PatchMap::AxisRange::Point(100.0f);
+  auto s = encoder.SetBaseSubsetFromDef(base_def);
+  ASSERT_TRUE(s.ok()) << s;
+
+  encoder.AddExtensionSubset({'b'});
+  encoder.AddOptionalDesignSpace(
+      {{kWdth, *PatchMap::AxisRange::Range(75.0f, 100.0f)}});
+
+  auto base = encoder.Encode();
+  hb_face_destroy(face);
+
+  ASSERT_TRUE(base.ok()) << base.status();
+  ASSERT_EQ(ToNodeName(*base), "a wght[100,900]");
+  ASSERT_EQ(encoder.Patches().size(), 4);
+
+  graph g;
+  auto sc = ToGraph(encoder, *base, g);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  graph expected{
+      {"a wght[100,900]", {"ab wght[100,900]", "a wght[100,900];wdth[75,100]"}},
+      {"ab wght[100,900]", {"ab wght[100,900];wdth[75,100]"}},
+      {"a wght[100,900];wdth[75,100]", {"ab wght[100,900];wdth[75,100]"}},
+      {"ab wght[100,900];wdth[75,100]", {}},
   };
   ASSERT_EQ(g, expected);
 }

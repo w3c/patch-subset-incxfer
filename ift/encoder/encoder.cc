@@ -21,6 +21,7 @@
 #include "woff2/output.h"
 
 using absl::btree_set;
+using absl::flat_hash_map;
 using absl::flat_hash_set;
 using absl::Status;
 using absl::StatusOr;
@@ -49,7 +50,7 @@ using woff2::WOFF2StringOut;
 namespace ift::encoder {
 
 void PrintTo(const Encoder::SubsetDefinition& def, std::ostream* os) {
-  *os << "{";
+  *os << "[{";
 
   btree_set<uint32_t> sorted;
   for (uint32_t cp : def.codepoints) {
@@ -66,6 +67,22 @@ void PrintTo(const Encoder::SubsetDefinition& def, std::ostream* os) {
   }
 
   *os << "}";
+
+  if (!def.design_space.empty()) {
+    *os << ", {";
+    bool first = true;
+    for (const auto& [tag, range] : def.design_space) {
+      if (!first) {
+        *os << ", ";
+      }
+      first = false;
+      *os << FontHelper::ToString(tag) << ": ";
+      PrintTo(range, os);
+    }
+    *os << "}";
+  }
+
+  *os << "]";
 }
 
 void Encoder::AddCombinations(const std::vector<const SubsetDefinition*>& in,
@@ -123,7 +140,7 @@ std::vector<Encoder::SubsetDefinition> Encoder::OutgoingEdges(
 }
 
 absl::flat_hash_set<uint32_t> subtract(const absl::flat_hash_set<uint32_t>& a,
-                                       const absl::flat_hash_set<uint32_t> b) {
+                                       const absl::flat_hash_set<uint32_t>& b) {
   absl::flat_hash_set<uint32_t> c;
   for (uint32_t v : a) {
     if (!b.contains(v)) {
@@ -133,10 +150,41 @@ absl::flat_hash_set<uint32_t> subtract(const absl::flat_hash_set<uint32_t>& a,
   return c;
 }
 
+flat_hash_map<hb_tag_t, PatchMap::AxisRange> subtract(
+    const flat_hash_map<hb_tag_t, PatchMap::AxisRange>& a,
+    const flat_hash_map<hb_tag_t, PatchMap::AxisRange>& b) {
+  flat_hash_map<hb_tag_t, PatchMap::AxisRange> c;
+
+  for (const auto& [tag, range] : a) {
+    auto e = b.find(tag);
+    if (e == b.end()) {
+      c[tag] = range;
+      continue;
+    }
+
+    if (e->second.IsPoint()) {
+      // range minus a point, does nothing.
+      c[tag] = range;
+    }
+
+    // TODO(garretrieger): this currently operates only at the axis
+    //  level. Partial ranges within an axis are not supported.
+    //  to implement this we'll need to subtract the two ranges
+    //  from each other. However, this can produce two resulting ranges
+    //  instead of one.
+    //
+    //  It's likely that we'll forbid disjoint ranges, so we can simply
+    //  error out if a configuration would result in one.
+  }
+
+  return c;
+}
+
 void Encoder::SubsetDefinition::Subtract(const SubsetDefinition& other) {
   codepoints = subtract(codepoints, other.codepoints);
   gids = subtract(gids, other.gids);
   feature_tags = subtract(feature_tags, other.feature_tags);
+  design_space = subtract(design_space, other.design_space);
 }
 
 void Encoder::SubsetDefinition::Union(const SubsetDefinition& other) {
@@ -146,9 +194,28 @@ void Encoder::SubsetDefinition::Union(const SubsetDefinition& other) {
             std::inserter(gids, gids.begin()));
   std::copy(other.feature_tags.begin(), other.feature_tags.end(),
             std::inserter(feature_tags, feature_tags.begin()));
+
+  for (const auto& [tag, range] : other.design_space) {
+    auto existing = design_space.find(tag);
+    if (existing == design_space.end()) {
+      design_space[tag] = range;
+      continue;
+    }
+
+    // TODO(garretrieger): this is a simplified implementation that
+    //  only allows expanding a point to a range. This needs to be
+    //  updated to handle a generic union.
+    //
+    //  It's likely that we'll forbid disjoint ranges, so we can simply
+    //  error out if a configuration would result in one.
+    if (existing->second.IsPoint() && range.IsRange()) {
+      design_space[tag] = range;
+    }
+  }
 }
 
-void Encoder::SubsetDefinition::ConfigureInput(hb_subset_input_t* input) const {
+void Encoder::SubsetDefinition::ConfigureInput(hb_subset_input_t* input,
+                                               hb_face_t* face) const {
   hb_set_t* unicodes = hb_subset_input_unicode_set(input);
   for (hb_codepoint_t cp : codepoints) {
     hb_set_add(unicodes, cp);
@@ -158,6 +225,11 @@ void Encoder::SubsetDefinition::ConfigureInput(hb_subset_input_t* input) const {
       hb_subset_input_set(input, HB_SUBSET_SETS_LAYOUT_FEATURE_TAG);
   for (hb_tag_t tag : feature_tags) {
     hb_set_add(features, tag);
+  }
+
+  for (const auto& [tag, range] : design_space) {
+    hb_subset_input_set_axis_range(input, face, tag, range.start(), range.end(),
+                                   NAN);
   }
 
   if (gids.empty()) {
@@ -311,6 +383,13 @@ void Encoder::AddOptionalFeatureGroup(
     const flat_hash_set<hb_tag_t>& feature_tags) {
   SubsetDefinition def;
   def.feature_tags = feature_tags;
+  extension_subsets_.push_back(def);
+}
+
+void Encoder::AddOptionalDesignSpace(
+    const flat_hash_map<hb_tag_t, PatchMap::AxisRange>& space) {
+  SubsetDefinition def;
+  def.design_space = space;
   extension_subsets_.push_back(def);
 }
 
@@ -474,7 +553,7 @@ StatusOr<FontData> Encoder::CutSubset(hb_face_t* font,
     return absl::InternalError("Failed to create subset input.");
   }
 
-  def.ConfigureInput(input);
+  def.ConfigureInput(input, face_);
 
   if (IsMixedMode()) {
     // Mixed mode requires stable gids and IFTB requirements to be met,
