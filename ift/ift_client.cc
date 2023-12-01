@@ -125,6 +125,26 @@ Status IFTClient::AddDesiredFeatures(
   return s;
 }
 
+Status IFTClient::AddDesiredDesignSpace(hb_tag_t axis_tag, float start,
+                                        float end) {
+  if (!status_.ok()) {
+    return status_;
+  }
+
+  auto range = PatchMap::AxisRange::Range(start, end);
+  if (!range.ok()) {
+    return range.status();
+  }
+
+  design_space_[axis_tag] = *range;
+
+  auto s = ComputeOutstandingPatches();
+  if (!s.ok()) {
+    status_ = s;
+  }
+  return s;
+}
+
 void IFTClient::AddPatch(uint32_t id, const FontData& font_data) {
   outstanding_patches_.erase(id);
   pending_patches_[id].shallow_copy(font_data);
@@ -378,7 +398,8 @@ void IFTClient::IntersectingEntries(
   for (uint32_t index : candidate_indices) {
     const auto& entry = ift_table_->GetPatchMap().GetEntries().at(index);
 
-    if (!entry.coverage.Intersects(target_codepoints_, target_features_)) {
+    if (!entry.coverage.Intersects(target_codepoints_, target_features_,
+                                   design_space_)) {
       continue;
     }
 
@@ -408,6 +429,8 @@ uint32_t IFTClient::SelectDependentEntry(
     const absl::btree_set<uint32_t>& dependent_entry_indices) {
   // TODO(garretrieger): merge coverages when multiple entries have the same
   // patch index.
+  // TODO(garretrieger): consider design space and feature intersections if
+  //  codepoint coverage is tied.
   uint32_t selected_entry_index;
   int64_t max_intersection = -1;
   uint32_t min_size = (uint32_t)-1;
