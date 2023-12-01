@@ -50,6 +50,11 @@ class PatchMap {
 
     friend void PrintTo(const AxisRange& point, std::ostream* os);
 
+    template <typename H>
+    friend H AbslHashValue(H h, const AxisRange& s) {
+      return H::combine(std::move(h), s.start_, s.end_);
+    }
+
     bool operator==(const AxisRange& other) const {
       return other.start_ == start_ && other.end_ == end_;
     }
@@ -67,6 +72,8 @@ class PatchMap {
 
     float start() const { return start_; }
     float end() const { return end_; }
+    bool IsPoint() const { return start_ == end_; }
+    bool IsRange() const { return start_ != end_; }
 
    private:
     float start_;

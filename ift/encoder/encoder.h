@@ -77,9 +77,6 @@ class Encoder {
    */
   absl::Status SetBaseSubset(
       const absl::flat_hash_set<hb_codepoint_t>& base_subset) {
-    // TODO(garretrieger): add an argument which provides a set of additional
-    // layout
-    //   features to include in the base subset.
     if (!base_subset_.empty()) {
       return absl::FailedPreconditionError("Base subset has already been set.");
     }
@@ -114,6 +111,10 @@ class Encoder {
    */
   void AddOptionalFeatureGroup(
       const absl::flat_hash_set<hb_tag_t>& feature_tag);
+
+  void AddOptionalDesignSpace(
+      const absl::flat_hash_map<hb_tag_t, ift::proto::PatchMap::AxisRange>&
+          space);
 
   // TODO(garretrieger): add support for specifying IFTB patch + feature tag
   // mappings
@@ -165,27 +166,39 @@ class Encoder {
     absl::flat_hash_set<uint32_t> codepoints;
     absl::flat_hash_set<uint32_t> gids;
     absl::flat_hash_set<hb_tag_t> feature_tags;
+    absl::flat_hash_map<hb_tag_t, ift::proto::PatchMap::AxisRange> design_space;
 
     bool empty() const {
-      return codepoints.empty() && gids.empty() && feature_tags.empty();
+      return codepoints.empty() && gids.empty() && feature_tags.empty() &&
+             design_space.empty();
     }
 
     bool operator==(const SubsetDefinition& other) const {
       return codepoints == other.codepoints && gids == other.gids &&
-             feature_tags == other.feature_tags;
+             feature_tags == other.feature_tags &&
+             design_space == other.design_space;
     }
 
     template <typename H>
     friend H AbslHashValue(H h, const SubsetDefinition& s) {
-      return H::combine(std::move(h), s.codepoints, s.gids, s.feature_tags);
+      return H::combine(std::move(h), s.codepoints, s.gids, s.feature_tags,
+                        s.design_space);
     }
 
     void Union(const SubsetDefinition& other);
 
     void Subtract(const SubsetDefinition& other);
 
-    void ConfigureInput(hb_subset_input_t* input) const;
+    void ConfigureInput(hb_subset_input_t* input, hb_face_t* face) const;
   };
+
+  absl::Status SetBaseSubsetFromDef(const SubsetDefinition& base_subset) {
+    if (!base_subset_.empty()) {
+      return absl::FailedPreconditionError("Base subset has already been set.");
+    }
+    base_subset_ = base_subset;
+    return absl::OkStatus();
+  }
 
   std::vector<SubsetDefinition> OutgoingEdges(const SubsetDefinition& base,
                                               uint32_t choose) const;
