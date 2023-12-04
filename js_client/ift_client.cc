@@ -16,6 +16,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
+#include "common/axis_range.h"
 #include "common/font_data.h"
 #include "common/font_helper.h"
 #include "common/hb_set_unique_ptr.h"
@@ -29,6 +30,7 @@ using namespace emscripten;
 using absl::flat_hash_map;
 using absl::flat_hash_set;
 using absl::string_view;
+using common::AxisRange;
 using common::FontData;
 using common::FontHelper;
 using common::hb_set_unique_ptr;
@@ -114,7 +116,7 @@ void InitRequestFailed(emscripten_fetch_t* fetch) {
 }
 
 void State::extend_axis(std::string tag, float point) {
-  pending_axes_[FontHelper::ToTag(tag)] = PatchMap::AxisRange::Point(point);
+  pending_axes_[FontHelper::ToTag(tag)] = AxisRange::Point(point);
 }
 
 void State::extend(val codepoints_js, val features_js, val callback) {

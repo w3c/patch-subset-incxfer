@@ -11,6 +11,7 @@
 #include "absl/flags/parse.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "common/axis_range.h"
 #include "common/font_data.h"
 #include "common/font_helper.h"
 #include "hb.h"
@@ -68,6 +69,7 @@ using absl::flat_hash_set;
 using absl::Status;
 using absl::StatusOr;
 using absl::StrCat;
+using common::AxisRange;
 using common::FontData;
 using common::FontHelper;
 using ift::IftbBinaryPatch;
@@ -75,9 +77,9 @@ using ift::IFTClient;
 using ift::encoder::Encoder;
 using ift::proto::PatchMap;
 
-StatusOr<flat_hash_map<hb_tag_t, PatchMap::AxisRange>> ParseDesignSpace(
+StatusOr<flat_hash_map<hb_tag_t, AxisRange>> ParseDesignSpace(
     const std::vector<std::string>& list) {
-  flat_hash_map<hb_tag_t, PatchMap::AxisRange> result;
+  flat_hash_map<hb_tag_t, AxisRange> result;
   for (std::string item : list) {
     std::stringstream input(item);
     std::string tag_str;
@@ -94,12 +96,12 @@ StatusOr<flat_hash_map<hb_tag_t, PatchMap::AxisRange>> ParseDesignSpace(
     float start = std::stof(value1);
 
     if (value2.empty()) {
-      result[tag] = PatchMap::AxisRange::Point(start);
+      result[tag] = AxisRange::Point(start);
       continue;
     }
 
     float end = std::stof(value2);
-    auto r = PatchMap::AxisRange::Range(start, end);
+    auto r = AxisRange::Range(start, end);
     if (!r.ok()) {
       return r.status();
     }

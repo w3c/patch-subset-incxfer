@@ -590,6 +590,15 @@ TEST_F(EncoderTest, Encode_ThreeSubsets_VF) {
   auto sc = ToGraph(encoder, *base, g);
   ASSERT_TRUE(sc.ok()) << sc;
 
+  auto ift_table = IFTTable::FromFont(*base);
+  ASSERT_TRUE(ift_table.ok()) << ift_table.status();
+
+  btree_map<hb_tag_t, AxisRange> expected_ds = {
+      {kWdth, *AxisRange::Range(75, 100)},
+  };
+  ASSERT_EQ(ift_table->GetPatchMap().GetEntries()[1].coverage.design_space,
+            expected_ds);
+
   graph expected{
       {"a wght[100,900]", {"ab wght[100,900]", "a wght[100,900];wdth[75,100]"}},
       {"ab wght[100,900]", {"ab wght[100,900];wdth[75,100]"}},
