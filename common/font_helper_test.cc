@@ -18,7 +18,8 @@ class FontHelperTest : public ::testing::Test {
       : noto_sans_jp_otf(make_hb_face(nullptr)),
         noto_sans_ift_ttf(make_hb_face(nullptr)),
         roboto_ab(make_hb_face(nullptr)),
-        roboto(make_hb_face(nullptr)) {
+        roboto(make_hb_face(nullptr)),
+        roboto_vf(make_hb_face(nullptr)) {
     hb_blob_unique_ptr blob = make_hb_blob(hb_blob_create_from_file(
         "patch_subset/testdata/Roboto-Regular.ab.ttf"));
     roboto_ab = make_hb_face(hb_face_create(blob.get(), 0));
@@ -26,6 +27,10 @@ class FontHelperTest : public ::testing::Test {
     blob = make_hb_blob(
         hb_blob_create_from_file("patch_subset/testdata/Roboto-Regular.ttf"));
     roboto = make_hb_face(hb_face_create(blob.get(), 0));
+
+    blob = make_hb_blob(hb_blob_create_from_file(
+        "patch_subset/testdata/Roboto[wdth,wght].ttf"));
+    roboto_vf = make_hb_face(hb_face_create(blob.get(), 0));
 
     blob = make_hb_blob(hb_blob_create_from_file(
         "patch_subset/testdata/NotoSansJP-Regular.otf"));
@@ -40,6 +45,7 @@ class FontHelperTest : public ::testing::Test {
   hb_face_unique_ptr noto_sans_ift_ttf;
   hb_face_unique_ptr roboto_ab;
   hb_face_unique_ptr roboto;
+  hb_face_unique_ptr roboto_vf;
 };
 
 TEST_F(FontHelperTest, ReadUInt16) {
@@ -179,6 +185,27 @@ TEST_F(FontHelperTest, GetNonDefaultFeatureTags) {
   // GPOS
   EXPECT_TRUE(tags.contains(HB_TAG('c', 'p', 's', 'p')));
   EXPECT_FALSE(tags.contains(HB_TAG('k', 'e', 'r', 'n')));
+}
+
+TEST_F(FontHelperTest, GetDesignSpace) {
+  auto ds = FontHelper::GetDesignSpace(roboto_vf.get());
+  ASSERT_TRUE(ds.ok()) << ds.status();
+
+  flat_hash_map<hb_tag_t, AxisRange> expected = {
+      {HB_TAG('w', 'g', 'h', 't'), *AxisRange::Range(100, 900)},
+      {HB_TAG('w', 'd', 't', 'h'), *AxisRange::Range(75, 100)},
+  };
+
+  EXPECT_EQ(*ds, expected);
+}
+
+TEST_F(FontHelperTest, GetDesignSpace_NonVf) {
+  auto ds = FontHelper::GetDesignSpace(roboto.get());
+  ASSERT_TRUE(ds.ok()) << ds.status();
+
+  flat_hash_map<hb_tag_t, AxisRange> expected = {};
+
+  EXPECT_EQ(*ds, expected);
 }
 
 TEST_F(FontHelperTest, ApplyIftbTableOrdering) {

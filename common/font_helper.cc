@@ -5,12 +5,14 @@
 #include "absl/container/btree_set.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/str_cat.h"
+#include "common/axis_range.h"
 #include "common/font_data.h"
 #include "hb-ot.h"
 #include "hb-subset.h"
 
 using absl::btree_set;
 using absl::flat_hash_map;
+using absl::StatusOr;
 using absl::StrCat;
 using common::FontData;
 
@@ -161,6 +163,31 @@ absl::btree_set<hb_tag_t> FontHelper::GetNonDefaultFeatureTags(
   hb_subset_input_destroy(input);
 
   return tag_set;
+}
+
+StatusOr<flat_hash_map<hb_tag_t, AxisRange>> FontHelper::GetDesignSpace(
+    hb_face_t* face) {
+  constexpr uint32_t max_axes = 32;
+  hb_ot_var_axis_info_t axes[max_axes];
+  unsigned axes_count = max_axes;
+  unsigned offset = 0;
+
+  flat_hash_map<hb_tag_t, AxisRange> result;
+
+  while (((void)hb_ot_var_get_axis_infos(face, offset, &axes_count, axes),
+          axes_count)) {
+    for (unsigned i = 0; i < axes_count; i++) {
+      auto axis = axes[i];
+      auto r = AxisRange::Range(axis.min_value, axis.max_value);
+      if (!r.ok()) {
+        return r.status();
+      }
+      result[axis.tag] = *r;
+    }
+    offset += axes_count;
+  }
+
+  return result;
 }
 
 void FontHelper::ApplyIftbTableOrdering(hb_face_t* subset) {

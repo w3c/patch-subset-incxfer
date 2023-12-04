@@ -6,6 +6,7 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
+#include "common/axis_range.h"
 #include "common/font_data.h"
 #include "hb.h"
 
@@ -108,6 +109,9 @@ class FontHelper {
 
   static absl::btree_set<hb_tag_t> GetFeatureTags(hb_face_t* face);
   static absl::btree_set<hb_tag_t> GetNonDefaultFeatureTags(hb_face_t* face);
+
+  static absl::StatusOr<absl::flat_hash_map<hb_tag_t, AxisRange>>
+  GetDesignSpace(hb_face_t* face);
 
   static void ApplyIftbTableOrdering(hb_face_t* face);
 
