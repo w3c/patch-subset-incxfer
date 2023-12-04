@@ -245,6 +245,16 @@ void Encoder::SubsetDefinition::ConfigureInput(hb_subset_input_t* input,
   }
 }
 
+PatchMap::Coverage Encoder::SubsetDefinition::ToCoverage() const {
+  PatchMap::Coverage coverage;
+  coverage.codepoints = codepoints;
+  coverage.features = feature_tags;
+  for (const auto& [tag, range] : design_space) {
+    coverage.design_space[tag] = range;
+  }
+  return coverage;
+}
+
 Encoder::SubsetDefinition Encoder::Combine(const SubsetDefinition& s1,
                                            const SubsetDefinition& s2) const {
   SubsetDefinition result;
@@ -500,9 +510,7 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
     uint32_t id = next_id_++;
     ids.push_back(id);
 
-    PatchMap::Coverage coverage;
-    coverage.codepoints = s.codepoints;
-    coverage.features = s.feature_tags;
+    PatchMap::Coverage coverage = s.ToCoverage();
     patch_map.AddEntry(coverage, id, encoding, as_extensions);
   }
 

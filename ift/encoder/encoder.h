@@ -190,6 +190,8 @@ class Encoder {
     void Subtract(const SubsetDefinition& other);
 
     void ConfigureInput(hb_subset_input_t* input, hb_face_t* face) const;
+
+    ift::proto::PatchMap::Coverage ToCoverage() const;
   };
 
   absl::Status SetBaseSubsetFromDef(const SubsetDefinition& base_subset) {

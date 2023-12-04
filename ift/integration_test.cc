@@ -399,6 +399,66 @@ TEST_F(IntegrationTest, SharedBrotli_AddCodepointsWhileInProgress) {
   ASSERT_TRUE(codepoints.contains(0x4E));
 }
 
+TEST_F(IntegrationTest,
+       SharedBrotli_DesignSpaceAugmentation_IgnoresDesignSpace) {
+  Encoder encoder;
+  auto sc = InitEncoderForVf(encoder);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  Encoder::SubsetDefinition def{'a', 'b', 'c'};
+  def.design_space[kWdth] = AxisRange::Point(100.0f);
+  sc = encoder.SetBaseSubsetFromDef(def);
+
+  encoder.AddExtensionSubset({'d', 'e', 'f'});
+  encoder.AddExtensionSubset({'h', 'i', 'j'});
+  encoder.AddOptionalDesignSpace({{kWdth, *AxisRange::Range(75.0f, 100.0f)}});
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  auto encoded = encoder.Encode();
+  ASSERT_TRUE(encoded.ok()) << encoded.status();
+
+  auto codepoints = ToCodepointsSet(*encoded);
+  ASSERT_THAT(codepoints, IsSupersetOf({'a', 'b', 'c'}));
+  ASSERT_THAT(codepoints, AllOf(Not(Contains('d')), Not(Contains('e')),
+                                Not(Contains('f')), Not(Contains('h')),
+                                Not(Contains('i')), Not(Contains('j'))));
+
+  auto face = encoded->face();
+  auto ds = FontHelper::GetDesignSpace(face.get());
+  flat_hash_map<hb_tag_t, AxisRange> expected_ds{
+      {kWght, *AxisRange::Range(100, 900)},
+  };
+  ASSERT_EQ(*ds, expected_ds);
+
+  auto client = IFTClient::NewClient(std::move(*encoded));
+  ASSERT_TRUE(client.ok()) << client.status();
+
+  sc.Update(client->AddDesiredCodepoints({'e'}));
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  auto patches = client->PatchesNeeded();
+  ASSERT_EQ(patches.size(), 1);
+
+  sc = AddPatchesSbr(*client, encoder);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  auto state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::READY);
+
+  face = client->GetFontData().face();
+  ds = FontHelper::GetDesignSpace(face.get());
+  expected_ds = {
+      {kWght, *AxisRange::Range(100, 900)},
+  };
+  ASSERT_EQ(*ds, expected_ds);
+
+  codepoints = ToCodepointsSet(client->GetFontData());
+  ASSERT_THAT(codepoints, IsSupersetOf({'a', 'b', 'c', 'd', 'e', 'f'}));
+  ASSERT_THAT(codepoints, AllOf(Not(Contains('h')), Not(Contains('i')),
+                                Not(Contains('j'))));
+}
+
 TEST_F(IntegrationTest, SharedBrotli_DesignSpaceAugmentation) {
   Encoder encoder;
   auto sc = InitEncoderForVf(encoder);

@@ -7,6 +7,7 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
+#include "common/axis_range.h"
 #include "ift/ift_client.h"
 
 typedef absl::flat_hash_map<std::string, uint32_t> patch_set;
@@ -45,7 +46,7 @@ class State {
   std::optional<ift::IFTClient> client_;
   absl::flat_hash_set<uint32_t> pending_codepoints_;
   absl::flat_hash_set<hb_tag_t> pending_features_;
-  absl::flat_hash_map<hb_tag_t, ift::proto::PatchMap::AxisRange> pending_axes_;
+  absl::flat_hash_map<hb_tag_t, common::AxisRange> pending_axes_;
   bool init_request_in_flight_ = false;
   patch_set inflight_urls_;
   std::vector<emscripten::val> callbacks_;
