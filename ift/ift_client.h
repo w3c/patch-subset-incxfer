@@ -3,6 +3,7 @@
 
 #include "absl/container/btree_set.h"
 #include "absl/status/statusor.h"
+#include "common/axis_range.h"
 #include "common/binary_patch.h"
 #include "common/brotli_binary_patch.h"
 #include "common/font_data.h"
@@ -169,7 +170,7 @@ class IFTClient {
 
   absl::flat_hash_set<uint32_t> target_codepoints_;
   absl::flat_hash_set<hb_tag_t> target_features_;
-  absl::flat_hash_map<hb_tag_t, ift::proto::PatchMap::AxisRange> design_space_;
+  absl::flat_hash_map<hb_tag_t, common::AxisRange> design_space_;
 
   absl::flat_hash_set<uint32_t> outstanding_patches_;
   absl::flat_hash_map<uint32_t, common::FontData> pending_patches_;

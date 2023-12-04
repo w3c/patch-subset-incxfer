@@ -123,54 +123,6 @@ std::string Diff(const IFT& a, const IFT& b) {
   return StrCat("Expected:\n", a_str, "\n", "Actual:\n", b_str);
 }
 
-TEST_F(PatchMapTest, AxisRange_Intersection) {
-  auto a = PatchMap::AxisRange::Range(1, 4);
-  auto b = PatchMap::AxisRange::Range(5, 9);
-  ASSERT_FALSE(a->Intersects(*b));
-  ASSERT_FALSE(b->Intersects(*a));
-
-  auto c = PatchMap::AxisRange::Range(1, 5);
-  auto d = PatchMap::AxisRange::Range(5, 9);
-  ASSERT_TRUE(c->Intersects(*d));
-  ASSERT_TRUE(d->Intersects(*c));
-
-  auto e = PatchMap::AxisRange::Range(1, 8);
-  auto f = PatchMap::AxisRange::Range(3, 6);
-  ASSERT_TRUE(e->Intersects(*f));
-  ASSERT_TRUE(f->Intersects(*e));
-
-  auto g = PatchMap::AxisRange::Range(5, 5);
-  ASSERT_FALSE(a->Intersects(*g));
-  ASSERT_FALSE(g->Intersects(*a));
-
-  ASSERT_TRUE(c->Intersects(*g));
-  ASSERT_TRUE(g->Intersects(*c));
-
-  ASSERT_TRUE(f->Intersects(*g));
-  ASSERT_TRUE(g->Intersects(*f));
-}
-
-TEST_F(PatchMapTest, AxisRange_Creation) {
-  {
-    auto range = PatchMap::AxisRange::Point(1.5);
-    ASSERT_EQ(range.start(), 1.5);
-    ASSERT_EQ(range.end(), 1.5);
-  }
-
-  auto range = PatchMap::AxisRange::Range(2.5, 3.5);
-  ASSERT_TRUE(range.ok()) << range.status();
-  ASSERT_EQ(range->start(), 2.5);
-  ASSERT_EQ(range->end(), 3.5);
-
-  range = PatchMap::AxisRange::Range(2, 2);
-  ASSERT_TRUE(range.ok()) << range.status();
-  ASSERT_EQ(range->start(), 2);
-  ASSERT_EQ(range->end(), 2);
-
-  range = PatchMap::AxisRange::Range(3, 2);
-  ASSERT_TRUE(absl::IsInvalidArgument(range.status())) << range.status();
-}
-
 TEST_F(PatchMapTest, AddFromProto) {
   PatchMap map;
   auto s = map.AddFromProto(sample);
@@ -249,7 +201,7 @@ TEST_F(PatchMapTest, Mapping_WithDesignSpace) {
 
   PatchMap::Coverage design_space;
   design_space.design_space[HB_TAG('w', 'g', 'h', 't')] =
-      *PatchMap::AxisRange::Range(100, 200);
+      *common::AxisRange::Range(100, 200);
   expected.AddEntry(design_space, 3, IFTB_ENCODING);
 
   ASSERT_EQ(*map, expected);
@@ -527,7 +479,7 @@ TEST_F(PatchMapTest, AddToProto_WithDesignSpace) {
 
   PatchMap::Coverage design_space = {30, 31};
   design_space.design_space[HB_TAG('w', 'g', 'h', 't')] =
-      *PatchMap::AxisRange::Range(100, 200);
+      *common::AxisRange::Range(100, 200);
   map.AddEntry(design_space, 1, SHARED_BROTLI_ENCODING);
 
   IFT expected;
@@ -664,9 +616,9 @@ TEST_F(PatchMapTest, CoverageIntersection) {
 
   PatchMap::Coverage design_space;
   design_space.design_space[HB_TAG('w', 'g', 'h', 't')] =
-      *PatchMap::AxisRange::Range(100, 300);
+      *common::AxisRange::Range(100, 300);
   design_space.design_space[HB_TAG('w', 'd', 't', 'h')] =
-      *PatchMap::AxisRange::Range(50, 100);
+      *common::AxisRange::Range(50, 100);
 
   flat_hash_set<uint32_t> codepoints_in_match = {2, 7};
   flat_hash_set<uint32_t> codepoints_in_no_match = {5};
@@ -674,18 +626,18 @@ TEST_F(PatchMapTest, CoverageIntersection) {
                                                HB_TAG('y', 'y', 'y', 'y')};
   flat_hash_set<uint32_t> features_in_no_match = {HB_TAG('x', 'x', 'x', 'x')};
 
-  flat_hash_map<hb_tag_t, PatchMap::AxisRange> design_space_match = {
-      {HB_TAG('w', 'g', 'h', 't'), PatchMap::AxisRange::Point(200)},
+  flat_hash_map<hb_tag_t, common::AxisRange> design_space_match = {
+      {HB_TAG('w', 'g', 'h', 't'), common::AxisRange::Point(200)},
   };
-  flat_hash_map<hb_tag_t, PatchMap::AxisRange> design_space_no_match_1 = {
-      {HB_TAG('w', 'g', 'h', 't'), PatchMap::AxisRange::Point(500)},
+  flat_hash_map<hb_tag_t, common::AxisRange> design_space_no_match_1 = {
+      {HB_TAG('w', 'g', 'h', 't'), common::AxisRange::Point(500)},
   };
-  flat_hash_map<hb_tag_t, PatchMap::AxisRange> design_space_no_match_2 = {
-      {HB_TAG('x', 'x', 'x', 'x'), PatchMap::AxisRange::Point(500)},
+  flat_hash_map<hb_tag_t, common::AxisRange> design_space_no_match_2 = {
+      {HB_TAG('x', 'x', 'x', 'x'), common::AxisRange::Point(500)},
   };
 
   flat_hash_set<uint32_t> unspecified_in;
-  flat_hash_map<hb_tag_t, PatchMap::AxisRange> unspecified_design_space;
+  flat_hash_map<hb_tag_t, common::AxisRange> unspecified_design_space;
 
   ASSERT_FALSE(codepoints.Intersects(unspecified_in, unspecified_in,
                                      unspecified_design_space));

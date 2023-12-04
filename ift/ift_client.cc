@@ -19,6 +19,7 @@ using absl::flat_hash_set;
 using absl::Status;
 using absl::StatusOr;
 using absl::StrCat;
+using common::AxisRange;
 using common::BinaryPatch;
 using common::FontData;
 using ift::proto::DEFAULT_ENCODING;
@@ -131,7 +132,7 @@ Status IFTClient::AddDesiredDesignSpace(hb_tag_t axis_tag, float start,
     return status_;
   }
 
-  auto range = PatchMap::AxisRange::Range(start, end);
+  auto range = AxisRange::Range(start, end);
   if (!range.ok()) {
     return range.status();
   }

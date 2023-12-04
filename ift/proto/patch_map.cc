@@ -46,7 +46,7 @@ StatusOr<PatchMap::Coverage> PatchMap::Coverage::FromProto(
 
   for (const auto& entry : mapping.design_space()) {
     hb_tag_t tag = entry.first;
-    auto range = AxisRange::FromProto(entry.second);
+    auto range = PatchMap::FromProto(entry.second);
     if (!range.ok()) {
       return range.status();
     }
@@ -84,7 +84,7 @@ void PatchMap::Coverage::ToProto(SubsetMapping* out) const {
   }
 
   for (const auto& [tag, range] : design_space) {
-    range.ToProto(&(*out->mutable_design_space())[tag]);
+    PatchMap::ToProto(range, &(*out->mutable_design_space())[tag]);
   }
 }
 
@@ -104,7 +104,8 @@ static bool sets_intersect(const flat_hash_set<uint32_t>& a,
 bool PatchMap::Coverage::Intersects(
     const flat_hash_set<uint32_t>& codepoints_in,
     const flat_hash_set<hb_tag_t>& features_in,
-    const absl::flat_hash_map<hb_tag_t, AxisRange>& design_space_in) const {
+    const absl::flat_hash_map<hb_tag_t, common::AxisRange>& design_space_in)
+    const {
   // If an input set is unspecified (empty), it is considered to not match the
   // corresponding coverage set if that set is specified (not empty).
   if (codepoints_in.empty() && !codepoints.empty()) {
@@ -231,10 +232,6 @@ void PatchMap::AddToProto(IFT& ift_proto, bool extension_entries) const {
     e.ToProto(last_patch_index, default_encoding, m);
     last_patch_index = e.patch_index;
   }
-}
-
-void PrintTo(const PatchMap::AxisRange& range, std::ostream* os) {
-  *os << "[" << range.start() << ", " << range.end() << "]";
 }
 
 void PrintTo(const PatchMap::Coverage& coverage, std::ostream* os) {

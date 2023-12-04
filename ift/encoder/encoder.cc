@@ -7,6 +7,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "common/axis_range.h"
 #include "common/binary_diff.h"
 #include "common/font_data.h"
 #include "common/font_helper.h"
@@ -27,6 +28,7 @@ using absl::Status;
 using absl::StatusOr;
 using absl::StrCat;
 using absl::string_view;
+using common::AxisRange;
 using common::BinaryDiff;
 using common::FontData;
 using common::FontHelper;
@@ -150,10 +152,10 @@ absl::flat_hash_set<uint32_t> subtract(const absl::flat_hash_set<uint32_t>& a,
   return c;
 }
 
-flat_hash_map<hb_tag_t, PatchMap::AxisRange> subtract(
-    const flat_hash_map<hb_tag_t, PatchMap::AxisRange>& a,
-    const flat_hash_map<hb_tag_t, PatchMap::AxisRange>& b) {
-  flat_hash_map<hb_tag_t, PatchMap::AxisRange> c;
+flat_hash_map<hb_tag_t, AxisRange> subtract(
+    const flat_hash_map<hb_tag_t, AxisRange>& a,
+    const flat_hash_map<hb_tag_t, AxisRange>& b) {
+  flat_hash_map<hb_tag_t, AxisRange> c;
 
   for (const auto& [tag, range] : a) {
     auto e = b.find(tag);
@@ -387,7 +389,7 @@ void Encoder::AddOptionalFeatureGroup(
 }
 
 void Encoder::AddOptionalDesignSpace(
-    const flat_hash_map<hb_tag_t, PatchMap::AxisRange>& space) {
+    const flat_hash_map<hb_tag_t, AxisRange>& space) {
   SubsetDefinition def;
   def.design_space = space;
   extension_subsets_.push_back(def);
