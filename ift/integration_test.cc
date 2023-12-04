@@ -3,18 +3,23 @@
 
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/str_cat.h"
+#include "common/axis_range.h"
 #include "common/font_data.h"
 #include "common/font_helper.h"
 #include "common/hb_set_unique_ptr.h"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "hb.h"
 #include "ift/encoder/encoder.h"
 #include "ift/ift_client.h"
+#include "ift/proto/patch_map.h"
 
 using absl::btree_set;
+using absl::flat_hash_map;
 using absl::flat_hash_set;
 using absl::Status;
 using absl::StrCat;
+using common::AxisRange;
 using common::FontData;
 using common::FontHelper;
 using common::hb_blob_unique_ptr;
@@ -27,9 +32,17 @@ using ift::IFTClient;
 using ift::encoder::Encoder;
 using ift::proto::IFTB_ENCODING;
 using ift::proto::PatchEncoding;
+using ift::proto::PatchMap;
 using ift::proto::PER_TABLE_SHARED_BROTLI_ENCODING;
+using ::testing::AllOf;
+using ::testing::Contains;
+using ::testing::IsSupersetOf;
+using ::testing::Not;
 
 namespace ift {
+
+constexpr hb_tag_t kWdth = HB_TAG('w', 'd', 't', 'h');
+constexpr hb_tag_t kWght = HB_TAG('w', 'g', 'h', 't');
 
 class IntegrationTest : public ::testing::Test {
  protected:
@@ -61,6 +74,11 @@ class IntegrationTest : public ::testing::Test {
       assert(hb_blob_get_length(blob.get()) > 0);
       feature_test_patches_[i].set(blob.get());
     }
+
+    blob = make_hb_blob(hb_blob_create_from_file(
+        "patch_subset/testdata/Roboto[wdth,wght].ttf"));
+    face = make_hb_face(hb_face_create(blob.get(), 0));
+    roboto_vf_.set(face.get());
   }
 
   btree_set<uint32_t> ToCodepointsSet(const FontData& font_data) {
@@ -138,6 +156,20 @@ class IntegrationTest : public ::testing::Test {
     return absl::OkStatus();
   }
 
+  Status InitEncoderForVf(Encoder& encoder) {
+    encoder.SetUrlTemplate("$2$1");
+    {
+      auto face = roboto_vf_.face();
+      encoder.SetFace(face.get());
+    }
+    auto sc = encoder.SetId({0x01, 0x02, 0x03, 0x04});
+    if (!sc.ok()) {
+      return sc;
+    }
+
+    return absl::OkStatus();
+  }
+
   Status AddPatchesIftb(IFTClient& client, Encoder& encoder,
                         const std::vector<FontData>& iftb_patches) {
     auto patches = client.PatchesNeeded();
@@ -179,6 +211,8 @@ class IntegrationTest : public ::testing::Test {
 
   FontData feature_test_;
   std::vector<FontData> feature_test_patches_;
+
+  FontData roboto_vf_;
 
   uint32_t chunk0_cp = 0x47;
   uint32_t chunk1_cp = 0xb7;
@@ -363,6 +397,92 @@ TEST_F(IntegrationTest, SharedBrotli_AddCodepointsWhileInProgress) {
   ASSERT_TRUE(codepoints.contains(0x48));
   ASSERT_FALSE(codepoints.contains(0x4B));
   ASSERT_TRUE(codepoints.contains(0x4E));
+}
+
+TEST_F(IntegrationTest, SharedBrotli_DesignSpaceAugmentation) {
+  Encoder encoder;
+  auto sc = InitEncoderForVf(encoder);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  Encoder::SubsetDefinition def{'a', 'b', 'c'};
+  def.design_space[kWdth] = AxisRange::Point(100.0f);
+  sc = encoder.SetBaseSubsetFromDef(def);
+
+  encoder.AddExtensionSubset({'d', 'e', 'f'});
+  encoder.AddExtensionSubset({'h', 'i', 'j'});
+  encoder.AddOptionalDesignSpace({{kWdth, *AxisRange::Range(75.0f, 100.0f)}});
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  auto encoded = encoder.Encode();
+  ASSERT_TRUE(encoded.ok()) << encoded.status();
+
+  auto codepoints = ToCodepointsSet(*encoded);
+  ASSERT_THAT(codepoints, IsSupersetOf({'a', 'b', 'c'}));
+  ASSERT_THAT(codepoints, AllOf(Not(Contains('d')), Not(Contains('e')),
+                                Not(Contains('f')), Not(Contains('h')),
+                                Not(Contains('i')), Not(Contains('j'))));
+
+  auto face = encoded->face();
+  auto ds = FontHelper::GetDesignSpace(face.get());
+  flat_hash_map<hb_tag_t, AxisRange> expected_ds{
+      {kWght, *AxisRange::Range(100, 900)},
+  };
+  ASSERT_EQ(*ds, expected_ds);
+
+  auto client = IFTClient::NewClient(std::move(*encoded));
+  ASSERT_TRUE(client.ok()) << client.status();
+
+  // Phase 1
+  sc.Update(client->AddDesiredCodepoints({'b'}));
+  sc.Update(client->AddDesiredDesignSpace(kWdth, 80.0f, 80.0f));
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  auto patches = client->PatchesNeeded();
+  ASSERT_EQ(patches.size(), 1);
+  sc = AddPatchesSbr(*client, encoder);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  auto state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::READY);
+
+  face = client->GetFontData().face();
+  ds = FontHelper::GetDesignSpace(face.get());
+  expected_ds = {
+      {kWght, *AxisRange::Range(100, 900)},
+      {kWdth, *AxisRange::Range(75, 100)},
+  };
+  ASSERT_EQ(*ds, expected_ds);
+
+  codepoints = ToCodepointsSet(client->GetFontData());
+  ASSERT_THAT(codepoints, IsSupersetOf({'a', 'b', 'c'}));
+  ASSERT_THAT(codepoints, AllOf(Not(Contains('d')), Not(Contains('e')),
+                                Not(Contains('f')), Not(Contains('h')),
+                                Not(Contains('i')), Not(Contains('j'))));
+
+  // Phase 2
+  sc.Update(client->AddDesiredCodepoints({'e'}));
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  patches = client->PatchesNeeded();
+  ASSERT_EQ(patches.size(), 1);
+  sc = AddPatchesSbr(*client, encoder);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::READY);
+
+  codepoints = ToCodepointsSet(client->GetFontData());
+  ASSERT_THAT(codepoints, IsSupersetOf({'a', 'b', 'c', 'd', 'e', 'f'}));
+
+  face = client->GetFontData().face();
+  ds = FontHelper::GetDesignSpace(face.get());
+  expected_ds = {
+      {kWght, *AxisRange::Range(100, 900)},
+      {kWdth, *AxisRange::Range(75, 100)},
+  };
+  ASSERT_EQ(*ds, expected_ds);
 }
 
 TEST_F(IntegrationTest, MixedMode) {
