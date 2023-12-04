@@ -7,6 +7,7 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
+#include "common/axis_range.h"
 #include "common/binary_patch.h"
 #include "common/brotli_binary_patch.h"
 #include "common/font_data.h"
@@ -25,6 +26,7 @@ using absl::Span;
 using absl::Status;
 using absl::StrCat;
 using absl::string_view;
+using common::AxisRange;
 using common::BinaryPatch;
 using common::BrotliBinaryPatch;
 using common::FontData;
@@ -286,20 +288,19 @@ TEST_F(EncoderTest, OutgoingEdges) {
 
 TEST_F(EncoderTest, OutgoingEdges_DesignSpace_PointToRange) {
   Encoder::SubsetDefinition base{1, 2};
-  base.design_space[kWght] = PatchMap::AxisRange::Point(300);
+  base.design_space[kWght] = AxisRange::Point(300);
 
   Encoder encoder;
   encoder.AddExtensionSubset({3, 4});
-  encoder.AddOptionalDesignSpace(
-      {{kWght, *PatchMap::AxisRange::Range(300, 400)}});
+  encoder.AddOptionalDesignSpace({{kWght, *AxisRange::Range(300, 400)}});
 
   Encoder::SubsetDefinition s1{3, 4};
 
   Encoder::SubsetDefinition s2{};
-  s2.design_space[kWght] = *PatchMap::AxisRange::Range(300, 400);
+  s2.design_space[kWght] = *AxisRange::Range(300, 400);
 
   Encoder::SubsetDefinition s3{3, 4};
-  s3.design_space[kWght] = *PatchMap::AxisRange::Range(300, 400);
+  s3.design_space[kWght] = *AxisRange::Range(300, 400);
 
   auto combos = encoder.OutgoingEdges(base, 2);
   std::vector<Encoder::SubsetDefinition> expected = {s1, s2, s3};
@@ -308,20 +309,19 @@ TEST_F(EncoderTest, OutgoingEdges_DesignSpace_PointToRange) {
 
 TEST_F(EncoderTest, OutgoingEdges_DesignSpace_AddAxis_1) {
   Encoder::SubsetDefinition base{1, 2};
-  base.design_space[kWght] = *PatchMap::AxisRange::Range(200, 500);
+  base.design_space[kWght] = *AxisRange::Range(200, 500);
 
   Encoder encoder;
   encoder.AddExtensionSubset({3, 4});
-  encoder.AddOptionalDesignSpace(
-      {{kWdth, *PatchMap::AxisRange::Range(300, 400)}});
+  encoder.AddOptionalDesignSpace({{kWdth, *AxisRange::Range(300, 400)}});
 
   Encoder::SubsetDefinition s1{3, 4};
 
   Encoder::SubsetDefinition s2{};
-  s2.design_space[kWdth] = *PatchMap::AxisRange::Range(300, 400);
+  s2.design_space[kWdth] = *AxisRange::Range(300, 400);
 
   Encoder::SubsetDefinition s3{3, 4};
-  s3.design_space[kWdth] = *PatchMap::AxisRange::Range(300, 400);
+  s3.design_space[kWdth] = *AxisRange::Range(300, 400);
 
   auto combos = encoder.OutgoingEdges(base, 2);
   std::vector<Encoder::SubsetDefinition> expected = {s1, s2, s3};
@@ -330,13 +330,13 @@ TEST_F(EncoderTest, OutgoingEdges_DesignSpace_AddAxis_1) {
 
 TEST_F(EncoderTest, OutgoingEdges_DesignSpace_AddAxis_OverlappingAxisRange) {
   Encoder::SubsetDefinition base{1, 2};
-  base.design_space[kWght] = *PatchMap::AxisRange::Range(200, 500);
+  base.design_space[kWght] = *AxisRange::Range(200, 500);
 
   Encoder encoder;
   encoder.AddExtensionSubset({3, 4});
   encoder.AddOptionalDesignSpace({
-      {kWght, *PatchMap::AxisRange::Range(300, 700)},
-      {kWdth, *PatchMap::AxisRange::Range(300, 400)},
+      {kWght, *AxisRange::Range(300, 700)},
+      {kWdth, *AxisRange::Range(300, 400)},
   });
 
   Encoder::SubsetDefinition s1{3, 4};
@@ -346,10 +346,10 @@ TEST_F(EncoderTest, OutgoingEdges_DesignSpace_AddAxis_OverlappingAxisRange) {
   //   we don't support partially subtracting a range. Once support is
   //   available this case can be updated to check wght range is partially
   //   subtracted instead of being ignored.
-  s2.design_space[kWdth] = *PatchMap::AxisRange::Range(300, 400);
+  s2.design_space[kWdth] = *AxisRange::Range(300, 400);
 
   Encoder::SubsetDefinition s3{3, 4};
-  s3.design_space[kWdth] = *PatchMap::AxisRange::Range(300, 400);
+  s3.design_space[kWdth] = *AxisRange::Range(300, 400);
 
   auto combos = encoder.OutgoingEdges(base, 2);
   std::vector<Encoder::SubsetDefinition> expected = {s1, s2, s3};
@@ -361,26 +361,26 @@ TEST_F(EncoderTest, OutgoingEdges_DesignSpace_AddAxis_OverlappingAxisRange) {
 
 TEST_F(EncoderTest, OutgoingEdges_DesignSpace_AddAxis_MergeSpace) {
   Encoder::SubsetDefinition base{1, 2};
-  base.design_space[kWght] = PatchMap::AxisRange::Point(300);
-  base.design_space[kWdth] = PatchMap::AxisRange::Point(75);
+  base.design_space[kWght] = AxisRange::Point(300);
+  base.design_space[kWdth] = AxisRange::Point(75);
 
   Encoder encoder;
   encoder.AddOptionalDesignSpace({
-      {kWght, *PatchMap::AxisRange::Range(300, 700)},
+      {kWght, *AxisRange::Range(300, 700)},
   });
   encoder.AddOptionalDesignSpace({
-      {kWdth, *PatchMap::AxisRange::Range(50, 100)},
+      {kWdth, *AxisRange::Range(50, 100)},
   });
 
   Encoder::SubsetDefinition s1{};
-  s1.design_space[kWght] = *PatchMap::AxisRange::Range(300, 700);
+  s1.design_space[kWght] = *AxisRange::Range(300, 700);
 
   Encoder::SubsetDefinition s2{};
-  s2.design_space[kWdth] = *PatchMap::AxisRange::Range(50, 100);
+  s2.design_space[kWdth] = *AxisRange::Range(50, 100);
 
   Encoder::SubsetDefinition s3{};
-  s3.design_space[kWght] = *PatchMap::AxisRange::Range(300, 700);
-  s3.design_space[kWdth] = *PatchMap::AxisRange::Range(50, 100);
+  s3.design_space[kWght] = *AxisRange::Range(300, 700);
+  s3.design_space[kWdth] = *AxisRange::Range(50, 100);
 
   auto combos = encoder.OutgoingEdges(base, 2);
   std::vector<Encoder::SubsetDefinition> expected = {s1, s2, s3};
@@ -572,13 +572,12 @@ TEST_F(EncoderTest, Encode_ThreeSubsets_VF) {
   encoder.SetFace(face);
 
   Encoder::SubsetDefinition base_def{'a'};
-  base_def.design_space[kWdth] = PatchMap::AxisRange::Point(100.0f);
+  base_def.design_space[kWdth] = AxisRange::Point(100.0f);
   auto s = encoder.SetBaseSubsetFromDef(base_def);
   ASSERT_TRUE(s.ok()) << s;
 
   encoder.AddExtensionSubset({'b'});
-  encoder.AddOptionalDesignSpace(
-      {{kWdth, *PatchMap::AxisRange::Range(75.0f, 100.0f)}});
+  encoder.AddOptionalDesignSpace({{kWdth, *AxisRange::Range(75.0f, 100.0f)}});
 
   auto base = encoder.Encode();
   hb_face_destroy(face);

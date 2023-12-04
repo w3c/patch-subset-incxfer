@@ -11,6 +11,7 @@ cc_library(
         "font_helper.cc",
         "hb_set_unique_ptr.cc",
         "sparse_bit_set.cc",
+        "axis_range.cc",
     ],
     hdrs = [
         "binary_diff.h",
@@ -24,6 +25,7 @@ cc_library(
         "font_provider.h",
         "hb_set_unique_ptr.h",
         "sparse_bit_set.h",
+        "axis_range.h",
     ],
     visibility = [
         "//visibility:public",
@@ -72,6 +74,7 @@ cc_test(
         "bit_output_buffer_test.cc",
         "branch_factor_test.cc",
         "brotli_patching_test.cc",
+        "axis_range_test.cc",
         "file_font_provider_test.cc",
         "font_helper_test.cc",
         "sparse_bit_set_test.cc",

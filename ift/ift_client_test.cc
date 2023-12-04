@@ -14,6 +14,7 @@ using absl::btree_set;
 using absl::flat_hash_map;
 using absl::flat_hash_set;
 using absl::IsInvalidArgument;
+using common::AxisRange;
 using common::BrotliBinaryDiff;
 using common::FontData;
 using common::hb_set_unique_ptr;
@@ -158,12 +159,12 @@ class IFTClientTest : public ::testing::Test {
     sample_with_design_space.GetPatchMap().AddEntry(coverage, 0, IFTB_ENCODING);
 
     coverage.design_space[HB_TAG('w', 'g', 'h', 't')] =
-        *PatchMap::AxisRange::Range(100, 400);
+        *AxisRange::Range(100, 400);
     sample_with_design_space.GetPatchMap().AddEntry(coverage, 1, IFTB_ENCODING);
 
     coverage.codepoints.clear();
     coverage.design_space[HB_TAG('w', 'g', 'h', 't')] =
-        *PatchMap::AxisRange::Range(300, 700);
+        *AxisRange::Range(300, 700);
     sample_with_design_space.GetPatchMap().AddEntry(coverage, 2, IFTB_ENCODING);
 
     // Assignments

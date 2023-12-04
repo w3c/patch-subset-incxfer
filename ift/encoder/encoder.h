@@ -10,6 +10,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
+#include "common/axis_range.h"
 #include "common/brotli_binary_diff.h"
 #include "common/font_data.h"
 #include "hb-subset.h"
@@ -113,8 +114,7 @@ class Encoder {
       const absl::flat_hash_set<hb_tag_t>& feature_tag);
 
   void AddOptionalDesignSpace(
-      const absl::flat_hash_map<hb_tag_t, ift::proto::PatchMap::AxisRange>&
-          space);
+      const absl::flat_hash_map<hb_tag_t, common::AxisRange>& space);
 
   // TODO(garretrieger): add support for specifying IFTB patch + feature tag
   // mappings
@@ -166,7 +166,7 @@ class Encoder {
     absl::flat_hash_set<uint32_t> codepoints;
     absl::flat_hash_set<uint32_t> gids;
     absl::flat_hash_set<hb_tag_t> feature_tags;
-    absl::flat_hash_map<hb_tag_t, ift::proto::PatchMap::AxisRange> design_space;
+    absl::flat_hash_map<hb_tag_t, common::AxisRange> design_space;
 
     bool empty() const {
       return codepoints.empty() && gids.empty() && feature_tags.empty() &&
