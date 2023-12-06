@@ -29,6 +29,8 @@ namespace ift::encoder {
  */
 class Encoder {
  public:
+  typedef absl::flat_hash_map<hb_tag_t, common::AxisRange> design_space_t;
+
   Encoder()
       : binary_diff_(11), per_table_binary_diff_({"IFT ", "glyf", "loca"}) {}
 
@@ -58,6 +60,13 @@ class Encoder {
    * using the provided patch binary data.
    */
   absl::Status AddExistingIftbPatch(uint32_t id, const common::FontData& patch);
+
+  /*
+   * Adds an IFTB patch to be included in the encoded font identified by 'id'
+   * using the provided patch binary data.
+   */
+  absl::Status AddExistingIftbPatch(uint32_t id, const common::FontData& patch,
+                                    const design_space_t& design_space);
 
   /*
    * Adds an IFTB patch identified by 'id' that will only be loaded if
@@ -113,8 +122,7 @@ class Encoder {
   void AddOptionalFeatureGroup(
       const absl::flat_hash_set<hb_tag_t>& feature_tag);
 
-  void AddOptionalDesignSpace(
-      const absl::flat_hash_map<hb_tag_t, common::AxisRange>& space);
+  void AddOptionalDesignSpace(const design_space_t& space);
 
   // TODO(garretrieger): add support for specifying IFTB patch + feature tag
   // mappings
@@ -166,7 +174,7 @@ class Encoder {
     absl::flat_hash_set<uint32_t> codepoints;
     absl::flat_hash_set<uint32_t> gids;
     absl::flat_hash_set<hb_tag_t> feature_tags;
-    absl::flat_hash_map<hb_tag_t, common::AxisRange> design_space;
+    design_space_t design_space;
 
     bool empty() const {
       return codepoints.empty() && gids.empty() && feature_tags.empty() &&
@@ -206,6 +214,8 @@ class Encoder {
                                               uint32_t choose) const;
 
  private:
+  typedef absl::btree_map<uint32_t, SubsetDefinition> iftb_map;
+
   static void AddCombinations(const std::vector<const SubsetDefinition*>& in,
                               uint32_t number,
                               std::vector<SubsetDefinition>& out);
@@ -223,15 +233,21 @@ class Encoder {
   absl::StatusOr<common::FontData> Encode(const SubsetDefinition& base_subset,
                                           bool is_root = true);
 
-  absl::StatusOr<SubsetDefinition> SubsetDefinitionForIftbPatches(
-      const absl::flat_hash_set<uint32_t>& ids);
+  static absl::StatusOr<SubsetDefinition> SubsetDefinitionForIftbPatches(
+      const iftb_map& iftb_patches, const absl::flat_hash_set<uint32_t>& ids);
 
   bool IsMixedMode() const { return !existing_iftb_patches_.empty(); }
 
-  absl::Status PopulateIftbPatchMap(ift::proto::PatchMap& patch_map);
+  absl::Status PopulateIftbPatchMap(ift::proto::PatchMap& patch_map,
+                                    const design_space_t& design_space) const;
 
   absl::StatusOr<common::FontData> CutSubset(hb_face_t* font,
                                              const SubsetDefinition& def);
+
+  absl::Status CheckIftbPatchesAreConsistent() const;
+  absl::StatusOr<const iftb_map*> ExemplarIftbMap() const;
+  template <typename T>
+  void RemoveIftbPatches(T ids);
 
   common::BrotliBinaryDiff binary_diff_;
   ift::PerTableBrotliBinaryDiff per_table_binary_diff_;
@@ -240,7 +256,7 @@ class Encoder {
   std::string url_template_ = "patch$5$4$3$2$1.br";
   uint32_t id_[4] = {0, 0, 0, 0};
   hb_face_t* face_ = nullptr;
-  absl::btree_map<uint32_t, SubsetDefinition> existing_iftb_patches_;
+  absl::flat_hash_map<design_space_t, iftb_map> existing_iftb_patches_;
   absl::flat_hash_map<uint32_t,
                       absl::flat_hash_map<hb_tag_t, absl::btree_set<uint32_t>>>
       iftb_feature_mappings_;
