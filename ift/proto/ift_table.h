@@ -52,7 +52,22 @@ class IFTTable {
   bool HasExtensionEntries() const;
 
   const std::string& GetUrlTemplate() const { return url_template_; }
-  void SetUrlTemplate(absl::string_view value) { url_template_ = value; }
+  const std::string& GetExtensionUrlTemplate() const {
+    return extension_url_template_;
+  }
+  void SetUrlTemplate(absl::string_view value) {
+    url_template_ = value;
+    extension_url_template_ = value;
+  }
+  void SetUrlTemplate(absl::string_view value,
+                      absl::string_view extension_value) {
+    url_template_ = value;
+    extension_url_template_ = extension_value;
+  }
+  void SetExtensionUrlTemplate(absl::string_view value) {
+    extension_url_template_ = value;
+  }
+
   absl::Status SetId(absl::Span<const uint32_t> id) {
     if (id.size() != 4) {
       return absl::InvalidArgumentError("ID must have length of 4.");
@@ -87,6 +102,7 @@ class IFTTable {
 
  private:
   std::string url_template_;
+  std::string extension_url_template_;
   uint32_t id_[4];
   PatchMap patch_map_;
 };
