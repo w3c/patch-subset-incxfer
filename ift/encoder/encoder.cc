@@ -263,12 +263,6 @@ Encoder::SubsetDefinition Encoder::Combine(const SubsetDefinition& s1,
 }
 
 Status Encoder::AddExistingIftbPatch(uint32_t id, const FontData& patch) {
-  design_space_t empty;
-  return AddExistingIftbPatch(id, patch, empty);
-}
-
-Status Encoder::AddExistingIftbPatch(uint32_t id, const FontData& patch,
-                                     const design_space_t& design_space) {
   if (!face_) {
     return absl::FailedPreconditionError("Encoder must have a face set.");
   }
@@ -302,28 +296,19 @@ Status Encoder::AddExistingIftbPatch(uint32_t id, const FontData& patch,
     subset.codepoints.insert(cp->second);
   }
 
-  existing_iftb_patches_[design_space][id] = subset;
+  existing_iftb_patches_[id] = subset;
   next_id_ = std::max(next_id_, id + 1);
   return absl::OkStatus();
 }
 
 Status Encoder::AddIftbFeatureSpecificPatch(uint32_t original_id, uint32_t id,
                                             hb_tag_t feature_tag) {
-  // TODO(garretrieger): add a version of this function that takes a design
-  // space
-  //  argument.
-  design_space_t empty;
-  if (!existing_iftb_patches_.contains(empty)) {
-    return absl::InvalidArgumentError(
-        "Empty design space iftb patches not found.");
-  }
-
-  if (!existing_iftb_patches_[empty].contains(original_id)) {
+  if (!existing_iftb_patches_.contains(original_id)) {
     return absl::InvalidArgumentError(
         StrCat("IFTB patch ", original_id,
                " has not been supplied via AddExistingIftbPatch()"));
   }
-  if (!existing_iftb_patches_[empty].contains(id)) {
+  if (!existing_iftb_patches_.contains(id)) {
     return absl::InvalidArgumentError(
         StrCat("IFTB patch ", id,
                " has not been supplied via AddExistingIftbPatch()"));
@@ -335,13 +320,16 @@ Status Encoder::AddIftbFeatureSpecificPatch(uint32_t original_id, uint32_t id,
 
 Status Encoder::SetBaseSubsetFromIftbPatches(
     const flat_hash_set<uint32_t>& included_patches) {
+  design_space_t empty;
+  return SetBaseSubsetFromIftbPatches(included_patches, empty);
+}
+
+Status Encoder::SetBaseSubsetFromIftbPatches(
+    const flat_hash_set<uint32_t>& included_patches, const design_space_t& design_space) {
   // TODO(garretrieger): handle the case where a patch included in the
   //  base subset has associated feature specific patches. We could
   //  merge those in as well, or create special entries for them that only
   //  utilize feature tag to trigger.
-
-  // TODO(garretrieger): add a version of this method which also takes a design
-  //  space for the initial subset.
   if (!face_) {
     return absl::FailedPreconditionError("Encoder must have a face set.");
   }
@@ -350,30 +338,22 @@ Status Encoder::SetBaseSubsetFromIftbPatches(
     return absl::FailedPreconditionError("Base subset has already been set.");
   }
 
-  design_space_t empty;
-  auto it = existing_iftb_patches_.find(empty);
-  if (it == existing_iftb_patches_.end()) {
-    return absl::InvalidArgumentError(
-        "IFTB patches for default design space are not present.");
-  }
-  const iftb_map& iftb_patches = it->second;
-
   for (uint32_t id : included_patches) {
-    if (!iftb_patches.contains(id)) {
+    if (!existing_iftb_patches_.contains(id)) {
       return absl::InvalidArgumentError(
           StrCat("IFTB patch, ", id, ", not added to the encoder."));
     }
   }
 
   flat_hash_set<uint32_t> excluded_patches;
-  for (const auto& p : iftb_patches) {
+  for (const auto& p : existing_iftb_patches_) {
     if (!included_patches.contains(p.first)) {
       excluded_patches.insert(p.first);
     }
   }
 
   auto excluded =
-      SubsetDefinitionForIftbPatches(iftb_patches, excluded_patches);
+      SubsetDefinitionForIftbPatches(excluded_patches);
   if (!excluded.ok()) {
     return excluded.status();
   }
@@ -394,6 +374,8 @@ Status Encoder::SetBaseSubsetFromIftbPatches(
     }
   }
 
+  base_subset_.design_space = design_space;
+
   // remove all patches that have been placed into the base subset.
   RemoveIftbPatches(included_patches);
 
@@ -410,12 +392,7 @@ Status Encoder::SetBaseSubsetFromIftbPatches(
 
 Status Encoder::AddExtensionSubsetOfIftbPatches(
     const flat_hash_set<uint32_t>& ids) {
-  auto iftb_patches = ExemplarIftbMap();
-  if (!iftb_patches.ok()) {
-    return iftb_patches.status();
-  }
-
-  auto subset = SubsetDefinitionForIftbPatches(**iftb_patches, ids);
+  auto subset = SubsetDefinitionForIftbPatches(ids);
   if (!subset.ok()) {
     return subset.status();
   }
@@ -437,12 +414,11 @@ void Encoder::AddOptionalDesignSpace(const design_space_t& space) {
   extension_subsets_.push_back(def);
 }
 
-StatusOr<Encoder::SubsetDefinition> Encoder::SubsetDefinitionForIftbPatches(
-    const iftb_map& iftb_patches, const flat_hash_set<uint32_t>& ids) {
+StatusOr<Encoder::SubsetDefinition> Encoder::SubsetDefinitionForIftbPatches(const flat_hash_set<uint32_t>& ids) const {
   SubsetDefinition result;
   for (uint32_t id : ids) {
-    auto p = iftb_patches.find(id);
-    if (p == iftb_patches.end()) {
+    auto p = existing_iftb_patches_.find(id);
+    if (p == existing_iftb_patches_.end()) {
       return absl::InvalidArgumentError(
           StrCat("IFTB patch id, ", id, ", not found."));
     }
@@ -465,14 +441,7 @@ Status Encoder::PopulateIftbPatchMap(PatchMap& patch_map,
     return absl::OkStatus();
   }
 
-  auto it = existing_iftb_patches_.find(design_space);
-  if (it == existing_iftb_patches_.end()) {
-    return absl::InvalidArgumentError(
-        "No iftb patches for given design space.");
-  }
-  const iftb_map& iftb_patches = it->second;
-
-  for (const auto& e : iftb_patches) {
+  for (const auto& e : existing_iftb_patches_) {
     uint32_t id = e.first;
     auto it = iftb_feature_mappings_.find(id);
     if (it == iftb_feature_mappings_.end()) {
@@ -488,8 +457,8 @@ Status Encoder::PopulateIftbPatchMap(PatchMap& patch_map,
       coverage.features.insert(feature_tag);
 
       for (uint32_t original_id : indices) {
-        auto original = iftb_patches.find(original_id);
-        if (original == iftb_patches.end()) {
+        auto original = existing_iftb_patches_.find(original_id);
+        if (original == existing_iftb_patches_.end()) {
           return absl::InvalidArgumentError(
               StrCat("Original iftb patch ", original_id, " not found."));
         }
@@ -534,6 +503,7 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
   }
 
   IFTTable table;
+  // TODO(garretrieger): set the iftb specific url template based on design space.
   table.SetUrlTemplate(UrlTemplate());
   auto sc = table.SetId(Id());
   if (!sc.ok()) {
@@ -631,37 +601,11 @@ StatusOr<FontData> Encoder::CutSubset(hb_face_t* font,
   return subset;
 }
 
-Status Encoder::CheckIftbPatchesAreConsistent() const {
-  if (existing_iftb_patches_.size() <= 1) {
-    return absl::OkStatus();
-  }
-
-  // TODO
-  return absl::UnimplementedError("implement me!");
-}
-
 template <typename T>
 void Encoder::RemoveIftbPatches(T ids) {
-  for (auto& [design_space, iftb_patches] : existing_iftb_patches_) {
-    for (uint32_t id : ids) {
-      iftb_patches.erase(id);
-    }
+  for (uint32_t id : ids) {
+    existing_iftb_patches_.erase(id);
   }
-}
-
-StatusOr<const Encoder::iftb_map*> Encoder::ExemplarIftbMap() const {
-  // We can't return an exemplar iftb map if the various maps are not consistent
-  // with each other.
-  auto s = CheckIftbPatchesAreConsistent();
-  if (!s.ok()) {
-    return s;
-  }
-
-  for (const auto& [design_space, iftb_patches] : existing_iftb_patches_) {
-    return &iftb_patches;
-  }
-
-  return absl::NotFoundError("There are no iftb patch maps.");
 }
 
 StatusOr<FontData> Encoder::EncodeWoff2(string_view font, bool glyf_transform) {

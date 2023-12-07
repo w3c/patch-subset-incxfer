@@ -62,13 +62,6 @@ class Encoder {
   absl::Status AddExistingIftbPatch(uint32_t id, const common::FontData& patch);
 
   /*
-   * Adds an IFTB patch to be included in the encoded font identified by 'id'
-   * using the provided patch binary data.
-   */
-  absl::Status AddExistingIftbPatch(uint32_t id, const common::FontData& patch,
-                                    const design_space_t& design_space);
-
-  /*
    * Adds an IFTB patch identified by 'id' that will only be loaded if
    * 'feature_tag' is in the  target subset and the IFTB patch 'original_id' has
    * been loaded.
@@ -98,6 +91,9 @@ class Encoder {
   // patches, plus codepoints from any patches referenced in 'included_patches'
   absl::Status SetBaseSubsetFromIftbPatches(
       const absl::flat_hash_set<uint32_t>& included_patches);
+
+  absl::Status SetBaseSubsetFromIftbPatches(
+      const absl::flat_hash_set<uint32_t>& included_patches, const design_space_t& design_space);
 
   void AddExtensionSubset(const absl::flat_hash_set<hb_codepoint_t>& subset) {
     SubsetDefinition def;
@@ -233,8 +229,7 @@ class Encoder {
   absl::StatusOr<common::FontData> Encode(const SubsetDefinition& base_subset,
                                           bool is_root = true);
 
-  static absl::StatusOr<SubsetDefinition> SubsetDefinitionForIftbPatches(
-      const iftb_map& iftb_patches, const absl::flat_hash_set<uint32_t>& ids);
+  absl::StatusOr<SubsetDefinition> SubsetDefinitionForIftbPatches(const absl::flat_hash_set<uint32_t>& ids) const;
 
   bool IsMixedMode() const { return !existing_iftb_patches_.empty(); }
 
@@ -244,8 +239,6 @@ class Encoder {
   absl::StatusOr<common::FontData> CutSubset(hb_face_t* font,
                                              const SubsetDefinition& def);
 
-  absl::Status CheckIftbPatchesAreConsistent() const;
-  absl::StatusOr<const iftb_map*> ExemplarIftbMap() const;
   template <typename T>
   void RemoveIftbPatches(T ids);
 
@@ -256,15 +249,12 @@ class Encoder {
   std::string url_template_ = "patch$5$4$3$2$1.br";
   uint32_t id_[4] = {0, 0, 0, 0};
   hb_face_t* face_ = nullptr;
-  absl::flat_hash_map<design_space_t, iftb_map> existing_iftb_patches_;
+  absl::btree_map<uint32_t, SubsetDefinition> existing_iftb_patches_;
   absl::flat_hash_map<uint32_t,
                       absl::flat_hash_map<hb_tag_t, absl::btree_set<uint32_t>>>
       iftb_feature_mappings_;
   SubsetDefinition base_subset_;
   std::vector<SubsetDefinition> extension_subsets_;
-  // TODO(garretrieger): also track additional gids that should be
-  //  included in a subset (coming from the IFTB patches). implement
-  //  by having a custom struct for subsets which as a gid and codepoint set.
 
   // OUT
   uint32_t next_id_ = 0;
