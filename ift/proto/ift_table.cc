@@ -47,7 +47,7 @@ StatusOr<IFTTable> IFTTable::FromFont(hb_face_t* face) {
 
   auto ift = FromProto(ift_proto);
   if (!ift.ok()) {
-    return ift;
+    return ift.status();
   }
 
   // Check for an handle extension table if present.
@@ -63,6 +63,9 @@ StatusOr<IFTTable> IFTTable::FromFont(hb_face_t* face) {
     return absl::InternalError("Unable to parse 'IFTX' table.");
   }
 
+  if (!ift_proto.url_template().empty()) {
+    ift->SetExtensionUrlTemplate(ift_proto.url_template());
+  }
   auto s = ift->GetPatchMap().AddFromProto(ift_proto, true);
   if (!s.ok()) {
     return s;
@@ -86,7 +89,7 @@ StatusOr<IFTTable> IFTTable::FromProto(IFT proto) {
 
   IFTTable table;
   table.patch_map_ = std::move(*map);
-  table.url_template_ = proto.url_template();
+  table.SetUrlTemplate(proto.url_template());
 
   if (proto.id_size() != 4 && proto.id_size() != 0) {
     return absl::InvalidArgumentError("id field must have a length of 4 or 0.");
@@ -216,6 +219,9 @@ IFT IFTTable::CreateMainTable() const {
 
 IFT IFTTable::CreateExtensionTable() const {
   IFT ext_proto;
+  if (extension_url_template_ != url_template_) {
+    ext_proto.set_url_template(extension_url_template_);
+  }
   if (HasExtensionEntries()) {
     patch_map_.AddToProto(ext_proto, true);
   }

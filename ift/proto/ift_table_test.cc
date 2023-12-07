@@ -183,6 +183,7 @@ TEST_F(IFTTableTest, AddToFont_WithExtension) {
 
 TEST_F(IFTTableTest, RoundTrip_WithExtension) {
   IFTTable table;
+  table.SetUrlTemplate("files/go/here/$1.br");
   table.GetPatchMap().AddEntry({10}, 1, SHARED_BROTLI_ENCODING);
   table.GetPatchMap().AddEntry({20}, 2, SHARED_BROTLI_ENCODING);
   table.GetPatchMap().AddEntry({30}, 3, SHARED_BROTLI_ENCODING, true);
@@ -201,6 +202,27 @@ TEST_F(IFTTableTest, RoundTrip_WithExtension) {
       {{40}, 4, SHARED_BROTLI_ENCODING, true},
   };
   ASSERT_EQ(expected, table_from_font->GetPatchMap());
+  ASSERT_EQ(table_from_font->GetUrlTemplate(), "files/go/here/$1.br");
+  ASSERT_EQ(table_from_font->GetExtensionUrlTemplate(), "files/go/here/$1.br");
+}
+
+TEST_F(IFTTableTest, RoundTrip_ExtraUrlTemplate) {
+  IFTTable table;
+  table.SetUrlTemplate("files/go/here/$1.br", "extension/files/$1.br");
+  table.GetPatchMap().AddEntry({10}, 1, SHARED_BROTLI_ENCODING);
+  table.GetPatchMap().AddEntry({20}, 2, SHARED_BROTLI_ENCODING);
+  table.GetPatchMap().AddEntry({30}, 3, SHARED_BROTLI_ENCODING, true);
+  table.GetPatchMap().AddEntry({40}, 4, SHARED_BROTLI_ENCODING, true);
+
+  auto font = table.AddToFont(roboto_ab.get());
+  ASSERT_TRUE(font.ok()) << font.status();
+
+  auto table_from_font = IFTTable::FromFont(*font);
+  ASSERT_TRUE(table_from_font.ok()) << table_from_font.status();
+
+  ASSERT_EQ(table_from_font->GetUrlTemplate(), "files/go/here/$1.br");
+  ASSERT_EQ(table_from_font->GetExtensionUrlTemplate(),
+            "extension/files/$1.br");
 }
 
 TEST_F(IFTTableTest, HasExtensionEntries) {
