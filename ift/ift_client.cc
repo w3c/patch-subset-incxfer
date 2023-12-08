@@ -42,7 +42,25 @@ StatusOr<IFTClient> IFTClient::NewClient(common::FontData&& font) {
   return client;
 }
 
-std::string IFTClient::PatchToUrl(const std::string& url_template,
+StatusOr<std::string> IFTClient::UrlForEntry(uint32_t entry_idx) {
+  if (!ift_table_) {
+    return absl::FailedPreconditionError(
+        "There are no entries to get URLs from.");
+  }
+
+  if (entry_idx >= ift_table_->GetPatchMap().GetEntries().size()) {
+    return absl::InvalidArgumentError(StrCat("Invalid entry_idx, ", entry_idx));
+  }
+
+  const auto& entry = ift_table_->GetPatchMap().GetEntries().at(entry_idx);
+  absl::string_view url_template = entry.extension_entry
+                                       ? ift_table_->GetExtensionUrlTemplate()
+                                       : ift_table_->GetUrlTemplate();
+
+  return PatchToUrl(url_template, entry.patch_index);
+}
+
+std::string IFTClient::PatchToUrl(absl::string_view url_template,
                                   uint32_t patch_idx) {
   constexpr int num_digits = 5;
   int hex_digits[num_digits];
@@ -84,52 +102,35 @@ std::string IFTClient::PatchToUrl(const std::string& url_template,
   return out.str();
 }
 
-flat_hash_set<uint32_t> IFTClient::PatchesNeeded() const {
-  return outstanding_patches_;
+flat_hash_set<std::string> IFTClient::PatchesNeeded() const {
+  flat_hash_set<std::string> result;
+  for (const auto& [url, info] : pending_patches_) {
+    if (!info.data.has_value()) {
+      result.insert(url);
+    }
+  }
+  return result;
 }
 
-Status IFTClient::AddDesiredCodepoints(
+void IFTClient::AddDesiredCodepoints(
     const absl::flat_hash_set<uint32_t>& codepoints) {
-  if (!status_.ok()) {
-    return status_;
-  }
-
   std::copy(codepoints.begin(), codepoints.end(),
             std::inserter(target_codepoints_, target_codepoints_.begin()));
-
-  // TODO(garretrieger): in some cases this may cause a needed patch
-  // to be replaced. However, the client  may still have fetched
-  // and added that replaced patch. Make sure the client supports this
-  // situation seemlessly (ignoring the no longer needed patch and should
-  // not attempt to apply it). Add a test in he integration tests which
-  // exercises this case.
-  auto s = ComputeOutstandingPatches();
-  if (!s.ok()) {
-    status_ = s;
-  }
-  return s;
 }
 
-Status IFTClient::AddDesiredFeatures(
+void IFTClient::AddDesiredFeatures(
     const absl::flat_hash_set<hb_tag_t>& features) {
-  if (!status_.ok()) {
-    return status_;
-  }
-
   std::copy(features.begin(), features.end(),
             std::inserter(target_features_, target_features_.begin()));
-
-  auto s = ComputeOutstandingPatches();
-  if (!s.ok()) {
-    status_ = s;
-  }
-  return s;
 }
 
 Status IFTClient::AddDesiredDesignSpace(hb_tag_t axis_tag, float start,
                                         float end) {
-  if (!status_.ok()) {
-    return status_;
+  auto existing = design_space_.find(axis_tag);
+  if (existing != design_space_.end()) {
+    // If a range is already set then form a superset range that covers both.
+    start = std::min(start, existing->second.start());
+    end = std::max(end, existing->second.end());
   }
 
   auto range = AxisRange::Range(start, end);
@@ -138,32 +139,40 @@ Status IFTClient::AddDesiredDesignSpace(hb_tag_t axis_tag, float start,
   }
 
   design_space_[axis_tag] = *range;
-
-  auto s = ComputeOutstandingPatches();
-  if (!s.ok()) {
-    status_ = s;
-  }
-  return s;
+  return absl::OkStatus();
 }
 
-void IFTClient::AddPatch(uint32_t id, const FontData& font_data) {
-  outstanding_patches_.erase(id);
-  pending_patches_[id].shallow_copy(font_data);
+void IFTClient::AddPatch(absl::string_view id, const FontData& font_data) {
+  auto existing = pending_patches_.find(id);
+  if (existing == pending_patches_.end()) {
+    // this is not a patch we are waiting for, ignore it.
+    return;
+  }
+
+  if (existing->second.data.has_value()) {
+    // this patch has already been supplied.
+    return;
+  }
+
+  if (missing_patch_count_ > 0) {
+    missing_patch_count_--;
+  }
+  existing->second.data = FontData();
+  existing->second.data->shallow_copy(font_data);
 }
 
 StatusOr<IFTClient::State> IFTClient::Process() {
-  // TODO(garretrieger): add a helper which classifies patches as
-  // dependent/independent instead of hardcoding here.
   if (!status_.ok()) {
     return status_;
   }
 
-  if (!outstanding_patches_.empty()) {
+  if (missing_patch_count_ > 0) {
     return NEEDS_PATCHES;
   }
 
   if (pending_patches_.empty()) {
-    return READY;
+    // Check if any more patches are needed.
+    return ComputeOutstandingPatches();
   }
 
   // - When applying patches apply any dependent patches first.
@@ -172,35 +181,30 @@ StatusOr<IFTClient::State> IFTClient::Process() {
   // - Dependent patch applications may add more outstanding patches.
   //   Return early if there are new outstanding patches.
   // - Otherwise apply all pending independent patches.
-  std::optional<uint32_t> dependent_patch;
+  std::optional<std::string> dependent_patch;
   PatchEncoding dependent_patch_encoding = DEFAULT_ENCODING;
   std::vector<FontData> dependent_patch_data;
-  for (const auto& p : pending_patches_) {
-    uint32_t id = p.first;
-    const FontData& patch_data = p.second;
-
-    auto it = patch_to_encoding_.find(id);
-    if (it == patch_to_encoding_.end()) {
-      status_ =
-          absl::InternalError(StrCat("No encoding stored for patch ", id));
-      return status_;
+  for (const auto& [url, info] : pending_patches_) {
+    if (!info.data.has_value()) {
+      status_ = absl::FailedPreconditionError(
+          "Missing patch data, should not happen.");
     }
-    PatchEncoding encoding = it->second;
-    if (!PatchMap::IsDependent(encoding)) {
+
+    if (!PatchMap::IsDependent(info.encoding)) {
       continue;
     }
 
     if (dependent_patch) {
       status_ = absl::InternalError(StrCat(
           "Multiple dependent patches are pending. A max of one is allowed: ",
-          *dependent_patch, id));
+          *dependent_patch, url));
       return status_;
     }
 
-    dependent_patch = id;
-    dependent_patch_encoding = encoding;
+    dependent_patch = url;
+    dependent_patch_encoding = info.encoding;
     dependent_patch_data.resize(1);
-    dependent_patch_data[0].shallow_copy(patch_data);
+    dependent_patch_data[0].shallow_copy(*info.data);
   }
 
   if (dependent_patch) {
@@ -211,48 +215,37 @@ StatusOr<IFTClient::State> IFTClient::Process() {
     }
     pending_patches_.erase(*dependent_patch);
 
-    s = ComputeOutstandingPatches();
-    if (!s.ok()) {
-      status_ = s;
-      return s;
-    }
-
-    if (!outstanding_patches_.empty()) {
-      return NEEDS_PATCHES;
+    auto new_state = ComputeOutstandingPatches();
+    if (!new_state.ok() || *new_state == NEEDS_PATCHES) {
+      return new_state;
     }
   }
 
-  std::vector<uint32_t> indices;
+  std::vector<std::string> urls;
   std::vector<FontData> data;
-  for (const auto& p : pending_patches_) {
-    uint32_t id = p.first;
-    const FontData& patch_data = p.second;
-
-    auto it = patch_to_encoding_.find(id);
-    if (it == patch_to_encoding_.end()) {
-      status_ =
-          absl::InternalError(StrCat("No encoding stored for patch ", id));
-      return status_;
-    }
-    PatchEncoding encoding = it->second;
-    if (encoding != IFTB_ENCODING) {
+  for (const auto& [url, info] : pending_patches_) {
+    if (info.encoding != IFTB_ENCODING) {
       continue;
     }
 
-    indices.push_back(id);
+    if (!info.data.has_value()) {
+      continue;
+    }
+
     FontData new_data;
-    new_data.shallow_copy(patch_data);
+    new_data.shallow_copy(*info.data);
+    urls.push_back(url);
     data.push_back(std::move(new_data));
   }
 
-  if (!indices.empty()) {
+  if (!urls.empty()) {
     auto s = ApplyPatches(data, IFTB_ENCODING);
     if (!s.ok()) {
       status_ = s;
       return s;
     }
-    for (uint32_t id : indices) {
-      pending_patches_.erase(id);
+    for (const auto& url : urls) {
+      pending_patches_.erase(url);
     }
   }
 
@@ -262,27 +255,26 @@ StatusOr<IFTClient::State> IFTClient::Process() {
     return status_;
   }
 
-  if (!outstanding_patches_.empty()) {
-    return NEEDS_PATCHES;
-  }
-
   return READY;
 }
 
-Status IFTClient::ComputeOutstandingPatches() {
+StatusOr<IFTClient::State> IFTClient::ComputeOutstandingPatches() {
+  if (!status_.ok()) {
+    return status_;
+  }
+
+  if (!ift_table_) {
+    // There's no mapping table left, so no entries to add.
+    status_ = absl::OkStatus();
+    return READY;
+  }
+
   // Patch matching algorithm works like this:
   // 1. Identify all patches listed in the IFT table which intersect the input
   //    codepoints.
   // 2. Keep all of those that are independent.
   // 3. Of the matched dependent patches, keep only one. Select the patch with
   //    the largest coverage.
-
-  if (!ift_table_) {
-    outstanding_patches_.clear();
-    patch_to_encoding_.clear();
-    return absl::OkStatus();
-  }
-
   absl::flat_hash_set<uint32_t> candidate_indices = FindCandidateIndices();
   absl::flat_hash_set<uint32_t> independent_entry_indices;
   // keep dep entries sorted so that ties during single entry selection
@@ -297,27 +289,42 @@ Status IFTClient::ComputeOutstandingPatches() {
         SelectDependentEntry(dependent_entry_indices));
   }
 
-  outstanding_patches_.clear();
-  patch_to_encoding_.clear();
   for (uint32_t entry_index : independent_entry_indices) {
     const PatchMap::Entry& entry =
         ift_table_->GetPatchMap().GetEntries().at(entry_index);
 
+    PatchInfo info;
+    info.encoding = entry.encoding;
+    auto url = UrlForEntry(entry_index);
+    if (!url.ok()) {
+      status_ = url.status();
+      return status_;
+    }
     auto [it, was_inserted] =
-        patch_to_encoding_.insert(std::pair(entry.patch_index, entry.encoding));
-    if (!was_inserted && it->second != entry.encoding) {
-      return absl::InternalError(
+        pending_patches_.insert(std::pair(*url, std::move(info)));
+
+    if (!was_inserted && it->second.encoding != entry.encoding) {
+      status_ = absl::InternalError(
           StrCat("Invalid IFT table. patch ,  ", entry.patch_index,
                  ", has conflicting encoding types: ", entry.encoding,
-                 " != ", it->second));
-    }
-
-    if (!pending_patches_.contains(entry.patch_index)) {
-      outstanding_patches_.insert(entry.patch_index);
+                 " != ", it->second.encoding));
+      return status_;
     }
   }
 
-  return absl::OkStatus();
+  missing_patch_count_ = MissingPatchCount();
+  status_ = absl::OkStatus();
+  return missing_patch_count_ > 0 ? NEEDS_PATCHES : READY;
+}
+
+uint32_t IFTClient::MissingPatchCount() const {
+  uint32_t count = 0;
+  for (const auto& [url, info] : pending_patches_) {
+    if (!info.data.has_value()) {
+      count++;
+    }
+  }
+  return count;
 }
 
 Status IFTClient::ApplyPatches(const std::vector<FontData>& patches,

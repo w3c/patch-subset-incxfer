@@ -98,7 +98,7 @@ class IntegrationTest : public ::testing::Test {
   }
 
   Status InitEncoderForIftb(Encoder& encoder) {
-    encoder.SetUrlTemplate("$2$1");
+    encoder.SetUrlTemplate("0x$2$1");
     {
       hb_face_t* face = noto_sans_jp_.reference_face();
       encoder.SetFace(face);
@@ -120,7 +120,7 @@ class IntegrationTest : public ::testing::Test {
   }
 
   Status InitEncoderForIftbFeatureTest(Encoder& encoder) {
-    encoder.SetUrlTemplate("$2$1");
+    encoder.SetUrlTemplate("0x$2$1");
     {
       hb_face_t* face = feature_test_.reference_face();
       encoder.SetFace(face);
@@ -142,7 +142,7 @@ class IntegrationTest : public ::testing::Test {
   }
 
   Status InitEncoderForSharedBrotli(Encoder& encoder) {
-    encoder.SetUrlTemplate("$2$1");
+    encoder.SetUrlTemplate("0x$2$1");
     {
       hb_face_t* face = noto_sans_jp_.reference_face();
       encoder.SetFace(face);
@@ -157,7 +157,7 @@ class IntegrationTest : public ::testing::Test {
   }
 
   Status InitEncoderForVf(Encoder& encoder) {
-    encoder.SetUrlTemplate("$2$1");
+    encoder.SetUrlTemplate("0x$2$1");
     {
       auto face = roboto_vf_.face();
       encoder.SetFace(face.get());
@@ -174,13 +174,15 @@ class IntegrationTest : public ::testing::Test {
                         const std::vector<FontData>& iftb_patches) {
     auto patches = client.PatchesNeeded();
     for (const auto& id : patches) {
+      uint32_t id_value = std::stoul(id, nullptr, 16);
       FontData patch_data;
-      if (id < iftb_patches.size()) {
-        patch_data.shallow_copy(iftb_patches[id]);
+      if (id_value < iftb_patches.size()) {
+        patch_data.shallow_copy(iftb_patches[id_value]);
       } else {
-        auto it = encoder.Patches().find(id);
+        auto it = encoder.Patches().find(id_value);
         if (it == encoder.Patches().end()) {
-          return absl::InternalError(StrCat("Patch ", id, " was not found."));
+          return absl::InternalError(
+              StrCat("Patch ", id_value, " was not found."));
         }
         patch_data.shallow_copy(it->second);
       }
@@ -194,10 +196,12 @@ class IntegrationTest : public ::testing::Test {
   Status AddPatchesSbr(IFTClient& client, Encoder& encoder) {
     auto patches = client.PatchesNeeded();
     for (const auto& id : patches) {
+      uint32_t id_value = std::stoul(id, nullptr, 16);
       FontData patch_data;
-      auto it = encoder.Patches().find(id);
+      auto it = encoder.Patches().find(id_value);
       if (it == encoder.Patches().end()) {
-        return absl::InternalError(StrCat("Patch ", id, " was not found."));
+        return absl::InternalError(
+            StrCat("Patch ", id_value, " was not found."));
       }
       patch_data.shallow_copy(it->second);
       client.AddPatch(id, patch_data);
@@ -231,7 +235,7 @@ class IntegrationTest : public ::testing::Test {
 };
 
 // TODO(garretrieger): add IFTB only test case.
-// TODO(garretrieger): add test that uses feature tags.
+// TODO(garretrieger): extension specific url template.
 
 TEST_F(IntegrationTest, SharedBrotliOnly) {
   Encoder encoder;
@@ -258,8 +262,10 @@ TEST_F(IntegrationTest, SharedBrotliOnly) {
   auto client = IFTClient::NewClient(std::move(*encoded));
   ASSERT_TRUE(client.ok()) << client.status();
 
-  sc = client->AddDesiredCodepoints({0x49});
-  ASSERT_TRUE(sc.ok()) << sc;
+  client->AddDesiredCodepoints({0x49});
+  auto state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
 
   auto patches = client->PatchesNeeded();
   ASSERT_EQ(patches.size(), 1);
@@ -267,7 +273,7 @@ TEST_F(IntegrationTest, SharedBrotliOnly) {
   sc = AddPatchesSbr(*client, encoder);
   ASSERT_TRUE(sc.ok()) << sc;
 
-  auto state = client->Process();
+  state = client->Process();
   ASSERT_TRUE(state.ok()) << state.status();
   ASSERT_EQ(*state, IFTClient::READY);
 
@@ -304,8 +310,10 @@ TEST_F(IntegrationTest, SharedBrotliMultiple) {
   auto client = IFTClient::NewClient(std::move(*encoded));
   ASSERT_TRUE(client.ok()) << client.status();
 
-  sc = client->AddDesiredCodepoints({0x49, 0x4F});
-  ASSERT_TRUE(sc.ok()) << sc;
+  client->AddDesiredCodepoints({0x49, 0x4F});
+  auto state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
 
   // Phase 1
   auto patches = client->PatchesNeeded();
@@ -314,7 +322,7 @@ TEST_F(IntegrationTest, SharedBrotliMultiple) {
   sc = AddPatchesSbr(*client, encoder);
   ASSERT_TRUE(sc.ok()) << sc;
 
-  auto state = client->Process();
+  state = client->Process();
   ASSERT_TRUE(state.ok()) << state.status();
   ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
 
@@ -362,17 +370,21 @@ TEST_F(IntegrationTest, SharedBrotli_AddCodepointsWhileInProgress) {
   auto client = IFTClient::NewClient(std::move(*encoded));
   ASSERT_TRUE(client.ok()) << client.status();
 
-  sc = client->AddDesiredCodepoints({0x49});
-  ASSERT_TRUE(sc.ok()) << sc;
+  client->AddDesiredCodepoints({0x49});
+  auto state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
 
-  flat_hash_set<uint32_t> patches_expected = {1};
+  flat_hash_set<std::string> patches_expected = {"0x01"};
   auto patches = client->PatchesNeeded();
   ASSERT_EQ(patches, patches_expected);
 
-  sc = client->AddDesiredCodepoints({0x4F});
-  ASSERT_TRUE(sc.ok()) << sc;
+  client->AddDesiredCodepoints({0x4E, 0x4F});
+  state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
 
-  patches_expected = {3};
+  patches_expected = {"0x01"};
   patches = client->PatchesNeeded();
   ASSERT_EQ(patches, patches_expected);
 
@@ -380,7 +392,7 @@ TEST_F(IntegrationTest, SharedBrotli_AddCodepointsWhileInProgress) {
   sc = AddPatchesSbr(*client, encoder);
   ASSERT_TRUE(sc.ok()) << sc;
 
-  auto state = client->Process();
+  state = client->Process();
   ASSERT_TRUE(state.ok()) << state.status();
   ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
 
@@ -433,8 +445,10 @@ TEST_F(IntegrationTest,
   auto client = IFTClient::NewClient(std::move(*encoded));
   ASSERT_TRUE(client.ok()) << client.status();
 
-  sc.Update(client->AddDesiredCodepoints({'e'}));
-  ASSERT_TRUE(sc.ok()) << sc;
+  client->AddDesiredCodepoints({'e'});
+  auto state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
 
   auto patches = client->PatchesNeeded();
   ASSERT_EQ(patches.size(), 1);
@@ -442,7 +456,7 @@ TEST_F(IntegrationTest,
   sc = AddPatchesSbr(*client, encoder);
   ASSERT_TRUE(sc.ok()) << sc;
 
-  auto state = client->Process();
+  state = client->Process();
   ASSERT_TRUE(state.ok()) << state.status();
   ASSERT_EQ(*state, IFTClient::READY);
 
@@ -493,16 +507,19 @@ TEST_F(IntegrationTest, SharedBrotli_DesignSpaceAugmentation) {
   ASSERT_TRUE(client.ok()) << client.status();
 
   // Phase 1
-  sc.Update(client->AddDesiredCodepoints({'b'}));
+  client->AddDesiredCodepoints({'b'});
   sc.Update(client->AddDesiredDesignSpace(kWdth, 80.0f, 80.0f));
   ASSERT_TRUE(sc.ok()) << sc;
+  auto state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
 
   auto patches = client->PatchesNeeded();
   ASSERT_EQ(patches.size(), 1);
   sc = AddPatchesSbr(*client, encoder);
   ASSERT_TRUE(sc.ok()) << sc;
 
-  auto state = client->Process();
+  state = client->Process();
   ASSERT_TRUE(state.ok()) << state.status();
   ASSERT_EQ(*state, IFTClient::READY);
 
@@ -521,8 +538,10 @@ TEST_F(IntegrationTest, SharedBrotli_DesignSpaceAugmentation) {
                                 Not(Contains('i')), Not(Contains('j'))));
 
   // Phase 2
-  sc.Update(client->AddDesiredCodepoints({'e'}));
-  ASSERT_TRUE(sc.ok()) << sc;
+  client->AddDesiredCodepoints({'e'});
+  state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
 
   patches = client->PatchesNeeded();
   ASSERT_EQ(patches.size(), 1);
@@ -569,8 +588,10 @@ TEST_F(IntegrationTest, MixedMode) {
   auto client = IFTClient::NewClient(std::move(*encoded));
   ASSERT_TRUE(client.ok()) << client.status();
 
-  sc = client->AddDesiredCodepoints({chunk3_cp, chunk4_cp});
-  ASSERT_TRUE(sc.ok()) << sc;
+  client->AddDesiredCodepoints({chunk3_cp, chunk4_cp});
+  auto state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
 
   auto patches = client->PatchesNeeded();
   ASSERT_EQ(patches.size(), 3);  // 1 shared brotli and 2 iftb.
@@ -578,7 +599,7 @@ TEST_F(IntegrationTest, MixedMode) {
   sc = AddPatchesIftb(*client, encoder, iftb_patches_);
   ASSERT_TRUE(sc.ok()) << sc;
 
-  auto state = client->Process();
+  state = client->Process();
   ASSERT_TRUE(state.ok()) << state.status();
   ASSERT_EQ(*state, IFTClient::READY);
 
@@ -632,8 +653,10 @@ TEST_F(IntegrationTest, MixedMode_OptionalFeatureTags) {
   auto client = IFTClient::NewClient(std::move(*encoded));
   ASSERT_TRUE(client.ok()) << client.status();
 
-  sc = client->AddDesiredCodepoints({chunk2_cp});
-  ASSERT_TRUE(sc.ok()) << sc;
+  client->AddDesiredCodepoints({chunk2_cp});
+  auto state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
 
   auto patches = client->PatchesNeeded();
   ASSERT_EQ(patches.size(), 2);  // 1 shared brotli and 1 iftb.
@@ -641,7 +664,7 @@ TEST_F(IntegrationTest, MixedMode_OptionalFeatureTags) {
   sc = AddPatchesIftb(*client, encoder, feature_test_patches_);
   ASSERT_TRUE(sc.ok()) << sc;
 
-  auto state = client->Process();
+  state = client->Process();
   ASSERT_TRUE(state.ok()) << state.status();
   ASSERT_EQ(*state, IFTClient::READY);
 
@@ -656,7 +679,10 @@ TEST_F(IntegrationTest, MixedMode_OptionalFeatureTags) {
   ASSERT_FALSE(FontHelper::GlyfData(face.get(), chunk2_gid)->empty());
   ASSERT_TRUE(FontHelper::GlyfData(face.get(), chunk5_gid)->empty());
 
-  sc = client->AddDesiredFeatures({kVrt3});
+  client->AddDesiredFeatures({kVrt3});
+  state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
   sc.Update(AddPatchesIftb(*client, encoder, feature_test_patches_));
   ASSERT_TRUE(sc.ok()) << sc;
 
@@ -672,8 +698,11 @@ TEST_F(IntegrationTest, MixedMode_OptionalFeatureTags) {
   ASSERT_FALSE(FontHelper::GlyfData(face.get(), chunk5_gid)->empty());
   ASSERT_TRUE(FontHelper::GlyfData(face.get(), chunk6_gid)->empty());
 
-  sc = client->AddDesiredCodepoints({chunk4_cp});
-  ASSERT_TRUE(sc.ok()) << sc;
+  client->AddDesiredCodepoints({chunk4_cp});
+  state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
+
   patches = client->PatchesNeeded();
   ASSERT_EQ(patches.size(), 3);  // 2 shared brotli and 1 iftb.
 
@@ -720,8 +749,10 @@ TEST_F(IntegrationTest, MixedMode_LocaLenChange) {
   auto face = client->GetFontData().face();
   uint32_t gid_count_1 = hb_face_get_glyph_count(face.get());
 
-  sc = client->AddDesiredCodepoints({chunk3_cp});
-  ASSERT_TRUE(sc.ok()) << sc;
+  client->AddDesiredCodepoints({chunk3_cp});
+  auto state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
 
   auto patches = client->PatchesNeeded();
   ASSERT_EQ(patches.size(), 2);  // 1 shared brotli and 1 iftb.
@@ -729,7 +760,7 @@ TEST_F(IntegrationTest, MixedMode_LocaLenChange) {
   sc = AddPatchesIftb(*client, encoder, iftb_patches_);
   ASSERT_TRUE(sc.ok()) << sc;
 
-  auto state = client->Process();
+  state = client->Process();
   ASSERT_TRUE(state.ok()) << state.status();
   ASSERT_EQ(*state, IFTClient::READY);
 
@@ -737,8 +768,10 @@ TEST_F(IntegrationTest, MixedMode_LocaLenChange) {
   uint32_t gid_count_2 = hb_face_get_glyph_count(face.get());
 
   // ### Phase 2 ###
-  sc = client->AddDesiredCodepoints({chunk2_cp});
-  ASSERT_TRUE(sc.ok()) << sc;
+  client->AddDesiredCodepoints({chunk2_cp});
+  state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
 
   patches = client->PatchesNeeded();
   ASSERT_EQ(patches.size(), 2);  // 1 shared brotli and 1 iftb.
@@ -794,8 +827,10 @@ TEST_F(IntegrationTest, MixedMode_Complex) {
   ASSERT_TRUE(client.ok()) << client.status();
 
   // Phase 1
-  sc = client->AddDesiredCodepoints({chunk1_cp});
-  ASSERT_TRUE(sc.ok()) << sc;
+  client->AddDesiredCodepoints({chunk1_cp});
+  auto state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
 
   auto patches = client->PatchesNeeded();
   ASSERT_EQ(patches.size(), 2);  // 1 shared brotli and 1 iftb.
@@ -803,13 +838,15 @@ TEST_F(IntegrationTest, MixedMode_Complex) {
   sc = AddPatchesIftb(*client, encoder, iftb_patches_);
   ASSERT_TRUE(sc.ok()) << sc;
 
-  auto state = client->Process();
+  state = client->Process();
   ASSERT_TRUE(state.ok()) << state.status();
   ASSERT_EQ(*state, IFTClient::READY);
 
   // Phase 2
-  sc = client->AddDesiredCodepoints({chunk3_cp});
-  ASSERT_TRUE(sc.ok()) << sc;
+  client->AddDesiredCodepoints({chunk3_cp});
+  state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
 
   patches = client->PatchesNeeded();
   ASSERT_EQ(patches.size(), 2);  // 1 shared brotli and 1 iftb.
@@ -855,8 +892,10 @@ TEST_F(IntegrationTest, MixedMode_SequentialDependentPatches) {
   auto client = IFTClient::NewClient(std::move(*encoded));
   ASSERT_TRUE(client.ok()) << client.status();
 
-  sc = client->AddDesiredCodepoints({chunk3_cp, chunk4_cp});
-  ASSERT_TRUE(sc.ok()) << sc;
+  client->AddDesiredCodepoints({chunk3_cp, chunk4_cp});
+  auto state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
 
   auto patches = client->PatchesNeeded();
   ASSERT_EQ(patches.size(), 3);  // 1 shared brotli and 2 iftb.
@@ -864,7 +903,7 @@ TEST_F(IntegrationTest, MixedMode_SequentialDependentPatches) {
   sc = AddPatchesIftb(*client, encoder, iftb_patches_);
   ASSERT_TRUE(sc.ok()) << sc;
 
-  auto state = client->Process();
+  state = client->Process();
   ASSERT_TRUE(state.ok()) << state.status();
   ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
 

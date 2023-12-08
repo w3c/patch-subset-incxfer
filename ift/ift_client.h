@@ -28,11 +28,15 @@ class IFTClient {
 
   static absl::StatusOr<IFTClient> NewClient(common::FontData&& font);
 
+  static std::string PatchToUrl(absl::string_view url_template,
+                                uint32_t patch_idx);
+
  private:
   IFTClient()
       : brotli_binary_patch_(new common::BrotliBinaryPatch()),
         iftb_binary_patch_(new ift::IftbBinaryPatch()),
         per_table_binary_patch_(new ift::PerTableBrotliBinaryPatch()),
+        missing_patch_count_(0),
         status_(absl::OkStatus()) {}
 
  public:
@@ -49,9 +53,8 @@ class IFTClient {
         codepoint_to_entries_index_(
             std::move(other.codepoint_to_entries_index_)),
         target_codepoints_(std::move(other.target_codepoints_)),
-        outstanding_patches_(std::move(other.outstanding_patches_)),
         pending_patches_(std::move(other.pending_patches_)),
-        patch_to_encoding_(std::move(other.patch_to_encoding_)),
+        missing_patch_count_(other.missing_patch_count_),
         status_(other.status_) {
     other.face_ = nullptr;
   }
@@ -69,22 +72,14 @@ class IFTClient {
     iftb_binary_patch_ = std::move(other.iftb_binary_patch_);
     codepoint_to_entries_index_ = std::move(other.codepoint_to_entries_index_);
     target_codepoints_ = std::move(other.target_codepoints_);
-    outstanding_patches_ = std::move(other.outstanding_patches_);
     pending_patches_ = std::move(other.pending_patches_);
-    patch_to_encoding_ = std::move(other.patch_to_encoding_);
+    missing_patch_count_ = other.missing_patch_count_;
     status_ = other.status_;
 
     return *this;
   }
 
   ~IFTClient() { hb_face_destroy(face_); }
-
-  static std::string PatchToUrl(const std::string& url_template,
-                                uint32_t patch_idx);
-
-  std::string PatchToUrl(uint32_t patch_idx) const {
-    return PatchToUrl(ift_table_->GetUrlTemplate(), patch_idx);
-  }
 
   /*
    * Returns the current version of the font. Once Process() returns READY then
@@ -97,21 +92,19 @@ class IFTClient {
    * Returns the list of patches that need to be provided to finish processing
    * the current extension request.
    */
-  absl::flat_hash_set<uint32_t> PatchesNeeded() const;
+  absl::flat_hash_set<std::string> PatchesNeeded() const;
 
   /*
    * Adds a set of codepoints to the target subsets that the font should be
    * extended to cover.
    */
-  absl::Status AddDesiredCodepoints(
-      const absl::flat_hash_set<uint32_t>& codepoints);
+  void AddDesiredCodepoints(const absl::flat_hash_set<uint32_t>& codepoints);
 
   /*
    * Adds a feature tag to the target subset that the font should be extended
    * to cover.
    */
-  absl::Status AddDesiredFeatures(
-      const absl::flat_hash_set<hb_tag_t>& features);
+  void AddDesiredFeatures(const absl::flat_hash_set<hb_tag_t>& features);
 
   /*
    * Adds an axis range to the target subset taht the font should be extended
@@ -122,7 +115,7 @@ class IFTClient {
   /*
    * Adds patch data for a patch with the given id.
    */
-  void AddPatch(uint32_t id, const common::FontData& font_data);
+  void AddPatch(absl::string_view id, const common::FontData& font_data);
 
   /*
    * Call once requested patches have been supplied by AddPatch() in order to
@@ -134,7 +127,9 @@ class IFTClient {
   absl::StatusOr<State> Process();
 
  private:
-  absl::Status ComputeOutstandingPatches();
+  absl::StatusOr<std::string> UrlForEntry(uint32_t entry_idx);
+
+  absl::StatusOr<State> ComputeOutstandingPatches();
 
   absl::Status ApplyPatches(const std::vector<common::FontData>& patches,
                             ift::proto::PatchEncoding encoding);
@@ -156,6 +151,8 @@ class IFTClient {
   uint32_t SelectDependentEntry(
       const absl::btree_set<uint32_t>& dependent_entry_indices);
 
+  uint32_t MissingPatchCount() const;
+
   common::FontData font_;
   hb_face_t* face_ = nullptr;
   std::optional<ift::proto::IFTTable> ift_table_;
@@ -168,13 +165,19 @@ class IFTClient {
   absl::flat_hash_map<uint32_t, std::vector<uint32_t>>
       codepoint_to_entries_index_;
 
+  // Input
   absl::flat_hash_set<uint32_t> target_codepoints_;
   absl::flat_hash_set<hb_tag_t> target_features_;
   absl::flat_hash_map<hb_tag_t, common::AxisRange> design_space_;
 
-  absl::flat_hash_set<uint32_t> outstanding_patches_;
-  absl::flat_hash_map<uint32_t, common::FontData> pending_patches_;
-  absl::flat_hash_map<uint32_t, ift::proto::PatchEncoding> patch_to_encoding_;
+  struct PatchInfo {
+    ift::proto::PatchEncoding encoding;
+    std::optional<common::FontData> data;
+  };
+
+  // Output
+  absl::flat_hash_map<std::string, PatchInfo> pending_patches_;
+  uint32_t missing_patch_count_;
   absl::Status status_;
 };
 
