@@ -29,6 +29,7 @@ using namespace emscripten;
 
 using absl::flat_hash_map;
 using absl::flat_hash_set;
+using absl::Status;
 using absl::string_view;
 using common::AxisRange;
 using common::FontData;
@@ -153,15 +154,20 @@ void State::Process() {
     return;
   }
 
-  auto sc = client_->AddDesiredCodepoints(pending_codepoints_);
+  client_->AddDesiredCodepoints(pending_codepoints_);
+  pending_codepoints_.clear();
   if (!pending_features_.empty()) {
-    sc.Update(client_->AddDesiredFeatures(pending_features_));
+    client_->AddDesiredFeatures(pending_features_);
+    pending_features_.clear();
   }
+
+  Status sc = absl::OkStatus();
   if (!pending_axes_.empty()) {
     for (const auto& [tag, range] : pending_axes_) {
       sc.Update(
           client_->AddDesiredDesignSpace(tag, range.start(), range.end()));
     }
+    pending_axes_.clear();
   }
   if (!sc.ok()) {
     LOG(WARNING) << "Failed to add desired codepoints to the client: "
@@ -170,51 +176,38 @@ void State::Process() {
     return;
   }
 
+  auto state = client_->Process();
+  if (!state.ok()) {
+    LOG(WARNING) << "Failed to process in the client: "
+                 << state.status().message();
+    SendCallbacks(false);
+    return;
+  }
+
+  if (*state == IFTClient::READY) {
+    SendCallbacks(true);
+    return;
+  }
+
   patch_set urls_to_load;
-  for (uint32_t id : client_->PatchesNeeded()) {
-    std::string url = client_->PatchToUrl(id);
+  for (const std::string& url : client_->PatchesNeeded()) {
     if (inflight_urls_.contains(url)) {
       continue;
     }
-    inflight_urls_[url] = id;
-    urls_to_load[url] = id;
+    inflight_urls_.insert(url);
+    urls_to_load.insert(url);
   }
 
   if (!urls_to_load.empty()) {
     LoadUrls(urls_to_load);
     return;
   }
-
-  if (inflight_urls_.empty()) {
-    auto state = client_->Process();
-    if (!state.ok()) {
-      LOG(WARNING) << "Failed to process in the client: "
-                   << state.status().message();
-      SendCallbacks(false);
-      return;
-    }
-
-    if (*state == IFTClient::NEEDS_PATCHES) {
-      Process();
-      return;
-    }
-
-    if (*state == IFTClient::READY) {
-      SendCallbacks(true);
-      return;
-    }
-
-    LOG(WARNING) << "Unrecognized ift client state: " << *state;
-    SendCallbacks(false);
-  }
 }
 
 void State::UrlLoaded(std::string url, const FontData& data) {
-  auto it = inflight_urls_.find(url);
-  if (it != inflight_urls_.end()) {
-    uint32_t id = it->second;
-    client_->AddPatch(id, data);
-    inflight_urls_.erase(it);
+  if (inflight_urls_.contains(url)) {
+    client_->AddPatch(url, data);
+    inflight_urls_.erase(url);
     if (inflight_urls_.empty()) {
       Process();
     }
@@ -250,9 +243,7 @@ void State::LoadUrls(const patch_set& urls) {
     return;
   }
 
-  for (auto p : urls) {
-    const std::string& url = p.first;
-
+  for (const std::string& url : urls) {
     emscripten_fetch_attr_t attr;
     emscripten_fetch_attr_init(&attr);
     strcpy(attr.requestMethod, "GET");
