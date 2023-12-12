@@ -10,7 +10,7 @@
 #include "common/axis_range.h"
 #include "ift/ift_client.h"
 
-typedef absl::flat_hash_map<std::string, uint32_t> patch_set;
+typedef absl::flat_hash_set<std::string> patch_set;
 
 class State {
  public:
