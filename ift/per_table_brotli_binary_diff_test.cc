@@ -9,6 +9,7 @@
 #include "hb.h"
 #include "ift/proto/ift_table.h"
 
+using absl::btree_set;
 using absl::StatusOr;
 using absl::string_view;
 using common::BrotliBinaryPatch;
@@ -75,6 +76,39 @@ TEST_F(PerTableBrotliBinaryDiffTest, BasicDiff) {
   ASSERT_EQ(*new_table, "fooo");
 
   new_table = patch_table("bar", patch_proto.table_patches().at(tag2_str));
+  ASSERT_TRUE(new_table.ok()) << new_table.status();
+  ASSERT_EQ(*new_table, "baar");
+}
+
+TEST_F(PerTableBrotliBinaryDiffTest, ReplacementDiff) {
+  FontData before = FontHelper::BuildFont({
+      {tag1, "foo"},
+      {tag2, "bar"},
+  });
+
+  FontData after = FontHelper::BuildFont({
+      {tag1, "fooo"},
+      {tag2, "baar"},
+  });
+
+  PerTableBrotliBinaryDiff differ({}, {"tag2"});
+  FontData patch;
+  auto sc = differ.Diff(before, after, &patch);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  PerTablePatch patch_proto;
+  ASSERT_TRUE(patch_proto.ParseFromArray(patch.data(), patch.size()));
+  ASSERT_TRUE(patch_proto.removed_tables().empty());
+  ASSERT_EQ(patch_proto.replaced_tables_size(), 1);
+  ASSERT_EQ(patch_proto.replaced_tables().at(0), "tag2");
+
+  ASSERT_EQ(patch_proto.table_patches_size(), 2);
+
+  auto new_table = patch_table("foo", patch_proto.table_patches().at(tag1_str));
+  ASSERT_TRUE(new_table.ok()) << new_table.status();
+  ASSERT_EQ(*new_table, "fooo");
+
+  new_table = patch_table("", patch_proto.table_patches().at(tag2_str));
   ASSERT_TRUE(new_table.ok()) << new_table.status();
   ASSERT_EQ(*new_table, "baar");
 }

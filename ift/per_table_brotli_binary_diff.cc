@@ -37,7 +37,13 @@ Status PerTableBrotliBinaryDiff::Diff(const FontData& font_base,
       continue;
     }
 
-    FontData base_table = FontHelper::TableData(face_base, t);
+    FontData base_table;
+    if (!replaced_tags_.contains(tag)) {
+      base_table = FontHelper::TableData(face_base, t);
+    } else {
+      patch_proto.add_replaced_tables(tag);
+    }
+
     FontData derived_table = FontHelper::TableData(face_derived, t);
     FontData table_patch;
     auto sc = binary_diff_.Diff(base_table, derived_table, &table_patch);

@@ -15,12 +15,19 @@ namespace ift {
 /* Creates a per table brotli binary diff of two fonts. */
 class PerTableBrotliBinaryDiff : public common::BinaryDiff {
  public:
-  PerTableBrotliBinaryDiff() {}
+  PerTableBrotliBinaryDiff() : binary_diff_(11) {}
 
   PerTableBrotliBinaryDiff(std::initializer_list<const char*> excluded_tags)
-      : excluded_tags_() {
+      : binary_diff_(11), excluded_tags_(), replaced_tags_() {
     std::copy(excluded_tags.begin(), excluded_tags.end(),
               std::inserter(excluded_tags_, excluded_tags_.begin()));
+  }
+
+  PerTableBrotliBinaryDiff(absl::btree_set<std::string> excluded_tags,
+                           absl::btree_set<std::string> replaced_tags)
+      : binary_diff_(11), excluded_tags_(), replaced_tags_() {
+    excluded_tags_ = excluded_tags;
+    replaced_tags_ = replaced_tags;
   }
 
   absl::Status Diff(const common::FontData& font_base,
@@ -36,6 +43,7 @@ class PerTableBrotliBinaryDiff : public common::BinaryDiff {
 
   common::BrotliBinaryDiff binary_diff_;
   absl::btree_set<std::string> excluded_tags_;
+  absl::btree_set<std::string> replaced_tags_;
 };
 
 }  // namespace ift
