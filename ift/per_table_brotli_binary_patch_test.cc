@@ -25,15 +25,17 @@ class PerTableBrotliBinaryPatchTest : public ::testing::Test {
   PerTableBrotliBinaryPatchTest() {
     BrotliBinaryDiff differ;
 
-    FontData foo, bar, abc, def, empty;
+    FontData foo, bar, abc, def, hello, empty;
     foo.copy("foo");
     bar.copy("bar");
     abc.copy("abc");
     def.copy("def");
+    hello.copy("hello");
 
     assert(differ.Diff(foo, bar, &foo_to_bar).ok());
     assert(differ.Diff(abc, def, &abc_to_def).ok());
     assert(differ.Diff(empty, def, &empty_to_def).ok());
+    assert(differ.Diff(empty, hello, &empty_to_hello).ok());
   }
 
   hb_tag_t tag1 = HB_TAG('t', 'a', 'g', '1');
@@ -47,6 +49,7 @@ class PerTableBrotliBinaryPatchTest : public ::testing::Test {
   FontData foo_to_bar;
   FontData abc_to_def;
   FontData empty_to_def;
+  FontData empty_to_hello;
 
   PerTableBrotliBinaryPatch patcher;
 };
@@ -64,6 +67,32 @@ TEST_F(PerTableBrotliBinaryPatchTest, BasicPatch) {
   PerTablePatch patch_proto;
   (*patch_proto.mutable_table_patches())[tag1_str] = foo_to_bar.string();
   (*patch_proto.mutable_table_patches())[tag2_str] = abc_to_def.string();
+  std::string patch = patch_proto.SerializeAsString();
+  FontData patch_data;
+  patch_data.copy(patch.data(), patch.size());
+
+  FontData result;
+  auto sc = patcher.Patch(before, patch_data, &result);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  ASSERT_EQ(after.str(), result.str());
+}
+
+TEST_F(PerTableBrotliBinaryPatchTest, ReplaceTable) {
+  FontData before = FontHelper::BuildFont({
+      {tag1, "foo"},
+      {tag2, "abc"},
+  });
+  FontData after = FontHelper::BuildFont({
+      {tag1, "bar"},
+      {tag2, "hello"},
+  });
+
+  PerTablePatch patch_proto;
+  (*patch_proto.mutable_table_patches())[tag1_str] = foo_to_bar.string();
+  (*patch_proto.mutable_table_patches())[tag2_str] = empty_to_hello.string();
+  patch_proto.add_replaced_tables(tag2_str);
+
   std::string patch = patch_proto.SerializeAsString();
   FontData patch_data;
   patch_data.copy(patch.data(), patch.size());

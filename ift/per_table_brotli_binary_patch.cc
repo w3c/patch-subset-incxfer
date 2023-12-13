@@ -1,10 +1,12 @@
 #include "ift/per_table_brotli_binary_patch.h"
 
+#include "absl/container/flat_hash_set.h"
 #include "common/font_data.h"
 #include "common/font_helper.h"
 #include "hb.h"
 #include "ift/proto/IFT.pb.h"
 
+using absl::flat_hash_set;
 using absl::Status;
 using common::FontData;
 using common::FontHelper;
@@ -23,6 +25,11 @@ Status PerTableBrotliBinaryPatch::Patch(const FontData& font_base,
     return absl::InternalError("Failed to decode patch protobuf.");
   }
 
+  flat_hash_set<hb_tag_t> replacements;
+  for (const std::string& tag : proto.replaced_tables()) {
+    replacements.insert(FontHelper::ToTag(tag));
+  }
+
   hb_face_unique_ptr base = font_base.face();
   auto tags = FontHelper::GetTags(base.get());
 
@@ -39,7 +46,10 @@ Status PerTableBrotliBinaryPatch::Patch(const FontData& font_base,
 
   hb_face_unique_ptr new_face = make_hb_face_builder();
   for (hb_tag_t t : tags) {
-    FontData data = FontHelper::TableData(base.get(), t);
+    FontData data;
+    if (!replacements.contains(t)) {
+      data = FontHelper::TableData(base.get(), t);
+    }
     FontData patch;
 
     FontData derived;
