@@ -294,7 +294,16 @@ Status configure_mixed_mode(std::vector<btree_set<uint32_t>> iftb_patch_groups,
     }
   }
 
-  Status sc = encoder.SetBaseSubsetFromIftbPatches({});
+  flat_hash_map<hb_tag_t, AxisRange> design_space = {};
+  if (!absl::GetFlag(FLAGS_base_design_space).empty()) {
+    auto ds = ParseDesignSpace(absl::GetFlag(FLAGS_base_design_space));
+    if (!ds.ok()) {
+      return ds.status();
+    }
+    design_space = *ds;
+  }
+
+  Status sc = encoder.SetBaseSubsetFromIftbPatches({}, design_space);
   if (!sc.ok()) {
     return sc;
   }
