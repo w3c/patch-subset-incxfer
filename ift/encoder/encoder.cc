@@ -87,6 +87,15 @@ void PrintTo(const Encoder::SubsetDefinition& def, std::ostream* os) {
   *os << "]";
 }
 
+StatusOr<std::string> UrlTemplateFor(const FontData& font) {
+  auto ift = IFTTable::FromFont(font);
+  if (!ift.ok()) {
+    return ift.status();
+  }
+
+  return ift->GetUrlTemplate();
+}
+
 void Encoder::AddCombinations(const std::vector<const SubsetDefinition*>& in,
                               uint32_t choose,
                               std::vector<Encoder::SubsetDefinition>& out) {
@@ -325,7 +334,8 @@ Status Encoder::SetBaseSubsetFromIftbPatches(
 }
 
 Status Encoder::SetBaseSubsetFromIftbPatches(
-    const flat_hash_set<uint32_t>& included_patches, const design_space_t& design_space) {
+    const flat_hash_set<uint32_t>& included_patches,
+    const design_space_t& design_space) {
   // TODO(garretrieger): handle the case where a patch included in the
   //  base subset has associated feature specific patches. We could
   //  merge those in as well, or create special entries for them that only
@@ -352,8 +362,7 @@ Status Encoder::SetBaseSubsetFromIftbPatches(
     }
   }
 
-  auto excluded =
-      SubsetDefinitionForIftbPatches(excluded_patches);
+  auto excluded = SubsetDefinitionForIftbPatches(excluded_patches);
   if (!excluded.ok()) {
     return excluded.status();
   }
@@ -414,7 +423,8 @@ void Encoder::AddOptionalDesignSpace(const design_space_t& space) {
   extension_subsets_.push_back(def);
 }
 
-StatusOr<Encoder::SubsetDefinition> Encoder::SubsetDefinitionForIftbPatches(const flat_hash_set<uint32_t>& ids) const {
+StatusOr<Encoder::SubsetDefinition> Encoder::SubsetDefinitionForIftbPatches(
+    const flat_hash_set<uint32_t>& ids) const {
   SubsetDefinition result;
   for (uint32_t id : ids) {
     auto p = existing_iftb_patches_.find(id);
@@ -503,8 +513,19 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
   }
 
   IFTTable table;
-  // TODO(garretrieger): set the iftb specific url template based on design space.
-  table.SetUrlTemplate(UrlTemplate());
+  auto url_template = iftb_url_overrides_.find(base_subset.design_space);
+  bool replace_url_template =
+      IsMixedMode() && (url_template != iftb_url_overrides_.end());
+  if (!replace_url_template) {
+    table.SetUrlTemplate(UrlTemplate());
+  } else {
+    // There's a different url template to use for the iftb entries
+    // (which are stored in the main table).
+    const std::string& iftb_url_template = url_template->second;
+    table.SetUrlTemplate(iftb_url_template);
+    table.SetExtensionUrlTemplate(UrlTemplate());
+  }
+
   auto sc = table.SetId(Id());
   if (!sc.ok()) {
     return sc;
@@ -545,9 +566,6 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
   }
 
   built_subsets_[base_subset].shallow_copy(*base);
-  const BinaryDiff* differ = IsMixedMode()
-                                 ? (BinaryDiff*)&per_table_binary_diff_
-                                 : (BinaryDiff*)&binary_diff_;
 
   uint32_t i = 0;
   for (const auto& s : subsets) {
@@ -559,7 +577,11 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
     }
 
     FontData patch;
-    Status sc = differ->Diff(*base, *next, &patch);
+    auto differ = GetDifferFor(table, *next);
+    if (!differ.ok()) {
+      return differ.status();
+    }
+    Status sc = (*differ)->Diff(*base, *next, &patch);
     if (!sc.ok()) {
       return sc;
     }
@@ -568,6 +590,24 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
   }
 
   return base;
+}
+
+StatusOr<const BinaryDiff*> Encoder::GetDifferFor(
+    const IFTTable& base_table, const FontData& font_data) const {
+  if (!IsMixedMode()) {
+    return &binary_diff_;
+  }
+
+  auto new_url_template = UrlTemplateFor(font_data);
+  if (!new_url_template.ok()) {
+    return new_url_template.status();
+  }
+
+  if (base_table.GetUrlTemplate() != *new_url_template) {
+    return &replace_ift_map_binary_diff_;
+  }
+
+  return &per_table_binary_diff_;
 }
 
 StatusOr<FontData> Encoder::CutSubset(hb_face_t* font,

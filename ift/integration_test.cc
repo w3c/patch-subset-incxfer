@@ -47,6 +47,7 @@ constexpr hb_tag_t kWght = HB_TAG('w', 'g', 'h', 't');
 class IntegrationTest : public ::testing::Test {
  protected:
   IntegrationTest() {
+    // Noto Sans JP
     auto blob = make_hb_blob(
         hb_blob_create_from_file("ift/testdata/NotoSansJP-Regular.subset.ttf"));
     auto face = make_hb_face(hb_face_create(blob.get(), 0));
@@ -61,6 +62,22 @@ class IntegrationTest : public ::testing::Test {
       iftb_patches_[i].set(blob.get());
     }
 
+    // Noto Sans JP VF
+    blob = make_hb_blob(
+        hb_blob_create_from_file("ift/testdata/NotoSansJP[wght].subset.ttf"));
+    face = make_hb_face(hb_face_create(blob.get(), 0));
+    noto_sans_vf_.set(face.get());
+
+    vf_iftb_patches_.resize(5);
+    for (int i = 1; i <= 4; i++) {
+      std::string name = StrCat(
+          "ift/testdata/NotoSansJP[wght].subset_iftb/outline-chunk", i, ".br");
+      blob = make_hb_blob(hb_blob_create_from_file(name.c_str()));
+      assert(hb_blob_get_length(blob.get()) > 0);
+      vf_iftb_patches_[i].set(blob.get());
+    }
+
+    // Feature Test
     blob = make_hb_blob(hb_blob_create_from_file(
         "ift/testdata/NotoSansJP-Regular.feature-test.ttf"));
     face = make_hb_face(hb_face_create(blob.get(), 0));
@@ -111,6 +128,28 @@ class IntegrationTest : public ::testing::Test {
 
     for (uint i = 1; i < iftb_patches_.size(); i++) {
       auto sc = encoder.AddExistingIftbPatch(i, iftb_patches_[i]);
+      if (!sc.ok()) {
+        return sc;
+      }
+    }
+
+    return absl::OkStatus();
+  }
+
+  Status InitEncoderForVfIftb(Encoder& encoder) {
+    encoder.SetUrlTemplate("0x$2$1");
+    {
+      hb_face_t* face = noto_sans_vf_.reference_face();
+      encoder.SetFace(face);
+      hb_face_destroy(face);
+    }
+    auto sc = encoder.SetId({0x479bb4b0, 0x20226239, 0xa7799c0f, 0x24275be0});
+    if (!sc.ok()) {
+      return sc;
+    }
+
+    for (uint i = 1; i < vf_iftb_patches_.size(); i++) {
+      auto sc = encoder.AddExistingIftbPatch(i, vf_iftb_patches_[i]);
       if (!sc.ok()) {
         return sc;
       }
@@ -212,6 +251,9 @@ class IntegrationTest : public ::testing::Test {
 
   FontData noto_sans_jp_;
   std::vector<FontData> iftb_patches_;
+
+  FontData noto_sans_vf_;
+  std::vector<FontData> vf_iftb_patches_;
 
   FontData feature_test_;
   std::vector<FontData> feature_test_patches_;
@@ -925,6 +967,68 @@ TEST_F(IntegrationTest, MixedMode_SequentialDependentPatches) {
   ASSERT_FALSE(codepoints.contains(chunk2_cp));
   ASSERT_TRUE(codepoints.contains(chunk3_cp));
   ASSERT_TRUE(codepoints.contains(chunk4_cp));
+}
+
+TEST_F(IntegrationTest, MixedMode_DesignSpaceAugmentation) {
+  Encoder encoder;
+  auto sc = InitEncoderForVfIftb(encoder);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  // target paritions: {{0, 1}, {2}, {3, 4}} + add wght axis
+  sc = encoder.SetBaseSubsetFromIftbPatches({1},
+                                            {{kWght, AxisRange::Point(100)}});
+  sc.Update(encoder.AddExtensionSubsetOfIftbPatches({2}));
+  sc.Update(encoder.AddExtensionSubsetOfIftbPatches({3, 4}));
+  encoder.AddOptionalDesignSpace({{kWght, *AxisRange::Range(100, 900)}});
+  encoder.AddIftbUrlTemplateOverride({{kWght, *AxisRange::Range(100, 900)}},
+                                     "vf-0x$2$1");
+
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  auto encoded = encoder.Encode();
+  ASSERT_TRUE(encoded.ok()) << encoded.status();
+
+  auto client = IFTClient::NewClient(std::move(*encoded));
+  ASSERT_TRUE(client.ok()) << client.status();
+
+  // Phase 1: non VF augmentation.
+  client->AddDesiredCodepoints({chunk3_cp, chunk4_cp});
+  auto state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
+
+  auto patches = client->PatchesNeeded();
+  flat_hash_set<std::string> expected_patches = {"0x03", "0x04", "0x06"};
+  ASSERT_EQ(patches, expected_patches);
+  sc = AddPatchesIftb(*client, encoder, vf_iftb_patches_);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::READY);
+
+  // Phase 2: VF augmentation.
+  sc = client->AddDesiredDesignSpace(kWght, 100, 900);
+  ASSERT_TRUE(sc.ok()) << sc;
+  state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
+
+  patches = client->PatchesNeeded();
+  expected_patches = {
+      "0x0d",
+  };
+  ASSERT_EQ(patches, expected_patches);
+  sc = AddPatchesIftb(*client, encoder, vf_iftb_patches_);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
+
+  patches = client->PatchesNeeded();
+  expected_patches = {"vf-0x03", "vf-0x04"};
+  ASSERT_EQ(patches, expected_patches);
 }
 
 }  // namespace ift
