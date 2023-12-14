@@ -15,6 +15,7 @@
 #include "common/font_data.h"
 #include "hb-subset.h"
 #include "ift/per_table_brotli_binary_diff.h"
+#include "ift/proto/ift_table.h"
 #include "ift/proto/patch_map.h"
 
 namespace ift::encoder {
@@ -32,7 +33,9 @@ class Encoder {
   typedef absl::flat_hash_map<hb_tag_t, common::AxisRange> design_space_t;
 
   Encoder()
-      : binary_diff_(11), per_table_binary_diff_({"IFT ", "glyf", "loca"}) {}
+      : binary_diff_(11),
+        per_table_binary_diff_({"IFT ", "glyf", "loca"}),
+        replace_ift_map_binary_diff_({"glyf", "loca"}, {"IFT "}) {}
 
   ~Encoder() {
     if (face_) {
@@ -72,6 +75,16 @@ class Encoder {
   absl::Status AddIftbFeatureSpecificPatch(uint32_t original_id, uint32_t id,
                                            hb_tag_t feature_tag);
 
+  /*
+   * Overrides the patch url template used when the current subset matches
+   * the specified design space. The url override only applies to the IFTB
+   * mapping table.
+   */
+  void AddIftbUrlTemplateOverride(const design_space_t& design_space,
+                                  absl::string_view url_template) {
+    iftb_url_overrides_[design_space] = url_template;
+  }
+
   void SetFace(hb_face_t* face) { face_ = hb_face_reference(face); }
 
   /*
@@ -93,7 +106,8 @@ class Encoder {
       const absl::flat_hash_set<uint32_t>& included_patches);
 
   absl::Status SetBaseSubsetFromIftbPatches(
-      const absl::flat_hash_set<uint32_t>& included_patches, const design_space_t& design_space);
+      const absl::flat_hash_set<uint32_t>& included_patches,
+      const design_space_t& design_space);
 
   void AddExtensionSubset(const absl::flat_hash_set<hb_codepoint_t>& subset) {
     SubsetDefinition def;
@@ -136,6 +150,8 @@ class Encoder {
 
   absl::Span<const uint32_t> Id() const { return id_; }
 
+  // TODO(garretrieger): just like with IFTClient transition to using urls as
+  // the id.
   const absl::flat_hash_map<uint32_t, common::FontData>& Patches() const {
     return patches_;
   }
@@ -229,7 +245,8 @@ class Encoder {
   absl::StatusOr<common::FontData> Encode(const SubsetDefinition& base_subset,
                                           bool is_root = true);
 
-  absl::StatusOr<SubsetDefinition> SubsetDefinitionForIftbPatches(const absl::flat_hash_set<uint32_t>& ids) const;
+  absl::StatusOr<SubsetDefinition> SubsetDefinitionForIftbPatches(
+      const absl::flat_hash_set<uint32_t>& ids) const;
 
   bool IsMixedMode() const { return !existing_iftb_patches_.empty(); }
 
@@ -242,8 +259,13 @@ class Encoder {
   template <typename T>
   void RemoveIftbPatches(T ids);
 
+  absl::StatusOr<const common::BinaryDiff*> GetDifferFor(
+      const ift::proto::IFTTable& base_table,
+      const common::FontData& font_data) const;
+
   common::BrotliBinaryDiff binary_diff_;
   ift::PerTableBrotliBinaryDiff per_table_binary_diff_;
+  ift::PerTableBrotliBinaryDiff replace_ift_map_binary_diff_;
 
   // IN
   std::string url_template_ = "patch$5$4$3$2$1.br";
@@ -255,6 +277,7 @@ class Encoder {
       iftb_feature_mappings_;
   SubsetDefinition base_subset_;
   std::vector<SubsetDefinition> extension_subsets_;
+  absl::flat_hash_map<design_space_t, std::string> iftb_url_overrides_;
 
   // OUT
   uint32_t next_id_ = 0;
