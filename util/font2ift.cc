@@ -63,6 +63,14 @@ ABSL_FLAG(std::vector<std::string>, optional_design_space, {},
           "List of axis tag range pairs. "
           "Example: wght=300,wdth=50:100");
 
+ABSL_FLAG(std::string, optional_design_space_input_iftb_patch_template, {},
+          "Template used to locate the IFTB patches associated with the "
+          "optional design space.");
+
+ABSL_FLAG(std::string, optional_design_space_url_template, {},
+          "Output URL template to be used for IFTB patches associated "
+          "with the optional design space.");
+
 using absl::btree_set;
 using absl::flat_hash_map;
 using absl::flat_hash_set;
@@ -125,9 +133,8 @@ absl::flat_hash_set<hb_tag_t> StringsToTags(
   return tags;
 }
 
-FontData load_iftb_patch(uint32_t index) {
-  std::string path = IFTClient::PatchToUrl(
-      absl::GetFlag(FLAGS_input_iftb_patch_template), index);
+FontData load_iftb_patch(uint32_t index, const std::string& path_template) {
+  std::string path = IFTClient::PatchToUrl(path_template, index);
   hb_blob_t* blob = hb_blob_create_from_file_or_fail(path.c_str());
   if (!blob) {
     fprintf(stderr, "failed to load file: %s\n", path.c_str());
@@ -136,6 +143,11 @@ FontData load_iftb_patch(uint32_t index) {
 
   FontData result(blob);
   return result;
+}
+
+FontData load_iftb_patch(uint32_t index) {
+  std::string path_template = absl::GetFlag(FLAGS_input_iftb_patch_template);
+  return load_iftb_patch(index, path_template);
 }
 
 hb_face_t* load_font(const char* filename) {
@@ -193,10 +205,10 @@ Status write_file(const std::string& name, const FontData& data) {
   return absl::OkStatus();
 }
 
-void write_patch(const Encoder& encoder, uint32_t id, const FontData& patch) {
+void write_patch(const std::string& url_template, uint32_t id,
+                 const FontData& patch) {
   std::string output_path = absl::GetFlag(FLAGS_output_path);
-
-  std::string name = IFTClient::PatchToUrl(encoder.UrlTemplate(), id);
+  std::string name = IFTClient::PatchToUrl(url_template, id);
   std::cerr << "  Writing patch: " << StrCat(output_path, "/", name)
             << std::endl;
   auto sc = write_file(StrCat(output_path, "/", name), patch);
@@ -219,7 +231,7 @@ int write_output(const Encoder& encoder, const FontData& base_font) {
   }
 
   for (const auto& p : encoder.Patches()) {
-    write_patch(encoder, p.first, p.second);
+    write_patch(encoder.UrlTemplate(), p.first, p.second);
   }
 
   return 0;
@@ -290,7 +302,18 @@ Status configure_mixed_mode(std::vector<btree_set<uint32_t>> iftb_patch_groups,
         return sc;
       }
 
-      write_patch(encoder, id, iftb_patch);
+      write_patch(encoder.UrlTemplate(), id, iftb_patch);
+
+      if (!absl::GetFlag(FLAGS_optional_design_space_input_iftb_patch_template)
+               .empty() &&
+          !absl::GetFlag(FLAGS_optional_design_space_url_template).empty()) {
+        std::string in_template = absl::GetFlag(
+            FLAGS_optional_design_space_input_iftb_patch_template);
+        FontData opt_iftb_patch = load_iftb_patch(id, in_template);
+        std::string out_template =
+            absl::GetFlag(FLAGS_optional_design_space_url_template);
+        write_patch(out_template, id, opt_iftb_patch);
+      }
     }
   }
 
@@ -367,6 +390,11 @@ int main(int argc, char** argv) {
       return -1;
     }
     encoder.AddOptionalDesignSpace(*ds);
+    std::string design_space_url_template =
+        absl::GetFlag(FLAGS_optional_design_space_url_template);
+    if (!design_space_url_template.empty()) {
+      encoder.AddIftbUrlTemplateOverride(*ds, design_space_url_template);
+    }
   }
 
   if (mixed_mode) {
