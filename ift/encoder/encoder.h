@@ -34,8 +34,13 @@ class Encoder {
 
   Encoder()
       : binary_diff_(11),
-        per_table_binary_diff_({"IFT ", "glyf", "loca"}),
-        replace_ift_map_binary_diff_({"glyf", "loca"}, {"IFT "}) {}
+        per_table_binary_diff_({"IFT ", "glyf", "loca", "gvar"}),
+
+        // the replacement differ is used during design space expansions, both
+        // gvar and "IFT " are overwritten to be compatible with the new design
+        // space. IFTB Patches for all prev loaded glyphs will be downloaded
+        // to repopulate variation data for existing glyphs.
+        replace_ift_map_binary_diff_({"glyf", "loca"}, {"IFT ", "gvar"}) {}
 
   ~Encoder() {
     if (face_) {
@@ -188,6 +193,15 @@ class Encoder {
     absl::flat_hash_set<hb_tag_t> feature_tags;
     design_space_t design_space;
 
+    bool IsVariable() const {
+      for (const auto& [tag, range] : design_space) {
+        if (range.IsRange()) {
+          return true;
+        }
+      }
+      return false;
+    }
+
     bool empty() const {
       return codepoints.empty() && gids.empty() && feature_tags.empty() &&
              design_space.empty();
@@ -253,8 +267,14 @@ class Encoder {
   absl::Status PopulateIftbPatchMap(ift::proto::PatchMap& patch_map,
                                     const design_space_t& design_space) const;
 
+  absl::StatusOr<common::hb_face_unique_ptr> CutSubsetFaceBuilder(
+      hb_face_t* font, const SubsetDefinition& def) const;
+
+  absl::StatusOr<common::FontData> GenerateBaseGvar(
+      hb_face_t* font, const design_space_t& design_space) const;
+
   absl::StatusOr<common::FontData> CutSubset(hb_face_t* font,
-                                             const SubsetDefinition& def);
+                                             const SubsetDefinition& def) const;
 
   template <typename T>
   void RemoveIftbPatches(T ids);
