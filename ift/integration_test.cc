@@ -249,6 +249,17 @@ class IntegrationTest : public ::testing::Test {
     return absl::OkStatus();
   }
 
+  bool GvarHasLongOffsets(const FontData& font) {
+    auto face = font.face();
+    auto gvar_data =
+        FontHelper::TableData(face.get(), HB_TAG('g', 'v', 'a', 'r'));
+    if (gvar_data.size() < 16) {
+      return false;
+    }
+    uint8_t flags_1 = gvar_data.str().at(15);
+    return flags_1 == 0x01;
+  }
+
   FontData noto_sans_jp_;
   std::vector<FontData> iftb_patches_;
 
@@ -1026,9 +1037,15 @@ TEST_F(IntegrationTest, MixedMode_DesignSpaceAugmentation) {
   ASSERT_TRUE(state.ok()) << state.status();
   ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
 
+  ASSERT_TRUE(GvarHasLongOffsets(client->GetFontData()));
+  // TODO(garretrieger): check gvar only has coverage of base suset glyphs
+
   patches = client->PatchesNeeded();
   expected_patches = {"vf-0x03", "vf-0x04"};
   ASSERT_EQ(patches, expected_patches);
+
+  // TODO(garretrieger): apply the vf patches and test
+  //  gvar should now have data for all augmented glyphs.
 }
 
 }  // namespace ift
