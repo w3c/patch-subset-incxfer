@@ -19,6 +19,7 @@
 #include "ift/ift_client.h"
 #include "ift/iftb_binary_patch.h"
 #include "ift/proto/patch_map.h"
+#include "util/helper.h"
 
 /*
  * Utility that converts a standard font file into an IFT font file.
@@ -84,41 +85,7 @@ using ift::IftbBinaryPatch;
 using ift::IFTClient;
 using ift::encoder::Encoder;
 using ift::proto::PatchMap;
-
-StatusOr<flat_hash_map<hb_tag_t, AxisRange>> ParseDesignSpace(
-    const std::vector<std::string>& list) {
-  flat_hash_map<hb_tag_t, AxisRange> result;
-  for (std::string item : list) {
-    std::stringstream input(item);
-    std::string tag_str;
-    if (!getline(input, tag_str, '=')) {
-      return absl::InvalidArgumentError(StrCat("Failed parsing (1) ", item));
-    }
-
-    std::string value1, value2;
-    if (getline(input, value1, ':')) {
-      getline(input, value2);
-    }
-
-    hb_tag_t tag = FontHelper::ToTag(tag_str);
-    float start = std::stof(value1);
-
-    if (value2.empty()) {
-      result[tag] = AxisRange::Point(start);
-      continue;
-    }
-
-    float end = std::stof(value2);
-    auto r = AxisRange::Range(start, end);
-    if (!r.ok()) {
-      return r.status();
-    }
-
-    result[tag] = *r;
-  }
-
-  return result;
-}
+using util::ParseDesignSpace;
 
 absl::flat_hash_set<hb_tag_t> StringsToTags(
     const std::vector<std::string>& tag_strs) {
