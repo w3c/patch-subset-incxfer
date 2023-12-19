@@ -1,5 +1,22 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary")
 
+cc_library(
+    name = "helper",
+    srcs = [
+        "helper.cc",
+    ],
+    hdrs = [
+        "helper.h",
+    ],
+    deps = [
+        "//common",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@harfbuzz",
+    ],
+)
+
 cc_binary(
     name = "checksum",
     srcs = [
@@ -54,6 +71,7 @@ cc_binary(
         "font2ift.cc",
     ],
     deps = [
+        ":helper",
         "//ift:client",
         "//ift/encoder",
         "@com_google_absl//absl/container:flat_hash_set",
@@ -62,6 +80,38 @@ cc_binary(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@harfbuzz",
+    ],
+)
+
+cc_binary(
+    name = "augment",
+    srcs = [
+        "augment.cc",
+    ],
+    deps = [
+        ":helper",
+        "//ift:client",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_binary(
+    name = "patch",
+    srcs = [
+        "patch.cc",
+    ],
+    deps = [
+        ":helper",
+        "//ift:client",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
     ],
 )
 
