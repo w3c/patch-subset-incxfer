@@ -72,13 +72,13 @@ StatusOr<string_view> FontHelper::GvarData(const hb_face_t* face,
   bool is_wide = (((uint8_t)gvar.str()[gvar_flags_offset]) & 0x01);
   if (is_wide) {
     IndexedDataReader<uint32_t, 1> reader(
-        gvar.str().substr(gvar_offsets_table_offset, *glyph_count * 4),
+        gvar.str().substr(gvar_offsets_table_offset, (*glyph_count + 1) * 4),
         gvar.str().substr(*data_offset));
     return reader.DataFor(gid);
   }
 
   IndexedDataReader<uint16_t, 2> reader(
-      gvar.str().substr(gvar_offsets_table_offset, *glyph_count * 2),
+      gvar.str().substr(gvar_offsets_table_offset, (*glyph_count + 1) * 2),
       gvar.str().substr(*data_offset));
   return reader.DataFor(gid);
 }
