@@ -68,6 +68,9 @@ class FontHelper {
   static absl::StatusOr<absl::string_view> GlyfData(const hb_face_t* face,
                                                     uint32_t gid);
 
+  static absl::StatusOr<absl::string_view> GvarData(const hb_face_t* face,
+                                                    uint32_t gid);
+
   static absl::StatusOr<absl::string_view> Loca(const hb_face_t* face) {
     auto result = FontHelper::TableData(face, kLoca).str();
     if (result.empty()) {

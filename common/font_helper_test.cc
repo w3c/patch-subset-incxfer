@@ -117,6 +117,26 @@ TEST_F(FontHelperTest, GlyfData_Long) {
   ASSERT_EQ(data->size(), 0);
 }
 
+TEST_F(FontHelperTest, GvarData) {
+  auto data = FontHelper::GvarData(roboto_vf.get(), 2);
+  ASSERT_TRUE(data.ok()) << data.status();
+  ASSERT_EQ(data->size(), 0);
+  ASSERT_EQ(*data, "");
+
+  data = FontHelper::GvarData(roboto_vf.get(), 5);
+  ASSERT_TRUE(data.ok()) << data.status();
+  ASSERT_EQ(data->size(), 250);
+  const uint8_t expected[11] = {0x80, 0x06, 0x00, 0x2c, 0x00, 0x2a,
+                                0x00, 0x02, 0x00, 0x26, 0x00};
+  string_view expected_str((const char*)expected, 11);
+  ASSERT_EQ(data->substr(0, 11), expected_str);
+}
+
+TEST_F(FontHelperTest, GvarData_NotFound) {
+  auto data = FontHelper::GvarData(roboto_vf.get(), 1300);
+  ASSERT_TRUE(absl::IsNotFound(data.status())) << data.status();
+}
+
 TEST_F(FontHelperTest, Loca) {
   auto s = FontHelper::Loca(roboto_ab.get());
   ASSERT_TRUE(s.ok()) << s.status();

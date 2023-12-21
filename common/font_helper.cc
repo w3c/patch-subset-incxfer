@@ -14,12 +14,59 @@ using absl::btree_set;
 using absl::flat_hash_map;
 using absl::StatusOr;
 using absl::StrCat;
+using absl::string_view;
 using common::FontData;
 
 namespace common {
 
-absl::StatusOr<absl::string_view> FontHelper::GlyfData(const hb_face_t* face,
-                                                       uint32_t gid) {
+StatusOr<string_view> FindData(string_view offsets, bool wide_offsets,
+                               uint32_t start_index, uint32_t end_index,
+                               string_view data) {
+  uint32_t width = wide_offsets ? 4 : 2;
+  if (offsets.size() < end_index + width) {
+    return absl::NotFoundError(
+        StrCat("entry not found, offsets array is too short."));
+  }
+
+  uint32_t data_start = 0;
+  uint32_t data_end = 0;
+  if (!wide_offsets) {
+    auto start = FontHelper::ReadUInt16(offsets.substr(start_index));
+    auto end = FontHelper::ReadUInt16(offsets.substr(end_index));
+    if (!start.ok()) {
+      return start.status();
+    }
+    if (!end.ok()) {
+      return end.status();
+    }
+    data_start = *start * 2;
+    data_end = *end * 2;
+  } else {
+    auto start = FontHelper::ReadUInt32(offsets.substr(start_index));
+    auto end = FontHelper::ReadUInt32(offsets.substr(end_index));
+    if (!start.ok()) {
+      return start.status();
+    }
+    if (!end.ok()) {
+      return end.status();
+    }
+    data_start = *start;
+    data_end = *end;
+  }
+
+  if (data_end < data_start) {
+    return absl::InvalidArgumentError("invalid entry, end is less than start.");
+  }
+
+  if (data.size() < data_end) {
+    return absl::InvalidArgumentError("invalid glyf table, too short.");
+  }
+
+  return data.substr(data_start, data_end - data_start);
+}
+
+absl::StatusOr<string_view> FontHelper::GlyfData(const hb_face_t* face,
+                                                 uint32_t gid) {
   auto loca = Loca(face);
   if (!loca.ok()) {
     return loca.status();
@@ -35,48 +82,47 @@ absl::StatusOr<absl::string_view> FontHelper::GlyfData(const hb_face_t* face,
   uint32_t start_index = gid * width;
   uint32_t end_index = (gid + 1) * width;
 
-  if (loca->size() < end_index + width) {
-    return absl::NotFoundError(
-        StrCat("gid ", gid, "not found in loca, loca is too short."));
-  }
-
-  uint32_t glyph_data_start = 0;
-  uint32_t glyph_data_end = 0;
-  if (is_short_loca) {
-    auto glyph_start = ReadUInt16(loca->substr(start_index));
-    auto glyph_end = ReadUInt16(loca->substr(end_index));
-    if (!glyph_start.ok()) {
-      return glyph_start.status();
-    }
-    if (!glyph_end.ok()) {
-      return glyph_end.status();
-    }
-    glyph_data_start = *glyph_start * 2;
-    glyph_data_end = *glyph_end * 2;
-  } else {
-    auto glyph_start = ReadUInt32(loca->substr(start_index));
-    auto glyph_end = ReadUInt32(loca->substr(end_index));
-    if (!glyph_start.ok()) {
-      return glyph_start.status();
-    }
-    if (!glyph_end.ok()) {
-      return glyph_end.status();
-    }
-    glyph_data_start = *glyph_start;
-    glyph_data_end = *glyph_end;
-  }
-
-  if (glyph_data_end < glyph_data_start) {
-    return absl::InvalidArgumentError(
-        "invalid loca entry, end is less than start.");
-  }
-
   auto glyf = TableData(face, kGlyf);
-  if (glyf.size() < glyph_data_end) {
-    return absl::InvalidArgumentError("invalid glyf table, too short.");
+  return FindData(*loca, !is_short_loca, start_index, end_index, glyf.str());
+}
+
+StatusOr<string_view> FontHelper::GvarData(const hb_face_t* face,
+                                           uint32_t gid) {
+  auto gvar = TableData(face, kGvar);
+  if (gvar.empty()) {
+    return absl::NotFoundError("gvar not in the font.");
   }
 
-  return glyf.str().substr(glyph_data_start, glyph_data_end - glyph_data_start);
+  constexpr uint32_t glyph_count_offset = 12;
+  constexpr uint32_t gvar_flags_offset = 15;
+  constexpr uint32_t data_array_offset = 16;
+  constexpr uint32_t gvar_offsets_table_offset = 20;
+
+  if (gvar.size() < 20) {
+    return absl::InvalidArgumentError("gvar table is too short.");
+  }
+
+  auto glyph_count = ReadUInt16(gvar.str().substr(glyph_count_offset));
+  if (!glyph_count.ok()) {
+    return glyph_count.status();
+  }
+  if (gid >= *glyph_count) {
+    return absl::NotFoundError(StrCat("gid ", gid, " not found."));
+  }
+
+  bool is_wide = (((uint8_t)gvar.str()[gvar_flags_offset]) & 0x01);
+  uint32_t width = is_wide ? 4 : 2;
+
+  auto data_offset = ReadUInt32(gvar.str().substr(data_array_offset));
+  if (!data_offset.ok()) {
+    return data_offset.status();
+  }
+
+  uint32_t start_index = gid * width + gvar_offsets_table_offset;
+  uint32_t end_index = (gid + 1) * width + gvar_offsets_table_offset;
+
+  return FindData(gvar.str(), is_wide, start_index, end_index,
+                  gvar.str().substr(*data_offset));
 }
 
 flat_hash_map<uint32_t, uint32_t> FontHelper::GidToUnicodeMap(hb_face_t* face) {
