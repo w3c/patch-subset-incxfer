@@ -62,7 +62,7 @@ cc_binary(
     ],
     deps = [
         "@brotli",
-        "@woff2",
+        "@woff2", 
     ],
 )
 
@@ -79,9 +79,12 @@ cc_library(
         "src/table_IFTB.h",
         "src/cmap.cc",
         "src/cmap.h",
+        "src/wrappers.h",
+        "src/chunk.cc",
     ],
     hdrs = [
         "src/merger.h",
+        "src/chunk.h",
     ],
     includes = [
         "src/",
@@ -95,6 +98,7 @@ cc_library(
     deps = [
         "@brotli",
         "@woff2",
+        "@harfbuzz",
     ],
     visibility = ["//visibility:public"],
 )
