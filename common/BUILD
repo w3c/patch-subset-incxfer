@@ -12,6 +12,7 @@ cc_library(
         "hb_set_unique_ptr.cc",
         "sparse_bit_set.cc",
         "axis_range.cc",
+        "indexed_data_reader.h",
     ],
     hdrs = [
         "binary_diff.h",
@@ -75,6 +76,7 @@ cc_test(
         "branch_factor_test.cc",
         "brotli_patching_test.cc",
         "axis_range_test.cc",
+        "indexed_data_reader_test.cc",
         "file_font_provider_test.cc",
         "font_helper_test.cc",
         "sparse_bit_set_test.cc",
