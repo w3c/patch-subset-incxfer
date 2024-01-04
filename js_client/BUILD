@@ -42,7 +42,6 @@ cc_binary(
     deps = [
         "//common",
         "//ift:client",
-        "//ift/encoder",
         "@com_google_absl//absl/container:btree",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",

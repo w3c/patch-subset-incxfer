@@ -79,11 +79,34 @@ cc_library(
         "src/table_IFTB.h",
         "src/cmap.cc",
         "src/cmap.h",
+    ],
+    hdrs = [
+        "src/merger.h",
+    ],
+    includes = [
+        "src/",
+    ],
+    copts = [
+        "-Wno-reorder-ctor",
+        "-Wno-unused-variable",
+        "-Wno-unused-but-set-variable",
+        "-Wno-unused-private-field",
+    ],
+    deps = [
+        "@brotli",
+        "@woff2",
+        "@harfbuzz",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "chunk",
+    srcs = [
         "src/wrappers.h",
         "src/chunk.cc",
     ],
     hdrs = [
-        "src/merger.h",
         "src/chunk.h",
     ],
     includes = [
@@ -99,6 +122,7 @@ cc_library(
         "@brotli",
         "@woff2",
         "@harfbuzz",
+        ":merger",
     ],
     visibility = ["//visibility:public"],
 )

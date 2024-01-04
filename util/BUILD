@@ -61,7 +61,7 @@ cc_binary(
     ],
     deps = [
         ":convert_iftb",
-        "//ift/encoder",
+        "//common",
     ],
 )
 
@@ -74,6 +74,7 @@ cc_binary(
         ":helper",
         "//ift:client",
         "//ift/encoder",
+        "//common",
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",

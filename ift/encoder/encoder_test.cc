@@ -828,50 +828,6 @@ TEST_F(EncoderTest, Encode_FourSubsets_WithJumpAhead) {
   ASSERT_EQ(g, expected);
 }
 
-TEST_F(EncoderTest, EncodeWoff2) {
-  auto woff2 = Encoder::EncodeWoff2(font.str());
-  ASSERT_TRUE(woff2.ok()) << woff2.status();
-
-  ASSERT_GT(woff2->size(), 48);
-  ASSERT_EQ("wOF2", string_view(woff2->data(), 4));
-  ASSERT_LT(woff2->size(), font.size());
-}
-
-TEST_F(EncoderTest, EncodeWoff2_NoGlyfTransform) {
-  auto woff2 = Encoder::EncodeWoff2(font.str(), true);
-  auto woff2_no_transform = Encoder::EncodeWoff2(font.str(), false);
-  ASSERT_TRUE(woff2.ok()) << woff2.status();
-  ASSERT_TRUE(woff2_no_transform.ok()) << woff2_no_transform.status();
-
-  ASSERT_GT(woff2->size(), 48);
-  ASSERT_GT(woff2_no_transform->size(), 48);
-  ASSERT_EQ("wOF2", string_view(woff2->data(), 4));
-  ASSERT_EQ("wOF2", string_view(woff2_no_transform->data(), 4));
-  ASSERT_LT(woff2->size(), font.size());
-  ASSERT_LT(woff2_no_transform->size(), font.size());
-  ASSERT_NE(woff2_no_transform->size(), woff2->size());
-}
-
-TEST_F(EncoderTest, EncodeWoff2_Fails) {
-  auto woff2 = Encoder::EncodeWoff2(woff2_font.str());
-  ASSERT_TRUE(absl::IsInternal(woff2.status())) << woff2.status();
-}
-
-TEST_F(EncoderTest, DecodeWoff2) {
-  auto font = Encoder::DecodeWoff2(woff2_font.str());
-  ASSERT_TRUE(font.ok()) << font.status();
-
-  ASSERT_GT(font->size(), woff2_font.size());
-  uint8_t true_type_tag[] = {0, 1, 0, 0};
-  ASSERT_EQ(true_type_tag,
-            Span<const uint8_t>((const uint8_t*)font->data(), 4));
-}
-
-TEST_F(EncoderTest, DecodeWoff2_Fails) {
-  auto ttf = Encoder::DecodeWoff2(font.str());
-  ASSERT_TRUE(absl::IsInternal(ttf.status())) << ttf.status();
-}
-
 TEST_F(EncoderTest, RoundTripWoff2) {
   auto ttf = Encoder::RoundTripWoff2(font.str());
   ASSERT_TRUE(ttf.ok()) << ttf.status();

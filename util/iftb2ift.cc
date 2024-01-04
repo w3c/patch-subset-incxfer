@@ -9,8 +9,8 @@
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "common/font_data.h"
+#include "common/woff2.h"
 #include "hb.h"
-#include "ift/encoder/encoder.h"
 #include "ift/proto/IFT.pb.h"
 #include "ift/proto/ift_table.h"
 #include "util/convert_iftb.h"
@@ -28,8 +28,8 @@ ABSL_FLAG(std::string, output_format, "font",
           "Format of the output: 'text', 'proto', 'font', or 'woff2'.");
 
 using common::FontData;
+using common::Woff2;
 using google::protobuf::TextFormat;
-using ift::encoder::Encoder;
 using ift::proto::IFT;
 using ift::proto::IFTTable;
 using util::convert_iftb;
@@ -104,7 +104,7 @@ int main(int argc, char** argv) {
     }
 
     if (out_format == "woff2") {
-      out_font = Encoder::EncodeWoff2(out_font->str());
+      out_font = Woff2::EncodeWoff2(out_font->str());
       if (!out_font.ok()) {
         std::cerr << out_font.status();
       }

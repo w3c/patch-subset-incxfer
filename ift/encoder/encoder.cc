@@ -12,15 +12,13 @@
 #include "common/font_data.h"
 #include "common/font_helper.h"
 #include "common/hb_set_unique_ptr.h"
+#include "common/woff2.h"
 #include "hb-subset.h"
 #include "ift/ift_client.h"
 #include "ift/iftb_binary_patch.h"
 #include "ift/proto/IFT.pb.h"
 #include "ift/proto/ift_table.h"
 #include "ift/proto/patch_map.h"
-#include "woff2/decode.h"
-#include "woff2/encode.h"
-#include "woff2/output.h"
 
 using absl::btree_set;
 using absl::flat_hash_map;
@@ -39,6 +37,7 @@ using common::hb_set_unique_ptr;
 using common::make_hb_blob;
 using common::make_hb_face;
 using common::make_hb_set;
+using common::Woff2;
 using ift::IftbBinaryPatch;
 using ift::proto::IFT;
 using ift::proto::IFTB_ENCODING;
@@ -47,12 +46,6 @@ using ift::proto::PatchEncoding;
 using ift::proto::PatchMap;
 using ift::proto::PER_TABLE_SHARED_BROTLI_ENCODING;
 using ift::proto::SHARED_BROTLI_ENCODING;
-using woff2::ComputeWOFF2FinalSize;
-using woff2::ConvertTTFToWOFF2;
-using woff2::ConvertWOFF2ToTTF;
-using woff2::MaxWOFF2CompressedSize;
-using woff2::WOFF2Params;
-using woff2::WOFF2StringOut;
 
 namespace ift::encoder {
 
@@ -704,55 +697,14 @@ void Encoder::RemoveIftbPatches(T ids) {
   }
 }
 
-StatusOr<FontData> Encoder::EncodeWoff2(string_view font, bool glyf_transform) {
-  WOFF2Params params;
-  params.brotli_quality = 11;
-  params.allow_transforms = glyf_transform;
-  params.preserve_table_order =
-      true;  // IFTB patches require a specific table ordering.
-  size_t buffer_size =
-      MaxWOFF2CompressedSize((const uint8_t*)font.data(), font.size());
-  uint8_t* buffer = (uint8_t*)malloc(buffer_size);
-  if (!ConvertTTFToWOFF2((const uint8_t*)font.data(), font.size(), buffer,
-                         &buffer_size, params)) {
-    free(buffer);
-    return absl::InternalError("WOFF2 encoding failed.");
-  }
-
-  hb_blob_t* blob = hb_blob_create((const char*)buffer, buffer_size,
-                                   HB_MEMORY_MODE_READONLY, buffer, free);
-  FontData result(blob);
-  hb_blob_destroy(blob);
-  return result;
-}
-
-StatusOr<FontData> Encoder::DecodeWoff2(string_view font) {
-  size_t buffer_size =
-      ComputeWOFF2FinalSize((const uint8_t*)font.data(), font.size());
-  if (!buffer_size) {
-    return absl::InternalError("Failed computing woff2 output size.");
-  }
-
-  std::string buffer;
-  buffer.resize(buffer_size);
-  WOFF2StringOut out(&buffer);
-
-  if (!ConvertWOFF2ToTTF((const uint8_t*)font.data(), font.size(), &out)) {
-    return absl::InternalError("WOFF2 decoding failed.");
-  }
-
-  FontData result(buffer);
-  return result;
-}
-
 StatusOr<FontData> Encoder::RoundTripWoff2(string_view font,
                                            bool glyf_transform) {
-  auto r = EncodeWoff2(font, glyf_transform);
+  auto r = Woff2::EncodeWoff2(font, glyf_transform);
   if (!r.ok()) {
     return r.status();
   }
 
-  return DecodeWoff2(r->str());
+  return Woff2::DecodeWoff2(r->str());
 }
 
 }  // namespace ift::encoder
