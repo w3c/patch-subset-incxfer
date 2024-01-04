@@ -261,6 +261,8 @@ class Encoder {
 
   bool IsMixedMode() const { return !existing_iftb_patches_.empty(); }
 
+  absl::Status PopulateIftbPatches(const design_space_t& design_space);
+
   absl::Status PopulateIftbPatchMap(ift::proto::PatchMap& patch_map,
                                     const design_space_t& design_space) const;
 
@@ -272,6 +274,9 @@ class Encoder {
 
   absl::StatusOr<common::FontData> CutSubset(hb_face_t* font,
                                              const SubsetDefinition& def) const;
+
+  absl::StatusOr<common::FontData> Instance(
+      hb_face_t* font, const design_space_t& design_space) const;
 
   template <typename T>
   void RemoveIftbPatches(T ids);

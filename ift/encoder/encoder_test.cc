@@ -644,7 +644,7 @@ TEST_F(EncoderTest, Encode_ThreeSubsets_Mixed) {
   ASSERT_FALSE(cps.contains(chunk3_cp));
   ASSERT_FALSE(cps.contains(chunk4_cp));
 
-  ASSERT_EQ(encoder.Patches().size(), 1);
+  ASSERT_EQ(encoder.Patches().size(), 3);
 
   // TODO(garretrieger): check the iftb entries in the base and check
   //  they are unmodified in derived fonts.
@@ -718,7 +718,7 @@ TEST_F(EncoderTest, Encode_ThreeSubsets_Mixed_WithFeatureMappings) {
   auto base = encoder.Encode();
   ASSERT_TRUE(base.ok()) << base.status();
 
-  ASSERT_EQ(encoder.Patches().size(), 4);
+  ASSERT_EQ(encoder.Patches().size(), 7);
 
   auto ift_table = IFTTable::FromFont(*base);
   ASSERT_TRUE(ift_table.ok()) << ift_table.status();

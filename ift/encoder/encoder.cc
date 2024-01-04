@@ -14,6 +14,7 @@
 #include "common/hb_set_unique_ptr.h"
 #include "common/woff2.h"
 #include "hb-subset.h"
+#include "ift/encoder/iftb_patch_creator.h"
 #include "ift/ift_client.h"
 #include "ift/iftb_binary_patch.h"
 #include "ift/proto/IFT.pb.h"
@@ -274,10 +275,6 @@ Status Encoder::AddExistingIftbPatch(uint32_t id, const FontData& patch) {
     return absl::FailedPreconditionError("Encoder must have a face set.");
   }
 
-  // TODO(garretrieger): check this new patch is compatible (ie. has same gid
-  // coverage)
-  //  as patches for other design spaces (if they exist).
-
   auto gids = IftbBinaryPatch::GidsInPatch(patch);
   if (!gids.ok()) {
     return gids.status();
@@ -440,12 +437,53 @@ StatusOr<FontData> Encoder::Encode() {
     return absl::FailedPreconditionError("Encoder must have a face set.");
   }
 
-  // TODO(garretrieger): generate all of the needed IFTB patches here.
-  // using the input IFTB patch groupings + design space overrides.
+  // TODO(garretrieger): Generate iftb patches for the override url templates
+  // too.
+  auto sc = PopulateIftbPatches(base_subset_.design_space);
+  if (!sc.ok()) {
+    return sc;
+  }
+
   // TODO(garretrieger): Update the gvar special casing to generate a gvar which
   // matches (for shared tuples) the one used for iftb patch generation here.
 
   return Encode(base_subset_, true);
+}
+
+Status Encoder::PopulateIftbPatches(const design_space_t& design_space) {
+  if (existing_iftb_patches_.empty()) {
+    return absl::OkStatus();
+  }
+
+  FontData instance;
+  instance.set(face_);
+
+  if (!design_space.empty()) {
+    // If a design space is provided, apply it.
+    auto result = Instance(face_, design_space);
+    if (!result.ok()) {
+      return result.status();
+    }
+    instance.shallow_copy(*result);
+  }
+
+  for (const auto& e : existing_iftb_patches_) {
+    uint32_t index = e.first;
+    // TODO(garretrieger): swap in the correct url template if there is an
+    // override.
+    std::string url = IFTClient::PatchToUrl(UrlTemplate(), index);
+
+    SubsetDefinition subset = e.second;
+    auto patch =
+        IftbPatchCreator::CreatePatch(instance, index, Id(), subset.gids);
+    if (!patch.ok()) {
+      return patch.status();
+    }
+
+    patches_[url].shallow_copy(*patch);
+  }
+
+  return absl::OkStatus();
 }
 
 Status Encoder::PopulateIftbPatchMap(PatchMap& patch_map,
@@ -688,6 +726,29 @@ StatusOr<FontData> Encoder::CutSubset(hb_face_t* font,
 
   FontData subset(blob.get());
   return subset;
+}
+
+StatusOr<FontData> Encoder::Instance(hb_face_t* face,
+                                     const design_space_t& design_space) const {
+  hb_subset_input_t* input = hb_subset_input_create_or_fail();
+
+  // Keep everything in this subset, except for applying the design space.
+  hb_subset_input_keep_everything(input);
+
+  for (const auto& [tag, range] : design_space) {
+    hb_subset_input_set_axis_range(input, face, tag, range.start(), range.end(),
+                                   NAN);
+  }
+
+  hb_face_unique_ptr out = make_hb_face(hb_subset_or_fail(face, input));
+  hb_subset_input_destroy(input);
+
+  if (!out.get()) {
+    return absl::InternalError("Instancing failed.");
+  }
+
+  FontData result(out.get());
+  return result;
 }
 
 template <typename T>
