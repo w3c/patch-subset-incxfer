@@ -13,6 +13,7 @@
 #include "common/font_helper.h"
 #include "common/hb_set_unique_ptr.h"
 #include "hb-subset.h"
+#include "ift/ift_client.h"
 #include "ift/iftb_binary_patch.h"
 #include "ift/proto/IFT.pb.h"
 #include "ift/proto/ift_table.h"
@@ -446,6 +447,11 @@ StatusOr<FontData> Encoder::Encode() {
     return absl::FailedPreconditionError("Encoder must have a face set.");
   }
 
+  // TODO(garretrieger): generate all of the needed IFTB patches here.
+  // using the input IFTB patch groupings + design space overrides.
+  // TODO(garretrieger): Update the gvar special casing to generate a gvar which
+  // matches (for shared tuples) the one used for iftb patch generation here.
+
   return Encode(base_subset_, true);
 }
 
@@ -590,7 +596,8 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
       return sc;
     }
 
-    patches_[id].shallow_copy(patch);
+    std::string url = IFTClient::PatchToUrl(UrlTemplate(), id);
+    patches_[url].shallow_copy(patch);
   }
 
   return base;

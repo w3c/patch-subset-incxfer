@@ -218,10 +218,9 @@ class IntegrationTest : public ::testing::Test {
       if (id_value < iftb_patches.size()) {
         patch_data.shallow_copy(iftb_patches[id_value]);
       } else {
-        auto it = encoder.Patches().find(id_value);
+        auto it = encoder.Patches().find(id);
         if (it == encoder.Patches().end()) {
-          return absl::InternalError(
-              StrCat("Patch ", id_value, " was not found."));
+          return absl::InternalError(StrCat("Patch ", id, " was not found."));
         }
         patch_data.shallow_copy(it->second);
       }
@@ -235,12 +234,10 @@ class IntegrationTest : public ::testing::Test {
   Status AddPatchesSbr(IFTClient& client, Encoder& encoder) {
     auto patches = client.PatchesNeeded();
     for (const auto& id : patches) {
-      uint32_t id_value = std::stoul(id, nullptr, 16);
       FontData patch_data;
-      auto it = encoder.Patches().find(id_value);
+      auto it = encoder.Patches().find(id);
       if (it == encoder.Patches().end()) {
-        return absl::InternalError(
-            StrCat("Patch ", id_value, " was not found."));
+        return absl::InternalError(StrCat("Patch ", id, " was not found."));
       }
       patch_data.shallow_copy(it->second);
       client.AddPatch(id, patch_data);
