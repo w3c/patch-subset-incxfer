@@ -171,9 +171,6 @@ class Encoder {
    */
   absl::StatusOr<common::FontData> Encode();
 
-  static absl::StatusOr<common::FontData> EncodeWoff2(
-      absl::string_view font, bool glyf_transform = true);
-  static absl::StatusOr<common::FontData> DecodeWoff2(absl::string_view font);
   static absl::StatusOr<common::FontData> RoundTripWoff2(
       absl::string_view font, bool glyf_transform = true);
 

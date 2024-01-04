@@ -14,6 +14,7 @@
 #include "common/axis_range.h"
 #include "common/font_data.h"
 #include "common/font_helper.h"
+#include "common/woff2.h"
 #include "hb.h"
 #include "ift/encoder/encoder.h"
 #include "ift/ift_client.h"
@@ -81,6 +82,7 @@ using absl::StrCat;
 using common::AxisRange;
 using common::FontData;
 using common::FontHelper;
+using common::Woff2;
 using ift::IftbBinaryPatch;
 using ift::IFTClient;
 using ift::encoder::Encoder;
@@ -433,7 +435,7 @@ int main(int argc, char** argv) {
 
   std::cout << ">> encoding:" << std::endl;
   auto base_font = encoder.Encode();
-  base_font = Encoder::EncodeWoff2(base_font->str(), false);
+  base_font = Woff2::EncodeWoff2(base_font->str(), false);
   if (!base_font.ok()) {
     std::cerr << base_font.status().message() << std::endl;
     return -1;

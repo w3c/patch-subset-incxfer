@@ -20,7 +20,7 @@
 #include "common/font_data.h"
 #include "common/font_helper.h"
 #include "common/hb_set_unique_ptr.h"
-#include "ift/encoder/encoder.h"
+#include "common/woff2.h"
 #include "ift/ift_client.h"
 #include "ift/proto/IFT.pb.h"
 #include "ift/proto/patch_map.h"
@@ -36,8 +36,8 @@ using common::FontData;
 using common::FontHelper;
 using common::hb_set_unique_ptr;
 using common::make_hb_set;
+using common::Woff2;
 using ift::IFTClient;
-using ift::encoder::Encoder;
 using ift::proto::DEFAULT_ENCODING;
 using ift::proto::PatchEncoding;
 using ift::proto::PatchMap;
@@ -85,7 +85,7 @@ void InitRequestSucceeded(emscripten_fetch_t* fetch) {
   }
 
   if (response_data.substr(0, 4) == "wOF2") {
-    auto r = Encoder::DecodeWoff2(response_data);
+    auto r = Woff2::DecodeWoff2(response_data);
     if (!r.ok()) {
       LOG(WARNING) << "WOFF2 decoding failed: " << r.status();
       state->Failure();
