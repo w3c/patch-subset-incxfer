@@ -157,7 +157,7 @@ class Encoder {
 
   // TODO(garretrieger): just like with IFTClient transition to using urls as
   // the id.
-  const absl::flat_hash_map<uint32_t, common::FontData>& Patches() const {
+  const absl::flat_hash_map<std::string, common::FontData>& Patches() const {
     return patches_;
   }
 
@@ -287,23 +287,31 @@ class Encoder {
   ift::PerTableBrotliBinaryDiff per_table_binary_diff_;
   ift::PerTableBrotliBinaryDiff replace_ift_map_binary_diff_;
 
-  // IN
+  // == IN  ==
   std::string url_template_ = "patch$5$4$3$2$1.br";
   uint32_t id_[4] = {0, 0, 0, 0};
   hb_face_t* face_ = nullptr;
   absl::btree_map<uint32_t, SubsetDefinition> existing_iftb_patches_;
+
+  // TODO(garretrieger): this likely needs to change once we are generating the
+  // IFTB patches
   absl::flat_hash_map<uint32_t,
                       absl::flat_hash_map<hb_tag_t, absl::btree_set<uint32_t>>>
       iftb_feature_mappings_;
+
   SubsetDefinition base_subset_;
   std::vector<SubsetDefinition> extension_subsets_;
   absl::flat_hash_map<design_space_t, std::string> iftb_url_overrides_;
-
-  // OUT
-  uint32_t next_id_ = 0;
   uint32_t jump_ahead_ = 1;
+
+  // == OUT ==
+
+  // TODO(garretrieger): change to track next_id_ per template. Will be needed
+  // once we are generating the IFTB patches.
+  uint32_t next_id_ = 0;
+
   absl::flat_hash_map<SubsetDefinition, common::FontData> built_subsets_;
-  absl::flat_hash_map<uint32_t, common::FontData> patches_;
+  absl::flat_hash_map<std::string, common::FontData> patches_;
 };
 
 }  // namespace ift::encoder

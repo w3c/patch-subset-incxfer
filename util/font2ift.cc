@@ -172,17 +172,21 @@ Status write_file(const std::string& name, const FontData& data) {
   return absl::OkStatus();
 }
 
-void write_patch(const std::string& url_template, uint32_t id,
-                 const FontData& patch) {
+void write_patch(const std::string& url, const FontData& patch) {
   std::string output_path = absl::GetFlag(FLAGS_output_path);
-  std::string name = IFTClient::PatchToUrl(url_template, id);
-  std::cerr << "  Writing patch: " << StrCat(output_path, "/", name)
+  std::cerr << "  Writing patch: " << StrCat(output_path, "/", url)
             << std::endl;
-  auto sc = write_file(StrCat(output_path, "/", name), patch);
+  auto sc = write_file(StrCat(output_path, "/", url), patch);
   if (!sc.ok()) {
     std::cerr << sc.message() << std::endl;
     exit(-1);
   }
+}
+
+void write_patch(const std::string& url_template, uint32_t id,
+                 const FontData& patch) {
+  std::string name = IFTClient::PatchToUrl(url_template, id);
+  write_patch(name, patch);
 }
 
 int write_output(const Encoder& encoder, const FontData& base_font) {
@@ -198,7 +202,7 @@ int write_output(const Encoder& encoder, const FontData& base_font) {
   }
 
   for (const auto& p : encoder.Patches()) {
-    write_patch(encoder.UrlTemplate(), p.first, p.second);
+    write_patch(p.first, p.second);
   }
 
   return 0;

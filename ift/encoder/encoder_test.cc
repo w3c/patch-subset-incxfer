@@ -14,6 +14,7 @@
 #include "common/font_helper.h"
 #include "common/hb_set_unique_ptr.h"
 #include "gtest/gtest.h"
+#include "ift/ift_client.h"
 #include "ift/per_table_brotli_binary_patch.h"
 #include "ift/proto/ift_table.h"
 #include "ift/proto/patch_map.h"
@@ -33,6 +34,7 @@ using common::FontData;
 using common::FontHelper;
 using common::hb_set_unique_ptr;
 using common::make_hb_set;
+using ift::IFTClient;
 using ift::proto::DEFAULT_ENCODING;
 using ift::proto::IFTTable;
 using ift::proto::PatchEncoding;
@@ -171,7 +173,7 @@ class EncoderTest : public ::testing::Test {
     }
 
     PatchEncoding encoding = DEFAULT_ENCODING;
-    flat_hash_set<uint32_t> subsets;
+    flat_hash_set<std::string> subsets;
     for (const auto& e : ift_table->GetPatchMap().GetEntries()) {
       if (e.encoding != SHARED_BROTLI_ENCODING &&
           e.encoding != PER_TABLE_SHARED_BROTLI_ENCODING) {
@@ -184,7 +186,13 @@ class EncoderTest : public ::testing::Test {
       if (encoding != e.encoding) {
         return absl::InternalError("Inconsistent encodings.");
       }
-      subsets.insert(e.patch_index);
+
+      std::string url_template = e.extension_entry
+                                     ? ift_table->GetExtensionUrlTemplate()
+                                     : ift_table->GetUrlTemplate();
+
+      std::string url = IFTClient::PatchToUrl(url_template, e.patch_index);
+      subsets.insert(url);
     }
 
     PerTableBrotliBinaryPatch per_table_patcher;
@@ -192,7 +200,7 @@ class EncoderTest : public ::testing::Test {
     const BinaryPatch* patcher = (encoding == SHARED_BROTLI_ENCODING)
                                      ? (BinaryPatch*)&brotli_patcher
                                      : (BinaryPatch*)&per_table_patcher;
-    for (uint32_t id : subsets) {
+    for (std::string id : subsets) {
       auto it = encoder.Patches().find(id);
       if (it == encoder.Patches().end()) {
         return absl::InternalError("patch not found.");
