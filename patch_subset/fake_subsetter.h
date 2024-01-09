@@ -39,7 +39,8 @@ class FakeSubsetter : public Subsetter {
     }
 
     ClientState state;
-    assert(ClientState::ParseFromString(state_table, state).ok());
+    auto sc = ClientState::ParseFromString(state_table, state);
+    assert(sc.ok());
     result = absl::StrCat(result, ", ", state.ToString());
 
     subset->copy(result.c_str(), result.size());
