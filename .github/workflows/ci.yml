@@ -20,9 +20,15 @@ jobs:
           mv bazelisk-linux-amd64 "${GITHUB_WORKSPACE}/bin/bazel"
           chmod +x "${GITHUB_WORKSPACE}/bin/bazel"
 
-      - name: Test
+      - name: Test (Default Build)
         run: |
           "${GITHUB_WORKSPACE}/bin/bazel" test //analysis/... //patch_subset/... //util/... //ift/... //common/... --test_output=all
+        env:
+          CC: gcc-9
+
+      - name: Test (Optimized Build)
+        run: |
+          "${GITHUB_WORKSPACE}/bin/bazel" test -c opt //analysis/... //patch_subset/... //util/... //ift/... //common/... --test_output=all
         env:
           CC: gcc-9
 
