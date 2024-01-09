@@ -261,7 +261,8 @@ class Encoder {
 
   bool IsMixedMode() const { return !existing_iftb_patches_.empty(); }
 
-  absl::Status PopulateIftbPatches(const design_space_t& design_space);
+  absl::Status PopulateIftbPatches(const design_space_t& design_space,
+                                   std::string url_template);
 
   absl::Status PopulateIftbPatchMap(ift::proto::PatchMap& patch_map,
                                     const design_space_t& design_space) const;
@@ -271,6 +272,8 @@ class Encoder {
 
   absl::StatusOr<common::FontData> GenerateBaseGvar(
       hb_face_t* font, const design_space_t& design_space) const;
+
+  void SetIftbSubsettingFlagsIfNeeded(hb_subset_input_t* input) const;
 
   absl::StatusOr<common::FontData> CutSubset(hb_face_t* font,
                                              const SubsetDefinition& def) const;
@@ -308,8 +311,6 @@ class Encoder {
 
   // == OUT ==
 
-  // TODO(garretrieger): change to track next_id_ per template. Will be needed
-  // once we are generating the IFTB patches.
   uint32_t next_id_ = 0;
 
   absl::flat_hash_map<SubsetDefinition, common::FontData> built_subsets_;

@@ -437,20 +437,20 @@ StatusOr<FontData> Encoder::Encode() {
     return absl::FailedPreconditionError("Encoder must have a face set.");
   }
 
-  // TODO(garretrieger): Generate iftb patches for the override url templates
-  // too.
-  auto sc = PopulateIftbPatches(base_subset_.design_space);
+  auto sc = PopulateIftbPatches(base_subset_.design_space, UrlTemplate());
+  for (const auto& [ds, url_template] : iftb_url_overrides_) {
+    sc.Update(PopulateIftbPatches(ds, url_template));
+  }
+
   if (!sc.ok()) {
     return sc;
   }
 
-  // TODO(garretrieger): Update the gvar special casing to generate a gvar which
-  // matches (for shared tuples) the one used for iftb patch generation here.
-
   return Encode(base_subset_, true);
 }
 
-Status Encoder::PopulateIftbPatches(const design_space_t& design_space) {
+Status Encoder::PopulateIftbPatches(const design_space_t& design_space,
+                                    std::string url_template) {
   if (existing_iftb_patches_.empty()) {
     return absl::OkStatus();
   }
@@ -469,9 +469,7 @@ Status Encoder::PopulateIftbPatches(const design_space_t& design_space) {
 
   for (const auto& e : existing_iftb_patches_) {
     uint32_t index = e.first;
-    // TODO(garretrieger): swap in the correct url template if there is an
-    // override.
-    std::string url = IFTClient::PatchToUrl(UrlTemplate(), index);
+    std::string url = IFTClient::PatchToUrl(url_template, index);
 
     SubsetDefinition subset = e.second;
     auto patch =
@@ -661,14 +659,7 @@ StatusOr<hb_face_unique_ptr> Encoder::CutSubsetFaceBuilder(
 
   def.ConfigureInput(input, face_);
 
-  if (IsMixedMode()) {
-    // Mixed mode requires stable gids and IFTB requirements to be met,
-    // set flags accordingly.
-    hb_subset_input_set_flags(
-        input, HB_SUBSET_FLAGS_RETAIN_GIDS | HB_SUBSET_FLAGS_IFTB_REQUIREMENTS |
-                   HB_SUBSET_FLAGS_NOTDEF_OUTLINE |
-                   HB_SUBSET_FLAGS_PASSTHROUGH_UNRECOGNIZED);
-  }
+  SetIftbSubsettingFlagsIfNeeded(input);
 
   hb_face_unique_ptr result = make_hb_face(hb_subset_or_fail(font, input));
   if (!result.get()) {
@@ -681,18 +672,58 @@ StatusOr<hb_face_unique_ptr> Encoder::CutSubsetFaceBuilder(
 
 StatusOr<FontData> Encoder::GenerateBaseGvar(
     hb_face_t* font, const design_space_t& design_space) const {
-  SubsetDefinition subset = base_subset_;
-  subset.design_space = design_space;
+  // When generating a gvar table for use with IFTB patches care
+  // must be taken to ensure that the shared tuples in the gvar
+  // header match the shared tuples used in the per glyph data
+  // in the previously created (via PopulateIftbPatches()) iftb
+  // patches. However, we also want the gvar table to only contain
+  // the glyphs from base_subset_. If you ran a single subsetting
+  // operation through hb which reduced the glyphs and instanced
+  // the design space the set of shared tuples may change.
+  //
+  // To keep the shared tuples correct we subset in two steps:
+  // 1. Run instancing only, keeping everything else, this matches
+  //    the processing done in PopulateIftbPatches() and will
+  //    result in the same shared tuples.
+  // 2. Run the glyph base subset, with no instancing specified.
+  //    if there is no specified instancing then harfbuzz will
+  //    not modify shared tuples.
 
-  auto face_builder = CutSubsetFaceBuilder(font, subset);
+  // Step 1: Instancing
+  auto instance = Instance(font, design_space);
+  if (!instance.ok()) {
+    return instance.status();
+  }
+
+  // Step 2: glyph subsetting
+  SubsetDefinition subset = base_subset_;
+  // We don't want to apply any instancing here as it was done in step 1
+  // so clear out the design space.
+  subset.design_space = {};
+
+  hb_face_unique_ptr instanced_face = instance->face();
+  auto face_builder = CutSubsetFaceBuilder(instanced_face.get(), subset);
   if (!face_builder.ok()) {
     return face_builder.status();
   }
 
+  // Step 3: extract gvar table.
   hb_blob_unique_ptr gvar_blob = make_hb_blob(
       hb_face_reference_table(face_builder->get(), HB_TAG('g', 'v', 'a', 'r')));
   FontData result(gvar_blob.get());
   return result;
+}
+
+void Encoder::SetIftbSubsettingFlagsIfNeeded(hb_subset_input_t* input) const {
+  if (IsMixedMode()) {
+    // Mixed mode requires stable gids and IFTB requirements to be met,
+    // set flags accordingly.
+    hb_subset_input_set_flags(
+        input, hb_subset_input_get_flags(input) | HB_SUBSET_FLAGS_RETAIN_GIDS |
+                   HB_SUBSET_FLAGS_IFTB_REQUIREMENTS |
+                   HB_SUBSET_FLAGS_NOTDEF_OUTLINE |
+                   HB_SUBSET_FLAGS_PASSTHROUGH_UNRECOGNIZED);
+  }
 }
 
 StatusOr<FontData> Encoder::CutSubset(hb_face_t* font,
@@ -734,18 +765,22 @@ StatusOr<FontData> Encoder::Instance(hb_face_t* face,
 
   // Keep everything in this subset, except for applying the design space.
   hb_subset_input_keep_everything(input);
+  SetIftbSubsettingFlagsIfNeeded(input);
 
   for (const auto& [tag, range] : design_space) {
     hb_subset_input_set_axis_range(input, face, tag, range.start(), range.end(),
                                    NAN);
   }
 
-  hb_face_unique_ptr out = make_hb_face(hb_subset_or_fail(face, input));
+  hb_face_unique_ptr subset = make_hb_face(hb_subset_or_fail(face, input));
   hb_subset_input_destroy(input);
 
-  if (!out.get()) {
+  if (!subset.get()) {
     return absl::InternalError("Instancing failed.");
   }
+
+  FontHelper::ApplyIftbTableOrdering(subset.get());
+  hb_blob_unique_ptr out = make_hb_blob(hb_face_reference_blob(subset.get()));
 
   FontData result(out.get());
   return result;

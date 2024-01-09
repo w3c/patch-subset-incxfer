@@ -65,10 +65,6 @@ ABSL_FLAG(std::vector<std::string>, optional_design_space, {},
           "List of axis tag range pairs. "
           "Example: wght=300,wdth=50:100");
 
-ABSL_FLAG(std::string, optional_design_space_input_iftb_patch_template, {},
-          "Template used to locate the IFTB patches associated with the "
-          "optional design space.");
-
 ABSL_FLAG(std::string, optional_design_space_url_template, {},
           "Output URL template to be used for IFTB patches associated "
           "with the optional design space.");
