@@ -274,19 +274,6 @@ Status configure_mixed_mode(std::vector<btree_set<uint32_t>> iftb_patch_groups,
       if (!sc.ok()) {
         return sc;
       }
-
-      write_patch(encoder.UrlTemplate(), id, iftb_patch);
-
-      if (!absl::GetFlag(FLAGS_optional_design_space_input_iftb_patch_template)
-               .empty() &&
-          !absl::GetFlag(FLAGS_optional_design_space_url_template).empty()) {
-        std::string in_template = absl::GetFlag(
-            FLAGS_optional_design_space_input_iftb_patch_template);
-        FontData opt_iftb_patch = load_iftb_patch(id, in_template);
-        std::string out_template =
-            absl::GetFlag(FLAGS_optional_design_space_url_template);
-        write_patch(out_template, id, opt_iftb_patch);
-      }
     }
   }
 
