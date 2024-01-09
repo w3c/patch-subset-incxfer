@@ -32,10 +32,12 @@ class PerTableBrotliBinaryPatchTest : public ::testing::Test {
     def.copy("def");
     hello.copy("hello");
 
-    assert(differ.Diff(foo, bar, &foo_to_bar).ok());
-    assert(differ.Diff(abc, def, &abc_to_def).ok());
-    assert(differ.Diff(empty, def, &empty_to_def).ok());
-    assert(differ.Diff(empty, hello, &empty_to_hello).ok());
+    auto sc = differ.Diff(foo, bar, &foo_to_bar);
+    sc.Update(differ.Diff(abc, def, &abc_to_def));
+    sc.Update(differ.Diff(empty, def, &empty_to_def));
+    sc.Update(differ.Diff(empty, hello, &empty_to_hello));
+
+    assert(sc.ok());
   }
 
   hb_tag_t tag1 = HB_TAG('t', 'a', 'g', '1');
