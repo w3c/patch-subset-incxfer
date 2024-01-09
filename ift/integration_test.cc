@@ -1013,14 +1013,29 @@ TEST_F(IntegrationTest, MixedMode_DesignSpaceAugmentation) {
   ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
 
   ASSERT_TRUE(GvarHasLongOffsets(client->GetFontData()));
-  // TODO(garretrieger): check gvar only has coverage of base suset glyphs
+  hb_face_unique_ptr face = client->GetFontData().face();
+  ASSERT_GT(FontHelper::GvarData(face.get(), chunk0_gid)->size(), 0);
+  ASSERT_GT(FontHelper::GvarData(face.get(), chunk1_gid)->size(), 0);
+  ASSERT_EQ(FontHelper::GvarData(face.get(), chunk2_gid)->size(), 0);
+  ASSERT_EQ(FontHelper::GvarData(face.get(), chunk3_gid)->size(), 0);
+  ASSERT_EQ(FontHelper::GvarData(face.get(), chunk4_gid)->size(), 0);
 
   patches = client->PatchesNeeded();
   expected_patches = {"vf-0x03", "vf-0x04"};
   ASSERT_EQ(patches, expected_patches);
+  sc = AddPatches(*client, encoder);
+  ASSERT_TRUE(sc.ok()) << sc;
 
-  // TODO(garretrieger): apply the vf patches and test
-  //  gvar should now have data for all augmented glyphs.
+  state = client->Process();
+  ASSERT_TRUE(state.ok()) << state.status();
+  ASSERT_EQ(*state, IFTClient::READY);
+
+  face = client->GetFontData().face();
+  ASSERT_GT(FontHelper::GvarData(face.get(), chunk0_gid)->size(), 0);
+  ASSERT_GT(FontHelper::GvarData(face.get(), chunk1_gid)->size(), 0);
+  ASSERT_EQ(FontHelper::GvarData(face.get(), chunk2_gid)->size(), 0);
+  ASSERT_GT(FontHelper::GvarData(face.get(), chunk3_gid)->size(), 0);
+  ASSERT_GT(FontHelper::GvarData(face.get(), chunk4_gid)->size(), 0);
 }
 
 }  // namespace ift
