@@ -19,7 +19,8 @@ class FontHelperTest : public ::testing::Test {
         noto_sans_ift_ttf(make_hb_face(nullptr)),
         roboto_ab(make_hb_face(nullptr)),
         roboto(make_hb_face(nullptr)),
-        roboto_vf(make_hb_face(nullptr)) {
+        roboto_vf(make_hb_face(nullptr)),
+        roboto_vf_abcd(make_hb_face(nullptr)) {
     hb_blob_unique_ptr blob = make_hb_blob(hb_blob_create_from_file(
         "patch_subset/testdata/Roboto-Regular.ab.ttf"));
     roboto_ab = make_hb_face(hb_face_create(blob.get(), 0));
@@ -31,6 +32,10 @@ class FontHelperTest : public ::testing::Test {
     blob = make_hb_blob(hb_blob_create_from_file(
         "patch_subset/testdata/Roboto[wdth,wght].ttf"));
     roboto_vf = make_hb_face(hb_face_create(blob.get(), 0));
+
+    blob = make_hb_blob(hb_blob_create_from_file(
+        "patch_subset/testdata/Roboto[wdth,wght].abcd.ttf"));
+    roboto_vf_abcd = make_hb_face(hb_face_create(blob.get(), 0));
 
     blob = make_hb_blob(hb_blob_create_from_file(
         "patch_subset/testdata/NotoSansJP-Regular.otf"));
@@ -46,6 +51,7 @@ class FontHelperTest : public ::testing::Test {
   hb_face_unique_ptr roboto_ab;
   hb_face_unique_ptr roboto;
   hb_face_unique_ptr roboto_vf;
+  hb_face_unique_ptr roboto_vf_abcd;
 };
 
 TEST_F(FontHelperTest, ReadUInt16) {
@@ -130,6 +136,22 @@ TEST_F(FontHelperTest, GvarData) {
                                 0x00, 0x02, 0x00, 0x26, 0x00};
   string_view expected_str((const char*)expected, 11);
   ASSERT_EQ(data->substr(0, 11), expected_str);
+}
+
+TEST_F(FontHelperTest, GvarSharedTupleCount) {
+  auto count = FontHelper::GvarSharedTupleCount(roboto_vf.get());
+  ASSERT_TRUE(count.ok()) << count.status();
+  ASSERT_EQ(*count, 6);
+}
+
+TEST_F(FontHelperTest, GvarSharedTupleChecksum) {
+  auto checksum = FontHelper::GvarSharedTupleChecksum(roboto_vf.get());
+  ASSERT_TRUE(checksum.ok()) << checksum.status();
+  ASSERT_EQ(*checksum, 0x56ADBE3852392412);
+
+  checksum = FontHelper::GvarSharedTupleChecksum(roboto_vf_abcd.get());
+  ASSERT_TRUE(checksum.ok()) << checksum.status();
+  ASSERT_EQ(*checksum, 0x56ADBE3852392412);
 }
 
 TEST_F(FontHelperTest, GvarData_NotFound) {

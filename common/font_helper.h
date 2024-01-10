@@ -71,6 +71,9 @@ class FontHelper {
   static absl::StatusOr<absl::string_view> GvarData(const hb_face_t* face,
                                                     uint32_t gid);
 
+  static absl::StatusOr<uint32_t> GvarSharedTupleCount(const hb_face_t* face);
+  static absl::StatusOr<uint64_t> GvarSharedTupleChecksum(hb_face_t* face);
+
   static absl::StatusOr<absl::string_view> Loca(const hb_face_t* face) {
     auto result = FontHelper::TableData(face, kLoca).str();
     if (result.empty()) {
