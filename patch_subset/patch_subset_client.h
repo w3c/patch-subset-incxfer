@@ -5,10 +5,10 @@
 #include "absl/status/statusor.h"
 #include "common/binary_patch.h"
 #include "common/font_data.h"
+#include "common/hasher.h"
 #include "hb.h"
 #include "patch_subset/cbor/client_state.h"
 #include "patch_subset/cbor/patch_request.h"
-#include "patch_subset/hasher.h"
 #include "patch_subset/integer_list_checksum.h"
 #include "patch_subset/request_logger.h"
 
@@ -22,7 +22,7 @@ class PatchSubsetClient {
   // one encoding.
   explicit PatchSubsetClient(
       std::unique_ptr<common::BinaryPatch> binary_patch,
-      std::unique_ptr<Hasher> hasher,
+      std::unique_ptr<common::Hasher> hasher,
       std::unique_ptr<IntegerListChecksum> ordering_hasher)
       : binary_patch_(std::move(binary_patch)),
         hasher_(std::move(hasher)),
@@ -48,7 +48,7 @@ class PatchSubsetClient {
                                 hb_set_t* codepoints_needed) const;
 
   std::unique_ptr<common::BinaryPatch> binary_patch_;
-  std::unique_ptr<Hasher> hasher_;
+  std::unique_ptr<common::Hasher> hasher_;
   std::unique_ptr<IntegerListChecksum> ordering_hasher_;
 };
 

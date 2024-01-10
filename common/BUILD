@@ -13,6 +13,7 @@ cc_library(
         "sparse_bit_set.cc",
         "axis_range.cc",
         "indexed_data_reader.h",
+        "fast_hasher.cc",
         "woff2.cc",
     ],
     hdrs = [
@@ -29,6 +30,8 @@ cc_library(
         "sparse_bit_set.h",
         "axis_range.h",
         "woff2.h",
+        "hasher.h",
+        "fast_hasher.h",
     ],
     visibility = [
         "//visibility:public",
@@ -45,6 +48,7 @@ cc_library(
         "@com_google_absl//absl/strings",
         "@harfbuzz",
         "@woff2",
+        "@fasthash",
     ],
 )
 
@@ -84,6 +88,7 @@ cc_test(
         "font_helper_test.cc",
         "sparse_bit_set_test.cc",
         "woff2_test.cc",
+        "fast_hasher_test.cc",
     ],
     data = [
         "//patch_subset:testdata",

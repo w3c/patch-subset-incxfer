@@ -2,14 +2,14 @@
 #include <string>
 
 #include "absl/status/status.h"
+#include "common/fast_hasher.h"
 #include "common/file_font_provider.h"
 #include "common/font_data.h"
-#include "patch_subset/fast_hasher.h"
 
 using absl::Status;
+using common::FastHasher;
 using common::FileFontProvider;
 using common::FontData;
-using patch_subset::FastHasher;
 
 int main(int argc, char** argv) {
   FileFontProvider font_provider("");

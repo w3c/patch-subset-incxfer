@@ -1,11 +1,11 @@
-#ifndef PATCH_SUBSET_HASHER_H_
-#define PATCH_SUBSET_HASHER_H_
+#ifndef COMMON_HASHER_H_
+#define COMMON_HASHER_H_
 
 #include <cstdint>
 
 #include "absl/strings/string_view.h"
 
-namespace patch_subset {
+namespace common {
 
 // Computes checksums of binary data.
 class Hasher {
@@ -16,6 +16,6 @@ class Hasher {
   virtual uint64_t Checksum(::absl::string_view data) const = 0;
 };
 
-}  // namespace patch_subset
+}  // namespace common
 
-#endif  // PATCH_SUBSET_HASHER_H_
+#endif  // COMMON_HASHER_H_

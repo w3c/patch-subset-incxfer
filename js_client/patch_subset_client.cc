@@ -19,7 +19,7 @@
 #include "patch_subset/cbor/client_state.h"
 #include "patch_subset/cbor/patch_request.h"
 #include "patch_subset/compressed_set.h"
-#include "patch_subset/fast_hasher.h"
+#include "common/fast_hasher.h"
 #include "patch_subset/integer_list_checksum_impl.h"
 
 using namespace emscripten;
@@ -31,7 +31,8 @@ using common::FontData;
 using common::hb_set_unique_ptr;
 using common::make_hb_set;
 using patch_subset::CompressedSet;
-using patch_subset::FastHasher;
+using common::Hasher;
+using common::FastHasher;
 using patch_subset::IntegerListChecksum;
 using patch_subset::IntegerListChecksumImpl;
 using patch_subset::PatchSubsetClient;
@@ -136,7 +137,7 @@ class State {
         _hasher(),
         _subset(),
         _client(std::unique_ptr<BinaryPatch>(new BrotliBinaryPatch()),
-                std::unique_ptr<patch_subset::Hasher>(new FastHasher()),
+                std::unique_ptr<Hasher>(new FastHasher()),
                 std::unique_ptr<patch_subset::IntegerListChecksum>(
                     new IntegerListChecksumImpl(&_hasher))) {}
 

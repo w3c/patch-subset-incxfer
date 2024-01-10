@@ -25,6 +25,7 @@ using absl::string_view;
 using common::BinaryDiff;
 using common::FontData;
 using common::FontProvider;
+using common::Hasher;
 using common::hb_set_unique_ptr;
 using common::make_hb_set;
 using common::make_hb_set_from_ranges;
