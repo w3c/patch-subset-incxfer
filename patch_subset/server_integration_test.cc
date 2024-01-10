@@ -1,5 +1,6 @@
 #include "common/brotli_binary_diff.h"
 #include "common/brotli_binary_patch.h"
+#include "common/fast_hasher.h"
 #include "common/file_font_provider.h"
 #include "common/font_data.h"
 #include "common/hb_set_unique_ptr.h"
@@ -7,7 +8,6 @@
 #include "patch_subset/codepoint_mapper.h"
 #include "patch_subset/compressed_set.h"
 #include "patch_subset/encodings.h"
-#include "patch_subset/fast_hasher.h"
 #include "patch_subset/harfbuzz_subsetter.h"
 #include "patch_subset/noop_codepoint_predictor.h"
 #include "patch_subset/patch_subset_server_impl.h"
@@ -22,9 +22,11 @@ using common::BinaryDiff;
 using common::BinaryPatch;
 using common::BrotliBinaryDiff;
 using common::BrotliBinaryPatch;
+using common::FastHasher;
 using common::FileFontProvider;
 using common::FontData;
 using common::FontProvider;
+using common::Hasher;
 using common::hb_set_unique_ptr;
 using common::make_hb_set_from_ranges;
 using patch_subset::cbor::AxisInterval;

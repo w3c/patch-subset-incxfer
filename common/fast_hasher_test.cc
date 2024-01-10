@@ -1,9 +1,9 @@
-#include "patch_subset/fast_hasher.h"
+#include "common/fast_hasher.h"
 
 #include "absl/strings/string_view.h"
 #include "gtest/gtest.h"
 
-namespace patch_subset {
+namespace common {
 
 class FastHasherTest : public ::testing::Test {
  protected:
@@ -30,4 +30,4 @@ TEST_F(FastHasherTest, SpecChecksumExample) {
             0xb31e9c70768205fbu);
 }
 
-}  // namespace patch_subset
+}  // namespace common

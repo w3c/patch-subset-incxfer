@@ -1,10 +1,13 @@
 #include "patch_subset/integer_list_checksum_impl.h"
 
+#include "common/fast_hasher.h"
+#include "common/hasher.h"
 #include "gtest/gtest.h"
-#include "patch_subset/fast_hasher.h"
 
 namespace patch_subset {
 
+using common::FastHasher;
+using common::Hasher;
 using std::unique_ptr;
 using std::vector;
 

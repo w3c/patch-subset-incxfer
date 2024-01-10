@@ -3,7 +3,7 @@
 
 #include <cstdint>
 
-#include "patch_subset/hasher.h"
+#include "common/hasher.h"
 #include "patch_subset/integer_list_checksum.h"
 
 namespace patch_subset {
@@ -13,12 +13,12 @@ class IntegerListChecksumImpl : public IntegerListChecksum {
  public:
   // Does not take ownership of hasher. hasher must live longer than this
   // object.
-  IntegerListChecksumImpl(Hasher* hasher) : hasher_(hasher) {}
+  IntegerListChecksumImpl(common::Hasher* hasher) : hasher_(hasher) {}
 
   uint64_t Checksum(const std::vector<int32_t>& ints) const override;
 
  private:
-  const Hasher* hasher_;
+  const common::Hasher* hasher_;
 };
 
 }  // namespace patch_subset
