@@ -14,12 +14,12 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "common/brotli_binary_patch.h"
+#include "common/fast_hasher.h"
 #include "common/hb_set_unique_ptr.h"
 #include "hb.h"
 #include "patch_subset/cbor/client_state.h"
 #include "patch_subset/cbor/patch_request.h"
 #include "patch_subset/compressed_set.h"
-#include "common/fast_hasher.h"
 #include "patch_subset/integer_list_checksum_impl.h"
 
 using namespace emscripten;
@@ -27,12 +27,12 @@ using absl::Status;
 using absl::StatusOr;
 using common::BinaryPatch;
 using common::BrotliBinaryPatch;
+using common::FastHasher;
 using common::FontData;
+using common::Hasher;
 using common::hb_set_unique_ptr;
 using common::make_hb_set;
 using patch_subset::CompressedSet;
-using common::Hasher;
-using common::FastHasher;
 using patch_subset::IntegerListChecksum;
 using patch_subset::IntegerListChecksumImpl;
 using patch_subset::PatchSubsetClient;

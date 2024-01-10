@@ -6,10 +6,12 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/str_cat.h"
 #include "common/axis_range.h"
+#include "common/fast_hasher.h"
 #include "common/font_data.h"
 #include "common/indexed_data_reader.h"
 #include "hb-ot.h"
 #include "hb-subset.h"
+#include "hb.h"
 
 using absl::btree_set;
 using absl::flat_hash_map;
@@ -81,6 +83,56 @@ StatusOr<string_view> FontHelper::GvarData(const hb_face_t* face,
       gvar.str().substr(gvar_offsets_table_offset, (*glyph_count + 1) * 2),
       gvar.str().substr(*data_offset));
   return reader.DataFor(gid);
+}
+
+StatusOr<uint32_t> FontHelper::GvarSharedTupleCount(const hb_face_t* face) {
+  auto gvar = TableData(face, kGvar);
+  if (gvar.empty()) {
+    return absl::NotFoundError("gvar not in the font.");
+  }
+
+  constexpr uint32_t shared_tuple_count_offset = 6;
+
+  if (gvar.size() < 8) {
+    return absl::InvalidArgumentError("gvar table is too short.");
+  }
+
+  auto count = ReadUInt16(gvar.str().substr(shared_tuple_count_offset));
+  if (!count.ok()) {
+    return count.status();
+  }
+
+  return *count;
+}
+
+StatusOr<uint64_t> FontHelper::GvarSharedTupleChecksum(hb_face_t* face) {
+  auto gvar = TableData(face, kGvar);
+  if (gvar.empty()) {
+    return absl::NotFoundError("gvar not in the font.");
+  }
+
+  constexpr uint32_t shared_tuple_offset = 8;
+
+  if (gvar.size() < 12) {
+    return absl::InvalidArgumentError("gvar table is too short.");
+  }
+
+  auto offset = ReadUInt32(gvar.str().substr(shared_tuple_offset));
+  if (!offset.ok()) {
+    return offset.status();
+  }
+
+  uint16_t shared_tuple_count = *GvarSharedTupleCount(face);
+  uint32_t axis_count = hb_ot_var_get_axis_count(face);
+  uint32_t shared_tuple_length = axis_count * shared_tuple_count * 2;
+  if (gvar.size() < *offset + shared_tuple_length) {
+    return absl::InvalidArgumentError("gvar table is too short.");
+  }
+
+  string_view shared_tuple_data =
+      gvar.str().substr(*offset, shared_tuple_length);
+  FastHasher hasher;
+  return hasher.Checksum(shared_tuple_data);
 }
 
 flat_hash_map<uint32_t, uint32_t> FontHelper::GidToUnicodeMap(hb_face_t* face) {
