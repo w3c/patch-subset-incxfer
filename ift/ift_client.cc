@@ -452,11 +452,17 @@ uint32_t IFTClient::SelectDependentEntry(
     const absl::btree_set<uint32_t>& dependent_entry_indices) {
   // TODO(garretrieger): merge coverages when multiple entries have the same
   // patch index.
-  // TODO(garretrieger): consider design space and feature intersections if
-  //  codepoint coverage is tied.
+  //
+  // Algorithm:
+  // - Select the entry that has the highest intersecting codepoint coverage.
+  // - Breaking ties:
+  //   1. Prefer the entry that also has interesting design space expansion.
+  //   2. Prefer the entry with a smaller overall codepoint coverage.
   uint32_t selected_entry_index;
   int64_t max_intersection = -1;
   uint32_t min_size = (uint32_t)-1;
+  bool selected_entry_has_design_space_expansion = false;
+
   for (uint32_t entry_index : dependent_entry_indices) {
     const PatchMap::Entry& entry =
         ift_table_->GetPatchMap().GetEntries().at(entry_index);
@@ -464,15 +470,36 @@ uint32_t IFTClient::SelectDependentEntry(
     uint32_t intersection_count =
         intersection_size(&(entry.coverage.codepoints), &target_codepoints_);
     uint32_t size = entry.coverage.codepoints.size();
+    bool has_design_space_expansion = !entry.coverage.design_space.empty();
 
     if (intersection_count > max_intersection) {
       max_intersection = intersection_count;
       min_size = size;
       selected_entry_index = entry_index;
-    } else if (intersection_count == max_intersection && size < min_size) {
-      // Break ties in intersection size to the smaller entry.
+      selected_entry_has_design_space_expansion = has_design_space_expansion;
+      continue;
+    }
+
+    if (intersection_count < max_intersection) {
+      // Not a candidate.
+      continue;
+    }
+
+    // Break ties first to entries that have design space expansion
+    if (!selected_entry_has_design_space_expansion &&
+        has_design_space_expansion) {
       min_size = size;
+      selected_entry_has_design_space_expansion = has_design_space_expansion;
       selected_entry_index = entry_index;
+      continue;
+    }
+
+    // Then to the entries with lower total codepoint coverage
+    if (intersection_count == max_intersection && size < min_size) {
+      min_size = size;
+      selected_entry_has_design_space_expansion = has_design_space_expansion;
+      selected_entry_index = entry_index;
+      continue;
     }
   }
   return selected_entry_index;

@@ -34,7 +34,8 @@ static constexpr uint32_t kInvalidFont = 2;
 static constexpr uint32_t kLeaf = 3;
 static constexpr uint32_t kFontWithFeatures = 4;
 static constexpr uint32_t kFontWithDesignSpace = 5;
-static constexpr uint32_t kFontWithExtension = 6;
+static constexpr uint32_t kDependentWithDesignSpace = 6;
+static constexpr uint32_t kFontWithExtension = 7;
 
 static constexpr uint32_t kLiga = HB_TAG('l', 'i', 'g', 'a');
 static constexpr uint32_t kLigaNo = 30;
@@ -161,7 +162,7 @@ class IFTClientTest : public ::testing::Test {
     m->add_feature_index(kLigaNo);
     m->set_patch_encoding(IFTB_ENCODING);
 
-    // Simple Test Font
+    // Font with Design Space
     IFTTable sample_with_design_space;
     sample_with_design_space.SetUrlTemplate("0x$2$1");
 
@@ -176,6 +177,25 @@ class IFTClientTest : public ::testing::Test {
     coverage.design_space[HB_TAG('w', 'g', 'h', 't')] =
         *AxisRange::Range(300, 700);
     sample_with_design_space.GetPatchMap().AddEntry(coverage, 2, IFTB_ENCODING);
+
+    // Dependent Patches with Design Space
+    IFTTable dependent_with_design_space;
+    dependent_with_design_space.SetUrlTemplate("0x$2$1");
+
+    coverage = {10, 11, 12};
+    dependent_with_design_space.GetPatchMap().AddEntry(coverage, 0,
+                                                       SHARED_BROTLI_ENCODING);
+
+    coverage.design_space[HB_TAG('w', 'g', 'h', 't')] =
+        *AxisRange::Range(100, 400);
+    dependent_with_design_space.GetPatchMap().AddEntry(coverage, 1,
+                                                       SHARED_BROTLI_ENCODING);
+
+    coverage.codepoints.clear();
+    coverage.design_space[HB_TAG('w', 'g', 'h', 't')] =
+        *AxisRange::Range(100, 400);
+    dependent_with_design_space.GetPatchMap().AddEntry(coverage, 2,
+                                                       SHARED_BROTLI_ENCODING);
 
     // Assignments
 
@@ -209,6 +229,10 @@ class IFTClientTest : public ::testing::Test {
     new_face = font->face();
     fonts[kFontWithDesignSpace].set(new_face.get());
 
+    font = dependent_with_design_space.AddToFont(face);
+    new_face = font->face();
+    fonts[kDependentWithDesignSpace].set(new_face.get());
+
     iftb_font = from_file("ift/testdata/NotoSansJP-Regular.ift.ttf");
     chunk1 = from_file("ift/testdata/NotoSansJP-Regular.subset_iftb/chunk1.br");
 
@@ -222,7 +246,7 @@ class IFTClientTest : public ::testing::Test {
     return result;
   }
 
-  FontData fonts[7];
+  FontData fonts[8];
 
   FontData iftb_font;
   FontData chunk1;
@@ -356,6 +380,19 @@ INSTANTIATE_TEST_SUITE_P(
         PatchesNeededTestCase(kFontWithDesignSpace, {11}, {},
                               {{HB_TAG('w', 'd', 't', 'h'), {350, 350}}},
                               {"0x00"}),
+
+        // design space input has
+        // SBR {10, 11, 12}                  0
+        // SBR {10, 11, 12} wght [100, 400]  1
+        // SBR {}           wght [100, 400]  2
+        PatchesNeededTestCase(kDependentWithDesignSpace, {11}, {}, {},
+                              {"0x00"}),
+        PatchesNeededTestCase(kDependentWithDesignSpace, {}, {},
+                              {{HB_TAG('w', 'g', 'h', 't'), {200, 200}}},
+                              {"0x02"}),
+        PatchesNeededTestCase(kDependentWithDesignSpace, {11}, {},
+                              {{HB_TAG('w', 'g', 'h', 't'), {200, 200}}},
+                              {"0x01"}),
 
         // Complex Font:
         PatchesNeededTestCase(kComplexFont, {4, 6}, {}, {}, {"0x01", "0x02"}),
