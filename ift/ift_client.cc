@@ -289,6 +289,8 @@ StatusOr<IFTClient::State> IFTClient::ComputeOutstandingPatches() {
         SelectDependentEntry(dependent_entry_indices));
   }
 
+  flat_hash_set<std::string> new_urls;
+
   for (uint32_t entry_index : independent_entry_indices) {
     const PatchMap::Entry& entry =
         ift_table_->GetPatchMap().GetEntries().at(entry_index);
@@ -300,6 +302,8 @@ StatusOr<IFTClient::State> IFTClient::ComputeOutstandingPatches() {
       status_ = url.status();
       return status_;
     }
+
+    new_urls.insert(*url);
     auto [it, was_inserted] =
         pending_patches_.insert(std::pair(*url, std::move(info)));
 
@@ -310,6 +314,17 @@ StatusOr<IFTClient::State> IFTClient::ComputeOutstandingPatches() {
                  " != ", it->second.encoding));
       return status_;
     }
+  }
+
+  for (auto it = pending_patches_.begin(); it != pending_patches_.end();) {
+    const std::string& url = it->first;
+    if (new_urls.contains(url)) {
+      ++it;
+      continue;
+    }
+
+    // Clean out entries which are no longer needed.
+    pending_patches_.erase(it++);
   }
 
   missing_patch_count_ = MissingPatchCount();
