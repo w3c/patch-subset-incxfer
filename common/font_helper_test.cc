@@ -84,6 +84,18 @@ TEST_F(FontHelperTest, ReadUInt32) {
   ASSERT_FALSE(s.ok());
 }
 
+TEST_F(FontHelperTest, WriteUInt32) {
+  std::string out = "";
+  FontHelper::WriteUInt32(0x12345678, out);
+  char expected1[] = {0x12, 0x34, 0x56, 0x78};
+  ASSERT_EQ(out, absl::string_view(expected1, 4));
+
+  out = "";
+  FontHelper::WriteUInt32(0x000000FA, out);
+  char expected2[] = {0x00, 0x00, 0x00, (char) 0xFA};
+  ASSERT_EQ(out, absl::string_view(expected2, 4));
+}
+
 TEST_F(FontHelperTest, GlyfData_Short) {
   auto data = FontHelper::GlyfData(roboto_ab.get(), 0);
   ASSERT_TRUE(data.ok()) << data.status();
