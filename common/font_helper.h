@@ -48,6 +48,13 @@ class FontHelper {
   constexpr static hb_tag_t kGSUB = HB_TAG('G', 'S', 'U', 'B');
   constexpr static hb_tag_t kGPOS = HB_TAG('G', 'P', 'O', 'S');
 
+  static void WriteUInt32(uint32_t value, std::string& out) {
+    out.push_back((uint8_t) ((uint32_t) (value >> 24) & (uint32_t) 0x000000FFu));
+    out.push_back((uint8_t) ((uint32_t) (value >> 16) & (uint32_t) 0x000000FFu));
+    out.push_back((uint8_t) ((uint32_t) (value >> 8) & (uint32_t) 0x000000FFu));
+    out.push_back((uint8_t) (value & (uint32_t) 0x000000FFu));
+  }
+
   static absl::StatusOr<uint32_t> ReadUInt32(absl::string_view value) {
     if (value.size() < 4) {
       return absl::InvalidArgumentError("Need at least 4 bytes");
