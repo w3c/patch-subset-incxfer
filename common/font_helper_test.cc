@@ -54,6 +54,33 @@ class FontHelperTest : public ::testing::Test {
   hb_face_unique_ptr roboto_vf_abcd;
 };
 
+TEST_F(FontHelperTest, ReadUInt8) {
+  uint8_t input1[] = {0x12};
+  auto s = FontHelper::ReadUInt8(string_view((const char*)input1, 1));
+  ASSERT_TRUE(s.ok()) << s.status();
+  ASSERT_EQ(*s, 0x12);
+
+  uint8_t input2[] = {0xFA};
+  s = FontHelper::ReadUInt8(string_view((const char*)input2, 1));
+  ASSERT_TRUE(s.ok()) << s.status();
+  ASSERT_EQ(*s, 0x00FA);
+
+  s = FontHelper::ReadUInt8(string_view((const char*)input1, 0));
+  ASSERT_FALSE(s.ok());
+}
+
+TEST_F(FontHelperTest, WriteUInt8) {
+  std::string out = "";
+  FontHelper::WriteUInt8(0x12, out);
+  char expected1[] = {0x12};
+  ASSERT_EQ(out, absl::string_view(expected1, 1));
+
+  out = "";
+  FontHelper::WriteUInt8(0xFA, out);
+  char expected2[] = {(char)0xFA};
+  ASSERT_EQ(out, absl::string_view(expected2, 1));
+}
+
 TEST_F(FontHelperTest, ReadUInt16) {
   uint8_t input1[] = {0x12, 0x34, 0x56, 0x78};
   auto s = FontHelper::ReadUInt16(string_view((const char*)input1, 4));
@@ -67,6 +94,18 @@ TEST_F(FontHelperTest, ReadUInt16) {
 
   s = FontHelper::ReadUInt16(string_view((const char*)input1, 1));
   ASSERT_FALSE(s.ok());
+}
+
+TEST_F(FontHelperTest, WriteUInt16) {
+  std::string out = "ab";
+  FontHelper::WriteUInt16(0x1234, out);
+  char expected1[] = {'a', 'b', 0x12, 0x34};
+  ASSERT_EQ(out, absl::string_view(expected1, 4));
+
+  out = "";
+  FontHelper::WriteUInt16(0x00FA, out);
+  char expected2[] = {0x00, (char)0xFA};
+  ASSERT_EQ(out, absl::string_view(expected2, 2));
 }
 
 TEST_F(FontHelperTest, ReadUInt32) {
@@ -92,7 +131,7 @@ TEST_F(FontHelperTest, WriteUInt32) {
 
   out = "";
   FontHelper::WriteUInt32(0x000000FA, out);
-  char expected2[] = {0x00, 0x00, 0x00, (char) 0xFA};
+  char expected2[] = {0x00, 0x00, 0x00, (char)0xFA};
   ASSERT_EQ(out, absl::string_view(expected2, 4));
 }
 

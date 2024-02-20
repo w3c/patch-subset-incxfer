@@ -1,10 +1,13 @@
 #ifndef COMMON_FONT_HELPER_H_
 #define COMMON_FONT_HELPER_H_
 
+#include <cstdint>
+
 #include "absl/container/btree_set.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "common/axis_range.h"
 #include "common/font_data.h"
@@ -49,27 +52,27 @@ class FontHelper {
   constexpr static hb_tag_t kGPOS = HB_TAG('G', 'P', 'O', 'S');
 
   static void WriteUInt32(uint32_t value, std::string& out) {
-    out.push_back((uint8_t) ((uint32_t) (value >> 24) & (uint32_t) 0x000000FFu));
-    out.push_back((uint8_t) ((uint32_t) (value >> 16) & (uint32_t) 0x000000FFu));
-    out.push_back((uint8_t) ((uint32_t) (value >> 8) & (uint32_t) 0x000000FFu));
-    out.push_back((uint8_t) (value & (uint32_t) 0x000000FFu));
+    WriteUInt<32>(value, out);
+  }
+
+  static void WriteUInt16(uint32_t value, std::string& out) {
+    WriteUInt<16>(value, out);
+  }
+
+  static void WriteUInt8(uint32_t value, std::string& out) {
+    WriteUInt<8>(value, out);
   }
 
   static absl::StatusOr<uint32_t> ReadUInt32(absl::string_view value) {
-    if (value.size() < 4) {
-      return absl::InvalidArgumentError("Need at least 4 bytes");
-    }
-    const uint8_t* bytes = (const uint8_t*)value.data();
-    return (((uint32_t)bytes[0]) << 24) + (((uint32_t)bytes[1]) << 16) +
-           (((uint32_t)bytes[2]) << 8) + ((uint32_t)bytes[3]);
+    return ReadUInt<32, uint32_t>(value);
   }
 
   static absl::StatusOr<uint16_t> ReadUInt16(absl::string_view value) {
-    if (value.size() < 2) {
-      return absl::InvalidArgumentError("Need at least 2 bytes");
-    }
-    const uint8_t* bytes = (const uint8_t*)value.data();
-    return (((uint16_t)bytes[0]) << 8) + (((uint16_t)bytes[1]));
+    return ReadUInt<16, uint16_t>(value);
+  }
+
+  static absl::StatusOr<uint8_t> ReadUInt8(absl::string_view value) {
+    return ReadUInt<8, uint8_t>(value);
   }
 
   static absl::StatusOr<absl::string_view> GlyfData(const hb_face_t* face,
@@ -133,6 +136,37 @@ class FontHelper {
       const absl::btree_set<hb_tag_t>& input);
   static std::string ToString(hb_tag_t tag);
   static hb_tag_t ToTag(const std::string& tag);
+
+ private:
+  template <int num_bits, typename uint_type_t>
+  static void WriteUInt(uint_type_t value, std::string& out) {
+    constexpr int num_bytes = num_bits / 8;
+    int shift = num_bits - 8;
+    for (int i = 0; i < num_bytes; i++) {
+      out.push_back(
+          (uint8_t)((uint_type_t)(value >> shift) & (uint_type_t)0x000000FFu));
+      shift -= 8;
+    }
+  }
+
+  template <unsigned num_bits, typename uint_type_t>
+  static absl::StatusOr<uint_type_t> ReadUInt(absl::string_view value) {
+    unsigned num_bytes = num_bits / 8;
+    if (value.size() < num_bytes) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("Need at least ", num_bytes));
+    }
+
+    const uint8_t* bytes = (const uint8_t*)value.data();
+    unsigned shift = num_bits - 8;
+    uint_type_t result = 0;
+    for (unsigned i = 0; i < num_bytes; i++) {
+      result += (((uint_type_t)bytes[i]) << shift);
+      shift -= 8;
+    }
+
+    return result;
+  }
 };
 
 }  // namespace common
