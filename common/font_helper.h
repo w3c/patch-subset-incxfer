@@ -51,28 +51,50 @@ class FontHelper {
   constexpr static hb_tag_t kGSUB = HB_TAG('G', 'S', 'U', 'B');
   constexpr static hb_tag_t kGPOS = HB_TAG('G', 'P', 'O', 'S');
 
+  template <typename int_type_t>
+  static bool WillIntOverflow(int64_t value) {
+    int_type_t cast = (int_type_t)value;
+    return ((int64_t) cast) != value;
+  }
+
   static void WriteUInt32(uint32_t value, std::string& out) {
-    WriteUInt<32>(value, out);
+    WriteInt<32>(value, out);
   }
 
-  static void WriteUInt16(uint32_t value, std::string& out) {
-    WriteUInt<16>(value, out);
+  static void WriteUInt24(uint32_t value, std::string& out) {
+    WriteInt<24>(value, out);
   }
 
-  static void WriteUInt8(uint32_t value, std::string& out) {
-    WriteUInt<8>(value, out);
+  static void WriteUInt16(uint16_t value, std::string& out) {
+    WriteInt<16>(value, out);
+  }
+
+  static void WriteInt16(int16_t value, std::string& out) {
+    WriteInt<16>(value, out);
+  }
+
+  static void WriteUInt8(uint8_t value, std::string& out) {
+    WriteInt<8>(value, out);
   }
 
   static absl::StatusOr<uint32_t> ReadUInt32(absl::string_view value) {
-    return ReadUInt<32, uint32_t>(value);
+    return ReadInt<32, uint32_t>(value);
+  }
+
+  static absl::StatusOr<uint32_t> ReadUInt24(absl::string_view value) {
+    return ReadInt<24, uint32_t>(value);
   }
 
   static absl::StatusOr<uint16_t> ReadUInt16(absl::string_view value) {
-    return ReadUInt<16, uint16_t>(value);
+    return ReadInt<16, uint16_t>(value);
+  }
+
+  static absl::StatusOr<int16_t> ReadInt16(absl::string_view value) {
+    return ReadInt<16, int16_t>(value);
   }
 
   static absl::StatusOr<uint8_t> ReadUInt8(absl::string_view value) {
-    return ReadUInt<8, uint8_t>(value);
+    return ReadInt<8, uint8_t>(value);
   }
 
   static absl::StatusOr<absl::string_view> GlyfData(const hb_face_t* face,
@@ -138,19 +160,19 @@ class FontHelper {
   static hb_tag_t ToTag(const std::string& tag);
 
  private:
-  template <int num_bits, typename uint_type_t>
-  static void WriteUInt(uint_type_t value, std::string& out) {
+  template <int num_bits, typename int_type_t>
+  static void WriteInt(int_type_t value, std::string& out) {
     constexpr int num_bytes = num_bits / 8;
     int shift = num_bits - 8;
     for (int i = 0; i < num_bytes; i++) {
       out.push_back(
-          (uint8_t)((uint_type_t)(value >> shift) & (uint_type_t)0x000000FFu));
+          (uint8_t)((int_type_t)(value >> shift) & (int_type_t)0x000000FFu));
       shift -= 8;
     }
   }
 
-  template <unsigned num_bits, typename uint_type_t>
-  static absl::StatusOr<uint_type_t> ReadUInt(absl::string_view value) {
+  template <unsigned num_bits, typename int_type_t>
+  static absl::StatusOr<int_type_t> ReadInt(absl::string_view value) {
     unsigned num_bytes = num_bits / 8;
     if (value.size() < num_bytes) {
       return absl::InvalidArgumentError(
@@ -159,9 +181,9 @@ class FontHelper {
 
     const uint8_t* bytes = (const uint8_t*)value.data();
     unsigned shift = num_bits - 8;
-    uint_type_t result = 0;
+    int_type_t result = 0;
     for (unsigned i = 0; i < num_bytes; i++) {
-      result += (((uint_type_t)bytes[i]) << shift);
+      result += (((int_type_t)bytes[i]) << shift);
       shift -= 8;
     }
 

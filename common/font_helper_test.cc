@@ -54,6 +54,34 @@ class FontHelperTest : public ::testing::Test {
   hb_face_unique_ptr roboto_vf_abcd;
 };
 
+TEST_F(FontHelperTest, WillUIntOverflow) {
+  ASSERT_FALSE(FontHelper::WillIntOverflow<uint8_t>(0));
+  ASSERT_FALSE(FontHelper::WillIntOverflow<uint8_t>(199));
+  ASSERT_FALSE(FontHelper::WillIntOverflow<uint8_t>(0xFF));
+  ASSERT_TRUE(FontHelper::WillIntOverflow<uint8_t>(0x100));
+  ASSERT_TRUE(FontHelper::WillIntOverflow<uint8_t>(123959));
+  ASSERT_TRUE(FontHelper::WillIntOverflow<uint8_t>(-1));
+
+  ASSERT_FALSE(FontHelper::WillIntOverflow<uint16_t>(0));
+  ASSERT_FALSE(FontHelper::WillIntOverflow<uint16_t>(1234));
+  ASSERT_FALSE(FontHelper::WillIntOverflow<uint16_t>(0xFFFF));
+  ASSERT_TRUE(FontHelper::WillIntOverflow<uint16_t>(0x10000));
+  ASSERT_TRUE(FontHelper::WillIntOverflow<uint16_t>(-1));
+
+  ASSERT_FALSE(FontHelper::WillIntOverflow<uint32_t>(0));
+  ASSERT_FALSE(FontHelper::WillIntOverflow<uint32_t>(1234567));
+  ASSERT_FALSE(FontHelper::WillIntOverflow<uint32_t>(0xFFFFFFFF));
+  ASSERT_TRUE(FontHelper::WillIntOverflow<uint32_t>(0x100000000));
+  ASSERT_TRUE(FontHelper::WillIntOverflow<uint32_t>(-1));
+
+  ASSERT_FALSE(FontHelper::WillIntOverflow<int16_t>(-1234));
+  ASSERT_FALSE(FontHelper::WillIntOverflow<int16_t>(1234));
+  ASSERT_FALSE(FontHelper::WillIntOverflow<int16_t>(-32768));
+  ASSERT_FALSE(FontHelper::WillIntOverflow<int16_t>(32767));
+  ASSERT_TRUE(FontHelper::WillIntOverflow<int16_t>(-32769));
+  ASSERT_TRUE(FontHelper::WillIntOverflow<int16_t>(32768));
+}
+
 TEST_F(FontHelperTest, ReadUInt8) {
   uint8_t input1[] = {0x12};
   auto s = FontHelper::ReadUInt8(string_view((const char*)input1, 1));
@@ -106,6 +134,34 @@ TEST_F(FontHelperTest, WriteUInt16) {
   FontHelper::WriteUInt16(0x00FA, out);
   char expected2[] = {0x00, (char)0xFA};
   ASSERT_EQ(out, absl::string_view(expected2, 2));
+}
+
+TEST_F(FontHelperTest, ReadInt16) {
+  uint8_t input1[] = {0xED, 0xCC};
+  auto s = FontHelper::ReadInt16(string_view((const char*)input1, 2));
+  ASSERT_TRUE(s.ok()) << s.status();
+  ASSERT_EQ(*s, -0x1234);
+}
+
+TEST_F(FontHelperTest, WriteInt16) {
+  std::string out = "";
+  FontHelper::WriteInt16(-0x1234, out);
+  char expected1[] = {(char) 0xED, (char) 0xCC};
+  ASSERT_EQ(out, absl::string_view(expected1, 2));
+}
+
+TEST_F(FontHelperTest, ReadUInt24) {
+  uint8_t input1[] = {0x12, 0x34, 0x56};
+  auto s = FontHelper::ReadUInt24(string_view((const char*)input1, 3));
+  ASSERT_TRUE(s.ok()) << s.status();
+  ASSERT_EQ(*s, 0x123456);
+}
+
+TEST_F(FontHelperTest, WriteUInt24) {
+  std::string out = "";
+  FontHelper::WriteUInt24(0x00123456, out);
+  char expected1[] = {0x12, 0x34, 0x56};
+  ASSERT_EQ(out, absl::string_view(expected1, 3));
 }
 
 TEST_F(FontHelperTest, ReadUInt32) {
