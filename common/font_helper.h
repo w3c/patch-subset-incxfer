@@ -54,7 +54,7 @@ class FontHelper {
   template <typename int_type_t>
   static bool WillIntOverflow(int64_t value) {
     int_type_t cast = (int_type_t)value;
-    return ((int64_t) cast) != value;
+    return ((int64_t)cast) != value;
   }
 
   static void WriteUInt32(uint32_t value, std::string& out) {

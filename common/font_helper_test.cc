@@ -146,7 +146,7 @@ TEST_F(FontHelperTest, ReadInt16) {
 TEST_F(FontHelperTest, WriteInt16) {
   std::string out = "";
   FontHelper::WriteInt16(-0x1234, out);
-  char expected1[] = {(char) 0xED, (char) 0xCC};
+  char expected1[] = {(char)0xED, (char)0xCC};
   ASSERT_EQ(out, absl::string_view(expected1, 2));
 }
 

@@ -68,6 +68,16 @@ class PatchMap {
                     const absl::flat_hash_map<hb_tag_t, common::AxisRange>&
                         design_space) const;
 
+    uint32_t SmallestCodepoint() const {
+      uint32_t min = 0xFFFFFFFF;
+      for (uint32_t cp : codepoints) {
+        if (cp < min) {
+          min = cp;
+        }
+      }
+      return min;
+    }
+
     // TODO(garretrieger): use hb sets instead?
     absl::flat_hash_set<uint32_t> codepoints;
     absl::flat_hash_set<hb_tag_t> features;
