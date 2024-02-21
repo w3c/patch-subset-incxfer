@@ -7,7 +7,8 @@
 namespace ift::proto {
 
 class Format2PatchMap {
-  static absl::Status Deserialize(absl::string_view data, PatchMap& out);
+  static absl::Status Deserialize(absl::string_view data, PatchMap& out,
+                                  std::string& uri_template_out);
   static absl::StatusOr<std::string> Serialize(const PatchMap& patch_map,
                                                bool is_ext,
                                                absl::string_view uri_template);
