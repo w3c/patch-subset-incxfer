@@ -61,7 +61,7 @@ using common::SparseBitSet;
 #define READ_UINT32(OUT, D, OFF)                    \
   uint32_t OUT = 0;                                 \
   {                                                 \
-    auto v = FontHelper::ReadUInt16(D.substr(OFF)); \
+    auto v = FontHelper::ReadUInt32(D.substr(OFF)); \
     if (!v.ok()) {                                  \
       return v.status();                            \
     }                                               \
@@ -169,19 +169,20 @@ static Status EncodeEntry(const PatchMap::Entry& entry,
 
 static Status DecodeEntries(absl::string_view data, uint16_t count,
                             PatchEncoding default_encoding, PatchMap& out);
+
 static StatusOr<absl::string_view> DecodeEntry(absl::string_view data,
                                                PatchEncoding default_encoding,
+                                               uint32_t& entry_index,
                                                PatchMap& out);
 
 Status Format2PatchMap::Deserialize(absl::string_view data, PatchMap& out,
                                     std::string& uri_template_out) {
   constexpr int format_offset = 0;
-  constexpr int id_offset = 5;
-  constexpr int default_patch_encoding_offset = 9;
-  constexpr int mapping_count_offset = 10;
-  constexpr int mappings_field_offset = 12;
-  constexpr int uri_template_length_offset = 20;
-  constexpr int uri_template_offset = 22;
+  constexpr int default_patch_encoding_offset = 21;
+  constexpr int mapping_count_offset = 22;
+  constexpr int mappings_field_offset = 24;
+  constexpr int uri_template_length_offset = 32;
+  constexpr int uri_template_offset = 34;
 
   READ_UINT8(format, data, format_offset);
   if (format != 2) {
@@ -234,7 +235,7 @@ StatusOr<std::string> Format2PatchMap::Serialize(const PatchMap& patch_map,
                "Exceeded maximum number of entries (0xFFFF).");
 
   // mappings
-  constexpr int header_min_length = 22;
+  constexpr int header_min_length = 34;
   FontHelper::WriteUInt32(header_min_length + uri_template.length(), out);
 
   // idStrings
@@ -247,13 +248,19 @@ StatusOr<std::string> Format2PatchMap::Serialize(const PatchMap& patch_map,
   // uriTemplate
   out.append(uri_template);
 
-  return EncodeEntries(patch_map.GetEntries(), is_ext, default_encoding, out);
+  auto s = EncodeEntries(patch_map.GetEntries(), is_ext, default_encoding, out);
+  if (!s.ok()) {
+    return s;
+  }
+
+  return out;
 }
 
 Status DecodeEntries(absl::string_view data, uint16_t count,
                      PatchEncoding default_encoding, PatchMap& out) {
+  uint32_t entry_index = 0;
   for (uint32_t i = 0; i < count; i++) {
-    auto s = DecodeEntry(data, default_encoding, out);
+    auto s = DecodeEntry(data, default_encoding, entry_index, out);
     if (!s.ok()) {
       return s.status();
     }
@@ -317,11 +324,12 @@ StatusOr<absl::string_view> DecodeEntry(absl::string_view data,
     offset += 3;
     hb_set_unique_ptr codepoint_set = make_hb_set();
     auto s = SparseBitSet::Decode(data.substr(offset), codepoint_set.get());
-    // TODO(garretrieger): have decode report how much of 'data' it consumed.
-    //                     Advance 'offset' as needed.
     if (!s.ok()) {
       return s;
     }
+
+    data = *s;
+    offset = 0;
 
     hb_codepoint_t cp = HB_SET_VALUE_INVALID;
     while (hb_set_next(codepoint_set.get(), &cp)) {
@@ -333,7 +341,7 @@ StatusOr<absl::string_view> DecodeEntry(absl::string_view data,
     out.AddEntry(coverage, entry_index, default_encoding);
   }
 
-  return absl::OkStatus();
+  return data.substr(offset);
 }
 
 Status EncodeEntries(Span<const PatchMap::Entry> entries, bool is_ext,
@@ -401,13 +409,16 @@ Status EncodeEntry(const PatchMap::Entry& entry, uint32_t last_entry_index,
   }
 
   if (has_codepoints) {
-    uint32_t bias = coverage.SmallestCodepoint();
+    constexpr uint32_t max_bias = (1 << 24) - 1;
+    uint32_t bias = std::min(coverage.SmallestCodepoint(), max_bias);
+
     hb_set_unique_ptr biased_set = make_hb_set();
     for (uint32_t cp : coverage.codepoints) {
       hb_set_add(biased_set.get(), cp - bias);
     }
 
     std::string sparse_bit_set = SparseBitSet::Encode(*biased_set);
+    FontHelper::WriteUInt24(bias, out);
     out.append(sparse_bit_set);
   }
 
