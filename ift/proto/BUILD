@@ -7,6 +7,8 @@ cc_library(
     "ift_table.cc",
     "patch_map.h",
     "patch_map.cc",
+    "format_2_patch_map.cc",
+    "format_2_patch_map.h",
   ],
   visibility = [
     "//util:__pkg__",
@@ -51,6 +53,7 @@ cc_test(
     size = "small",
     srcs = [
         "patch_map_test.cc",
+        "format_2_patch_map_test.cc",
     ],
     data = [
         "//patch_subset:testdata",
