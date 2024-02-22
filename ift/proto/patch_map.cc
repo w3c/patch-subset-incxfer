@@ -32,7 +32,7 @@ StatusOr<PatchMap::Coverage> PatchMap::Coverage::FromProto(
   hb_set_unique_ptr codepoints = make_hb_set();
   auto s = SparseBitSet::Decode(mapping.codepoint_set(), codepoints.get());
   if (!s.ok()) {
-    return s;
+    return s.status();
   }
 
   Coverage coverage;

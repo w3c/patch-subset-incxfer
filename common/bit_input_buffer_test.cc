@@ -3,6 +3,7 @@
 #include <bitset>
 #include <string>
 
+#include "common/branch_factor.h"
 #include "gtest/gtest.h"
 
 namespace common {
@@ -111,6 +112,98 @@ TEST_F(BitInputBufferTest, ReservedBitIgnored) {
     EXPECT_EQ(BF32, bin.GetBranchFactor());
     EXPECT_EQ(1, bin.Depth());
   }
+}
+
+TEST_F(BitInputBufferTest, RemainingBf2) {
+  string in{0b00000000, 0b00001111, 0b00000000};
+  //        ^ d1 bf2 ^
+
+  string exp1{0b00001111, 0b00000000};
+  string exp2{0b00000000};
+  string exp3{};
+
+  BitInputBuffer bin(in);
+  EXPECT_EQ(bin.GetBranchFactor(), BF2);
+  EXPECT_EQ(bin.Remaining(), exp1);
+
+  uint32_t out = UINT32_MAX;
+  EXPECT_TRUE(bin.read(&out));
+  EXPECT_EQ(bin.Remaining(), exp2);
+
+  EXPECT_TRUE(bin.read(&out));
+  EXPECT_TRUE(bin.read(&out));
+  EXPECT_TRUE(bin.read(&out));
+  EXPECT_EQ(bin.Remaining(), exp2);
+
+  EXPECT_TRUE(bin.read(&out));
+  EXPECT_EQ(bin.Remaining(), exp3);
+}
+
+TEST_F(BitInputBufferTest, RemainingBf4) {
+  string in{0b00000001, 0b00001111, 0b00000000};
+  //        ^ d1 bf4 ^
+
+  string exp1{0b00001111, 0b00000000};
+  string exp2{0b00000000};
+  string exp3{};
+
+  BitInputBuffer bin(in);
+  EXPECT_EQ(BF4, bin.GetBranchFactor());
+  EXPECT_EQ(bin.Remaining(), exp1);
+
+  uint32_t out = UINT32_MAX;
+  EXPECT_TRUE(bin.read(&out));
+  EXPECT_EQ(bin.Remaining(), exp2);
+
+  EXPECT_TRUE(bin.read(&out));
+  EXPECT_EQ(bin.Remaining(), exp2);
+
+  EXPECT_TRUE(bin.read(&out));
+  EXPECT_EQ(bin.Remaining(), exp3);
+
+  EXPECT_TRUE(bin.read(&out));
+  EXPECT_EQ(bin.Remaining(), exp3);
+}
+
+TEST_F(BitInputBufferTest, RemainingBf8) {
+  string in{0b00000010, 0x2F, 0x3F};
+  //        ^ d1 bf8 ^
+
+  string exp1{0x2F, 0x3F};
+  string exp2{0x3F};
+  string exp3{};
+
+  BitInputBuffer bin(in);
+  EXPECT_EQ(BF8, bin.GetBranchFactor());
+  EXPECT_EQ(bin.Remaining(), exp1);
+
+  uint32_t out = UINT32_MAX;
+  EXPECT_TRUE(bin.read(&out));
+  EXPECT_EQ(bin.Remaining(), exp2);
+
+  EXPECT_TRUE(bin.read(&out));
+  EXPECT_EQ(bin.Remaining(), exp3);
+}
+
+TEST_F(BitInputBufferTest, RemainingBf32) {
+  string in{0b00000011, 0x11, 0x22, 0x33,       0x44,
+            0x55,       0x66, 0x77, (char)0x88, (char)0x99};
+  //        ^ d1 bf32^
+
+  string exp1{0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, (char)0x88, (char)0x99};
+  string exp2{0x55, 0x66, 0x77, (char)0x88, (char)0x99};
+  string exp3{(char)0x99};
+
+  BitInputBuffer bin(in);
+  EXPECT_EQ(BF32, bin.GetBranchFactor());
+  EXPECT_EQ(bin.Remaining(), exp1);
+
+  uint32_t out = UINT32_MAX;
+  EXPECT_TRUE(bin.read(&out));
+  EXPECT_EQ(bin.Remaining(), exp2);
+
+  EXPECT_TRUE(bin.read(&out));
+  EXPECT_EQ(bin.Remaining(), exp3);
 }
 
 }  // namespace common

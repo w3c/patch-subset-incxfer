@@ -24,9 +24,9 @@ static const int kBitsPerByte = 8;
 
 Status CompressedSet::Decode(const patch_subset::cbor::CompressedSet& set,
                              hb_set_t* out) {
-  Status result = SparseBitSet::Decode(set.SparseBitSetBytes(), out);
+  auto result = SparseBitSet::Decode(set.SparseBitSetBytes(), out);
   if (!result.ok()) {
-    return result;
+    return result.status();
   }
 
   for (patch_subset::cbor::range range : set.Ranges()) {

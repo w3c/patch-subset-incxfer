@@ -1,9 +1,8 @@
 #include "common/bit_input_buffer.h"
 
-#include <string>
-
 #include "absl/strings/string_view.h"
 
+using absl::ClippedSubstr;
 using absl::string_view;
 
 namespace common {
@@ -26,9 +25,30 @@ BitInputBuffer::BitInputBuffer(string_view bits)
   first_nibble = true;
 }
 
-const BranchFactor BitInputBuffer::GetBranchFactor() { return branch_factor; }
+const BranchFactor BitInputBuffer::GetBranchFactor() const {
+  return branch_factor;
+}
 
-const uint32_t BitInputBuffer::Depth() { return depth; }
+const uint32_t BitInputBuffer::Depth() const { return depth; }
+
+absl::string_view BitInputBuffer::Remaining() const {
+  int extra = 0;
+  switch (branch_factor) {
+    case BF2:
+      extra = (current_pair > 0) ? 1 : 0;
+      return ClippedSubstr(bits, current_byte + extra);
+    case BF4:
+      extra = !first_nibble ? 1 : 0;
+      return ClippedSubstr(bits, current_byte + extra);
+    case BF8:
+      // Fallthrough
+    case BF32:
+      return ClippedSubstr(bits, current_byte);
+    default:
+      // Invalid branch factor, nothing will be consumed.
+      return bits;
+  }
+}
 
 bool BitInputBuffer::read(uint32_t *out) {
   if (!out) {

@@ -3,7 +3,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "common/bit_input_buffer.h"
@@ -12,7 +12,7 @@
 
 namespace common {
 
-using absl::Status;
+using absl::StatusOr;
 using absl::string_view;
 using std::string;
 using std::unordered_map;
@@ -47,12 +47,13 @@ uint8_t ValuesPerBitLog2ForLayer(uint32_t layer, uint32_t tree_depth,
   return kBFNodeSizeLog2[branch_factor] * num_layers;
 }
 
-Status SparseBitSet::Decode(string_view sparse_bit_set, hb_set_t* out) {
+StatusOr<string_view> SparseBitSet::Decode(string_view sparse_bit_set,
+                                           hb_set_t* out) {
   if (!out) {
     return absl::InvalidArgumentError("out is null.");
   }
   if (sparse_bit_set.empty()) {
-    return absl::OkStatus();
+    return sparse_bit_set;
   }
 
   BitInputBuffer bits(sparse_bit_set);
@@ -128,7 +129,8 @@ Status SparseBitSet::Decode(string_view sparse_bit_set, hb_set_t* out) {
     hb_set_add_sorted_array(out, pending_codepoints.data(),
                             pending_codepoints.size());
   }
-  return absl::OkStatus();
+
+  return bits.Remaining();
 }
 
 static void AdvanceToCp(uint32_t prev_cp, uint32_t cp,

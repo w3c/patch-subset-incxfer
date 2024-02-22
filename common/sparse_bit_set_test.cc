@@ -34,12 +34,12 @@ class SparseBitSetTest : public ::testing::Test {
       EXPECT_EQ(encoded_bits.size(), expected_size);
     }
     hb_set_unique_ptr decoded = make_hb_set();
-    Status sc = SparseBitSet::Decode(encoded_bits, decoded.get());
+    auto sc = SparseBitSet::Decode(encoded_bits, decoded.get());
     if (!sc.ok()) {
       string bits = Bits(encoded_bits, bf);
       EXPECT_EQ("Decode worked", "Unable to decode bits: " + bits);
     }
-    EXPECT_EQ(absl::OkStatus(), sc);
+    EXPECT_EQ(absl::OkStatus(), sc.status());
     if (!hb_set_is_equal(set, decoded.get())) {
       string set_in = SetContents(set);
       string encoded_bit_str = Bits(encoded_bits, bf);
@@ -149,7 +149,8 @@ class SparseBitSetTest : public ::testing::Test {
 
   static string FromBits(const string &s) {
     hb_set_unique_ptr set = make_hb_set();
-    EXPECT_EQ(absl::OkStatus(), SparseBitSet::Decode(FromChars(s), set.get()));
+    EXPECT_EQ(absl::OkStatus(),
+              SparseBitSet::Decode(FromChars(s), set.get()).status());
     return SetContents(set.get());
   }
 
@@ -165,14 +166,16 @@ class SparseBitSetTest : public ::testing::Test {
 };
 
 TEST_F(SparseBitSetTest, DecodeNullSet) {
-  EXPECT_TRUE(absl::IsInvalidArgument(SparseBitSet::Decode(string(), nullptr)));
+  EXPECT_TRUE(absl::IsInvalidArgument(
+      SparseBitSet::Decode(string(), nullptr).status()));
 }
 
 TEST_F(SparseBitSetTest, DecodeAppends) {
   hb_set_unique_ptr set = make_hb_set(1, 42);
-  ASSERT_EQ(SparseBitSet::Decode(string{0b00000001, 0b00000001}, set.get()),
-            //                          ^ d1 bf8 ^
-            absl::OkStatus());
+  ASSERT_EQ(
+      SparseBitSet::Decode(string{0b00000001, 0b00000001}, set.get()).status(),
+      //                          ^ d1 bf8 ^
+      absl::OkStatus());
   hb_set_unique_ptr expected = make_hb_set(2, 0, 42);
   EXPECT_TRUE(hb_set_is_equal(expected.get(), set.get()));
 }
@@ -182,8 +185,29 @@ TEST_F(SparseBitSetTest, DecodeInvalid) {
   string encoded{0b00000110, 0b01010101, 0b00000001, 0b00000001};
   //             ^ d2 bf8 ^
   hb_set_unique_ptr set = make_hb_set();
-  EXPECT_TRUE(
-      absl::IsInvalidArgument(SparseBitSet::Decode(encoded, set.get())));
+  EXPECT_TRUE(absl::IsInvalidArgument(
+      SparseBitSet::Decode(encoded, set.get()).status()));
+}
+
+TEST_F(SparseBitSetTest, RemainingOnDecode) {
+  auto set = make_hb_set(4, 5, 12, 17, 38);
+  std::string encoded = SparseBitSet::Encode(*set);
+  encoded.append("abcd");
+
+  auto s = SparseBitSet::Decode(encoded, set.get());
+  ASSERT_TRUE(s.ok()) << s.status();
+
+  ASSERT_EQ(*s, "abcd");
+}
+
+TEST_F(SparseBitSetTest, RemainingOnDecode_Empty) {
+  auto set = make_hb_set(4, 5, 12, 17, 38);
+  std::string encoded = SparseBitSet::Encode(*set);
+
+  auto s = SparseBitSet::Decode(encoded, set.get());
+  ASSERT_TRUE(s.ok()) << s.status();
+
+  ASSERT_EQ(*s, "");
 }
 
 TEST_F(SparseBitSetTest, EncodeEmpty) { TestEncodeDecode(make_hb_set(), 0); }
@@ -396,7 +420,8 @@ TEST_F(SparseBitSetTest, MostlyFilledExampleTranscode) {
       //                                       padding
       bits_str);
   hb_set_unique_ptr decoded = make_hb_set();
-  EXPECT_EQ(absl::OkStatus(), SparseBitSet::Decode(bits, decoded.get()));
+  EXPECT_EQ(absl::OkStatus(),
+            SparseBitSet::Decode(bits, decoded.get()).status());
   hb_set_unique_ptr expected = Set({{0, 115}, {117, 217}, {219, 255}});
   EXPECT_TRUE(hb_set_is_equal(expected.get(), decoded.get()));
 }
@@ -447,7 +472,8 @@ TEST_F(SparseBitSetTest, RandomSets) {
     for (BranchFactor bf : {BF2, BF4, BF8, BF32}) {
       string bit_set = SparseBitSet::Encode(*input, bf);
       hb_set_unique_ptr output = make_hb_set();
-      EXPECT_EQ(absl::OkStatus(), SparseBitSet::Decode(bit_set, output.get()));
+      EXPECT_EQ(absl::OkStatus(),
+                SparseBitSet::Decode(bit_set, output.get()).status());
       EXPECT_TRUE(hb_set_is_equal(input.get(), output.get()));
     }
   }
@@ -456,27 +482,29 @@ TEST_F(SparseBitSetTest, RandomSets) {
 TEST_F(SparseBitSetTest, DepthLimits2) {
   hb_set_unique_ptr output = make_hb_set();
   // Depth 32 is OK.
-  EXPECT_EQ(absl::OkStatus(),
-            SparseBitSet::Decode(FromChars("00|111111  00"), output.get()));
+  EXPECT_EQ(
+      absl::OkStatus(),
+      SparseBitSet::Decode(FromChars("00|111111  00"), output.get()).status());
 }
 
 TEST_F(SparseBitSetTest, DepthLimits4) {
   hb_set_unique_ptr output = make_hb_set();
   // Depth 16 is OK.
-  EXPECT_EQ(
-      absl::OkStatus(),
-      SparseBitSet::Decode(FromChars("10|111100  00000000"), output.get()));
+  EXPECT_EQ(absl::OkStatus(),
+            SparseBitSet::Decode(FromChars("10|111100  00000000"), output.get())
+                .status());
 }
 
 TEST_F(SparseBitSetTest, DepthLimits8) {
   hb_set_unique_ptr output = make_hb_set();
   // Depth 11 is OK.
-  EXPECT_EQ(
-      absl::OkStatus(),
-      SparseBitSet::Decode(FromChars("01|010100  00000000"), output.get()));
+  EXPECT_EQ(absl::OkStatus(),
+            SparseBitSet::Decode(FromChars("01|010100  00000000"), output.get())
+                .status());
   // Depth 12 is too much.
   EXPECT_TRUE(absl::IsInvalidArgument(
-      SparseBitSet::Decode(FromChars("01|110100 00000000"), output.get())));
+      SparseBitSet::Decode(FromChars("01|110100 00000000"), output.get())
+          .status()));
 }
 
 TEST_F(SparseBitSetTest, DepthLimits32) {
@@ -485,10 +513,14 @@ TEST_F(SparseBitSetTest, DepthLimits32) {
   EXPECT_EQ(absl::OkStatus(),
             SparseBitSet::Decode(
                 FromChars("11|011000  00000000000000000000000000000000"),
-                output.get()));
+                output.get())
+                .status());
   // Depth 8 is too much.
-  EXPECT_TRUE(absl::IsInvalidArgument(SparseBitSet::Decode(
-      FromChars("11|111000  00000000000000000000000000000000"), output.get())));
+  EXPECT_TRUE(absl::IsInvalidArgument(
+      SparseBitSet::Decode(
+          FromChars("11|111000  00000000000000000000000000000000"),
+          output.get())
+          .status()));
 }
 
 TEST_F(SparseBitSetTest, Entire32BitRange) {
