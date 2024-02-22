@@ -90,11 +90,11 @@ using common::SparseBitSet;
   }                                               \
   FontHelper::WriteUInt16(V, O);
 
-#define WRITE_INT16(V, O, M)                      \
-  if (FontHelper::WillIntOverflow<uint16_t>(V)) { \
-    return absl::InvalidArgumentError(M);         \
-  }                                               \
-  FontHelper::WriteUInt16(V, O);
+#define WRITE_INT16(V, O, M)                     \
+  if (FontHelper::WillIntOverflow<int16_t>(V)) { \
+    return absl::InvalidArgumentError(M);        \
+  }                                              \
+  FontHelper::WriteInt16(V, O);
 
 namespace ift::proto {
 
@@ -167,16 +167,18 @@ static Status EncodeEntry(const PatchMap::Entry& entry,
                           uint32_t last_entry_index,
                           PatchEncoding default_encoding, std::string& out);
 
-static Status DecodeEntries(absl::string_view data, uint16_t count,
+static Status DecodeEntries(absl::string_view data, uint16_t count, bool is_ext,
                             PatchEncoding default_encoding, PatchMap& out);
 
 static StatusOr<absl::string_view> DecodeEntry(absl::string_view data,
                                                PatchEncoding default_encoding,
+                                               bool is_ext,
                                                uint32_t& entry_index,
                                                PatchMap& out);
 
 Status Format2PatchMap::Deserialize(absl::string_view data, PatchMap& out,
-                                    std::string& uri_template_out) {
+                                    std::string& uri_template_out,
+                                    bool is_ext) {
   constexpr int format_offset = 0;
   constexpr int default_patch_encoding_offset = 21;
   constexpr int mapping_count_offset = 22;
@@ -198,7 +200,7 @@ Status Format2PatchMap::Deserialize(absl::string_view data, PatchMap& out,
   READ_UINT16(mapping_count, data, mapping_count_offset);
   READ_UINT32(mappings_offset, data, mappings_field_offset);
   auto s = DecodeEntries(ClippedSubstr(data, mappings_offset), mapping_count,
-                         *default_encoding, out);
+                         is_ext, *default_encoding, out);
 
   READ_UINT16(uri_template_length, data, uri_template_length_offset);
   READ_STRING(uri_template, data, uri_template_offset, uri_template_length);
@@ -256,11 +258,11 @@ StatusOr<std::string> Format2PatchMap::Serialize(const PatchMap& patch_map,
   return out;
 }
 
-Status DecodeEntries(absl::string_view data, uint16_t count,
+Status DecodeEntries(absl::string_view data, uint16_t count, bool is_ext,
                      PatchEncoding default_encoding, PatchMap& out) {
   uint32_t entry_index = 0;
   for (uint32_t i = 0; i < count; i++) {
-    auto s = DecodeEntry(data, default_encoding, entry_index, out);
+    auto s = DecodeEntry(data, default_encoding, is_ext, entry_index, out);
     if (!s.ok()) {
       return s.status();
     }
@@ -271,7 +273,8 @@ Status DecodeEntries(absl::string_view data, uint16_t count,
 
 StatusOr<absl::string_view> DecodeEntry(absl::string_view data,
                                         PatchEncoding default_encoding,
-                                        uint32_t& entry_index, PatchMap& out) {
+                                        bool is_ext, uint32_t& entry_index,
+                                        PatchMap& out) {
   if (data.empty()) {
     return absl::InvalidArgumentError(
         "Not enough input data to decode mapping entry.");
@@ -338,7 +341,7 @@ StatusOr<absl::string_view> DecodeEntry(absl::string_view data,
   }
 
   if (!(format & ignore_bit_mask)) {
-    out.AddEntry(coverage, entry_index, default_encoding);
+    out.AddEntry(coverage, entry_index, default_encoding, is_ext);
   }
 
   return data.substr(offset);
@@ -369,8 +372,9 @@ Status EncodeEntry(const PatchMap::Entry& entry, uint32_t last_entry_index,
   bool has_codepoints = !coverage.codepoints.empty();
   bool has_features = !coverage.features.empty();
   bool has_design_space = !coverage.design_space.empty();
-  int64_t delta = ((int64_t)entry.patch_index) - ((int64_t)last_entry_index);
-  bool has_delta = delta != 1;
+  int64_t delta =
+      ((int64_t)entry.patch_index) - ((int64_t)last_entry_index + 1);
+  bool has_delta = delta != 0;
   bool has_patch_encoding = entry.encoding != default_encoding;
 
   // format
@@ -397,7 +401,8 @@ Status EncodeEntry(const PatchMap::Entry& entry, uint32_t last_entry_index,
   }
 
   if (has_delta) {
-    WRITE_INT16(delta, out, "Exceed max entry index delta (int16).");
+    WRITE_INT16(delta, out,
+                StrCat("Exceed max entry index delta (int16): ", delta));
   }
 
   if (has_patch_encoding) {
