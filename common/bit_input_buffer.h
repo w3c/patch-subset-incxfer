@@ -17,8 +17,9 @@ class BitInputBuffer {
  public:
   BitInputBuffer(absl::string_view bits);
 
-  const BranchFactor GetBranchFactor();
-  const unsigned int Depth();
+  const BranchFactor GetBranchFactor() const;
+  const unsigned int Depth() const;
+  absl::string_view Remaining() const;
 
   // The lowest/rightmost bits of the value bits are set, the remaining are
   // cleared. The number of bits set depends on the BranchFactor this

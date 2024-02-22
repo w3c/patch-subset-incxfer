@@ -1,9 +1,7 @@
 #ifndef COMMON_SPARSE_BIT_SET_H_
 #define COMMON_SPARSE_BIT_SET_H_
 
-#include <vector>
-
-#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "common/branch_factor.h"
 #include "hb.h"
@@ -48,8 +46,10 @@ namespace common {
 class SparseBitSet {
  public:
   // Decode a SparseBitSet binary blob into an actual set. The decoded set
-  // items are appended to any existing items in out.
-  static absl::Status Decode(absl::string_view sparse_bit_set, hb_set_t* out);
+  // items are appended to any existing items in out. Returns a sub string of
+  // 'sparse_bit_set' with the consumed bytes removed.
+  static absl::StatusOr<absl::string_view> Decode(
+      absl::string_view sparse_bit_set, hb_set_t* out);
 
   // Encode a set of integers into a sparse bit set binary blob.
   static std::string Encode(const hb_set_t& set, BranchFactor branch_factor);
