@@ -3,7 +3,6 @@
 
 #include "absl/status/statusor.h"
 #include "ift/proto/ift_table.h"
-#include "ift/proto/patch_map.h"
 
 namespace ift::proto {
 

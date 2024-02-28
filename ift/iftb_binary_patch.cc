@@ -187,10 +187,7 @@ Status IftbBinaryPatch::Patch(const FontData& font_base,
                                   HB_MEMORY_MODE_READONLY, nullptr, nullptr));
   face = make_hb_face(hb_face_create(blob.get(), 0));
 
-  IFT main_proto = ift_table->CreateMainTable();
-  IFT ext_proto = ift_table->CreateExtensionTable();
-  auto result = IFTTable::AddToFont(face.get(), main_proto,
-                                    touched_ext ? &ext_proto : nullptr);
+  auto result = ift_table->AddToFont(face.get());
 
   if (!result.ok()) {
     return result.status();
