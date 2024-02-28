@@ -2,19 +2,18 @@
 #define IFT_PROTO_FORMAT_2_PATCH_MAP_H_
 
 #include "absl/status/statusor.h"
+#include "ift/proto/ift_table.h"
 #include "ift/proto/patch_map.h"
 
 namespace ift::proto {
 
 class Format2PatchMap {
  public:
-  static absl::Status Deserialize(absl::string_view data, PatchMap& out,
-                                  std::string& uri_template_out,
-                                  bool is_ext = false);
+  static absl::Status Deserialize(absl::string_view data, IFTTable& out,
+                                  bool is_ext);
 
-  static absl::StatusOr<std::string> Serialize(const PatchMap& patch_map,
-                                               bool is_ext,
-                                               absl::string_view uri_template);
+  static absl::StatusOr<std::string> Serialize(const IFTTable& ift_table,
+                                               bool is_ext);
 };
 
 }  // namespace ift::proto

@@ -45,6 +45,8 @@ class IFTTable {
       hb_face_t* face, const IFT& proto, const IFT* extension_proto = nullptr,
       bool iftb_conversion = false);
 
+  // TODO(garretrieger): add a separate extension id as well (like w/ URL
+  // templates).
   void GetId(uint32_t out[4]) const;
 
   const PatchMap& GetPatchMap() const { return patch_map_; }
@@ -77,6 +79,14 @@ class IFTTable {
     id_[2] = id[2];
     id_[3] = id[3];
     return absl::OkStatus();
+  }
+
+  bool operator==(const IFTTable& other) const {
+    return url_template_ == other.url_template_ &&
+           extension_url_template_ == other.extension_url_template_ &&
+           id_[0] == other.id_[0] && id_[1] == other.id_[1] &&
+           id_[2] == other.id_[2] && id_[3] == other.id_[3] &&
+           patch_map_ == other.patch_map_;
   }
 
   /*
