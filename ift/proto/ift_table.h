@@ -3,12 +3,9 @@
 
 #include <cstdint>
 
-#include "absl/container/flat_hash_map.h"
-#include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
 #include "common/font_data.h"
 #include "hb.h"
-#include "ift/proto/IFT.pb.h"
 #include "ift/proto/patch_map.h"
 
 namespace ift::proto {
@@ -29,21 +26,7 @@ class IFTTable {
    */
   static absl::StatusOr<IFTTable> FromFont(const common::FontData& font);
 
-  /*
-   * Converts IFT proto into an IFTTable object.
-   */
-  static absl::StatusOr<IFTTable> FromProto(IFT proto);
-
-  /*
-   * Adds an encoded 'IFT ' table built from the supplied proto to font pointed
-   * to by face. By default this will maintain the physical ordering of tables
-   * already present in the font. If iftb_conversion is set any "IFTB" tables
-   * if present will be be removed and tables in the final font will be ordered
-   * according to IFTB ordering requirements.
-   */
-  static absl::StatusOr<common::FontData> AddToFont(
-      hb_face_t* face, const IFT& proto, const IFT* extension_proto = nullptr,
-      bool iftb_conversion = false);
+  friend void PrintTo(const IFTTable& table, std::ostream* os);
 
   // TODO(garretrieger): add a separate extension id as well (like w/ URL
   // templates).
@@ -90,6 +73,27 @@ class IFTTable {
   }
 
   /*
+   * Adds an encoded 'IFT ' table built from this IFT table to the font pointed
+   * to by face. By default this will maintain the physical orderng of tables
+   * already present in the font. If extension entries are present then an
+   * extension table (IFTX) will also be added.
+   */
+  absl::StatusOr<common::FontData> AddToFont(
+      hb_face_t* face, bool iftb_conversion = false) const;
+
+ private:
+  /*
+   * Adds an encoded 'IFT ' table built from the supplied proto to font pointed
+   * to by face. By default this will maintain the physical ordering of tables
+   * already present in the font. If iftb_conversion is set any "IFTB" tables
+   * if present will be be removed and tables in the final font will be ordered
+   * according to IFTB ordering requirements.
+   */
+  static absl::StatusOr<common::FontData> AddToFont(
+      hb_face_t* face, const IFT& proto, const IFT* extension_proto = nullptr,
+      bool iftb_conversion = false);
+
+  /*
    * Converts this abstract representation to the proto representation.
    * This method generates the proto for the main "IFT " table.
    */
@@ -101,19 +105,9 @@ class IFTTable {
    */
   IFT CreateExtensionTable() const;
 
-  /*
-   * Adds an encoded 'IFT ' table built from this IFT table to the font pointed
-   * to by face. By default this will maintain the physical orderng of tables
-   * already present in the font. If extension entries are present then an
-   * extension table (IFTX) will also be added.
-   */
-  absl::StatusOr<common::FontData> AddToFont(
-      hb_face_t* face, bool iftb_conversion = false) const;
-
- private:
   std::string url_template_;
   std::string extension_url_template_;
-  uint32_t id_[4];
+  uint32_t id_[4] = {0, 0, 0, 0};
   PatchMap patch_map_;
 };
 

@@ -44,123 +44,58 @@ class IFTClientTest : public ::testing::Test {
  protected:
   IFTClientTest() {
     // Simple Test Font
-    IFT sample;
-    sample.set_url_template("0x$2$1");
-
-    auto m = sample.add_subset_mapping();
-    hb_set_unique_ptr set = make_hb_set(2, 7, 9);
-    m->set_bias(23);
-    m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
-    m->set_id_delta(8);
-    m->set_patch_encoding(IFTB_ENCODING);
-
-    m = sample.add_subset_mapping();
-    set = make_hb_set(3, 10, 11, 12);
-    m->set_bias(45);
-    m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
-    m->set_id_delta(32);
-    m->set_patch_encoding(SHARED_BROTLI_ENCODING);
+    IFTTable sample;
+    sample.SetUrlTemplate("0x$2$1");
+    sample.GetPatchMap().AddEntry({30, 32}, 9, IFTB_ENCODING);
+    sample.GetPatchMap().AddEntry({55, 56, 57}, 42, SHARED_BROTLI_ENCODING);
 
     // Extension table
-    IFT extension;
-    extension.set_url_template("0x$2$1.ext");
-    m = extension.add_subset_mapping();
-    set = make_hb_set(2, 60, 62);
-    m->set_bias(0);
-    m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
-    m->set_id_delta(33);
-    m->set_patch_encoding(IFTB_ENCODING);
+    IFTTable extension = sample;
+    extension.SetExtensionUrlTemplate("0x$2$1.ext");
+    extension.GetPatchMap().AddEntry({60, 62}, 34, IFTB_ENCODING, true);
 
     // Complex Test Font
-    IFT complex;
-    complex.set_default_patch_encoding(IFTB_ENCODING);
-    complex.set_url_template("0x$2$1");
-
-    m = complex.add_subset_mapping();
-    set = make_hb_set(3, 4, 5, 6);
-    m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
-
-    m = complex.add_subset_mapping();
-    set = make_hb_set(3, 6, 7, 8);
-    m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
-
-    m = complex.add_subset_mapping();
-    set = make_hb_set(3, 9, 10, 11);
-    m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
-
-    m = complex.add_subset_mapping();
-    set = make_hb_set(5, 11, 20, 21, 22, 23);
-    m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
-    m->set_patch_encoding(SHARED_BROTLI_ENCODING);
-
-    m = complex.add_subset_mapping();
-    set = make_hb_set(3, 11, 12, 20);
-    m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
-    m->set_patch_encoding(SHARED_BROTLI_ENCODING);
-
-    m = complex.add_subset_mapping();
-    set = make_hb_set(3, 11, 12, 25);
-    m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
-    m->set_patch_encoding(SHARED_BROTLI_ENCODING);
+    IFTTable complex;
+    complex.SetUrlTemplate("0x$2$1");
+    complex.GetPatchMap().AddEntry({4, 5, 6}, 1, IFTB_ENCODING);
+    complex.GetPatchMap().AddEntry({6, 7, 8}, 2, IFTB_ENCODING);
+    complex.GetPatchMap().AddEntry({9, 10, 11}, 3, IFTB_ENCODING);
+    complex.GetPatchMap().AddEntry({11, 20, 21, 22, 23}, 4,
+                                   SHARED_BROTLI_ENCODING);
+    complex.GetPatchMap().AddEntry({11, 12, 20}, 5, SHARED_BROTLI_ENCODING);
+    complex.GetPatchMap().AddEntry({11, 12, 25}, 6, SHARED_BROTLI_ENCODING);
 
     // Invalid Test Font
-    IFT invalid;
-    invalid.set_default_patch_encoding(IFTB_ENCODING);
-    invalid.set_url_template("0x$2$1");
-
-    m = invalid.add_subset_mapping();
-    set = make_hb_set(3, 4, 5, 6);
-    m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
-
-    m = invalid.add_subset_mapping();
-    set = make_hb_set(3, 7, 8, 9);
-    m->set_id_delta(-1);
-    m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
-
-    m = invalid.add_subset_mapping();
-    set = make_hb_set(3, 4, 5);
-    m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
-    m->set_id_delta(-1);
-    m->set_patch_encoding(SHARED_BROTLI_ENCODING);
+    IFTTable invalid;
+    invalid.SetUrlTemplate("0x$2$1");
+    invalid.GetPatchMap().AddEntry({4, 5, 6}, 1, IFTB_ENCODING);
+    invalid.GetPatchMap().AddEntry({7, 8, 9}, 1, IFTB_ENCODING);
+    invalid.GetPatchMap().AddEntry({4, 5}, 1, SHARED_BROTLI_ENCODING);
 
     // With Features
-    IFT sample_with_features = sample;
-    m = sample_with_features.add_subset_mapping();
-    set = make_hb_set(3, 0, 1, 2);
-    m->set_bias(20);
-    m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
-    m->set_id_delta(10);  // 0x35 (53)
-    m->add_feature_index(kLigaNo);
-    m->set_patch_encoding(IFTB_ENCODING);
+    IFTTable sample_with_features = sample;
+    PatchMap::Coverage coverage1{20, 21, 22};
+    coverage1.features.insert(kLigaNo);
+    sample_with_features.GetPatchMap().AddEntry(coverage1, 53, IFTB_ENCODING);
 
-    m = sample_with_features.add_subset_mapping();
-    set = make_hb_set(2, 0, 1);
-    m->set_bias(60);
-    m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
-    m->set_id_delta(0);  // 0x36 (54)
-    m->add_feature_index(kLigaNo);
-    m->set_patch_encoding(SHARED_BROTLI_ENCODING);
+    PatchMap::Coverage coverage2{60, 61};
+    coverage2.features.insert(kLigaNo);
+    sample_with_features.GetPatchMap().AddEntry(coverage2, 54,
+                                                SHARED_BROTLI_ENCODING);
 
-    m = sample_with_features.add_subset_mapping();
-    set = make_hb_set(4, 0, 1, 2, 3);
-    m->set_bias(70);
-    m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
-    m->set_id_delta(0);  // 0x37 (55)
-    m->add_feature_index(kLigaNo);
-    m->set_patch_encoding(SHARED_BROTLI_ENCODING);
+    PatchMap::Coverage coverage3{70, 71, 72, 73};
+    coverage3.features.insert(kLigaNo);
+    sample_with_features.GetPatchMap().AddEntry(coverage3, 55,
+                                                SHARED_BROTLI_ENCODING);
 
-    m = sample_with_features.add_subset_mapping();
-    set = make_hb_set(5, 0, 1, 2, 3, 4);
-    m->set_bias(80);
-    m->set_codepoint_set(SparseBitSet::Encode(*set.get()));
-    m->set_id_delta(0);  // 0x38 (56)
-    m->add_feature_index(kLigaNo);
-    m->set_patch_encoding(SHARED_BROTLI_ENCODING);
+    PatchMap::Coverage coverage4{80, 81, 82, 83, 84};
+    coverage4.features.insert(kLigaNo);
+    sample_with_features.GetPatchMap().AddEntry(coverage4, 56,
+                                                SHARED_BROTLI_ENCODING);
 
-    m = sample_with_features.add_subset_mapping();
-    m->set_id_delta(7);  // 0x40 (64)
-    m->add_feature_index(kLigaNo);
-    m->set_patch_encoding(IFTB_ENCODING);
+    PatchMap::Coverage coverage5{};
+    coverage5.features.insert(kLigaNo);
+    sample_with_features.GetPatchMap().AddEntry(coverage5, 64, IFTB_ENCODING);
 
     // Font with Design Space
     IFTTable sample_with_design_space;
@@ -205,23 +140,23 @@ class IFTClientTest : public ::testing::Test {
     hb_blob_destroy(blob);
     fonts[kLeaf].set(face);
 
-    auto font = IFTTable::AddToFont(face, sample);
+    auto font = sample.AddToFont(face);
     auto new_face = font->face();
     fonts[kSampleFont].set(new_face.get());
 
-    font = IFTTable::AddToFont(face, sample, &extension);
+    font = extension.AddToFont(face);
     new_face = font->face();
     fonts[kFontWithExtension].set(new_face.get());
 
-    font = IFTTable::AddToFont(face, complex);
+    font = complex.AddToFont(face);
     new_face = font->face();
     fonts[kComplexFont].set(new_face.get());
 
-    font = IFTTable::AddToFont(face, invalid);
+    font = invalid.AddToFont(face);
     new_face = font->face();
     fonts[kInvalidFont].set(new_face.get());
 
-    font = IFTTable::AddToFont(face, sample_with_features);
+    font = sample_with_features.AddToFont(face);
     new_face = font->face();
     fonts[kFontWithFeatures].set(new_face.get());
 

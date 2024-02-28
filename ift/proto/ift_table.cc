@@ -45,16 +45,33 @@ StatusOr<IFTTable> IFTTable::FromFont(hb_face_t* face) {
     return absl::InternalError("Unable to parse 'IFT ' table.");
   }
 
-  auto ift = FromProto(ift_proto);
-  if (!ift.ok()) {
-    return ift.status();
+  IFTTable out;
+  auto s = out.GetPatchMap().AddFromProto(ift_proto, false);
+  if (!s.ok()) {
+    return s;
+  }
+  out.SetUrlTemplate(ift_proto.url_template());
+
+  if (ift_proto.id_size() == 4) {
+    s = out.SetId(
+        {ift_proto.id(0), ift_proto.id(1), ift_proto.id(2), ift_proto.id(3)});
+    if (!s.ok()) {
+      return s;
+    }
+  } else if (ift_proto.id_size() == 0) {
+    s = out.SetId({0, 0, 0, 0});
+    if (!s.ok()) {
+      return s;
+    }
+  } else {
+    return absl::InvalidArgumentError("id field must have a length of 4 or 0.");
   }
 
   // Check for an handle extension table if present.
   ift_table = FontHelper::TableData(face, IFTX_TAG);
   if (ift_table.empty()) {
     // No extension table
-    return ift;
+    return out;
   }
 
   data_string = ift_table.string();
@@ -64,14 +81,14 @@ StatusOr<IFTTable> IFTTable::FromFont(hb_face_t* face) {
   }
 
   if (!ift_proto.url_template().empty()) {
-    ift->SetExtensionUrlTemplate(ift_proto.url_template());
+    out.SetExtensionUrlTemplate(ift_proto.url_template());
   }
-  auto s = ift->GetPatchMap().AddFromProto(ift_proto, true);
+  s = out.GetPatchMap().AddFromProto(ift_proto, true);
   if (!s.ok()) {
     return s;
   }
 
-  return ift;
+  return out;
 }
 
 StatusOr<IFTTable> IFTTable::FromFont(const FontData& font) {
@@ -79,30 +96,6 @@ StatusOr<IFTTable> IFTTable::FromFont(const FontData& font) {
   auto s = IFTTable::FromFont(face);
   hb_face_destroy(face);
   return s;
-}
-
-StatusOr<IFTTable> IFTTable::FromProto(IFT proto) {
-  auto map = PatchMap::FromProto(proto);
-  if (!map.ok()) {
-    return map.status();
-  }
-
-  IFTTable table;
-  table.patch_map_ = std::move(*map);
-  table.SetUrlTemplate(proto.url_template());
-
-  if (proto.id_size() != 4 && proto.id_size() != 0) {
-    return absl::InvalidArgumentError("id field must have a length of 4 or 0.");
-  }
-  for (int i = 0; i < 4; i++) {
-    if (i < proto.id_size()) {
-      table.id_[i] = proto.id(i);
-    } else {
-      table.id_[i] = 0;
-    }
-  }
-
-  return table;
 }
 
 void move_tag_to_back(std::vector<hb_tag_t>& tags, hb_tag_t tag) {
@@ -241,6 +234,19 @@ bool IFTTable::HasExtensionEntries() const {
     }
   }
   return false;
+}
+
+void PrintTo(const IFTTable& table, std::ostream* os) {
+  *os << "{" << std::endl;
+  *os << "  url_template = " << table.GetUrlTemplate() << std::endl;
+  *os << "  ext_url_template = " << table.GetExtensionUrlTemplate()
+      << std::endl;
+  *os << "  id = [" << table.id_[0] << " " << table.id_[1] << " "
+      << table.id_[2] << " " << table.id_[3] << "]" << std::endl;
+  *os << "  patch_map = ";
+  PrintTo(table.GetPatchMap(), os);
+  *os << std::endl;
+  *os << "}";
 }
 
 }  // namespace ift::proto
