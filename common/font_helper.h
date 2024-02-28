@@ -1,6 +1,7 @@
 #ifndef COMMON_FONT_HELPER_H_
 #define COMMON_FONT_HELPER_H_
 
+#include <cmath>
 #include <cstdint>
 
 #include "absl/container/btree_set.h"
@@ -57,7 +58,23 @@ class FontHelper {
     return ((int64_t)cast) != value;
   }
 
+  static bool WillFixedOverflow(float value) {
+    constexpr float shift = (float)(1 << 16);
+    int64_t int_value = roundf(value * shift);
+    return WillIntOverflow<int32_t>(int_value);
+  }
+
+  static void WriteFixed(float value, std::string& out) {
+    constexpr float shift = (float)(1 << 16);
+    int32_t i = roundf(value * shift);
+    WriteInt32(i, out);
+  }
+
   static void WriteUInt32(uint32_t value, std::string& out) {
+    WriteInt<32>(value, out);
+  }
+
+  static void WriteInt32(int32_t value, std::string& out) {
     WriteInt<32>(value, out);
   }
 
@@ -77,8 +94,22 @@ class FontHelper {
     WriteInt<8>(value, out);
   }
 
+  static absl::StatusOr<float> ReadFixed(absl::string_view value) {
+    auto i = ReadInt32(value);
+    if (!i.ok()) {
+      return i.status();
+    }
+
+    constexpr float shift = (float)(1 << 16);
+    return *i / shift;
+  }
+
   static absl::StatusOr<uint32_t> ReadUInt32(absl::string_view value) {
     return ReadInt<32, uint32_t>(value);
+  }
+
+  static absl::StatusOr<int32_t> ReadInt32(absl::string_view value) {
+    return ReadInt<32, int32_t>(value);
   }
 
   static absl::StatusOr<uint32_t> ReadUInt24(absl::string_view value) {

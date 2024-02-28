@@ -191,6 +191,44 @@ TEST_F(FontHelperTest, WriteUInt32) {
   ASSERT_EQ(out, absl::string_view(expected2, 4));
 }
 
+TEST_F(FontHelperTest, WriteFixed) {
+  std::string out = "";
+  FontHelper::WriteFixed(0.456, out);
+  char expected1[] = {0x00, 0x00, 0x74, (char)0xbc};
+  ASSERT_EQ(out, absl::string_view(expected1, 4));
+
+  out = "";
+  FontHelper::WriteFixed(12.456, out);
+  char expected2[] = {0x00, 0x0C, 0x74, (char)0xbc};
+  ASSERT_EQ(out, absl::string_view(expected2, 4));
+
+  out = "";
+  FontHelper::WriteFixed(-12.456, out);
+  char expected3[] = {(char)0xff, (char)0xf3, (char)0x8b, (char)0x44};
+  ASSERT_EQ(out, absl::string_view(expected3, 4));
+}
+
+TEST_F(FontHelperTest, ReadFixed) {
+  // 0x123
+  char in1[] = {(char)0x01, (char)0x23, (char)0x00, (char)0x00};
+  auto out = FontHelper::ReadFixed(string_view(in1, 4));
+  ASSERT_EQ((int)(roundf(*out * 1000.0f)), 0x123 * 1000.0f);
+
+  // -12.456
+  char in2[] = {(char)0xff, (char)0xf3, (char)0x8b, (char)0x44};
+  out = FontHelper::ReadFixed(string_view(in2, 4));
+  ASSERT_EQ((int)(roundf(*out * 1000.0f)), -12456);
+}
+
+TEST_F(FontHelperTest, WillFixedOverflow) {
+  ASSERT_FALSE(FontHelper::WillFixedOverflow(-1234.0f));
+  ASSERT_FALSE(FontHelper::WillFixedOverflow(1234.0f));
+  ASSERT_FALSE(FontHelper::WillFixedOverflow(-32768.0f));
+  ASSERT_FALSE(FontHelper::WillFixedOverflow(32767.0f));
+  ASSERT_TRUE(FontHelper::WillFixedOverflow(-32769.0f));
+  ASSERT_TRUE(FontHelper::WillFixedOverflow(32768.0f));
+}
+
 TEST_F(FontHelperTest, GlyfData_Short) {
   auto data = FontHelper::GlyfData(roboto_ab.get(), 0);
   ASSERT_TRUE(data.ok()) << data.status();
