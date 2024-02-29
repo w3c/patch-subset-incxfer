@@ -90,20 +90,21 @@ class IFTTable {
    * according to IFTB ordering requirements.
    */
   static absl::StatusOr<common::FontData> AddToFont(
-      hb_face_t* face, const IFT& proto, const IFT* extension_proto = nullptr,
+      hb_face_t* face, absl::string_view ift_table,
+      std::optional<absl::string_view> iftx_table,
       bool iftb_conversion = false);
 
   /*
    * Converts this abstract representation to the proto representation.
    * This method generates the proto for the main "IFT " table.
    */
-  IFT CreateMainTable() const;
+  absl::StatusOr<std::string> CreateMainTable() const;
 
   /*
    * Converts this abstract representation to the proto representation.
    * This method generates the proto for the extension "IFTX" table.
    */
-  IFT CreateExtensionTable() const;
+  absl::StatusOr<std::string> CreateExtensionTable() const;
 
   std::string url_template_;
   std::string extension_url_template_;

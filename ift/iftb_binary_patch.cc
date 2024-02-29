@@ -185,9 +185,9 @@ Status IftbBinaryPatch::Patch(const FontData& font_base,
   hb_blob_unique_ptr blob =
       make_hb_blob(hb_blob_create(new_font_data.data(), new_length,
                                   HB_MEMORY_MODE_READONLY, nullptr, nullptr));
-  face = make_hb_face(hb_face_create(blob.get(), 0));
+  hb_face_unique_ptr new_face = make_hb_face(hb_face_create(blob.get(), 0));
 
-  auto result = ift_table->AddToFont(face.get());
+  auto result = ift_table->AddToFont(new_face.get());
 
   if (!result.ok()) {
     return result.status();
