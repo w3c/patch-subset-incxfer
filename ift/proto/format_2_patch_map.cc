@@ -5,6 +5,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "common/axis_range.h"
 #include "common/font_helper.h"
 #include "common/hb_set_unique_ptr.h"
 #include "common/sparse_bit_set.h"
@@ -79,6 +80,16 @@ using common::SparseBitSet;
     OUT = *v;                                      \
   }
 
+#define READ_FIXED(OUT, D, OFF)                    \
+  float OUT = 0.0f;                                \
+  {                                                \
+    auto v = FontHelper::ReadFixed(D.substr(OFF)); \
+    if (!v.ok()) {                                 \
+      return v.status();                           \
+    }                                              \
+    OUT = *v;                                      \
+  }
+
 #define WRITE_UINT8(V, O, M)                     \
   if (FontHelper::WillIntOverflow<uint8_t>(V)) { \
     return absl::InvalidArgumentError(M);        \
@@ -96,6 +107,12 @@ using common::SparseBitSet;
     return absl::InvalidArgumentError(M);        \
   }                                              \
   FontHelper::WriteInt16(V, O);
+
+#define WRITE_FIXED(V, O, M)              \
+  if (FontHelper::WillFixedOverflow(V)) { \
+    return absl::InvalidArgumentError(M); \
+  }                                       \
+  FontHelper::WriteFixed(V, O);
 
 namespace ift::proto {
 
@@ -167,12 +184,18 @@ static PatchEncoding PickDefaultEncoding(const PatchMap& patch_map,
   return PER_TABLE_SHARED_BROTLI_ENCODING;
 }
 
+static Status EncodeAxisSegment(hb_tag_t tag, const common::AxisRange& range,
+                                std::string& out);
+
 static Status EncodeEntries(Span<const PatchMap::Entry> entries, bool is_ext,
                             PatchEncoding default_encoding, std::string& out);
 
 static Status EncodeEntry(const PatchMap::Entry& entry,
                           uint32_t last_entry_index,
                           PatchEncoding default_encoding, std::string& out);
+
+static Status DecodeAxisSegment(absl::string_view data, hb_tag_t& tag,
+                                common::AxisRange& range);
 
 static Status DecodeEntries(absl::string_view data, uint16_t count, bool is_ext,
                             PatchEncoding default_encoding, PatchMap& out);
@@ -282,6 +305,23 @@ StatusOr<std::string> Format2PatchMap::Serialize(const IFTTable& ift_table,
   return out;
 }
 
+Status DecodeAxisSegment(absl::string_view data, hb_tag_t& tag,
+                         common::AxisRange& range) {
+  READ_UINT32(tag_v, data, 0);
+  tag = tag_v;
+
+  READ_FIXED(start, data, 4);
+  READ_FIXED(end, data, 8);
+
+  auto r = common::AxisRange::Range(start, end);
+  if (!r.ok()) {
+    return r.status();
+  }
+
+  range = *r;
+  return absl::OkStatus();
+}
+
 Status DecodeEntries(absl::string_view data, uint16_t count, bool is_ext,
                      PatchEncoding default_encoding, PatchMap& out) {
   uint32_t entry_index = 0;
@@ -320,8 +360,17 @@ StatusOr<absl::string_view> DecodeEntry(absl::string_view data,
 
   if (format & design_space_bit_mask) {
     READ_UINT16(segment_count, data, offset);
-    offset += 2 + segment_count * 12;
-    // TODO(garretrieger): read in segments.
+    offset += 2;
+    for (uint16_t i = 0; i < segment_count; i++) {
+      hb_tag_t tag;
+      common::AxisRange range;
+      auto s = DecodeAxisSegment(data.substr(offset), tag, range);
+      if (!s.ok()) {
+        return s;
+      }
+      coverage.design_space[tag] = range;
+      offset += 12;
+    }
   }
 
   if (format & copy_mappings_bit_mask) {
@@ -369,6 +418,14 @@ StatusOr<absl::string_view> DecodeEntry(absl::string_view data,
   }
 
   return data.substr(offset);
+}
+
+Status EncodeAxisSegment(hb_tag_t tag, const common::AxisRange& range,
+                         std::string& out) {
+  FontHelper::WriteUInt32(tag, out);
+  WRITE_FIXED(range.start(), out, "range.start() overflowed.");
+  WRITE_FIXED(range.end(), out, "range.end() overflowed.");
+  return absl::OkStatus();
 }
 
 Status EncodeEntries(Span<const PatchMap::Entry> entries, bool is_ext,
@@ -420,8 +477,14 @@ Status EncodeEntry(const PatchMap::Entry& entry, uint32_t last_entry_index,
   }
 
   if (has_design_space) {
-    // TODO(garretrieger): implement me.
-    return absl::UnimplementedError("Not implemented yet.");
+    WRITE_UINT16(coverage.design_space.size(), out,
+                 "Too many design space segments.");
+    for (const auto& [tag, range] : coverage.design_space) {
+      auto s = EncodeAxisSegment(tag, range, out);
+      if (!s.ok()) {
+        return s;
+      }
+    }
   }
 
   if (has_delta) {
