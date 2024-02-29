@@ -1,5 +1,6 @@
 #include "ift/proto/format_2_patch_map.h"
 
+#include "common/axis_range.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "ift/proto/ift_table.h"
@@ -17,6 +18,8 @@ class Format2PatchMapTest : public ::testing::Test {
 constexpr int min_header_size = 34;
 constexpr int min_entry_size = 1;
 constexpr int min_codepoints_size = 4;
+constexpr int min_design_space_size = 2;
+constexpr int segment_size = 12;
 
 TEST_F(Format2PatchMapTest, RoundTrip_Simple) {
   IFTTable table;
@@ -85,6 +88,33 @@ TEST_F(Format2PatchMapTest, RoundTrip_Features) {
   ASSERT_EQ(encoded->length(), min_header_size + uri_template.length() +
                                    min_entry_size + min_codepoints_size + 1 +
                                    9 /* features */);
+
+  IFTTable out;
+  auto s = Format2PatchMap::Deserialize(*encoded, out, false);
+  ASSERT_TRUE(s.ok()) << s;
+
+  EXPECT_EQ(out, table);
+}
+
+TEST_F(Format2PatchMapTest, RoundTrip_DesignSpace) {
+  IFTTable table;
+
+  PatchMap::Coverage coverage{1, 2, 3, 4};
+  coverage.design_space[HB_TAG('w', 'g', 'h', 't')] =
+      *common::AxisRange::Range(100.0f, 200.0f);
+  coverage.design_space[HB_TAG('w', 'd', 't', 'h')] =
+      common::AxisRange::Point(0.75f);
+  table.GetPatchMap().AddEntry(coverage, 1, SHARED_BROTLI_ENCODING);
+
+  std::string uri_template = "foo/$1";
+  table.SetUrlTemplate(uri_template);
+
+  auto encoded = Format2PatchMap::Serialize(table, false);
+  ASSERT_TRUE(encoded.ok()) << encoded.status();
+
+  ASSERT_EQ(encoded->length(), min_header_size + uri_template.length() +
+                                   min_entry_size + min_codepoints_size + 1 +
+                                   min_design_space_size + segment_size * 2);
 
   IFTTable out;
   auto s = Format2PatchMap::Deserialize(*encoded, out, false);
