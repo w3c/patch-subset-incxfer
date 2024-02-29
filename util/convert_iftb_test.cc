@@ -3,11 +3,13 @@
 #include <set>
 #include <string>
 
+#include "absl/container/flat_hash_set.h"
 #include "common/sparse_bit_set.h"
 #include "gtest/gtest.h"
 #include "hb.h"
 #include "ift/proto/IFT.pb.h"
 
+using absl::flat_hash_set;
 using ::common::SparseBitSet;
 using ::ift::proto::IFT;
 using ::ift::proto::SubsetMapping;
@@ -40,38 +42,22 @@ class ConvertIftbTest : public ::testing::Test {
   hb_face_t* face;
 };
 
-std::set<uint32_t> to_set(const SubsetMapping& mapping) {
-  unsigned bias = mapping.bias();
-  hb_set_t* set = hb_set_create();
-  if (!SparseBitSet::Decode(mapping.codepoint_set(), set).ok()) {
-    hb_set_destroy(set);
-    return std::set<uint32_t>();
-  }
-
-  std::set<uint32_t> result;
-  hb_codepoint_t cp = HB_SET_VALUE_INVALID;
-  while (hb_set_next(set, &cp)) {
-    result.insert(bias + cp);
-  }
-
-  hb_set_destroy(set);
-  return result;
-}
-
 TEST_F(ConvertIftbTest, BasicConversion) {
   auto ift = convert_iftb(sample_input, face);
   ASSERT_TRUE(ift.ok()) << ift.status();
 
-  ASSERT_EQ(ift->url_template(), "./Roboto-Regular_iftb/$3/chunk$3$2$1.br");
-  ASSERT_EQ(ift->subset_mapping_size(), 2);
+  ASSERT_EQ(ift->GetUrlTemplate(), "./Roboto-Regular_iftb/$3/chunk$3$2$1.br");
+  ASSERT_EQ(ift->GetPatchMap().GetEntries().size(), 2);
 
-  std::set<uint32_t> expected1{{0x41, 0x65, 0x6d}};
-  ASSERT_EQ(to_set(ift->subset_mapping(0)), expected1);
-  ASSERT_EQ(ift->subset_mapping(0).id_delta(), 0);
+  flat_hash_set<uint32_t> expected1{{0x41, 0x65, 0x6d}};
+  ASSERT_EQ(ift->GetPatchMap().GetEntries().at(0).coverage.codepoints,
+            expected1);
+  ASSERT_EQ(ift->GetPatchMap().GetEntries().at(0).patch_index, 1);
 
-  std::set<uint32_t> expected2{{0x6f, 0x77, 0x80}};
-  ASSERT_EQ(to_set(ift->subset_mapping(1)), expected2);
-  ASSERT_EQ(ift->subset_mapping(1).id_delta(), 0);
+  flat_hash_set<uint32_t> expected2{{0x6f, 0x77, 0x80}};
+  ASSERT_EQ(ift->GetPatchMap().GetEntries().at(1).coverage.codepoints,
+            expected2);
+  ASSERT_EQ(ift->GetPatchMap().GetEntries().at(1).patch_index, 2);
 }
 
 }  // namespace util

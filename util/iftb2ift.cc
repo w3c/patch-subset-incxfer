@@ -25,7 +25,7 @@
 // TODO(garretrieger): support converting IFTB feature mappings.
 
 ABSL_FLAG(std::string, output_format, "font",
-          "Format of the output: 'text', 'proto', 'font', or 'woff2'.");
+          "Format of the output: 'font', or 'woff2'.");
 
 using common::FontData;
 using common::Woff2;
@@ -74,7 +74,7 @@ int main(int argc, char** argv) {
            "stdout."
         << std::endl
         << std::endl;
-    std::cout << "usage: iftb2ift [--output_format=<text|proto|font|woff2>] "
+    std::cout << "usage: iftb2ift [--output_format=<font|woff2>] "
                  "<input font>\n";
     return -1;
   }
@@ -90,14 +90,8 @@ int main(int argc, char** argv) {
   }
 
   std::string out_format = absl::GetFlag(FLAGS_output_format);
-  if (out_format == "text") {
-    std::string out;
-    TextFormat::PrintToString(*ift, &out);
-    std::cout << out << std::endl;
-  } else if (out_format == "proto") {
-    std::cout << ift->SerializeAsString();
-  } else if (out_format == "font" || out_format == "woff2") {
-    auto out_font = IFTTable::AddToFont(face, *ift, nullptr, true);
+  if (out_format == "font" || out_format == "woff2") {
+    auto out_font = ift->AddToFont(face, true);
     if (!out_font.ok()) {
       std::cerr << out_font.status();
       return -1;

@@ -4,12 +4,12 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "hb.h"
-#include "ift/proto/IFT.pb.h"
+#include "ift/proto/ift_table.h"
 
 namespace util {
 
-absl::StatusOr<ift::proto::IFT> convert_iftb(absl::string_view iftb_dump,
-                                             hb_face_t* face);
+absl::StatusOr<ift::proto::IFTTable> convert_iftb(absl::string_view iftb_dump,
+                                                  hb_face_t* face);
 
 }
 

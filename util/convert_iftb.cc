@@ -21,11 +21,11 @@ using absl::btree_map;
 using absl::btree_set;
 using absl::flat_hash_map;
 using absl::flat_hash_set;
+using absl::Span;
 using absl::Status;
 using absl::StatusOr;
 using absl::string_view;
 using common::FontData;
-using ift::proto::IFT;
 using ift::proto::IFTB_ENCODING;
 using ift::proto::IFTTable;
 using ift::proto::PatchMap;
@@ -132,36 +132,32 @@ btree_map<uint32_t, btree_set<uint32_t>> compress_gid_map(
   return result;
 }
 
-StatusOr<IFT> create_table(
+StatusOr<IFTTable> create_table(
     const std::string& url_template, const std::vector<uint32_t>& id,
     const flat_hash_map<std::uint32_t, uint32_t>& gid_map,
     const flat_hash_set<uint32_t>& loaded_chunks, hb_face_t* face) {
   btree_map<uint32_t, btree_set<uint32_t>> chunk_to_codepoints =
       compress_gid_map(gid_map, loaded_chunks, face);
 
-  IFT ift;
-  ift.set_url_template(url_template);
-  ift.set_default_patch_encoding(IFTB_ENCODING);
-
-  for (uint32_t n : id) {
-    ift.add_id(n);
+  IFTTable ift;
+  ift.SetUrlTemplate(url_template);
+  auto s = ift.SetId(Span<const uint32_t>(id.data(), id.size()));
+  if (!s.ok()) {
+    return s;
   }
 
-  PatchMap patch_map;
   for (auto e : chunk_to_codepoints) {
     PatchMap::Coverage coverage;
     std::copy(e.second.begin(), e.second.end(),
               std::inserter(coverage.codepoints, coverage.codepoints.begin()));
-    patch_map.AddEntry(coverage, e.first, IFTB_ENCODING);
+    ift.GetPatchMap().AddEntry(coverage, e.first, IFTB_ENCODING);
   }
 
   // TODO(garretrieger): populate the additional fields.
-
-  patch_map.AddToProto(ift);
   return ift;
 }
 
-StatusOr<IFT> convert_iftb(string_view iftb_dump, hb_face_t* face) {
+StatusOr<IFTTable> convert_iftb(string_view iftb_dump, hb_face_t* face) {
   flat_hash_map<std::uint32_t, uint32_t> gid_map;
   flat_hash_set<uint32_t> loaded_chunks;
   std::vector<uint32_t> id;
