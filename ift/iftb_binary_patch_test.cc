@@ -150,21 +150,31 @@ TEST_F(IftbBinaryPatchTest, SinglePatch) {
   auto ift_table = IFTTable::FromFont(result);
   ASSERT_TRUE(ift_table.ok()) << ift_table.status();
 
+  bool has_ab = false;
+  bool has_2e8d = false;
+  bool has_chunk1 = false;
   for (const auto& e : ift_table->GetPatchMap().GetEntries()) {
     uint32_t patch_index = e.patch_index;
-    for (uint32_t codepoint : e.coverage.codepoints) {
-      ASSERT_NE(patch_index, 2);
-      // spot check a couple of codepoints that should be removed.
-      ASSERT_NE(codepoint, 0xa5);
-      ASSERT_NE(codepoint, 0x30d4);
-    }
+    has_chunk1 |= (patch_index == 1);
+    ASSERT_NE(patch_index, 2);
+    ASSERT_FALSE(e.coverage.codepoints.contains(0xa5))
+        << "result should not have 0xa5";
+    ASSERT_FALSE(e.coverage.codepoints.contains(0x30d4))
+        << "result should not have 0x30d4";
+
+    has_ab = has_ab | e.coverage.codepoints.contains(0xab);
+    has_2e8d = has_2e8d | e.coverage.codepoints.contains(0x2e8d);
   }
 
-  ASSERT_EQ(*glyph_size(result, 0xab), 0);
-  ASSERT_EQ(*glyph_size(result, 0x2e8d), 0);
+  ASSERT_TRUE(has_chunk1) << "result should still have a mapping for chunk 1.";
+  ASSERT_TRUE(has_ab) << "result should have 0xab";
+  ASSERT_TRUE(has_2e8d) << "result should have 0x2e8d";
 
-  ASSERT_EQ(*glyph_size(result, 0xa5), *glyph_size(original, 0xa5));
-  ASSERT_EQ(*glyph_size(result, 0x30d4), *glyph_size(original, 0x30d4));
+  EXPECT_EQ(*glyph_size(result, 0xab), 0);
+  EXPECT_EQ(*glyph_size(result, 0x2e8d), 0);
+
+  EXPECT_EQ(*glyph_size(result, 0xa5), *glyph_size(original, 0xa5));
+  EXPECT_EQ(*glyph_size(result, 0x30d4), *glyph_size(original, 0x30d4));
 }
 
 TEST_F(IftbBinaryPatchTest, SinglePatchOnSubset) {

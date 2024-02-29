@@ -15,7 +15,7 @@
 #include "common/hb_set_unique_ptr.h"
 #include "common/sparse_bit_set.h"
 #include "hb.h"
-#include "ift/proto/IFT.pb.h"
+#include "ift/proto/format_2_patch_map.h"
 
 using absl::flat_hash_map;
 using absl::flat_hash_set;
@@ -39,32 +39,10 @@ StatusOr<IFTTable> IFTTable::FromFont(hb_face_t* face) {
     return absl::NotFoundError("'IFT ' table not found in face.");
   }
 
-  std::string data_string = ift_table.string();
-  IFT ift_proto;
-  if (!ift_proto.ParseFromString(data_string)) {
-    return absl::InternalError("Unable to parse 'IFT ' table.");
-  }
-
   IFTTable out;
-  auto s = out.GetPatchMap().AddFromProto(ift_proto, false);
+  auto s = Format2PatchMap::Deserialize(ift_table.str(), out, false);
   if (!s.ok()) {
     return s;
-  }
-  out.SetUrlTemplate(ift_proto.url_template());
-
-  if (ift_proto.id_size() == 4) {
-    s = out.SetId(
-        {ift_proto.id(0), ift_proto.id(1), ift_proto.id(2), ift_proto.id(3)});
-    if (!s.ok()) {
-      return s;
-    }
-  } else if (ift_proto.id_size() == 0) {
-    s = out.SetId({0, 0, 0, 0});
-    if (!s.ok()) {
-      return s;
-    }
-  } else {
-    return absl::InvalidArgumentError("id field must have a length of 4 or 0.");
   }
 
   // Check for an handle extension table if present.
@@ -74,16 +52,7 @@ StatusOr<IFTTable> IFTTable::FromFont(hb_face_t* face) {
     return out;
   }
 
-  data_string = ift_table.string();
-  ift_proto.Clear();
-  if (!ift_proto.ParseFromString(data_string)) {
-    return absl::InternalError("Unable to parse 'IFTX' table.");
-  }
-
-  if (!ift_proto.url_template().empty()) {
-    out.SetExtensionUrlTemplate(ift_proto.url_template());
-  }
-  s = out.GetPatchMap().AddFromProto(ift_proto, true);
+  s = Format2PatchMap::Deserialize(ift_table.str(), out, true);
   if (!s.ok()) {
     return s;
   }
@@ -106,9 +75,9 @@ void move_tag_to_back(std::vector<hb_tag_t>& tags, hb_tag_t tag) {
   }
 }
 
-StatusOr<FontData> IFTTable::AddToFont(hb_face_t* face, const IFT& proto,
-                                       const IFT* extension_proto,
-                                       bool iftb_conversion) {
+StatusOr<FontData> IFTTable::AddToFont(
+    hb_face_t* face, absl::string_view ift_table,
+    std::optional<absl::string_view> iftx_table, bool iftb_conversion) {
   std::vector<hb_tag_t> tags = FontHelper::GetOrderedTags(face);
   hb_face_t* new_face = hb_face_builder_create();
   for (hb_tag_t tag : tags) {
@@ -128,9 +97,8 @@ StatusOr<FontData> IFTTable::AddToFont(hb_face_t* face, const IFT& proto,
     }
   }
 
-  std::string serialized = proto.SerializeAsString();
   hb_blob_t* blob =
-      hb_blob_create_or_fail(serialized.data(), serialized.size(),
+      hb_blob_create_or_fail(ift_table.data(), ift_table.size(),
                              HB_MEMORY_MODE_READONLY, nullptr, nullptr);
   if (!blob) {
     return absl::InternalError(
@@ -145,9 +113,8 @@ StatusOr<FontData> IFTTable::AddToFont(hb_face_t* face, const IFT& proto,
   }
 
   std::string serialized_ext;
-  if (extension_proto) {
-    serialized_ext = extension_proto->SerializeAsString();
-    blob = hb_blob_create_or_fail(serialized_ext.data(), serialized_ext.size(),
+  if (iftx_table.has_value()) {
+    blob = hb_blob_create_or_fail(iftx_table->data(), iftx_table->size(),
                                   HB_MEMORY_MODE_READONLY, nullptr, nullptr);
     if (!blob) {
       return absl::InternalError(
@@ -188,37 +155,30 @@ StatusOr<FontData> IFTTable::AddToFont(hb_face_t* face, const IFT& proto,
 
 StatusOr<FontData> IFTTable::AddToFont(hb_face_t* face,
                                        bool iftb_conversion) const {
-  IFT main = CreateMainTable();
-  IFT ext;
+  auto main = CreateMainTable();
+  if (!main.ok()) {
+    return main.status();
+  }
+
+  StatusOr<std::string> ext;
+  std::optional<absl::string_view> ext_view;
   if (HasExtensionEntries()) {
     ext = CreateExtensionTable();
+    if (!ext.ok()) {
+      return ext.status();
+    }
+    ext_view = *ext;
   }
 
-  return AddToFont(face, main, HasExtensionEntries() ? &ext : nullptr,
-                   iftb_conversion);
+  return AddToFont(face, *main, ext_view, iftb_conversion);
 }
 
-IFT IFTTable::CreateMainTable() const {
-  IFT proto;
-  proto.set_url_template(url_template_);
-  proto.add_id(id_[0]);
-  proto.add_id(id_[1]);
-  proto.add_id(id_[2]);
-  proto.add_id(id_[3]);
-  patch_map_.AddToProto(proto);
-
-  return proto;
+StatusOr<std::string> IFTTable::CreateMainTable() const {
+  return Format2PatchMap::Serialize(*this, false);
 }
 
-IFT IFTTable::CreateExtensionTable() const {
-  IFT ext_proto;
-  if (extension_url_template_ != url_template_) {
-    ext_proto.set_url_template(extension_url_template_);
-  }
-  if (HasExtensionEntries()) {
-    patch_map_.AddToProto(ext_proto, true);
-  }
-  return ext_proto;
+StatusOr<std::string> IFTTable::CreateExtensionTable() const {
+  return Format2PatchMap::Serialize(*this, true);
 }
 
 void IFTTable::GetId(uint32_t out[4]) const {

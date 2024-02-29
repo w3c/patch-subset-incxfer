@@ -38,7 +38,6 @@ static constexpr uint32_t kDependentWithDesignSpace = 6;
 static constexpr uint32_t kFontWithExtension = 7;
 
 static constexpr uint32_t kLiga = HB_TAG('l', 'i', 'g', 'a');
-static constexpr uint32_t kLigaNo = 30;
 
 class IFTClientTest : public ::testing::Test {
  protected:
@@ -75,26 +74,26 @@ class IFTClientTest : public ::testing::Test {
     // With Features
     IFTTable sample_with_features = sample;
     PatchMap::Coverage coverage1{20, 21, 22};
-    coverage1.features.insert(kLigaNo);
+    coverage1.features.insert(kLiga);
     sample_with_features.GetPatchMap().AddEntry(coverage1, 53, IFTB_ENCODING);
 
     PatchMap::Coverage coverage2{60, 61};
-    coverage2.features.insert(kLigaNo);
+    coverage2.features.insert(kLiga);
     sample_with_features.GetPatchMap().AddEntry(coverage2, 54,
                                                 SHARED_BROTLI_ENCODING);
 
     PatchMap::Coverage coverage3{70, 71, 72, 73};
-    coverage3.features.insert(kLigaNo);
+    coverage3.features.insert(kLiga);
     sample_with_features.GetPatchMap().AddEntry(coverage3, 55,
                                                 SHARED_BROTLI_ENCODING);
 
     PatchMap::Coverage coverage4{80, 81, 82, 83, 84};
-    coverage4.features.insert(kLigaNo);
+    coverage4.features.insert(kLiga);
     sample_with_features.GetPatchMap().AddEntry(coverage4, 56,
                                                 SHARED_BROTLI_ENCODING);
 
     PatchMap::Coverage coverage5{};
-    coverage5.features.insert(kLigaNo);
+    coverage5.features.insert(kLiga);
     sample_with_features.GetPatchMap().AddEntry(coverage5, 64, IFTB_ENCODING);
 
     // Font with Design Space
