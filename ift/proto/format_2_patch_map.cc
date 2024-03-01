@@ -116,13 +116,16 @@ using common::SparseBitSet;
 
 namespace ift::proto {
 
-constexpr uint8_t features_bit_mask = 1;
-constexpr uint8_t design_space_bit_mask = 1 << 1;
-constexpr uint8_t copy_mappings_bit_mask = 1 << 2;
-constexpr uint8_t index_delta_bit_mask = 1 << 3;
-constexpr uint8_t encoding_bit_mask = 1 << 4;
-constexpr uint8_t codepoint_bit_mask = 1 << 5;
+constexpr uint8_t features_and_design_space_bit_mask = 1;
+constexpr uint8_t copy_mappings_bit_mask = 1 << 1;
+constexpr uint8_t index_delta_bit_mask = 1 << 2;
+constexpr uint8_t encoding_bit_mask = 1 << 3;
+constexpr uint8_t codepoint_bit_mask = 0b11 << 4;
 constexpr uint8_t ignore_bit_mask = 1 << 6;
+
+constexpr uint8_t no_bias = 0b01 << 4;
+constexpr uint8_t two_byte_bias = 0b10 << 4;
+constexpr uint8_t three_byte_bias = 0b11 << 4;
 
 static StatusOr<uint8_t> EncodingToInt(PatchEncoding encoding) {
   if (encoding == IFTB_ENCODING) {
@@ -184,6 +187,24 @@ static PatchEncoding PickDefaultEncoding(const PatchMap& patch_map,
   return PER_TABLE_SHARED_BROTLI_ENCODING;
 }
 
+static uint32_t NumEntries(const PatchMap& map, bool is_ext) {
+  uint32_t count = 0;
+  for (const auto& e : map.GetEntries()) {
+    if (e.extension_entry == is_ext) {
+      count++;
+    }
+  }
+  return count;
+}
+
+// Decides whether to use 0, 1, or 2 bytes of bias.
+static uint8_t BiasBytes(const PatchMap::Coverage& coverage);
+
+static uint8_t BiasBytes(uint8_t format);
+
+// Returns the two bit format used for the given number of bias bytes.
+static uint8_t BiasFormat(uint8_t bias_bytes);
+
 static Status EncodeAxisSegment(hb_tag_t tag, const common::AxisRange& range,
                                 std::string& out);
 
@@ -193,6 +214,10 @@ static Status EncodeEntries(Span<const PatchMap::Entry> entries, bool is_ext,
 static Status EncodeEntry(const PatchMap::Entry& entry,
                           uint32_t last_entry_index,
                           PatchEncoding default_encoding, std::string& out);
+
+static void EncodeCodepoints(uint8_t bias_bytes,
+                             const PatchMap::Coverage& coverage,
+                             std::string& out);
 
 static Status DecodeAxisSegment(absl::string_view data, hb_tag_t& tag,
                                 common::AxisRange& range);
@@ -237,6 +262,9 @@ Status Format2PatchMap::Deserialize(absl::string_view data, IFTTable& out,
   READ_UINT32(mappings_offset, data, mappings_field_offset);
   auto s = DecodeEntries(ClippedSubstr(data, mappings_offset), mapping_count,
                          is_ext, *default_encoding, out.GetPatchMap());
+  if (!s.ok()) {
+    return s;
+  }
 
   READ_UINT16(uri_template_length, data, uri_template_length_offset);
   READ_STRING(uri_template, data, uri_template_offset, uri_template_length);
@@ -279,7 +307,7 @@ StatusOr<std::string> Format2PatchMap::Serialize(const IFTTable& ift_table,
   FontHelper::WriteUInt8(*encoding_value, out);
 
   // mappingCount
-  WRITE_UINT16(patch_map.GetEntries().size(), out,
+  WRITE_UINT16(NumEntries(patch_map, is_ext), out,
                "Exceeded maximum number of entries (0xFFFF).");
 
   // mappings
@@ -349,16 +377,13 @@ StatusOr<absl::string_view> DecodeEntry(absl::string_view data,
   READ_UINT8(format, data, 0);
   uint32_t offset = 1;
 
-  if (format & features_bit_mask) {
+  if (format & features_and_design_space_bit_mask) {
     READ_UINT8(feature_count, data, offset++);
     for (unsigned i = 0; i < feature_count; i++) {
       READ_UINT32(next_tag, data, offset);
       coverage.features.insert(next_tag);
       offset += 4;
     }
-  }
-
-  if (format & design_space_bit_mask) {
     READ_UINT16(segment_count, data, offset);
     offset += 2;
     for (uint16_t i = 0; i < segment_count; i++) {
@@ -396,8 +421,20 @@ StatusOr<absl::string_view> DecodeEntry(absl::string_view data,
   }
 
   if (format & codepoint_bit_mask) {
-    READ_UINT24(bias, data, offset);
-    offset += 3;
+    uint8_t bias_bytes = BiasBytes(format);
+    uint32_t bias = 0;
+    if (bias_bytes == 2) {
+      READ_UINT16(bias_val, data, offset);
+      bias = bias_val;
+      offset += bias_bytes;
+    }
+
+    if (bias_bytes == 3) {
+      READ_UINT24(bias_val, data, offset);
+      bias = bias_val;
+      offset += bias_bytes;
+    }
+
     hb_set_unique_ptr codepoint_set = make_hb_set();
     auto s = SparseBitSet::Decode(data.substr(offset), codepoint_set.get());
     if (!s.ok()) {
@@ -447,36 +484,99 @@ Status EncodeEntries(Span<const PatchMap::Entry> entries, bool is_ext,
   return absl::OkStatus();
 }
 
+// Decides whether to use 0, 1, or 2 bytes of bias.
+uint8_t BiasBytes(const PatchMap::Coverage& coverage) {
+  uint8_t bias_bytes[3] = {0, 2, 3};
+  uint8_t result = 0;
+  size_t min = (size_t)-1;
+  for (int i = 0; i < 3; i++) {
+    std::string out;
+    EncodeCodepoints(bias_bytes[i], coverage, out);
+    if (out.size() < min) {
+      min = out.size();
+      result = bias_bytes[i];
+    }
+  }
+
+  return result;
+}
+
+static uint8_t BiasBytes(uint8_t format) {
+  if ((format & codepoint_bit_mask) == two_byte_bias) {
+    return 2;
+  }
+
+  if ((format & codepoint_bit_mask) == three_byte_bias) {
+    return 3;
+  }
+
+  return 0;
+}
+
+void EncodeCodepoints(uint8_t bias_bytes, const PatchMap::Coverage& coverage,
+                      std::string& out) {
+  uint32_t max_bias = (1 << ((uint32_t)bias_bytes) * 8) - 1;
+  uint32_t bias = std::min(coverage.SmallestCodepoint(), max_bias);
+
+  hb_set_unique_ptr biased_set = make_hb_set();
+  for (uint32_t cp : coverage.codepoints) {
+    hb_set_add(biased_set.get(), cp - bias);
+  }
+
+  std::string sparse_bit_set = SparseBitSet::Encode(*biased_set);
+
+  if (bias_bytes == 2) {
+    FontHelper::WriteUInt16(bias, out);
+  } else if (bias_bytes == 3) {
+    FontHelper::WriteUInt24(bias, out);
+  }
+  out.append(sparse_bit_set);
+}
+
+// Returns the two bit format used for the given number of bias bytes.
+uint8_t BiasFormat(uint8_t bias_bytes) {
+  switch (bias_bytes) {
+    case 2:
+      return two_byte_bias;
+    case 3:
+      return three_byte_bias;
+    case 0:
+    default:
+      return no_bias;
+  }
+}
+
 Status EncodeEntry(const PatchMap::Entry& entry, uint32_t last_entry_index,
                    PatchEncoding default_encoding, std::string& out) {
   const auto& coverage = entry.coverage;
   bool has_codepoints = !coverage.codepoints.empty();
   bool has_features = !coverage.features.empty();
   bool has_design_space = !coverage.design_space.empty();
+  bool has_features_or_design_space = has_features || has_design_space;
   int64_t delta =
       ((int64_t)entry.patch_index) - ((int64_t)last_entry_index + 1);
   bool has_delta = delta != 0;
   bool has_patch_encoding = entry.encoding != default_encoding;
 
+  uint8_t bias_bytes = BiasBytes(entry.coverage);
+
   // format
-  uint8_t format = (has_features ? features_bit_mask : 0) |
-                   (has_design_space ? design_space_bit_mask : 0) |
-                   // not set, has copy mapping indices (bit 2)
-                   (has_delta ? index_delta_bit_mask : 0) |
-                   (has_patch_encoding ? encoding_bit_mask : 0) |
-                   (has_codepoints ? codepoint_bit_mask : 0);
+  uint8_t format =
+      (has_features_or_design_space ? features_and_design_space_bit_mask : 0) |
+      // not set, has copy mapping indices (bit 2)
+      (has_delta ? index_delta_bit_mask : 0) |
+      (has_patch_encoding ? encoding_bit_mask : 0) |
+      (has_codepoints ? codepoint_bit_mask & BiasFormat(bias_bytes) : 0);
   // not set, ignore (bit 6)
   FontHelper::WriteUInt8(format, out);
 
-  if (has_features) {
+  if (has_features_or_design_space) {
     WRITE_UINT8(coverage.features.size(), out,
                 "Exceed max number of feature tags (0xFF).");
     for (hb_tag_t tag : coverage.features) {
       FontHelper::WriteUInt32(tag, out);
     }
-  }
 
-  if (has_design_space) {
     WRITE_UINT16(coverage.design_space.size(), out,
                  "Too many design space segments.");
     for (const auto& [tag, range] : coverage.design_space) {
@@ -501,17 +601,7 @@ Status EncodeEntry(const PatchMap::Entry& entry, uint32_t last_entry_index,
   }
 
   if (has_codepoints) {
-    constexpr uint32_t max_bias = (1 << 24) - 1;
-    uint32_t bias = std::min(coverage.SmallestCodepoint(), max_bias);
-
-    hb_set_unique_ptr biased_set = make_hb_set();
-    for (uint32_t cp : coverage.codepoints) {
-      hb_set_add(biased_set.get(), cp - bias);
-    }
-
-    std::string sparse_bit_set = SparseBitSet::Encode(*biased_set);
-    FontHelper::WriteUInt24(bias, out);
-    out.append(sparse_bit_set);
+    EncodeCodepoints(bias_bytes, entry.coverage, out);
   }
 
   return absl::OkStatus();
