@@ -21,8 +21,7 @@ namespace ift::proto {
 class PatchMap {
  public:
   static bool IsDependent(PatchEncoding encoding) {
-    return encoding == SHARED_BROTLI_ENCODING ||
-           encoding == PER_TABLE_SHARED_BROTLI_ENCODING;
+    return encoding == TABLE_KEYED_PARTIAL || encoding == TABLE_KEYED_FULL;
   }
 
   enum Modification {

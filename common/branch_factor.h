@@ -35,7 +35,7 @@ const uint32_t kBFNodeSizeBitMask[]{0b1, 0b11, 0b111, 0b11111};
 const uint32_t kBFTwigSizeBitMask[]{0b11, 0b1111, 0b111111, 0b1111111111};
 
 // Max depth of trees. Enough to encode the entire 32 bit range 0..0xFFFFFFFF.
-const uint32_t kBFMaxDepth[]{32, 16, 11, 7};
+const uint32_t kBFMaxDepth[]{31, 16, 11, 7};
 
 }  // namespace common
 

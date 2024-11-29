@@ -14,7 +14,7 @@ using std::string;
 class BitInputBufferTest : public ::testing::Test {};
 
 TEST_F(BitInputBufferTest, SingleByte2) {
-  string in{0b00000000, 0b00001111};
+  string in{0b00000100, 0b00001111};
   //        ^ d1 bf2 ^
   BitInputBuffer bin(in);
   EXPECT_EQ(BF2, bin.GetBranchFactor());
@@ -32,7 +32,7 @@ TEST_F(BitInputBufferTest, SingleByte2) {
 }
 
 TEST_F(BitInputBufferTest, SingleByte4) {
-  string in{0b00000001, 0b00001111};
+  string in{0b00000101, 0b00001111};
   //        ^ d1 bf4 ^
   BitInputBuffer bin(in);
   EXPECT_EQ(BF4, bin.GetBranchFactor());
@@ -46,7 +46,7 @@ TEST_F(BitInputBufferTest, SingleByte4) {
 }
 
 TEST_F(BitInputBufferTest, SingleRead8) {
-  string in{0b00000010, 0x2F};
+  string in{0b00000110, 0x2F};
   //        ^ d1 bf8 ^
   BitInputBuffer bin(in);
   EXPECT_EQ(BF8, bin.GetBranchFactor());
@@ -58,7 +58,7 @@ TEST_F(BitInputBufferTest, SingleRead8) {
 }
 
 TEST_F(BitInputBufferTest, SingleRead32) {
-  string in{0b00000011, 0x11, 0x22, 0x33, 0x44};
+  string in{0b00000111, 0x11, 0x22, 0x33, 0x44};
   //        ^ d1 bf32^
   BitInputBuffer bin(in);
   EXPECT_EQ(BF32, bin.GetBranchFactor());
@@ -92,22 +92,22 @@ TEST_F(BitInputBufferTest, Null) {
 }
 
 TEST_F(BitInputBufferTest, ReservedBitIgnored) {
-  for (const string& s : {string{0b00000000}, string{(char)0b10000000}}) {
+  for (const string& s : {string{0b00000100}, string{(char)0b10000100}}) {
     BitInputBuffer bin(s);
     EXPECT_EQ(BF2, bin.GetBranchFactor());
     EXPECT_EQ(1, bin.Depth());
   }
-  for (const string& s : {string{0b00000001}, string{(char)0b10000001}}) {
+  for (const string& s : {string{0b00000101}, string{(char)0b10000101}}) {
     BitInputBuffer bin(s);
     EXPECT_EQ(BF4, bin.GetBranchFactor());
     EXPECT_EQ(1, bin.Depth());
   }
-  for (const string& s : {string{0b00000010}, string{(char)0b10000010}}) {
+  for (const string& s : {string{0b00000110}, string{(char)0b10000110}}) {
     BitInputBuffer bin(s);
     EXPECT_EQ(BF8, bin.GetBranchFactor());
     EXPECT_EQ(1, bin.Depth());
   }
-  for (const string& s : {string{0b00000011}, string{(char)0b10000011}}) {
+  for (const string& s : {string{0b00000111}, string{(char)0b10000111}}) {
     BitInputBuffer bin(s);
     EXPECT_EQ(BF32, bin.GetBranchFactor());
     EXPECT_EQ(1, bin.Depth());
@@ -115,7 +115,7 @@ TEST_F(BitInputBufferTest, ReservedBitIgnored) {
 }
 
 TEST_F(BitInputBufferTest, RemainingBf2) {
-  string in{0b00000000, 0b00001111, 0b00000000};
+  string in{0b00000100, 0b00001111, 0b00000000};
   //        ^ d1 bf2 ^
 
   string exp1{0b00001111, 0b00000000};
@@ -140,7 +140,7 @@ TEST_F(BitInputBufferTest, RemainingBf2) {
 }
 
 TEST_F(BitInputBufferTest, RemainingBf4) {
-  string in{0b00000001, 0b00001111, 0b00000000};
+  string in{0b00000101, 0b00001111, 0b00000000};
   //        ^ d1 bf4 ^
 
   string exp1{0b00001111, 0b00000000};
@@ -166,7 +166,7 @@ TEST_F(BitInputBufferTest, RemainingBf4) {
 }
 
 TEST_F(BitInputBufferTest, RemainingBf8) {
-  string in{0b00000010, 0x2F, 0x3F};
+  string in{0b00000110, 0x2F, 0x3F};
   //        ^ d1 bf8 ^
 
   string exp1{0x2F, 0x3F};
@@ -186,7 +186,7 @@ TEST_F(BitInputBufferTest, RemainingBf8) {
 }
 
 TEST_F(BitInputBufferTest, RemainingBf32) {
-  string in{0b00000011, 0x11, 0x22, 0x33,       0x44,
+  string in{0b00000111, 0x11, 0x22, 0x33,       0x44,
             0x55,       0x66, 0x77, (char)0x88, (char)0x99};
   //        ^ d1 bf32^
 

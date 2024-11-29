@@ -102,11 +102,24 @@ using common::SparseBitSet;
   }                                               \
   FontHelper::WriteUInt16(V, O);
 
+// TODO(garretrieger) overflow check limits to 16 bit
+#define WRITE_UINT24(V, O, M)                     \
+  if (FontHelper::WillIntOverflow<uint16_t>(V)) { \
+    return absl::InvalidArgumentError(M);         \
+  }                                               \
+  FontHelper::WriteUInt24(V, O);
+
 #define WRITE_INT16(V, O, M)                     \
   if (FontHelper::WillIntOverflow<int16_t>(V)) { \
     return absl::InvalidArgumentError(M);        \
   }                                              \
   FontHelper::WriteInt16(V, O);
+
+#define WRITE_INT24(V, O, M)                     \
+  if (FontHelper::WillIntOverflow<int16_t>(V)) { \
+    return absl::InvalidArgumentError(M);        \
+  }                                              \
+  FontHelper::WriteInt24(V, O);
 
 #define WRITE_FIXED(V, O, M)              \
   if (FontHelper::WillFixedOverflow(V)) { \
@@ -128,16 +141,16 @@ constexpr uint8_t two_byte_bias = 0b10 << 4;
 constexpr uint8_t three_byte_bias = 0b11 << 4;
 
 static StatusOr<uint8_t> EncodingToInt(PatchEncoding encoding) {
-  if (encoding == IFTB_ENCODING) {
-    return 0;
-  }
-
-  if (encoding == SHARED_BROTLI_ENCODING) {
+  if (encoding == TABLE_KEYED_FULL) {
     return 1;
   }
 
-  if (encoding == PER_TABLE_SHARED_BROTLI_ENCODING) {
+  if (encoding == TABLE_KEYED_PARTIAL) {
     return 2;
+  }
+
+  if (encoding == GLYPH_KEYED) {
+    return 3;
   }
 
   return absl::InvalidArgumentError(
@@ -146,13 +159,12 @@ static StatusOr<uint8_t> EncodingToInt(PatchEncoding encoding) {
 
 static StatusOr<PatchEncoding> IntToEncoding(uint8_t value) {
   switch (value) {
-    case 0:
-      return IFTB_ENCODING;
     case 1:
-      return SHARED_BROTLI_ENCODING;
+      return TABLE_KEYED_FULL;
     case 2:
-      return PER_TABLE_SHARED_BROTLI_ENCODING;
+      return TABLE_KEYED_PARTIAL;
     case 3:
+      return GLYPH_KEYED;
       // fall through.
     default:
       return absl::InvalidArgumentError("Unrecognized encoding value.");
@@ -161,7 +173,7 @@ static StatusOr<PatchEncoding> IntToEncoding(uint8_t value) {
 
 static PatchEncoding PickDefaultEncoding(const PatchMap& patch_map,
                                          bool is_ext) {
-  uint32_t counts[3] = {0, 0, 0};
+  uint32_t counts[4] = {0, 0, 0};
   for (const auto& e : patch_map.GetEntries()) {
     if (e.extension_entry != is_ext) {
       // Ignore entries of the wrong type.
@@ -176,15 +188,15 @@ static PatchEncoding PickDefaultEncoding(const PatchMap& patch_map,
     counts[*i]++;
   }
 
-  if (counts[0] >= counts[1] && counts[0] >= counts[2]) {
-    return IFTB_ENCODING;
+  if (counts[1] >= counts[2] && counts[1] >= counts[3]) {
+    return TABLE_KEYED_FULL;
   }
 
-  if (counts[1] >= counts[0] && counts[1] >= counts[2]) {
-    return SHARED_BROTLI_ENCODING;
+  if (counts[2] >= counts[1] && counts[2] >= counts[3]) {
+    return TABLE_KEYED_PARTIAL;
   }
 
-  return PER_TABLE_SHARED_BROTLI_ENCODING;
+  return GLYPH_KEYED;
 }
 
 static uint32_t NumEntries(const PatchMap& map, bool is_ext) {
@@ -307,13 +319,13 @@ StatusOr<std::string> Format2PatchMap::Serialize(const IFTTable& ift_table,
   FontHelper::WriteUInt8(*encoding_value, out);
 
   // mappingCount
-  WRITE_UINT16(NumEntries(patch_map, is_ext), out,
-               "Exceeded maximum number of entries (0xFFFF).");
+  WRITE_UINT24(NumEntries(patch_map, is_ext), out,
+               "Exceeded maximum number of entries (0xFFFFFF).");
 
-  // mappings
+  // entries offset
   string_view uri_template =
       is_ext ? ift_table.GetExtensionUrlTemplate() : ift_table.GetUrlTemplate();
-  constexpr int header_min_length = 34;
+  constexpr int header_min_length = 35;
   FontHelper::WriteUInt32(header_min_length + uri_template.length(), out);
 
   // idStrings
@@ -325,6 +337,8 @@ StatusOr<std::string> Format2PatchMap::Serialize(const IFTTable& ift_table,
 
   // uriTemplate
   out.append(uri_template);
+
+  // entries
   auto s = EncodeEntries(patch_map.GetEntries(), is_ext, default_encoding, out);
   if (!s.ok()) {
     return s;
@@ -562,11 +576,11 @@ Status EncodeEntry(const PatchMap::Entry& entry, uint32_t last_entry_index,
 
   // format
   uint8_t format =
-      (has_features_or_design_space ? features_and_design_space_bit_mask : 0) |
-      // not set, has copy mapping indices (bit 2)
-      (has_delta ? index_delta_bit_mask : 0) |
-      (has_patch_encoding ? encoding_bit_mask : 0) |
-      (has_codepoints ? codepoint_bit_mask & BiasFormat(bias_bytes) : 0);
+      (has_features_or_design_space ? features_and_design_space_bit_mask : 0) | // bit 0
+      // not set, has copy mapping indices (bit 1)                              // bit 1
+      (has_delta ? index_delta_bit_mask : 0) |                                  // bit 2
+      (has_patch_encoding ? encoding_bit_mask : 0) |                            // bit 3
+      (has_codepoints ? codepoint_bit_mask & BiasFormat(bias_bytes) : 0);       // bit 4 and 5
   // not set, ignore (bit 6)
   FontHelper::WriteUInt8(format, out);
 
@@ -588,10 +602,10 @@ Status EncodeEntry(const PatchMap::Entry& entry, uint32_t last_entry_index,
   }
 
   if (has_delta) {
-    WRITE_INT16(delta, out,
-                StrCat("Exceed max entry index delta (int16): ", delta));
+    WRITE_INT24(delta, out,
+                StrCat("Exceed max entry index delta (int24): ", delta));
   }
-
+  
   if (has_patch_encoding) {
     auto encoding_value = EncodingToInt(entry.encoding);
     if (!encoding_value.ok()) {

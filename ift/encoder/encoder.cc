@@ -41,12 +41,12 @@ using common::make_hb_set;
 using common::Woff2;
 using ift::IftbBinaryPatch;
 using ift::proto::IFT;
-using ift::proto::IFTB_ENCODING;
+using ift::proto::GLYPH_KEYED;
+using ift::proto::TABLE_KEYED_FULL;
+using ift::proto::TABLE_KEYED_PARTIAL;
 using ift::proto::IFTTable;
 using ift::proto::PatchEncoding;
 using ift::proto::PatchMap;
-using ift::proto::PER_TABLE_SHARED_BROTLI_ENCODING;
-using ift::proto::SHARED_BROTLI_ENCODING;
 
 namespace ift::encoder {
 
@@ -495,7 +495,7 @@ Status Encoder::PopulateIftbPatchMap(PatchMap& patch_map,
     auto it = iftb_feature_mappings_.find(id);
     if (it == iftb_feature_mappings_.end()) {
       // Just a regular entry mapped by codepoints only.
-      patch_map.AddEntry(e.second.codepoints, e.first, IFTB_ENCODING);
+      patch_map.AddEntry(e.second.codepoints, e.first, GLYPH_KEYED);
       continue;
     }
 
@@ -520,7 +520,7 @@ Status Encoder::PopulateIftbPatchMap(PatchMap& patch_map,
             std::inserter(coverage.codepoints, coverage.codepoints.begin()));
       }
 
-      patch_map.AddEntry(coverage, id, IFTB_ENCODING);
+      patch_map.AddEntry(coverage, id, GLYPH_KEYED);
     }
   }
   return absl::OkStatus();
@@ -578,8 +578,8 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
 
   std::vector<uint32_t> ids;
   bool as_extensions = IsMixedMode();
-  PatchEncoding encoding =
-      IsMixedMode() ? PER_TABLE_SHARED_BROTLI_ENCODING : SHARED_BROTLI_ENCODING;
+  PatchEncoding encoding = 
+      IsMixedMode() ? TABLE_KEYED_PARTIAL : TABLE_KEYED_FULL;
   for (const auto& s : subsets) {
     uint32_t id = next_id_++;
     ids.push_back(id);

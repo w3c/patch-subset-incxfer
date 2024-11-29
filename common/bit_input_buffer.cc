@@ -118,13 +118,13 @@ static BranchFactor DecodeBranchFactor(string_view bits) {
 
 static uint32_t DecodeDepth(string_view bits) {
   if (!bits.size()) {
-    return 1;
+    return 0;
   }
 
-  // Only look at bits 2..5.
+  // Only look at bits 2..6.
   // Bits 0 and 1 are branch factor. Bits 7 is reserved for future use.
   unsigned char first_byte = bits[0];
-  return ((first_byte & 0b01111100u) >> 2) + 1;
+  return ((first_byte & 0b01111100u) >> 2);
 }
 
 }  // namespace common
