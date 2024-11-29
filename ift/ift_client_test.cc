@@ -21,10 +21,10 @@ using common::hb_set_unique_ptr;
 using common::make_hb_set;
 using common::SparseBitSet;
 using ift::proto::IFT;
-using ift::proto::IFTB_ENCODING;
+using ift::proto::GLYPH_KEYED;
 using ift::proto::IFTTable;
 using ift::proto::PatchMap;
-using ift::proto::SHARED_BROTLI_ENCODING;
+using ift::proto::TABLE_KEYED_FULL;
 
 namespace ift {
 
@@ -45,72 +45,72 @@ class IFTClientTest : public ::testing::Test {
     // Simple Test Font
     IFTTable sample;
     sample.SetUrlTemplate("0x$2$1");
-    sample.GetPatchMap().AddEntry({30, 32}, 9, IFTB_ENCODING);
-    sample.GetPatchMap().AddEntry({55, 56, 57}, 42, SHARED_BROTLI_ENCODING);
+    sample.GetPatchMap().AddEntry({30, 32}, 9, GLYPH_KEYED);
+    sample.GetPatchMap().AddEntry({55, 56, 57}, 42, TABLE_KEYED_FULL);
 
     // Extension table
     IFTTable extension = sample;
     extension.SetExtensionUrlTemplate("0x$2$1.ext");
-    extension.GetPatchMap().AddEntry({60, 62}, 34, IFTB_ENCODING, true);
+    extension.GetPatchMap().AddEntry({60, 62}, 34, GLYPH_KEYED, true);
 
     // Complex Test Font
     IFTTable complex;
     complex.SetUrlTemplate("0x$2$1");
-    complex.GetPatchMap().AddEntry({4, 5, 6}, 1, IFTB_ENCODING);
-    complex.GetPatchMap().AddEntry({6, 7, 8}, 2, IFTB_ENCODING);
-    complex.GetPatchMap().AddEntry({9, 10, 11}, 3, IFTB_ENCODING);
+    complex.GetPatchMap().AddEntry({4, 5, 6}, 1, GLYPH_KEYED);
+    complex.GetPatchMap().AddEntry({6, 7, 8}, 2, GLYPH_KEYED);
+    complex.GetPatchMap().AddEntry({9, 10, 11}, 3, GLYPH_KEYED);
     complex.GetPatchMap().AddEntry({11, 20, 21, 22, 23}, 4,
-                                   SHARED_BROTLI_ENCODING);
-    complex.GetPatchMap().AddEntry({11, 12, 20}, 5, SHARED_BROTLI_ENCODING);
-    complex.GetPatchMap().AddEntry({11, 12, 25}, 6, SHARED_BROTLI_ENCODING);
+                                   TABLE_KEYED_FULL);
+    complex.GetPatchMap().AddEntry({11, 12, 20}, 5, TABLE_KEYED_FULL);
+    complex.GetPatchMap().AddEntry({11, 12, 25}, 6, TABLE_KEYED_FULL);
 
     // Invalid Test Font
     IFTTable invalid;
     invalid.SetUrlTemplate("0x$2$1");
-    invalid.GetPatchMap().AddEntry({4, 5, 6}, 1, IFTB_ENCODING);
-    invalid.GetPatchMap().AddEntry({7, 8, 9}, 1, IFTB_ENCODING);
-    invalid.GetPatchMap().AddEntry({4, 5}, 1, SHARED_BROTLI_ENCODING);
+    invalid.GetPatchMap().AddEntry({4, 5, 6}, 1, GLYPH_KEYED);
+    invalid.GetPatchMap().AddEntry({7, 8, 9}, 1, GLYPH_KEYED);
+    invalid.GetPatchMap().AddEntry({4, 5}, 1, TABLE_KEYED_FULL);
 
     // With Features
     IFTTable sample_with_features = sample;
     PatchMap::Coverage coverage1{20, 21, 22};
     coverage1.features.insert(kLiga);
-    sample_with_features.GetPatchMap().AddEntry(coverage1, 53, IFTB_ENCODING);
+    sample_with_features.GetPatchMap().AddEntry(coverage1, 53, GLYPH_KEYED);
 
     PatchMap::Coverage coverage2{60, 61};
     coverage2.features.insert(kLiga);
     sample_with_features.GetPatchMap().AddEntry(coverage2, 54,
-                                                SHARED_BROTLI_ENCODING);
+                                                TABLE_KEYED_FULL);
 
     PatchMap::Coverage coverage3{70, 71, 72, 73};
     coverage3.features.insert(kLiga);
     sample_with_features.GetPatchMap().AddEntry(coverage3, 55,
-                                                SHARED_BROTLI_ENCODING);
+                                                TABLE_KEYED_FULL);
 
     PatchMap::Coverage coverage4{80, 81, 82, 83, 84};
     coverage4.features.insert(kLiga);
     sample_with_features.GetPatchMap().AddEntry(coverage4, 56,
-                                                SHARED_BROTLI_ENCODING);
+                                                TABLE_KEYED_FULL);
 
     PatchMap::Coverage coverage5{};
     coverage5.features.insert(kLiga);
-    sample_with_features.GetPatchMap().AddEntry(coverage5, 64, IFTB_ENCODING);
+    sample_with_features.GetPatchMap().AddEntry(coverage5, 64, GLYPH_KEYED);
 
     // Font with Design Space
     IFTTable sample_with_design_space;
     sample_with_design_space.SetUrlTemplate("0x$2$1");
 
     PatchMap::Coverage coverage{10, 11, 12};
-    sample_with_design_space.GetPatchMap().AddEntry(coverage, 0, IFTB_ENCODING);
+    sample_with_design_space.GetPatchMap().AddEntry(coverage, 0, GLYPH_KEYED);
 
     coverage.design_space[HB_TAG('w', 'g', 'h', 't')] =
         *AxisRange::Range(100, 400);
-    sample_with_design_space.GetPatchMap().AddEntry(coverage, 1, IFTB_ENCODING);
+    sample_with_design_space.GetPatchMap().AddEntry(coverage, 1, GLYPH_KEYED);
 
     coverage.codepoints.clear();
     coverage.design_space[HB_TAG('w', 'g', 'h', 't')] =
         *AxisRange::Range(300, 700);
-    sample_with_design_space.GetPatchMap().AddEntry(coverage, 2, IFTB_ENCODING);
+    sample_with_design_space.GetPatchMap().AddEntry(coverage, 2, GLYPH_KEYED);
 
     // Dependent Patches with Design Space
     IFTTable dependent_with_design_space;
@@ -118,18 +118,18 @@ class IFTClientTest : public ::testing::Test {
 
     coverage = {10, 11, 12};
     dependent_with_design_space.GetPatchMap().AddEntry(coverage, 0,
-                                                       SHARED_BROTLI_ENCODING);
+                                                       TABLE_KEYED_FULL);
 
     coverage.design_space[HB_TAG('w', 'g', 'h', 't')] =
         *AxisRange::Range(100, 400);
     dependent_with_design_space.GetPatchMap().AddEntry(coverage, 1,
-                                                       SHARED_BROTLI_ENCODING);
+                                                       TABLE_KEYED_FULL);
 
     coverage.codepoints.clear();
     coverage.design_space[HB_TAG('w', 'g', 'h', 't')] =
         *AxisRange::Range(100, 400);
     dependent_with_design_space.GetPatchMap().AddEntry(coverage, 2,
-                                                       SHARED_BROTLI_ENCODING);
+                                                       TABLE_KEYED_FULL);
 
     // Assignments
 
@@ -411,63 +411,12 @@ TEST_F(IFTClientTest, PatchToUrl_NoFormatters) {
   EXPECT_EQ(IFTClient::PatchToUrl(url, 5), "https://localhost/abc.patch");
 }
 
-TEST_F(IFTClientTest, PatchToUrl_InvalidFormatter) {
-  std::string url("https://localhost/$1.$patch");
-  EXPECT_EQ(IFTClient::PatchToUrl(url, 0), "https://localhost/0.$patch");
-  EXPECT_EQ(IFTClient::PatchToUrl(url, 5), "https://localhost/5.$patch");
-
-  url = "https://localhost/$1.patch$";
-  EXPECT_EQ(IFTClient::PatchToUrl(url, 0), "https://localhost/0.patch$");
-  EXPECT_EQ(IFTClient::PatchToUrl(url, 5), "https://localhost/5.patch$");
-
-  url = "https://localhost/$1.pa$$2tch";
-  EXPECT_EQ(IFTClient::PatchToUrl(url, 0), "https://localhost/0.pa$0tch");
-  EXPECT_EQ(IFTClient::PatchToUrl(url, 5), "https://localhost/5.pa$0tch");
-  EXPECT_EQ(IFTClient::PatchToUrl(url, 18), "https://localhost/2.pa$1tch");
-
-  url = "https://localhost/$6.patch";
-  EXPECT_EQ(IFTClient::PatchToUrl(url, 0), "https://localhost/$6.patch");
-  EXPECT_EQ(IFTClient::PatchToUrl(url, 5), "https://localhost/$6.patch");
-
-  url = "https://localhost/$12.patch";
-  EXPECT_EQ(IFTClient::PatchToUrl(url, 0), "https://localhost/02.patch");
-  EXPECT_EQ(IFTClient::PatchToUrl(url, 5), "https://localhost/52.patch");
-}
-
 TEST_F(IFTClientTest, PatchToUrl_Basic) {
-  std::string url = "https://localhost/$2$1.patch";
-  EXPECT_EQ(IFTClient::PatchToUrl(url, 0), "https://localhost/00.patch");
-  EXPECT_EQ(IFTClient::PatchToUrl(url, 5), "https://localhost/05.patch");
-  EXPECT_EQ(IFTClient::PatchToUrl(url, 12), "https://localhost/0c.patch");
-  EXPECT_EQ(IFTClient::PatchToUrl(url, 18), "https://localhost/12.patch");
-  EXPECT_EQ(IFTClient::PatchToUrl(url, 212), "https://localhost/d4.patch");
-
-  url = "https://localhost/$2$1";
-  EXPECT_EQ(IFTClient::PatchToUrl(url, 0), "https://localhost/00");
-  EXPECT_EQ(IFTClient::PatchToUrl(url, 5), "https://localhost/05");
-  EXPECT_EQ(IFTClient::PatchToUrl(url, 12), "https://localhost/0c");
-  EXPECT_EQ(IFTClient::PatchToUrl(url, 18), "https://localhost/12");
-  EXPECT_EQ(IFTClient::PatchToUrl(url, 212), "https://localhost/d4");
-
-  url = "$2$1.patch";
-  ;
-  EXPECT_EQ(IFTClient::PatchToUrl(url, 0), "00.patch");
-  EXPECT_EQ(IFTClient::PatchToUrl(url, 5), "05.patch");
-  EXPECT_EQ(IFTClient::PatchToUrl(url, 12), "0c.patch");
-  EXPECT_EQ(IFTClient::PatchToUrl(url, 18), "12.patch");
-  EXPECT_EQ(IFTClient::PatchToUrl(url, 212), "d4.patch");
-
-  url = "$1";
-  EXPECT_EQ(IFTClient::PatchToUrl(url, 0), "0");
-  EXPECT_EQ(IFTClient::PatchToUrl(url, 5), "5");
-}
-
-TEST_F(IFTClientTest, PatchToUrl_Complex) {
-  std::string url = "https://localhost/$5/$3/$3$2$1.patch";
-  EXPECT_EQ(IFTClient::PatchToUrl(url, 0), "https://localhost/0/0/000.patch");
-  EXPECT_EQ(IFTClient::PatchToUrl(url, 5), "https://localhost/0/0/005.patch");
-  EXPECT_EQ(IFTClient::PatchToUrl(url, 200000),
-            "https://localhost/3/d/d40.patch");
+  // Test cases from: https://w3c.github.io/IFT/Overview.html#uri-templates
+  EXPECT_EQ(IFTClient::PatchToUrl("//foo.bar/{id}", 0), "//foo.bar/00");
+  EXPECT_EQ(IFTClient::PatchToUrl("//foo.bar/{id}", 123), "//foo.bar/FC");
+  EXPECT_EQ(IFTClient::PatchToUrl("//foo.bar{/d1,d2,id}", 478), "//foo.bar/0/F/07F0");
+  EXPECT_EQ(IFTClient::PatchToUrl("//foo.bar{/d1,d2,d3,id}", 123), "//foo.bar/C/F/_/FC");
 }
 
 }  // namespace ift

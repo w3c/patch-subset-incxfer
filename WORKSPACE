@@ -26,6 +26,16 @@ http_archive(
     url = "https://github.com/ReneNyffenegger/cpp-base64/archive/82147d6d89636217b870f54ec07ddd3e544d5f69.zip",
 )
 
+# Base32hex
+
+http_archive(
+    name = "cppcodec",
+    build_file = "//third_party:cppcodec.BUILD",
+    integrity = "sha256-abpzBt/WJEKA0os255vhquwnQd2njfw6RryLFWsMRU0=",
+    strip_prefix = "cppcodec-8019b8b580f8573c33c50372baec7039dfe5a8ce",
+    url = "https://github.com/tplgy/cppcodec/archive/8019b8b580f8573c33c50372baec7039dfe5a8ce.zip",
+)
+
 # Google Test
 http_archive(
     name = "gtest",
@@ -87,14 +97,14 @@ http_archive(
 
 # Proto buf generating rules
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-
+ 
 http_archive(
-    name = "rules_proto",
-    sha256 = "dc3fb206a2cb3441b485eb1e423165b231235a1ea9b031b4433cf7bc1fa460dd",
-    strip_prefix = "rules_proto-5.3.0-21.7",
-    urls = [
-        "https://github.com/bazelbuild/rules_proto/archive/refs/tags/5.3.0-21.7.tar.gz",
-    ],
+  name = "rules_proto",
+  sha256 = "dc3fb206a2cb3441b485eb1e423165b231235a1ea9b031b4433cf7bc1fa460dd",
+  strip_prefix = "rules_proto-5.3.0-21.7",
+  urls = [
+      "https://github.com/bazelbuild/rules_proto/archive/refs/tags/5.3.0-21.7.tar.gz",
+  ],
 )
 load("@rules_proto//proto:repositories.bzl", "rules_proto_dependencies", "rules_proto_toolchains")
 rules_proto_dependencies()
@@ -158,4 +168,11 @@ http_archive(
     urls = ["https://github.com/google/open-vcdiff/archive/868f459a8d815125c2457f8c74b12493853100f9.zip"],
 )
 
-
+# uritemplate-cpp
+http_archive(
+    name = "uritemplate-cpp",
+    build_file = "//third_party:uritemplate-cpp.BUILD",
+    strip_prefix = "uritemplate-cpp-1.0.1",
+    integrity = "sha256-XwiP9k9mGukrqab4M1IfVKPEE55FmPOeLiTN3kxZfaw=",
+    urls = ["https://github.com/returnzero23/uritemplate-cpp/archive/v1.0.1.zip"],
+)
