@@ -86,7 +86,7 @@ static uint8_t EncodeFirstByte(BranchFactor branch_factor, unsigned int depth) {
       result = 0b11;
       break;
   }
-  result |= (depth - 1) << 2;
+  result |= depth << 2;
   return result;
 }
 

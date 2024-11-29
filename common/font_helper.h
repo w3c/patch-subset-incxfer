@@ -90,6 +90,10 @@ class FontHelper {
     WriteInt<16>(value, out);
   }
 
+  static void WriteInt24(int32_t value, std::string& out) {
+    WriteInt<24>(value, out);
+  }
+
   static void WriteUInt8(uint8_t value, std::string& out) {
     WriteInt<8>(value, out);
   }

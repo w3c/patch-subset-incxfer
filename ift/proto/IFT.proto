@@ -4,15 +4,9 @@ package ift.proto;
 
 enum PatchEncoding {
   DEFAULT_ENCODING = 0;
-
-  // IFTB patches are independent.
-  IFTB_ENCODING = 1;
-
-  // Shared brotli patches are dependent.
-  SHARED_BROTLI_ENCODING = 2;
-
-  // Per table shared brotli patches are dependent.
-  PER_TABLE_SHARED_BROTLI_ENCODING = 3;
+  TABLE_KEYED_FULL = 1;
+  TABLE_KEYED_PARTIAL = 2;
+  GLYPH_KEYED = 3;
 
   // next = 4
 }

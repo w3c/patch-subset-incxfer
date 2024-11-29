@@ -23,12 +23,12 @@ using common::AxisRange;
 using common::BinaryPatch;
 using common::FontData;
 using ift::proto::DEFAULT_ENCODING;
-using ift::proto::IFTB_ENCODING;
+using ift::proto::TABLE_KEYED_FULL;
+using ift::proto::TABLE_KEYED_PARTIAL;
+using ift::proto::GLYPH_KEYED;
 using ift::proto::IFTTable;
 using ift::proto::PatchEncoding;
 using ift::proto::PatchMap;
-using ift::proto::PER_TABLE_SHARED_BROTLI_ENCODING;
-using ift::proto::SHARED_BROTLI_ENCODING;
 
 namespace ift {
 
@@ -224,7 +224,7 @@ StatusOr<IFTClient::State> IFTClient::Process() {
   std::vector<std::string> urls;
   std::vector<FontData> data;
   for (const auto& [url, info] : pending_patches_) {
-    if (info.encoding != IFTB_ENCODING) {
+    if (info.encoding != GLYPH_KEYED) {
       continue;
     }
 
@@ -239,7 +239,7 @@ StatusOr<IFTClient::State> IFTClient::Process() {
   }
 
   if (!urls.empty()) {
-    auto s = ApplyPatches(data, IFTB_ENCODING);
+    auto s = ApplyPatches(data, GLYPH_KEYED);
     if (!s.ok()) {
       status_ = s;
       return s;
@@ -361,12 +361,11 @@ Status IFTClient::ApplyPatches(const std::vector<FontData>& patches,
 StatusOr<const BinaryPatch*> IFTClient::PatcherFor(
     ift::proto::PatchEncoding encoding) const {
   switch (encoding) {
-    case SHARED_BROTLI_ENCODING:
-      return brotli_binary_patch_.get();
-    case IFTB_ENCODING:
-      return iftb_binary_patch_.get();
-    case PER_TABLE_SHARED_BROTLI_ENCODING:
+    case TABLE_KEYED_FULL:
+    case TABLE_KEYED_PARTIAL:
       return per_table_binary_patch_.get();
+    case GLYPH_KEYED:
+      return iftb_binary_patch_.get();
     default:
       std::stringstream message;
       message << "Patch encoding " << encoding << " is not implemented.";
