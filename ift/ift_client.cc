@@ -12,6 +12,8 @@
 #include "ift/proto/IFT.pb.h"
 #include "ift/proto/ift_table.h"
 #include "ift/proto/patch_map.h"
+#include "uritemplate.hpp"
+#include "base32_hex.hpp"
 
 using absl::btree_set;
 using absl::flat_hash_map;
@@ -29,6 +31,8 @@ using ift::proto::GLYPH_KEYED;
 using ift::proto::IFTTable;
 using ift::proto::PatchEncoding;
 using ift::proto::PatchMap;
+using uritemplatecpp::UriTemplate;
+using cppcodec::base32_hex;
 
 namespace ift {
 
@@ -62,44 +66,54 @@ StatusOr<std::string> IFTClient::UrlForEntry(uint32_t entry_idx) {
 
 std::string IFTClient::PatchToUrl(absl::string_view url_template,
                                   uint32_t patch_idx) {
-  constexpr int num_digits = 5;
-  int hex_digits[num_digits];
-  int base = 1;
-  for (int i = 0; i < num_digits; i++) {
-    hex_digits[i] = (patch_idx / base) % 16;
-    base *= 16;
+
+  uint8_t bytes[4];
+  bytes[0] = (patch_idx >> 24) & 0x000000FFu;
+  bytes[1] = (patch_idx >> 16) & 0x000000FFu;
+  bytes[2] = (patch_idx >> 8) & 0x000000FFu;
+  bytes[3] = patch_idx & 0x000000FFu;
+
+  size_t start = 0;
+  while (start < 3 && !bytes[start]) {
+    start++;
+  }
+  
+  std::string result = base32_hex::encode(bytes + start, 4 - start);
+  result.erase(std::find_if(result.rbegin(), result.rend(), [](unsigned char ch) {
+        return ch != '=';
+  }).base(), result.end());
+
+  std::string url_template_copy {url_template};
+  UriTemplate uri(url_template_copy);
+  uri.set("id", result);
+
+  if (result.size() >= 1) {
+    uri.set("d1", result.substr(result.size() - 1, 1));
+  } else {
+    uri.set("d1", "_");
   }
 
-  std::stringstream out;
-
-  size_t i = 0;
-  while (true) {
-    size_t from = i;
-    i = url_template.find("$", i);
-    if (i == std::string::npos) {
-      out << url_template.substr(from);
-      break;
-    }
-    out << url_template.substr(from, i - from);
-
-    i++;
-    if (i == url_template.length()) {
-      out << "$";
-      break;
-    }
-
-    char c = url_template[i];
-    if (c < 0x31 || c >= 0x31 + num_digits) {
-      out << "$";
-      continue;
-    }
-
-    int digit = c - 0x31;
-    out << std::hex << hex_digits[digit];
-    i++;
+  if (result.size() >= 2) {
+    uri.set("d2", result.substr(result.size() - 2, 1));
+  } else {
+    uri.set("d2", "_");
   }
 
-  return out.str();
+  if (result.size() >= 3) {
+    uri.set("d3", result.substr(result.size() - 3, 1));
+  } else {
+    uri.set("d3", "_");
+  }
+
+  if (result.size() >= 4) {
+    uri.set("d4", result.substr(result.size() - 4, 1));
+  } else {
+    uri.set("d4", "_");
+  }
+
+  // TODO(garretrieger): add additional variable id64
+
+	return uri.build();
 }
 
 flat_hash_set<std::string> IFTClient::PatchesNeeded() const {

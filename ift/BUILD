@@ -28,8 +28,10 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+        "@cppcodec",
         "@harfbuzz",
         "@iftb//:merger",
+        "@uritemplate-cpp//:uritemplate",
     ],
 )
 
@@ -65,7 +67,7 @@ filegroup(
     name = "testdata",
     srcs = glob(["testdata/**"]),
     visibility = [
-        "//ift:__subpackages__",
         "//common:__subpackages__",
+        "//ift:__subpackages__",
     ],
 )
