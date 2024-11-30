@@ -14,7 +14,7 @@
 #include "common/brotli_binary_diff.h"
 #include "common/font_data.h"
 #include "hb-subset.h"
-#include "ift/per_table_brotli_binary_diff.h"
+#include "ift/table_keyed_diff.h"
 #include "ift/proto/ift_table.h"
 #include "ift/proto/patch_map.h"
 
@@ -289,8 +289,8 @@ class Encoder {
       const common::FontData& font_data) const;
 
   common::BrotliBinaryDiff binary_diff_;
-  ift::PerTableBrotliBinaryDiff per_table_binary_diff_;
-  ift::PerTableBrotliBinaryDiff replace_ift_map_binary_diff_;
+  ift::TableKeyedDiff per_table_binary_diff_;
+  ift::TableKeyedDiff replace_ift_map_binary_diff_;
 
   // == IN  ==
   std::string url_template_ = "patch$5$4$3$2$1.br";

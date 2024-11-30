@@ -1,18 +1,15 @@
 cc_library(
     name = "client",
     srcs = [
-        "ift_client.cc",
         "iftb_binary_patch.cc",
         "iftb_binary_patch.h",
-        "per_table_brotli_binary_diff.cc",
-        "per_table_brotli_binary_diff.h",
-        "per_table_brotli_binary_patch.cc",
-        "per_table_brotli_binary_patch.h",
+        "table_keyed_diff.cc",
+        "table_keyed_diff.h",
+        "ift_client.cc",
     ],
     hdrs = [
+        "table_keyed_diff.h",
         "ift_client.h",
-        "per_table_brotli_binary_diff.h",
-        "per_table_brotli_binary_patch.h",
     ],
     visibility = [
         "//visibility:public",
@@ -39,11 +36,8 @@ cc_test(
     name = "client_test",
     size = "small",
     srcs = [
+        "table_keyed_diff_test.cc",
         "ift_client_test.cc",
-        "iftb_binary_patch_test.cc",
-        "integration_test.cc",
-        "per_table_brotli_binary_diff_test.cc",
-        "per_table_brotli_binary_patch_test.cc",
     ],
     copts = [
         "-DHB_EXPERIMENTAL_API",

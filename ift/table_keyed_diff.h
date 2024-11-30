@@ -1,5 +1,5 @@
-#ifndef IFT_PER_TABLE_BROTLI_BINARY_DIFF_H_
-#define IFT_PER_TABLE_BROTLI_BINARY_DIFF_H_
+#ifndef IFT_TABLE_KEYED_DIFF_H_
+#define IFT_TABLE_KEYED_DIFF_H_
 
 #include <initializer_list>
 
@@ -13,17 +13,17 @@
 namespace ift {
 
 /* Creates a per table brotli binary diff of two fonts. */
-class PerTableBrotliBinaryDiff : public common::BinaryDiff {
+class TableKeyedDiff : public common::BinaryDiff {
  public:
-  PerTableBrotliBinaryDiff() : binary_diff_(11) {}
+  TableKeyedDiff() : binary_diff_(11) {}
 
-  PerTableBrotliBinaryDiff(std::initializer_list<const char*> excluded_tags)
+  TableKeyedDiff(std::initializer_list<const char*> excluded_tags)
       : binary_diff_(11), excluded_tags_(), replaced_tags_() {
     std::copy(excluded_tags.begin(), excluded_tags.end(),
               std::inserter(excluded_tags_, excluded_tags_.begin()));
   }
 
-  PerTableBrotliBinaryDiff(absl::btree_set<std::string> excluded_tags,
+  TableKeyedDiff(absl::btree_set<std::string> excluded_tags,
                            absl::btree_set<std::string> replaced_tags)
       : binary_diff_(11), excluded_tags_(), replaced_tags_() {
     excluded_tags_ = excluded_tags;
@@ -48,4 +48,4 @@ class PerTableBrotliBinaryDiff : public common::BinaryDiff {
 
 }  // namespace ift
 
-#endif  // IFT_PER_TABLE_BROTLI_BINARY_DIFF_H_
+#endif  // IFT_TABLE_KEYED_DIFF_H_
