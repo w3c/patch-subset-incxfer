@@ -60,13 +60,3 @@ message SubsetMapping {
 
   // next = 8
 }
-
-// Format for a table-wise shared brotli patch.
-message PerTablePatch {
-  repeated uint32 id = 1;
-  map<string, bytes> table_patches = 2;
-  repeated string removed_tables = 3;
-  repeated string replaced_tables = 4;
-
-  // next = 5
-}

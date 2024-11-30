@@ -25,6 +25,7 @@ cc_library(
         "file_font_provider.h",
         "font_data.h",
         "font_helper.h",
+        "font_helper_macros.h",
         "font_provider.h",
         "hb_set_unique_ptr.h",
         "sparse_bit_set.h",
