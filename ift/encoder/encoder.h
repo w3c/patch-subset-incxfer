@@ -33,8 +33,8 @@ class Encoder {
   typedef absl::flat_hash_map<hb_tag_t, common::AxisRange> design_space_t;
 
   Encoder()
-      : binary_diff_(11),
-        per_table_binary_diff_({"IFT ", "glyf", "loca", "gvar"}),
+      : full_font_table_keyed_diff_({}),
+        mixed_mode_table_keyed_binary_diff_({"IFT ", "glyf", "loca", "gvar"}),
 
         // the replacement differ is used during design space expansions, both
         // gvar and "IFT " are overwritten to be compatible with the new design
@@ -288,8 +288,9 @@ class Encoder {
       const ift::proto::IFTTable& base_table,
       const common::FontData& font_data) const;
 
-  common::BrotliBinaryDiff binary_diff_;
-  ift::TableKeyedDiff per_table_binary_diff_;
+  
+  ift::TableKeyedDiff full_font_table_keyed_diff_;
+  ift::TableKeyedDiff mixed_mode_table_keyed_binary_diff_;
   ift::TableKeyedDiff replace_ift_map_binary_diff_;
 
   // == IN  ==

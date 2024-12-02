@@ -70,7 +70,9 @@ Status TableKeyedDiff::Diff(const FontData& font_base,
   // Write offsets to table patches.
   WRITE_UINT16(diff_tags.size(), data, "Exceeded max number of tables (0xFFFF).");
 
-  uint32_t current_offset = data.size();
+  // Skip past all of the offsets (there's patchesCount + 1 of them)
+  uint32_t current_offset = data.size() + (diff_tags.size() + 1) * 4;
+
   for (std::string tag : diff_tags) {
     FontHelper::WriteUInt32(current_offset, data);
     uint32_t min_size = 9;
@@ -105,8 +107,7 @@ Status TableKeyedDiff::Diff(const FontData& font_base,
     }
 
     // max uncompressed length
-    // TODO(garretrieger): write actual max uncompressed length XXXXX
-    FontHelper::WriteUInt32(it->second.first, data); 
+    FontHelper::WriteUInt32(it->second.first, data);
     data += patch_data.string();
   }
   
