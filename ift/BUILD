@@ -1,15 +1,15 @@
 cc_library(
     name = "client",
     srcs = [
-        "iftb_binary_patch.cc",
-        "iftb_binary_patch.h",
+        "glyph_keyed_diff.cc",
+        "glyph_keyed_diff.h",
+        "ift_client.cc",
         "table_keyed_diff.cc",
         "table_keyed_diff.h",
-        "ift_client.cc",
     ],
     hdrs = [
-        "table_keyed_diff.h",
         "ift_client.h",
+        "table_keyed_diff.h",
     ],
     visibility = [
         "//visibility:public",
@@ -36,8 +36,9 @@ cc_test(
     name = "client_test",
     size = "small",
     srcs = [
-        "table_keyed_diff_test.cc",
+        "glyph_keyed_diff_test.cc",
         "ift_client_test.cc",
+        "table_keyed_diff_test.cc",
     ],
     copts = [
         "-DHB_EXPERIMENTAL_API",

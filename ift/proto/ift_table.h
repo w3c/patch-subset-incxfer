@@ -16,16 +16,6 @@ namespace ift::proto {
  */
 class IFTTable {
  public:
-  /*
-   * Returns the IFT table found in 'face'.
-   */
-  static absl::StatusOr<IFTTable> FromFont(hb_face_t* face);
-
-  /*
-   * Returns the IFT table found in 'font'.
-   */
-  static absl::StatusOr<IFTTable> FromFont(const common::FontData& font);
-
   friend void PrintTo(const IFTTable& table, std::ostream* os);
 
   // TODO(garretrieger): add a separate extension id as well (like w/ URL
@@ -34,23 +24,17 @@ class IFTTable {
 
   const PatchMap& GetPatchMap() const { return patch_map_; }
   PatchMap& GetPatchMap() { return patch_map_; }
-  bool HasExtensionEntries() const;
 
   const std::string& GetUrlTemplate() const { return url_template_; }
-  const std::string& GetExtensionUrlTemplate() const {
-    return extension_url_template_;
-  }
+
   void SetUrlTemplate(absl::string_view value) {
     url_template_ = value;
-    extension_url_template_ = value;
+
   }
+
   void SetUrlTemplate(absl::string_view value,
                       absl::string_view extension_value) {
     url_template_ = value;
-    extension_url_template_ = extension_value;
-  }
-  void SetExtensionUrlTemplate(absl::string_view value) {
-    extension_url_template_ = value;
   }
 
   absl::Status SetId(absl::Span<const uint32_t> id) {
@@ -66,7 +50,6 @@ class IFTTable {
 
   bool operator==(const IFTTable& other) const {
     return url_template_ == other.url_template_ &&
-           extension_url_template_ == other.extension_url_template_ &&
            id_[0] == other.id_[0] && id_[1] == other.id_[1] &&
            id_[2] == other.id_[2] && id_[3] == other.id_[3] &&
            patch_map_ == other.patch_map_;
@@ -78,8 +61,8 @@ class IFTTable {
    * already present in the font. If extension entries are present then an
    * extension table (IFTX) will also be added.
    */
-  absl::StatusOr<common::FontData> AddToFont(
-      hb_face_t* face, bool iftb_conversion = false) const;
+  static absl::StatusOr<common::FontData> AddToFont(
+      hb_face_t* face, const IFTTable& main, std::optional<const IFTTable*> extension, bool iftb_conversion = false);
 
  private:
   /*
@@ -95,19 +78,12 @@ class IFTTable {
       bool iftb_conversion = false);
 
   /*
-   * Converts this abstract representation to the proto representation.
-   * This method generates the proto for the main "IFT " table.
+   * Converts this abstract representation to the a serialized format.
+   * Either format 1 or 2: https://w3c.github.io/IFT/Overview.html#patch-map-table
    */
-  absl::StatusOr<std::string> CreateMainTable() const;
-
-  /*
-   * Converts this abstract representation to the proto representation.
-   * This method generates the proto for the extension "IFTX" table.
-   */
-  absl::StatusOr<std::string> CreateExtensionTable() const;
+  absl::StatusOr<std::string> Serialize() const;
 
   std::string url_template_;
-  std::string extension_url_template_;
   uint32_t id_[4] = {0, 0, 0, 0};
   PatchMap patch_map_;
 };

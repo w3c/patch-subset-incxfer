@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <optional>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -15,8 +16,8 @@
 #include "common/woff2.h"
 #include "hb-subset.h"
 #include "ift/encoder/iftb_patch_creator.h"
+#include "ift/glyph_keyed_diff.h"
 #include "ift/ift_client.h"
-#include "ift/iftb_binary_patch.h"
 #include "ift/proto/IFT.pb.h"
 #include "ift/proto/ift_table.h"
 #include "ift/proto/patch_map.h"
@@ -39,7 +40,6 @@ using common::make_hb_blob;
 using common::make_hb_face;
 using common::make_hb_set;
 using common::Woff2;
-using ift::IftbBinaryPatch;
 using ift::proto::IFT;
 using ift::proto::GLYPH_KEYED;
 using ift::proto::TABLE_KEYED_FULL;
@@ -49,6 +49,12 @@ using ift::proto::PatchEncoding;
 using ift::proto::PatchMap;
 
 namespace ift::encoder {
+
+StatusOr<std::string> UrlTemplateFor(const FontData& font) {
+  // TODO(garretrieger): reimplement this.
+  assert(false);
+}
+
 
 void PrintTo(const Encoder::SubsetDefinition& def, std::ostream* os) {
   *os << "[{";
@@ -84,15 +90,6 @@ void PrintTo(const Encoder::SubsetDefinition& def, std::ostream* os) {
   }
 
   *os << "]";
-}
-
-StatusOr<std::string> UrlTemplateFor(const FontData& font) {
-  auto ift = IFTTable::FromFont(font);
-  if (!ift.ok()) {
-    return ift.status();
-  }
-
-  return ift->GetUrlTemplate();
 }
 
 void Encoder::AddCombinations(const std::vector<const SubsetDefinition*>& in,
@@ -275,7 +272,7 @@ Status Encoder::AddExistingIftbPatch(uint32_t id, const FontData& patch) {
     return absl::FailedPreconditionError("Encoder must have a face set.");
   }
 
-  auto gids = IftbBinaryPatch::GidsInPatch(patch);
+  auto gids = GlyphKeyedDiff::GidsInIftbPatch(patch);
   if (!gids.ok()) {
     return gids.status();
   }
@@ -551,33 +548,37 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
     return base;
   }
 
-  IFTTable table;
+  IFTTable main_table;
+  IFTTable ext_table;
+
   auto url_template = iftb_url_overrides_.find(base_subset.design_space);
   bool replace_url_template =
       IsMixedMode() && (url_template != iftb_url_overrides_.end());
   if (!replace_url_template) {
-    table.SetUrlTemplate(UrlTemplate());
+    main_table.SetUrlTemplate(UrlTemplate());
+    ext_table.SetUrlTemplate(UrlTemplate());
   } else {
     // There's a different url template to use for the iftb entries
     // (which are stored in the main table).
     const std::string& iftb_url_template = url_template->second;
-    table.SetUrlTemplate(iftb_url_template);
-    table.SetExtensionUrlTemplate(UrlTemplate());
+    main_table.SetUrlTemplate(iftb_url_template);
+    ext_table.SetUrlTemplate(UrlTemplate());
   }
 
-  auto sc = table.SetId(Id());
+  auto sc = main_table.SetId(Id());
+  sc.Update(ext_table.SetId(Id())); // TODO(garretrieger): distinct ID for the IFTX table.
   if (!sc.ok()) {
     return sc;
   }
 
-  PatchMap& patch_map = table.GetPatchMap();
-  sc = PopulateIftbPatchMap(patch_map, base_subset.design_space);
+  PatchMap& iftb_patch_map = main_table.GetPatchMap();
+  sc = PopulateIftbPatchMap(iftb_patch_map, base_subset.design_space);
   if (!sc.ok()) {
     return sc;
   }
 
   std::vector<uint32_t> ids;
-  bool as_extensions = IsMixedMode();
+  PatchMap& patch_map = IsMixedMode() ? ext_table.GetPatchMap() : main_table.GetPatchMap();
   PatchEncoding encoding = 
       IsMixedMode() ? TABLE_KEYED_PARTIAL : TABLE_KEYED_FULL;
   for (const auto& s : subsets) {
@@ -585,11 +586,12 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
     ids.push_back(id);
 
     PatchMap::Coverage coverage = s.ToCoverage();
-    patch_map.AddEntry(coverage, id, encoding, as_extensions);
+    patch_map.AddEntry(coverage, id, encoding);
   }
 
   hb_face_t* face = base->reference_face();
-  auto new_base = table.AddToFont(face, true);
+  std::optional<IFTTable*> ext = IsMixedMode() ? std::optional(&ext_table) : std::nullopt;
+  auto new_base = IFTTable::AddToFont(face, main_table, ext, true);
   hb_face_destroy(face);
 
   if (!new_base.ok()) {
@@ -616,7 +618,7 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
     }
 
     FontData patch;
-    auto differ = GetDifferFor(table, *next);
+    auto differ = GetDifferFor(main_table, *next);
     if (!differ.ok()) {
       return differ.status();
     }

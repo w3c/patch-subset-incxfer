@@ -33,40 +33,6 @@ namespace ift::proto {
 constexpr hb_tag_t IFT_TAG = HB_TAG('I', 'F', 'T', ' ');
 constexpr hb_tag_t IFTX_TAG = HB_TAG('I', 'F', 'T', 'X');
 
-StatusOr<IFTTable> IFTTable::FromFont(hb_face_t* face) {
-  FontData ift_table = FontHelper::TableData(face, IFT_TAG);
-  if (ift_table.empty()) {
-    return absl::NotFoundError("'IFT ' table not found in face.");
-  }
-
-  IFTTable out;
-  auto s = Format2PatchMap::Deserialize(ift_table.str(), out, false);
-  if (!s.ok()) {
-    return s;
-  }
-
-  // Check for an handle extension table if present.
-  ift_table = FontHelper::TableData(face, IFTX_TAG);
-  if (ift_table.empty()) {
-    // No extension table
-    return out;
-  }
-
-  s = Format2PatchMap::Deserialize(ift_table.str(), out, true);
-  if (!s.ok()) {
-    return s;
-  }
-
-  return out;
-}
-
-StatusOr<IFTTable> IFTTable::FromFont(const FontData& font) {
-  hb_face_t* face = font.reference_face();
-  auto s = IFTTable::FromFont(face);
-  hb_face_destroy(face);
-  return s;
-}
-
 void move_tag_to_back(std::vector<hb_tag_t>& tags, hb_tag_t tag) {
   auto it = std::find(tags.begin(), tags.end(), tag);
   if (it != tags.end()) {
@@ -153,32 +119,24 @@ StatusOr<FontData> IFTTable::AddToFont(
   return new_font_data;
 }
 
-StatusOr<FontData> IFTTable::AddToFont(hb_face_t* face,
-                                       bool iftb_conversion) const {
-  auto main = CreateMainTable();
-  if (!main.ok()) {
-    return main.status();
+absl::StatusOr<common::FontData> IFTTable::AddToFont(
+      hb_face_t* face, const IFTTable& main, std::optional<const IFTTable*> extension, bool iftb_conversion) {
+  auto main_bytes = Format2PatchMap::Serialize(main);
+  if (!main_bytes.ok()) {
+    return main_bytes.status();
   }
 
-  StatusOr<std::string> ext;
+  StatusOr<std::string> ext_bytes;
   std::optional<absl::string_view> ext_view;
-  if (HasExtensionEntries()) {
-    ext = CreateExtensionTable();
-    if (!ext.ok()) {
-      return ext.status();
+  if (extension) {
+    auto ext_bytes = Format2PatchMap::Serialize(**extension);
+    if (!ext_bytes.ok()) {
+      return ext_bytes.status();
     }
-    ext_view = *ext;
+    ext_view = *ext_bytes;
   }
 
-  return AddToFont(face, *main, ext_view, iftb_conversion);
-}
-
-StatusOr<std::string> IFTTable::CreateMainTable() const {
-  return Format2PatchMap::Serialize(*this, false);
-}
-
-StatusOr<std::string> IFTTable::CreateExtensionTable() const {
-  return Format2PatchMap::Serialize(*this, true);
+  return AddToFont(face, *main_bytes, ext_view, iftb_conversion);
 }
 
 void IFTTable::GetId(uint32_t out[4]) const {
@@ -187,20 +145,9 @@ void IFTTable::GetId(uint32_t out[4]) const {
   }
 }
 
-bool IFTTable::HasExtensionEntries() const {
-  for (const auto& e : GetPatchMap().GetEntries()) {
-    if (e.extension_entry) {
-      return true;
-    }
-  }
-  return false;
-}
-
 void PrintTo(const IFTTable& table, std::ostream* os) {
   *os << "{" << std::endl;
   *os << "  url_template = " << table.GetUrlTemplate() << std::endl;
-  *os << "  ext_url_template = " << table.GetExtensionUrlTemplate()
-      << std::endl;
   *os << "  id = [" << table.id_[0] << " " << table.id_[1] << " "
       << table.id_[2] << " " << table.id_[3] << "]" << std::endl;
   *os << "  patch_map = ";

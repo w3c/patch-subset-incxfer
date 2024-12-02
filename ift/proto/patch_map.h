@@ -24,28 +24,8 @@ class PatchMap {
     return encoding == TABLE_KEYED_PARTIAL || encoding == TABLE_KEYED_FULL;
   }
 
-  enum Modification {
-    MODIFIED_NEITHER,
-    MODIFIED_MAIN,
-    MODIFIED_EXTENSION,
-    MODIFIED_BOTH,
-  };
-
-  static absl::StatusOr<common::AxisRange> FromProto(
-      const ift::proto::AxisRange& range) {
-    return common::AxisRange::Range(range.start(), range.end());
-  }
-
-  static void ToProto(const common::AxisRange& range,
-                      ift::proto::AxisRange* out) {
-    out->set_start(range.start());
-    out->set_end(range.end());
-  }
-
   struct Coverage {
     // TODO(garretrieger): move constructors?
-    static absl::StatusOr<Coverage> FromProto(
-        const ift::proto::SubsetMapping& mapping);
 
     Coverage() {}
     Coverage(std::initializer_list<uint32_t> codepoints_list)
@@ -59,8 +39,6 @@ class PatchMap {
       return other.codepoints == codepoints && other.features == features &&
              other.design_space == design_space;
     }
-
-    void ToProto(ift::proto::SubsetMapping* out) const;
 
     bool Intersects(const absl::flat_hash_set<uint32_t>& codepoints,
                     const absl::flat_hash_set<hb_tag_t>& features,
@@ -85,36 +63,26 @@ class PatchMap {
 
   struct Entry {
     // TODO(garretrieger): move constructors?
-    static absl::StatusOr<Entry> FromProto(
-        const ift::proto::SubsetMapping& mapping, uint32_t index,
-        ift::proto::PatchEncoding encoding);
 
     Entry() {}
     Entry(std::initializer_list<uint32_t> codepoints, uint32_t patch_idx,
-          PatchEncoding enc, bool is_ext = false)
+          PatchEncoding enc)
         : coverage(codepoints),
           patch_index(patch_idx),
-          encoding(enc),
-          extension_entry(is_ext) {}
+          encoding(enc) {}
 
     friend void PrintTo(const Entry& point, std::ostream* os);
 
     bool operator==(const Entry& other) const {
       return other.coverage == coverage && other.patch_index == patch_index &&
-             other.encoding == encoding &&
-             other.extension_entry == extension_entry;
+             other.encoding == encoding;
     }
-
-    void ToProto(uint32_t last_patch_index,
-                 ift::proto::PatchEncoding default_encoding,
-                 ift::proto::SubsetMapping* out) const;
 
     bool IsDependent() const { return PatchMap::IsDependent(encoding); }
 
     Coverage coverage;
     uint32_t patch_index;
     PatchEncoding encoding;
-    bool extension_entry = false;
   };
 
   // TODO(garretrieger): move constructors?
@@ -127,19 +95,10 @@ class PatchMap {
     return other.entries_ == entries_;
   }
 
-  static absl::StatusOr<PatchMap> FromProto(const ift::proto::IFT& ift_proto);
-  absl::Status AddFromProto(const ift::proto::IFT& ift_proto,
-                            bool is_extension_table = false);
-
-  void AddToProto(ift::proto::IFT& ift_proto,
-                  bool extension_entries = false) const;
-
   absl::Span<const Entry> GetEntries() const;
 
   void AddEntry(const Coverage& coverage, uint32_t patch_index,
-                ift::proto::PatchEncoding, bool is_extension = false);
-
-  Modification RemoveEntries(uint32_t patch_index);
+                ift::proto::PatchEncoding);
 
  private:
   // TODO(garretrieger): keep an index which maps from patch_index to entry
