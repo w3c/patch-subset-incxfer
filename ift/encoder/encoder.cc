@@ -635,7 +635,7 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
 StatusOr<const BinaryDiff*> Encoder::GetDifferFor(
     const IFTTable& base_table, const FontData& font_data) const {
   if (!IsMixedMode()) {
-    return &binary_diff_;
+    return &full_font_table_keyed_diff_;
   }
 
   auto new_url_template = UrlTemplateFor(font_data);
@@ -647,7 +647,7 @@ StatusOr<const BinaryDiff*> Encoder::GetDifferFor(
     return &replace_ift_map_binary_diff_;
   }
 
-  return &per_table_binary_diff_;
+  return &mixed_mode_table_keyed_binary_diff_;
 }
 
 StatusOr<hb_face_unique_ptr> Encoder::CutSubsetFaceBuilder(

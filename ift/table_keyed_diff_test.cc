@@ -51,7 +51,7 @@ StatusOr<std::string> diff_table(std::string before, std::string after) {
 }
 
 TEST_F(TableKeyedDiffTest, BasicDiff) {
-  char second_offset = 26 + 9 + diff_table("foo", "fooo")->length();
+  char second_offset = 38 + 9 + diff_table("foo", "fooo")->length();
   char third_offset = second_offset + 9 + diff_table("bar", "baar")->length();
   std::string expected = std::string {
     'i', 'f', 't', 'k',
@@ -63,7 +63,7 @@ TEST_F(TableKeyedDiffTest, BasicDiff) {
     0, 0, 0, 0, // compat id
 
     0, 2, // patches count
-    0, 0, 0, 26, // patches offset[0]
+    0, 0, 0, 38, // patches offset[0]
     0, 0, 0, second_offset, // patches offset[1]
     0, 0, 0, third_offset, // patches offset[2]
 
