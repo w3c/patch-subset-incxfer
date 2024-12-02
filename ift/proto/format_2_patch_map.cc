@@ -69,15 +69,9 @@ static StatusOr<PatchEncoding> IntToEncoding(uint8_t value) {
   }
 }
 
-static PatchEncoding PickDefaultEncoding(const PatchMap& patch_map,
-                                         bool is_ext) {
+static PatchEncoding PickDefaultEncoding(const PatchMap& patch_map) {
   uint32_t counts[4] = {0, 0, 0};
   for (const auto& e : patch_map.GetEntries()) {
-    if (e.extension_entry != is_ext) {
-      // Ignore entries of the wrong type.
-      continue;
-    }
-
     auto i = EncodingToInt(e.encoding);
     if (!i.ok()) {
       // Ignore.
@@ -97,14 +91,8 @@ static PatchEncoding PickDefaultEncoding(const PatchMap& patch_map,
   return GLYPH_KEYED;
 }
 
-static uint32_t NumEntries(const PatchMap& map, bool is_ext) {
-  uint32_t count = 0;
-  for (const auto& e : map.GetEntries()) {
-    if (e.extension_entry == is_ext) {
-      count++;
-    }
-  }
-  return count;
+static uint32_t NumEntries(const PatchMap& map) {
+  return map.GetEntries().length();
 }
 
 // Decides whether to use 0, 1, or 2 bytes of bias.
@@ -118,7 +106,7 @@ static uint8_t BiasFormat(uint8_t bias_bytes);
 static Status EncodeAxisSegment(hb_tag_t tag, const common::AxisRange& range,
                                 std::string& out);
 
-static Status EncodeEntries(Span<const PatchMap::Entry> entries, bool is_ext,
+static Status EncodeEntries(Span<const PatchMap::Entry> entries,
                             PatchEncoding default_encoding, std::string& out);
 
 static Status EncodeEntry(const PatchMap::Entry& entry,
@@ -132,67 +120,15 @@ static void EncodeCodepoints(uint8_t bias_bytes,
 static Status DecodeAxisSegment(absl::string_view data, hb_tag_t& tag,
                                 common::AxisRange& range);
 
-static Status DecodeEntries(absl::string_view data, uint16_t count, bool is_ext,
+static Status DecodeEntries(absl::string_view data, uint16_t count,
                             PatchEncoding default_encoding, PatchMap& out);
 
 static StatusOr<absl::string_view> DecodeEntry(absl::string_view data,
                                                PatchEncoding default_encoding,
-                                               bool is_ext,
                                                uint32_t& entry_index,
                                                PatchMap& out);
 
-Status Format2PatchMap::Deserialize(absl::string_view data, IFTTable& out,
-                                    bool is_ext) {
-  constexpr int format_offset = 0;
-  constexpr int id_offset = 5;
-  constexpr int default_patch_encoding_offset = 21;
-  constexpr int mapping_count_offset = 22;
-  constexpr int mappings_field_offset = 24;
-  constexpr int uri_template_length_offset = 32;
-  constexpr int uri_template_offset = 34;
-
-  READ_UINT8(format, data, format_offset);
-  if (format != 2) {
-    return absl::InvalidArgumentError("Invalid format number (!= 2).");
-  }
-
-  uint32_t id[4] = {0, 0, 0, 0};
-  for (int i = 0; i < 4; i++) {
-    READ_UINT32(val, data, id_offset + i * 4);
-    id[i] = val;
-  }
-
-  READ_UINT8(default_encoding_int, data, default_patch_encoding_offset);
-  auto default_encoding = IntToEncoding(default_encoding_int);
-  if (!default_encoding.ok()) {
-    return default_encoding.status();
-  }
-
-  READ_UINT16(mapping_count, data, mapping_count_offset);
-  READ_UINT32(mappings_offset, data, mappings_field_offset);
-  auto s = DecodeEntries(ClippedSubstr(data, mappings_offset), mapping_count,
-                         is_ext, *default_encoding, out.GetPatchMap());
-  if (!s.ok()) {
-    return s;
-  }
-
-  READ_UINT16(uri_template_length, data, uri_template_length_offset);
-  READ_STRING(uri_template, data, uri_template_offset, uri_template_length);
-  if (is_ext) {
-    out.SetExtensionUrlTemplate(uri_template);
-  } else {
-    out.SetUrlTemplate(uri_template);
-    auto sc = out.SetId(id);
-    if (!sc.ok()) {
-      return sc;
-    }
-  }
-
-  return absl::OkStatus();
-}
-
-StatusOr<std::string> Format2PatchMap::Serialize(const IFTTable& ift_table,
-                                                 bool is_ext) {
+StatusOr<std::string> Format2PatchMap::Serialize(const IFTTable& ift_table) {
   // TODO(garretrieger): pre-reserve estimated capacity based on patch_map.
   std::string out;
   const auto& patch_map = ift_table.GetPatchMap();
@@ -209,7 +145,7 @@ StatusOr<std::string> Format2PatchMap::Serialize(const IFTTable& ift_table,
   FontHelper::WriteUInt32(id[3], out);  // Id[3]
 
   // defaultPatchEncoding
-  PatchEncoding default_encoding = PickDefaultEncoding(patch_map, is_ext);
+  PatchEncoding default_encoding = PickDefaultEncoding(patch_map);
   auto encoding_value = EncodingToInt(default_encoding);
   if (!encoding_value.ok()) {
     return encoding_value.status();
@@ -217,12 +153,11 @@ StatusOr<std::string> Format2PatchMap::Serialize(const IFTTable& ift_table,
   FontHelper::WriteUInt8(*encoding_value, out);
 
   // mappingCount
-  WRITE_UINT24(NumEntries(patch_map, is_ext), out,
+  WRITE_UINT24(NumEntries(patch_map), out,
                "Exceeded maximum number of entries (0xFFFFFF).");
 
   // entries offset
-  string_view uri_template =
-      is_ext ? ift_table.GetExtensionUrlTemplate() : ift_table.GetUrlTemplate();
+  string_view uri_template = ift_table.GetUrlTemplate();
   constexpr int header_min_length = 35;
   FontHelper::WriteUInt32(header_min_length + uri_template.length(), out);
 
@@ -237,7 +172,7 @@ StatusOr<std::string> Format2PatchMap::Serialize(const IFTTable& ift_table,
   out.append(uri_template);
 
   // entries
-  auto s = EncodeEntries(patch_map.GetEntries(), is_ext, default_encoding, out);
+  auto s = EncodeEntries(patch_map.GetEntries(), default_encoding, out);
   if (!s.ok()) {
     return s;
   }
@@ -262,11 +197,11 @@ Status DecodeAxisSegment(absl::string_view data, hb_tag_t& tag,
   return absl::OkStatus();
 }
 
-Status DecodeEntries(absl::string_view data, uint16_t count, bool is_ext,
+Status DecodeEntries(absl::string_view data, uint16_t count,
                      PatchEncoding default_encoding, PatchMap& out) {
   uint32_t entry_index = 0;
   for (uint32_t i = 0; i < count; i++) {
-    auto s = DecodeEntry(data, default_encoding, is_ext, entry_index, out);
+    auto s = DecodeEntry(data, default_encoding, entry_index, out);
     if (!s.ok()) {
       return s.status();
     }
@@ -277,7 +212,7 @@ Status DecodeEntries(absl::string_view data, uint16_t count, bool is_ext,
 
 StatusOr<absl::string_view> DecodeEntry(absl::string_view data,
                                         PatchEncoding default_encoding,
-                                        bool is_ext, uint32_t& entry_index,
+                                        uint32_t& entry_index,
                                         PatchMap& out) {
   if (data.empty()) {
     return absl::InvalidArgumentError(
@@ -363,7 +298,7 @@ StatusOr<absl::string_view> DecodeEntry(absl::string_view data,
   }
 
   if (!(format & ignore_bit_mask)) {
-    out.AddEntry(coverage, entry_index, default_encoding, is_ext);
+    out.AddEntry(coverage, entry_index, default_encoding);
   }
 
   return data.substr(offset);
@@ -377,15 +312,11 @@ Status EncodeAxisSegment(hb_tag_t tag, const common::AxisRange& range,
   return absl::OkStatus();
 }
 
-Status EncodeEntries(Span<const PatchMap::Entry> entries, bool is_ext,
+Status EncodeEntries(Span<const PatchMap::Entry> entries,
                      PatchEncoding default_encoding, std::string& out) {
   // TODO(garretrieger): identify and copy existing entries when possible.
   uint32_t last_entry_index = 0;
   for (const auto& entry : entries) {
-    if (entry.extension_entry != is_ext) {
-      continue;
-    }
-
     auto s = EncodeEntry(entry, last_entry_index, default_encoding, out);
     if (!s.ok()) {
       return s;
