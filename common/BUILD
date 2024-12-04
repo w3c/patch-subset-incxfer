@@ -15,6 +15,8 @@ cc_library(
         "indexed_data_reader.h",
         "fast_hasher.cc",
         "woff2.cc",
+        "compat_id.h",
+        "compat_id.cc",
     ],
     hdrs = [
         "binary_diff.h",
@@ -33,6 +35,7 @@ cc_library(
         "woff2.h",
         "hasher.h",
         "fast_hasher.h",
+        "compat_id.h",
     ],
     visibility = [
         "//visibility:public",

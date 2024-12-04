@@ -6,7 +6,9 @@
 #include "absl/status/statusor.h"
 #include "common/font_data.h"
 #include "hb.h"
+#include "common/compat_id.h"
 #include "ift/proto/patch_map.h"
+#include "common/compat_id.h"
 
 namespace ift::proto {
 
@@ -20,7 +22,7 @@ class IFTTable {
 
   // TODO(garretrieger): add a separate extension id as well (like w/ URL
   // templates).
-  void GetId(uint32_t out[4]) const;
+  common::CompatId GetId() const;
 
   const PatchMap& GetPatchMap() const { return patch_map_; }
   PatchMap& GetPatchMap() { return patch_map_; }
@@ -37,21 +39,13 @@ class IFTTable {
     url_template_ = value;
   }
 
-  absl::Status SetId(absl::Span<const uint32_t> id) {
-    if (id.size() != 4) {
-      return absl::InvalidArgumentError("ID must have length of 4.");
-    }
-    id_[0] = id[0];
-    id_[1] = id[1];
-    id_[2] = id[2];
-    id_[3] = id[3];
-    return absl::OkStatus();
+  void SetId(common::CompatId compat_id) {
+    id_ = compat_id;
   }
 
   bool operator==(const IFTTable& other) const {
     return url_template_ == other.url_template_ &&
-           id_[0] == other.id_[0] && id_[1] == other.id_[1] &&
-           id_[2] == other.id_[2] && id_[3] == other.id_[3] &&
+           id_ == other.id_ &&
            patch_map_ == other.patch_map_;
   }
 
@@ -84,7 +78,7 @@ class IFTTable {
   absl::StatusOr<std::string> Serialize() const;
 
   std::string url_template_;
-  uint32_t id_[4] = {0, 0, 0, 0};
+  common::CompatId id_;
   PatchMap patch_map_;
 };
 

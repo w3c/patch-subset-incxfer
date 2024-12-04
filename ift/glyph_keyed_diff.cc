@@ -3,8 +3,10 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "common/compat_id.h"
 #include "common/font_data.h"
 #include "common/font_helper.h"
+#include "common/compat_id.h"
 #include "ift/proto/ift_table.h"
 #include "ift/proto/patch_map.h"
 #include "merger.h"
@@ -24,6 +26,7 @@ using ift::proto::IFTTable;
 using ift::proto::PatchMap;
 using iftb::merger;
 using iftb::sfnt;
+using common::CompatId;
 
 namespace ift {
 
@@ -69,7 +72,7 @@ StatusOr<flat_hash_set<uint32_t>> GlyphKeyedDiff::GidsInIftbPatch(
   return result;
 }
 
-Status GlyphKeyedDiff::IdInIftbPatch(const FontData& patch, uint32_t id_out[4]) {
+StatusOr<CompatId> GlyphKeyedDiff::IdInIftbPatch(const FontData& patch) {
   static constexpr int idOffset = 8;
   std::string uncompressed;
   if (HB_TAG('I', 'F', 'T', 'C') !=
@@ -78,15 +81,16 @@ Status GlyphKeyedDiff::IdInIftbPatch(const FontData& patch, uint32_t id_out[4]) 
   }
 
   absl::string_view data = uncompressed;
+  uint32_t id_values[4];
   for (int i = 0; i < 4; i++) {
     auto val = FontHelper::ReadUInt32(data.substr(idOffset + i * 4));
     if (!val.ok()) {
       return val.status();
     }
-    id_out[i] = *val;
+    id_values[i] = *val;
   }
 
-  return absl::OkStatus();
+  return CompatId(id_values);
 }
 
 }  // namespace ift

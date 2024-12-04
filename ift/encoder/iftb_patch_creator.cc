@@ -1,9 +1,11 @@
 #include "ift/encoder/iftb_patch_creator.h"
 
 #include "chunk.h"
+#include "common/compat_id.h"
 #include "common/font_data.h"
 #include "common/font_helper.h"
 #include "common/hb_set_unique_ptr.h"
+#include "common/compat_id.h"
 #include "merger.h"
 
 namespace ift::encoder {
@@ -14,6 +16,7 @@ using common::FontData;
 using common::FontHelper;
 using common::hb_set_unique_ptr;
 using common::make_hb_set;
+using common::CompatId;
 
 using iftb::merger;
 
@@ -56,7 +59,7 @@ StatusOr<std::vector<merger::glyphrec>> GetGvarRecords(hb_face_t* face) {
 }
 
 StatusOr<FontData> IftbPatchCreator::CreatePatch(
-    const FontData& font, uint32_t chunk_idx, Span<const uint32_t> id,
+    const FontData& font, uint32_t chunk_idx, CompatId compat_id,
     const absl::flat_hash_set<uint32_t>& gids) {
   auto face = font.face();
   auto tags = FontHelper::GetTags(face.get());
@@ -86,7 +89,7 @@ StatusOr<FontData> IftbPatchCreator::CreatePatch(
 
   std::vector<uint8_t> patch;
   std::stringstream out;
-  iftb::chunk::compile(out, chunk_idx, const_cast<uint32_t*>(id.data()),
+  iftb::chunk::compile(out, chunk_idx, compat_id.as_ptr(),
                        gids_hb.get(), FontHelper::kGlyf, *glyf_recs,
                        has_gvar ? FontHelper::kGvar : 0, gvar_recs, 0);
 

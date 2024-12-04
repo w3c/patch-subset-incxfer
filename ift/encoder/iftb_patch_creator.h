@@ -6,6 +6,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "common/font_data.h"
+#include "common/compat_id.h"
 
 namespace ift::encoder {
 
@@ -21,7 +22,7 @@ class IftbPatchCreator {
  public:
   static absl::StatusOr<common::FontData> CreatePatch(
       const common::FontData& font, uint32_t chunk_idx,
-      absl::Span<const uint32_t> id, const absl::flat_hash_set<uint32_t>& gids);
+      common::CompatId id, const absl::flat_hash_set<uint32_t>& gids);
 };
 
 }  // namespace ift::encoder

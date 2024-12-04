@@ -13,6 +13,7 @@
 #include "ift/proto/IFT.pb.h"
 #include "ift/proto/ift_table.h"
 #include "ift/proto/patch_map.h"
+#include "common/compat_id.h"
 
 using absl::ClippedSubstr;
 using absl::Span;
@@ -24,6 +25,7 @@ using common::FontHelper;
 using common::hb_set_unique_ptr;
 using common::make_hb_set;
 using common::SparseBitSet;
+using common::CompatId;
 
 namespace ift::proto {
 
@@ -137,12 +139,7 @@ StatusOr<std::string> Format2PatchMap::Serialize(const IFTTable& ift_table) {
   FontHelper::WriteUInt32(0x0, out);  // Reserved = 0x00000000
 
   // id
-  uint32_t id[4];
-  ift_table.GetId(id);
-  FontHelper::WriteUInt32(id[0], out);  // Id[0]
-  FontHelper::WriteUInt32(id[1], out);  // Id[1]
-  FontHelper::WriteUInt32(id[2], out);  // Id[2]
-  FontHelper::WriteUInt32(id[3], out);  // Id[3]
+  ift_table.GetId().WriteTo(out);
 
   // defaultPatchEncoding
   PatchEncoding default_encoding = PickDefaultEncoding(patch_map);
