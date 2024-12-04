@@ -9,26 +9,26 @@
 #include "common/binary_diff.h"
 #include "common/brotli_binary_diff.h"
 #include "common/font_data.h"
+#include "common/compat_id.h"
 
 namespace ift {
 
 /* Creates a per table brotli binary diff of two fonts. */
 class TableKeyedDiff : public common::BinaryDiff {
  public:
-  TableKeyedDiff(const uint32_t base_compat_id[4]) : binary_diff_(11),
-  base_compat_id_ {base_compat_id[0], base_compat_id[1], base_compat_id[2], base_compat_id[3]}
+  TableKeyedDiff(common::CompatId base_compat_id) : binary_diff_(11), base_compat_id_(base_compat_id)
   {}
 
-  TableKeyedDiff(const uint32_t base_compat_id[4], std::initializer_list<const char*> excluded_tags)
-      : binary_diff_(11), base_compat_id_ {base_compat_id[0], base_compat_id[1], base_compat_id[2], base_compat_id[3]},
+  TableKeyedDiff(common::CompatId base_compat_id, std::initializer_list<const char*> excluded_tags)
+      : binary_diff_(11), base_compat_id_(base_compat_id),
         excluded_tags_(), replaced_tags_() {
     std::copy(excluded_tags.begin(), excluded_tags.end(),
               std::inserter(excluded_tags_, excluded_tags_.begin()));
   }
 
-  TableKeyedDiff(const uint32_t base_compat_id[4], absl::btree_set<std::string> excluded_tags,
+  TableKeyedDiff(common::CompatId base_compat_id, absl::btree_set<std::string> excluded_tags,
                            absl::btree_set<std::string> replaced_tags)
-      : binary_diff_(11), base_compat_id_ {base_compat_id[0], base_compat_id[1], base_compat_id[2], base_compat_id[3]},
+      : binary_diff_(11), base_compat_id_(base_compat_id),
         excluded_tags_(), replaced_tags_() {
     excluded_tags_ = excluded_tags;
     replaced_tags_ = replaced_tags;
@@ -46,7 +46,7 @@ class TableKeyedDiff : public common::BinaryDiff {
       const absl::flat_hash_set<uint32_t>& after) const;
 
   common::BrotliBinaryDiff binary_diff_;
-  uint32_t base_compat_id_[4];
+  common::CompatId base_compat_id_;
   absl::btree_set<std::string> excluded_tags_;
   absl::btree_set<std::string> replaced_tags_;
 };

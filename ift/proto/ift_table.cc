@@ -11,6 +11,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "common/compat_id.h"
 #include "common/font_helper.h"
 #include "common/hb_set_unique_ptr.h"
 #include "common/sparse_bit_set.h"
@@ -27,6 +28,7 @@ using common::FontHelper;
 using common::hb_set_unique_ptr;
 using common::make_hb_set;
 using common::SparseBitSet;
+using common::CompatId;
 
 namespace ift::proto {
 
@@ -139,17 +141,16 @@ absl::StatusOr<common::FontData> IFTTable::AddToFont(
   return AddToFont(face, *main_bytes, ext_view, iftb_conversion);
 }
 
-void IFTTable::GetId(uint32_t out[4]) const {
-  for (int i = 0; i < 4; i++) {
-    out[i] = id_[i];
-  }
+CompatId IFTTable::GetId() const {
+  return id_;  
 }
 
 void PrintTo(const IFTTable& table, std::ostream* os) {
   *os << "{" << std::endl;
   *os << "  url_template = " << table.GetUrlTemplate() << std::endl;
-  *os << "  id = [" << table.id_[0] << " " << table.id_[1] << " "
-      << table.id_[2] << " " << table.id_[3] << "]" << std::endl;
+  *os << "  id = ";
+  PrintTo(table.id_, os);
+  *os << std::endl;
   *os << "  patch_map = ";
   PrintTo(table.GetPatchMap(), os);
   *os << std::endl;
