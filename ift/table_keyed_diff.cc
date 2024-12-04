@@ -61,11 +61,10 @@ Status TableKeyedDiff::Diff(const FontData& font_base,
   FontHelper::WriteUInt32(HB_TAG('i', 'f', 't', 'k'), data);
   FontHelper::WriteUInt32(0, data); // reserved  
 
-  // TODO(garretrieger): take compat ID as input arg.
-  FontHelper::WriteUInt32(0, data); // compat id 0
-  FontHelper::WriteUInt32(0, data); // compat id 1
-  FontHelper::WriteUInt32(0, data); // compat id 2
-  FontHelper::WriteUInt32(0, data); // compat id 3  
+  FontHelper::WriteUInt32(this->base_compat_id_[0], data); // compat id 0
+  FontHelper::WriteUInt32(this->base_compat_id_[1], data); // compat id 1
+  FontHelper::WriteUInt32(this->base_compat_id_[2], data); // compat id 2
+  FontHelper::WriteUInt32(this->base_compat_id_[3], data); // compat id 3
 
   // Write offsets to table patches.
   WRITE_UINT16(diff_tags.size(), data, "Exceeded max number of tables (0xFFFF).");

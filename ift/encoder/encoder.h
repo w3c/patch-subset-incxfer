@@ -1,7 +1,9 @@
 #ifndef IFT_ENCODER_ENCODER_H_
 #define IFT_ENCODER_ENCODER_H_
 
+#include <cstdint>
 #include <initializer_list>
+#include <random>
 
 #include "absl/container/btree_map.h"
 #include "absl/container/btree_set.h"
@@ -33,14 +35,12 @@ class Encoder {
   typedef absl::flat_hash_map<hb_tag_t, common::AxisRange> design_space_t;
 
   Encoder()
-      : full_font_table_keyed_diff_({}),
-        mixed_mode_table_keyed_binary_diff_({"IFT ", "glyf", "loca", "gvar"}),
+      : gen_(),
+        random_values_(0, std::numeric_limits<uint32_t>::max())
 
-        // the replacement differ is used during design space expansions, both
-        // gvar and "IFT " are overwritten to be compatible with the new design
-        // space. IFTB Patches for all prev loaded glyphs will be downloaded
-        // to repopulate variation data for existing glyphs.
-        replace_ift_map_binary_diff_({"glyf", "loca"}, {"IFT ", "gvar"}) {}
+        {
+          this->GenerateCompatId(this->glyph_keyed_compat_id_);
+        }
 
   ~Encoder() {
     if (face_) {
@@ -141,19 +141,6 @@ class Encoder {
 
   // TODO(garretrieger): add support for specifying IFTB patch + feature tag
   // mappings
-
-  absl::Status SetId(absl::Span<const uint32_t> id) {
-    if (id.size() != 4) {
-      return absl::InvalidArgumentError("id must have size = 4.");
-    }
-
-    for (int i = 0; i < 4; i++) {
-      id_[i] = id[i];
-    }
-    return absl::OkStatus();
-  }
-
-  absl::Span<const uint32_t> Id() const { return id_; }
 
   // TODO(garretrieger): just like with IFTClient transition to using urls as
   // the id.
@@ -262,7 +249,8 @@ class Encoder {
   bool IsMixedMode() const { return !existing_iftb_patches_.empty(); }
 
   absl::Status PopulateIftbPatches(const design_space_t& design_space,
-                                   std::string url_template);
+                                   std::string url_template,
+                                   absl::Span<const uint32_t> compat_id);
 
   absl::Status PopulateIftbPatchMap(ift::proto::PatchMap& patch_map,
                                     const design_space_t& design_space) const;
@@ -284,18 +272,37 @@ class Encoder {
   template <typename T>
   void RemoveIftbPatches(T ids);
 
-  absl::StatusOr<const common::BinaryDiff*> GetDifferFor(
+  absl::StatusOr<std::unique_ptr<const common::BinaryDiff>> GetDifferFor(
       const ift::proto::IFTTable& base_table,
-      const common::FontData& font_data) const;
+      const common::FontData& font_data,
+      const uint32_t compat_id[4]) const;
 
-  
-  ift::TableKeyedDiff full_font_table_keyed_diff_;
-  ift::TableKeyedDiff mixed_mode_table_keyed_binary_diff_;
-  ift::TableKeyedDiff replace_ift_map_binary_diff_;
+
+  void GenerateCompatId(uint32_t out[4]);
+
+  void SetOverrideCompatId(const design_space_t& design_space, absl::Span<const uint32_t> compat_id);
+
+  static ift::TableKeyedDiff* FullFontTableKeyedDiff(const uint32_t base_compat_id[4]) {
+    return new TableKeyedDiff(base_compat_id);
+  }
+
+  static ift::TableKeyedDiff* MixedModeTableKeyedDiff(const uint32_t base_compat_id[4]) {
+    return new TableKeyedDiff(base_compat_id, {"IFT ", "glyf", "loca", "gvar"});
+  }
+
+  static ift::TableKeyedDiff* ReplaceIftMapTableKeyedDiff(const uint32_t base_compat_id[4]) {
+    // the replacement differ is used during design space expansions, both
+    // gvar and "IFT " are overwritten to be compatible with the new design
+    // space. IFTB Patches for all prev loaded glyphs will be downloaded
+    // to repopulate variation data for existing glyphs.
+    return new TableKeyedDiff(base_compat_id, {"glyf", "loca"}, {"IFT ", "gvar"});
+  }
+
+  std::mt19937 gen_;
+  std::uniform_int_distribution<uint32_t> random_values_;
 
   // == IN  ==
   std::string url_template_ = "patch$5$4$3$2$1.br";
-  uint32_t id_[4] = {0, 0, 0, 0};
   hb_face_t* face_ = nullptr;
   absl::btree_map<uint32_t, SubsetDefinition> existing_iftb_patches_;
 
@@ -306,8 +313,10 @@ class Encoder {
       iftb_feature_mappings_;
 
   SubsetDefinition base_subset_;
-  std::vector<SubsetDefinition> extension_subsets_;
+  std::vector<SubsetDefinition> extension_subsets_;  
   absl::flat_hash_map<design_space_t, std::string> iftb_url_overrides_;
+  absl::flat_hash_map<design_space_t, std::vector<uint32_t>> glyph_keyed_compat_id_overrides_;
+  uint32_t glyph_keyed_compat_id_[4];
   uint32_t jump_ahead_ = 1;
 
   // == OUT ==

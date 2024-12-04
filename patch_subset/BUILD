@@ -45,7 +45,6 @@ cc_library(
         "brotli_request_logger.cc",
         "memory_request_logger.cc",
         "patch_subset_client.cc",
-        "vcdiff_binary_patch.cc",
     ],
     hdrs = [
         "brotli_request_logger.h",
@@ -53,7 +52,6 @@ cc_library(
         "null_request_logger.h",
         "patch_subset_client.h",
         "request_logger.h",
-        "vcdiff_binary_patch.h",
     ],
     visibility = [
         "//visibility:public",
@@ -68,7 +66,6 @@ cc_library(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@harfbuzz",
-        "@open-vcdiff//:vcddec",
     ],
 )
 
@@ -98,7 +95,6 @@ cc_library(
         "codepoint_map.cc",
         "compressed_set.cc",
         "integer_list_checksum_impl.cc",
-        "vcdiff_binary_diff.cc",
     ],
     hdrs = [
         "codepoint_map.h",
@@ -107,7 +103,6 @@ cc_library(
         "integer_list_checksum.h",
         "integer_list_checksum_impl.h",
         "patch_subset_server.h",
-        "vcdiff_binary_diff.h",
     ],
     visibility = [
         "//visibility:public",
@@ -122,7 +117,6 @@ cc_library(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:optional",
         "@harfbuzz",
-        "@open-vcdiff//:vcdenc",
     ],
 )
 
@@ -146,7 +140,6 @@ cc_test(
         "patch_subset_server_impl_test.cc",
         "server_integration_test.cc",
         "simple_codepoint_mapper_test.cc",
-        "vcdiff_patching_test.cc",
     ],
     data = [
         ":testdata",

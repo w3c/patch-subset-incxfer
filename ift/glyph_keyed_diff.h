@@ -20,9 +20,15 @@ class GlyphKeyedDiff : public common::BinaryDiff {
   static absl::Status IdInIftbPatch(const common::FontData& patch,
                                     uint32_t id_out[4]);
 
+  GlyphKeyedDiff(const uint32_t base_compat_id[4]) :
+    base_compat_id_ {base_compat_id[0], base_compat_id[1], base_compat_id[2], base_compat_id[3]} {}
+
   absl::Status Diff(const common::FontData& font_base,
                     const common::FontData& font_derived,
                     common::FontData* patch /* OUT */) const override;
+
+ private:
+  uint32_t base_compat_id_[4];
 };
 
 }  // namespace ift
