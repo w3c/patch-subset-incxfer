@@ -18,9 +18,10 @@
 #include "hb.h"
 #include "ift/encoder/encoder.h"
 #include "ift/ift_client.h"
-#include "ift/iftb_binary_patch.h"
+#include "ift/glyph_keyed_diff.h"
 #include "ift/proto/patch_map.h"
 #include "util/helper.h"
+
 
 /*
  * Utility that converts a standard font file into an IFT font file.
@@ -79,11 +80,11 @@ using common::AxisRange;
 using common::FontData;
 using common::FontHelper;
 using common::Woff2;
-using ift::IftbBinaryPatch;
 using ift::IFTClient;
 using ift::encoder::Encoder;
 using ift::proto::PatchMap;
 using util::ParseDesignSpace;
+using ift::GlyphKeyedDiff;
 
 absl::flat_hash_set<hb_tag_t> StringsToTags(
     const std::vector<std::string>& tag_strs) {
@@ -251,21 +252,9 @@ std::vector<btree_set<uint32_t>> generate_iftb_patch_groups(
 
 Status configure_mixed_mode(std::vector<btree_set<uint32_t>> iftb_patch_groups,
                             Encoder& encoder) {
-  bool id_set = false;
   for (const auto& grouping : iftb_patch_groups) {
     for (uint32_t id : grouping) {
       FontData iftb_patch = load_iftb_patch(id);
-      if (!id_set) {
-        uint32_t id[4];
-        auto sc = IftbBinaryPatch::IdInPatch(iftb_patch, id);
-        sc.Update(encoder.SetId(id));
-        if (!sc.ok()) {
-          return sc;
-        }
-        printf(" set id to %x %x %x %x\n", id[0], id[1], id[2], id[3]);
-        id_set = true;
-      }
-
       auto sc = encoder.AddExistingIftbPatch(id, iftb_patch);
       if (!sc.ok()) {
         return sc;

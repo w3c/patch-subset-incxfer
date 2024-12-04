@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <memory>
 #include <optional>
 
 #include "absl/status/status.h"
@@ -434,9 +435,12 @@ StatusOr<FontData> Encoder::Encode() {
     return absl::FailedPreconditionError("Encoder must have a face set.");
   }
 
-  auto sc = PopulateIftbPatches(base_subset_.design_space, UrlTemplate());
+  auto sc = PopulateIftbPatches(base_subset_.design_space, UrlTemplate(), this->glyph_keyed_compat_id_);
   for (const auto& [ds, url_template] : iftb_url_overrides_) {
-    sc.Update(PopulateIftbPatches(ds, url_template));
+    uint32_t compat_id[4];
+    this->GenerateCompatId(compat_id);
+    this->SetOverrideCompatId(ds, compat_id);
+    sc.Update(PopulateIftbPatches(ds, url_template, compat_id));
   }
 
   if (!sc.ok()) {
@@ -447,7 +451,8 @@ StatusOr<FontData> Encoder::Encode() {
 }
 
 Status Encoder::PopulateIftbPatches(const design_space_t& design_space,
-                                    std::string url_template) {
+                                    std::string url_template,
+                                    absl::Span<const uint32_t> compat_id) {
   if (existing_iftb_patches_.empty()) {
     return absl::OkStatus();
   }
@@ -470,7 +475,7 @@ Status Encoder::PopulateIftbPatches(const design_space_t& design_space,
 
     SubsetDefinition subset = e.second;
     auto patch =
-        IftbPatchCreator::CreatePatch(instance, index, Id(), subset.gids);
+        IftbPatchCreator::CreatePatch(instance, index, compat_id, subset.gids);
     if (!patch.ok()) {
       return patch.status();
     }
@@ -565,8 +570,21 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
     ext_table.SetUrlTemplate(UrlTemplate());
   }
 
-  auto sc = main_table.SetId(Id());
-  sc.Update(ext_table.SetId(Id())); // TODO(garretrieger): distinct ID for the IFTX table.
+  uint32_t table_keyed_compat_id[4];
+  this->GenerateCompatId(table_keyed_compat_id);
+
+  auto sc = ext_table.SetId(table_keyed_compat_id);
+  if (!IsMixedMode()) {
+    sc.Update(main_table.SetId(table_keyed_compat_id));
+  } else {
+    auto it = this->glyph_keyed_compat_id_overrides_.find(base_subset.design_space);
+    if (it == this->glyph_keyed_compat_id_overrides_.end()) {
+      sc.Update(main_table.SetId(this->glyph_keyed_compat_id_));
+    } else {
+      sc.Update(main_table.SetId(it->second));
+    }
+  }
+
   if (!sc.ok()) {
     return sc;
   }
@@ -618,7 +636,7 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
     }
 
     FontData patch;
-    auto differ = GetDifferFor(main_table, *next);
+    auto differ = GetDifferFor(main_table, *next, table_keyed_compat_id);
     if (!differ.ok()) {
       return differ.status();
     }
@@ -634,10 +652,10 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
   return base;
 }
 
-StatusOr<const BinaryDiff*> Encoder::GetDifferFor(
-    const IFTTable& base_table, const FontData& font_data) const {
+StatusOr<std::unique_ptr<const BinaryDiff>> Encoder::GetDifferFor(
+    const IFTTable& base_table, const FontData& font_data, const uint32_t compat_id[4]) const {
   if (!IsMixedMode()) {
-    return &full_font_table_keyed_diff_;
+    return std::unique_ptr<const BinaryDiff>(Encoder::FullFontTableKeyedDiff(compat_id));
   }
 
   auto new_url_template = UrlTemplateFor(font_data);
@@ -646,10 +664,10 @@ StatusOr<const BinaryDiff*> Encoder::GetDifferFor(
   }
 
   if (base_table.GetUrlTemplate() != *new_url_template) {
-    return &replace_ift_map_binary_diff_;
+    return std::unique_ptr<const BinaryDiff>(Encoder::ReplaceIftMapTableKeyedDiff(compat_id));
   }
 
-  return &mixed_mode_table_keyed_binary_diff_;
+  return std::unique_ptr<const BinaryDiff>(Encoder::MixedModeTableKeyedDiff(compat_id));
 }
 
 StatusOr<hb_face_unique_ptr> Encoder::CutSubsetFaceBuilder(
@@ -803,6 +821,20 @@ StatusOr<FontData> Encoder::RoundTripWoff2(string_view font,
   }
 
   return Woff2::DecodeWoff2(r->str());
+}
+
+void Encoder::GenerateCompatId(uint32_t out[4]) {
+  for (int i = 0; i < 4; i++) {
+    out[i] = this->random_values_(this->gen_);
+  }
+}
+
+void Encoder::SetOverrideCompatId(const design_space_t& design_space, absl::Span<const uint32_t> compat_id) {
+  auto compat_id_vec = this->glyph_keyed_compat_id_overrides_[design_space];
+  compat_id_vec.push_back(compat_id[0]);
+  compat_id_vec.push_back(compat_id[1]);
+  compat_id_vec.push_back(compat_id[2]);
+  compat_id_vec.push_back(compat_id[3]);
 }
 
 }  // namespace ift::encoder
