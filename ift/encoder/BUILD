@@ -7,7 +7,6 @@ cc_library(
     "iftb_patch_creator.cc",
   ],
   deps = [
-    "//patch_subset:common",
     "//ift/proto:IFT_cc_proto",
     "//ift/proto",
     "//ift:client",
@@ -42,7 +41,6 @@ cc_test(
   ],
   deps = [
     ":encoder",
-    "//patch_subset:client",
      "@gtest//:gtest_main",
      "//common",
   ],
