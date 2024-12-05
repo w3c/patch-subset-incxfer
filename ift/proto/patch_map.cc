@@ -26,8 +26,9 @@ using ift::feature_registry::IndexToFeatureTag;
 
 namespace ift::proto {
 
-static bool sets_intersect(const flat_hash_set<uint32_t>& a,
-                           const flat_hash_set<uint32_t>& b) {
+template<typename S>
+static bool sets_intersect(const S& a,
+                           const S& b) {
   bool a_smaller = a.size() < b.size();
   const auto& smaller = a_smaller ? a : b;
   const auto& larger = a_smaller ? b : a;
@@ -41,7 +42,7 @@ static bool sets_intersect(const flat_hash_set<uint32_t>& a,
 
 bool PatchMap::Coverage::Intersects(
     const flat_hash_set<uint32_t>& codepoints_in,
-    const flat_hash_set<hb_tag_t>& features_in,
+    const btree_set<hb_tag_t>& features_in,
     const absl::flat_hash_map<hb_tag_t, common::AxisRange>& design_space_in)
     const {
   // If an input set is unspecified (empty), it is considered to not match the

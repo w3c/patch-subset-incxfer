@@ -23,12 +23,12 @@ using absl::flat_hash_set;
 using absl::Status;
 using absl::StatusOr;
 using absl::StrCat;
+using common::CompatId;
 using common::FontData;
 using common::FontHelper;
 using common::hb_set_unique_ptr;
 using common::make_hb_set;
 using common::SparseBitSet;
-using common::CompatId;
 
 namespace ift::proto {
 
@@ -122,7 +122,8 @@ StatusOr<FontData> IFTTable::AddToFont(
 }
 
 absl::StatusOr<common::FontData> IFTTable::AddToFont(
-      hb_face_t* face, const IFTTable& main, std::optional<const IFTTable*> extension, bool iftb_conversion) {
+    hb_face_t* face, const IFTTable& main,
+    std::optional<const IFTTable*> extension, bool iftb_conversion) {
   auto main_bytes = Format2PatchMap::Serialize(main);
   if (!main_bytes.ok()) {
     return main_bytes.status();
@@ -141,9 +142,7 @@ absl::StatusOr<common::FontData> IFTTable::AddToFont(
   return AddToFont(face, *main_bytes, ext_view, iftb_conversion);
 }
 
-CompatId IFTTable::GetId() const {
-  return id_;  
-}
+CompatId IFTTable::GetId() const { return id_; }
 
 void PrintTo(const IFTTable& table, std::ostream* os) {
   *os << "{" << std::endl;

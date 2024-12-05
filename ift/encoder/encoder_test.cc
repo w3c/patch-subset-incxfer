@@ -15,7 +15,6 @@
 #include "common/hb_set_unique_ptr.h"
 #include "gtest/gtest.h"
 #include "ift/ift_client.h"
-#include "ift/per_table_brotli_binary_patch.h"
 #include "ift/proto/ift_table.h"
 #include "ift/proto/patch_map.h"
 
@@ -36,11 +35,12 @@ using common::hb_set_unique_ptr;
 using common::make_hb_set;
 using ift::IFTClient;
 using ift::proto::DEFAULT_ENCODING;
+using ift::proto::GLYPH_KEYED;
 using ift::proto::IFTTable;
 using ift::proto::PatchEncoding;
 using ift::proto::PatchMap;
-using ift::proto::PER_TABLE_SHARED_BROTLI_ENCODING;
-using ift::proto::SHARED_BROTLI_ENCODING;
+using ift::proto::TABLE_KEYED_FULL;
+using ift::proto::TABLE_KEYED_PARTIAL;
 
 namespace ift::encoder {
 

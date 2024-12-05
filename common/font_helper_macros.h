@@ -104,5 +104,4 @@
   }                                       \
   FontHelper::WriteFixed(V, O);
 
-
 #endif  // COMMON_FONT_HELPER_MACROS_H_

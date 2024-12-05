@@ -1,4 +1,5 @@
 #include "ift/table_keyed_diff.h"
+
 #include <string>
 
 #include "absl/container/flat_hash_set.h"
@@ -50,7 +51,7 @@ Status TableKeyedDiff::Diff(const FontData& font_base,
       return sc;
     }
 
-    patches[tag] = std::pair(derived_table.size(), std::move(table_patch));    
+    patches[tag] = std::pair(derived_table.size(), std::move(table_patch));
   }
 
   hb_face_destroy(face_base);
@@ -59,12 +60,13 @@ Status TableKeyedDiff::Diff(const FontData& font_base,
   // Serialize to the binary format
   std::string data;
   FontHelper::WriteUInt32(HB_TAG('i', 'f', 't', 'k'), data);
-  FontHelper::WriteUInt32(0, data); // reserved  
+  FontHelper::WriteUInt32(0, data);  // reserved
 
   this->base_compat_id_.WriteTo(data);
-  
+
   // Write offsets to table patches.
-  WRITE_UINT16(diff_tags.size(), data, "Exceeded max number of tables (0xFFFF).");
+  WRITE_UINT16(diff_tags.size(), data,
+               "Exceeded max number of tables (0xFFFF).");
 
   // Skip past all of the offsets (there's patchesCount + 1 of them)
   uint32_t current_offset = data.size() + (diff_tags.size() + 1) * 4;
@@ -91,7 +93,7 @@ Status TableKeyedDiff::Diff(const FontData& font_base,
       // no data signals removal.
       WRITE_UINT8(0b00000010, data, "");
       FontHelper::WriteUInt32(0, data);
-      continue;      
+      continue;
     }
 
     FontData& patch_data = it->second.second;
@@ -106,14 +108,14 @@ Status TableKeyedDiff::Diff(const FontData& font_base,
     FontHelper::WriteUInt32(it->second.first, data);
     data += patch_data.string();
   }
-  
+
   patch->copy(data);
 
   return absl::OkStatus();
 }
 
-void TableKeyedDiff::AddAllMatching(
-    const flat_hash_set<uint32_t>& tags, btree_set<std::string>& result) const {
+void TableKeyedDiff::AddAllMatching(const flat_hash_set<uint32_t>& tags,
+                                    btree_set<std::string>& result) const {
   for (const uint32_t& t : tags) {
     std::string tag = FontHelper::ToString(t);
     if (!excluded_tags_.contains(tag)) {

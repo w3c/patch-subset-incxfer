@@ -6,6 +6,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "common/axis_range.h"
+#include "common/compat_id.h"
 #include "common/font_helper.h"
 #include "common/font_helper_macros.h"
 #include "common/hb_set_unique_ptr.h"
@@ -13,7 +14,6 @@
 #include "ift/proto/IFT.pb.h"
 #include "ift/proto/ift_table.h"
 #include "ift/proto/patch_map.h"
-#include "common/compat_id.h"
 
 using absl::ClippedSubstr;
 using absl::Span;
@@ -21,11 +21,11 @@ using absl::Status;
 using absl::StatusOr;
 using absl::StrCat;
 using absl::string_view;
+using common::CompatId;
 using common::FontHelper;
 using common::hb_set_unique_ptr;
 using common::make_hb_set;
 using common::SparseBitSet;
-using common::CompatId;
 
 namespace ift::proto {
 
@@ -209,8 +209,7 @@ Status DecodeEntries(absl::string_view data, uint16_t count,
 
 StatusOr<absl::string_view> DecodeEntry(absl::string_view data,
                                         PatchEncoding default_encoding,
-                                        uint32_t& entry_index,
-                                        PatchMap& out) {
+                                        uint32_t& entry_index, PatchMap& out) {
   if (data.empty()) {
     return absl::InvalidArgumentError(
         "Not enough input data to decode mapping entry.");
@@ -402,11 +401,13 @@ Status EncodeEntry(const PatchMap::Entry& entry, uint32_t last_entry_index,
 
   // format
   uint8_t format =
-      (has_features_or_design_space ? features_and_design_space_bit_mask : 0) | // bit 0
-      // not set, has copy mapping indices (bit 1)                              // bit 1
-      (has_delta ? index_delta_bit_mask : 0) |                                  // bit 2
-      (has_patch_encoding ? encoding_bit_mask : 0) |                            // bit 3
-      (has_codepoints ? codepoint_bit_mask & BiasFormat(bias_bytes) : 0);       // bit 4 and 5
+      (has_features_or_design_space ? features_and_design_space_bit_mask
+                                    : 0) |  // bit 0
+      // not set, has copy mapping indices (bit 1) // bit 1
+      (has_delta ? index_delta_bit_mask : 0) |        // bit 2
+      (has_patch_encoding ? encoding_bit_mask : 0) |  // bit 3
+      (has_codepoints ? codepoint_bit_mask & BiasFormat(bias_bytes)
+                      : 0);  // bit 4 and 5
   // not set, ignore (bit 6)
   FontHelper::WriteUInt8(format, out);
 
@@ -431,7 +432,7 @@ Status EncodeEntry(const PatchMap::Entry& entry, uint32_t last_entry_index,
     WRITE_INT24(delta, out,
                 StrCat("Exceed max entry index delta (int24): ", delta));
   }
-  
+
   if (has_patch_encoding) {
     auto encoding_value = EncodingToInt(entry.encoding);
     if (!encoding_value.ok()) {

@@ -2,17 +2,16 @@
 
 #include <cstdint>
 
-#include "uritemplate.hpp"
 #include "base32_hex.hpp"
+#include "uritemplate.hpp"
 
-using uritemplatecpp::UriTemplate;
 using cppcodec::base32_hex;
+using uritemplatecpp::UriTemplate;
 
 namespace ift {
 
 std::string IFTClient::PatchToUrl(absl::string_view url_template,
                                   uint32_t patch_idx) {
-
   uint8_t bytes[4];
   bytes[0] = (patch_idx >> 24) & 0x000000FFu;
   bytes[1] = (patch_idx >> 16) & 0x000000FFu;
@@ -23,13 +22,14 @@ std::string IFTClient::PatchToUrl(absl::string_view url_template,
   while (start < 3 && !bytes[start]) {
     start++;
   }
-  
-  std::string result = base32_hex::encode(bytes + start, 4 - start);
-  result.erase(std::find_if(result.rbegin(), result.rend(), [](unsigned char ch) {
-        return ch != '=';
-  }).base(), result.end());
 
-  std::string url_template_copy {url_template};
+  std::string result = base32_hex::encode(bytes + start, 4 - start);
+  result.erase(std::find_if(result.rbegin(), result.rend(),
+                            [](unsigned char ch) { return ch != '='; })
+                   .base(),
+               result.end());
+
+  std::string url_template_copy{url_template};
   UriTemplate uri(url_template_copy);
   uri.set("id", result);
 
@@ -59,7 +59,7 @@ std::string IFTClient::PatchToUrl(absl::string_view url_template,
 
   // TODO(garretrieger): add additional variable id64
 
-	return uri.build();
+  return uri.build();
 }
 
 }  // namespace ift

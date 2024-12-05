@@ -2,10 +2,12 @@
 
 #include <cstdio>
 #include <cstring>
+#include <optional>
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
+#include "common/compat_id.h"
 #include "common/font_data.h"
 #include "common/font_helper.h"
 #include "common/hb_set_unique_ptr.h"
@@ -16,6 +18,7 @@
 using absl::flat_hash_map;
 using absl::flat_hash_set;
 using absl::Status;
+using common::CompatId;
 using common::FontData;
 using common::FontHelper;
 using common::hb_blob_unique_ptr;
@@ -25,6 +28,8 @@ using common::make_hb_blob;
 using common::make_hb_face;
 using common::make_hb_set;
 using common::SparseBitSet;
+using ift::proto::GLYPH_KEYED;
+using ift::proto::TABLE_KEYED_PARTIAL;
 
 namespace ift::proto {
 
@@ -33,22 +38,24 @@ class IFTTableTest : public ::testing::Test {
   IFTTableTest()
       : roboto_ab(make_hb_face(nullptr)), iftb(make_hb_face(nullptr)) {
     sample.SetUrlTemplate("fonts/go/here");
-    auto ignore = sample.SetId({1, 2, 3, 4});
-    sample.GetPatchMap().AddEntry({30, 32}, 1, SHARED_BROTLI_ENCODING);
-    sample.GetPatchMap().AddEntry({55, 56, 57}, 2, IFTB_ENCODING);
+    sample.SetId({1, 2, 3, 4});
+    sample.GetPatchMap().AddEntry({30, 32}, 1, TABLE_KEYED_PARTIAL);
+    sample.GetPatchMap().AddEntry({55, 56, 57}, 2, GLYPH_KEYED);
 
     sample_with_extensions = sample;
-    sample_with_extensions.GetPatchMap().AddEntry({77, 78}, 3,
-                                                  SHARED_BROTLI_ENCODING, true);
+    sample_with_extensions.GetPatchMap().AddEntry(
+        {77, 78}, 3,
+        TABLE_KEYED_PARTIAL);  // TODO XXXXX we don't track extensions here
+                               // anymore.
 
     overlap_sample = sample;
-    overlap_sample.GetPatchMap().AddEntry({55}, 3, SHARED_BROTLI_ENCODING);
+    overlap_sample.GetPatchMap().AddEntry({55}, 3, TABLE_KEYED_PARTIAL);
 
     complex_ids.SetUrlTemplate("fonts/go/here");
-    complex_ids.GetPatchMap().AddEntry({0}, 0, SHARED_BROTLI_ENCODING);
-    complex_ids.GetPatchMap().AddEntry({5}, 5, SHARED_BROTLI_ENCODING);
-    complex_ids.GetPatchMap().AddEntry({2}, 2, SHARED_BROTLI_ENCODING);
-    complex_ids.GetPatchMap().AddEntry({4}, 4, SHARED_BROTLI_ENCODING);
+    complex_ids.GetPatchMap().AddEntry({0}, 0, TABLE_KEYED_PARTIAL);
+    complex_ids.GetPatchMap().AddEntry({5}, 5, TABLE_KEYED_PARTIAL);
+    complex_ids.GetPatchMap().AddEntry({2}, 2, TABLE_KEYED_PARTIAL);
+    complex_ids.GetPatchMap().AddEntry({4}, 4, TABLE_KEYED_PARTIAL);
 
     hb_blob_unique_ptr blob = make_hb_blob(hb_blob_create_from_file(
         "patch_subset/testdata/Roboto-Regular.ab.ttf"));
@@ -77,8 +84,10 @@ class IFTTableTest : public ::testing::Test {
   IFTTable complex_ids;
 };
 
+// TODO(garretrieger): XXXXX check the serialized contents in these tests
+// (compare to format 2 serializer output).
 TEST_F(IFTTableTest, AddToFont) {
-  auto font = sample.AddToFont(roboto_ab.get());
+  auto font = IFTTable::AddToFont(roboto_ab.get(), sample, std::nullopt);
   ASSERT_TRUE(font.ok()) << font.status();
 
   hb_face_unique_ptr face = font->face();
@@ -101,7 +110,9 @@ TEST_F(IFTTableTest, AddToFont) {
 }
 
 TEST_F(IFTTableTest, AddToFont_WithExtension) {
-  auto font = sample_with_extensions.AddToFont(roboto_ab.get());
+  // TODO(garretrieger): XXXXX rewrite to properly simulate extension table.
+  auto font =
+      IFTTable::AddToFont(roboto_ab.get(), sample, &sample_with_extensions);
   ASSERT_TRUE(font.ok()) << font.status();
   hb_face_unique_ptr face = font->face();
 
@@ -126,82 +137,8 @@ TEST_F(IFTTableTest, AddToFont_WithExtension) {
   EXPECT_EQ(original_tag_order, new_tag_order);
 }
 
-TEST_F(IFTTableTest, RoundTrip_Sample) {
-  auto font = sample.AddToFont(roboto_ab.get());
-  ASSERT_TRUE(font.ok()) << font.status();
-
-  auto table = IFTTable::FromFont(*font);
-  ASSERT_TRUE(table.ok()) << table.status();
-
-  ASSERT_EQ(*table, sample);
-}
-
-TEST_F(IFTTableTest, RoundTrip_ComplexIds) {
-  auto font = complex_ids.AddToFont(roboto_ab.get());
-  ASSERT_TRUE(font.ok()) << font.status();
-
-  auto table = IFTTable::FromFont(*font);
-  ASSERT_TRUE(table.ok()) << table.status();
-
-  ASSERT_EQ(*table, complex_ids);
-}
-
-TEST_F(IFTTableTest, RoundTrip_Overlaps) {
-  auto font = overlap_sample.AddToFont(roboto_ab.get());
-  ASSERT_TRUE(font.ok()) << font.status();
-
-  auto table = IFTTable::FromFont(*font);
-  ASSERT_TRUE(table.ok()) << table.status();
-
-  ASSERT_EQ(*table, overlap_sample);
-}
-
-TEST_F(IFTTableTest, RoundTrip_WithExtension) {
-  IFTTable table;
-  table.SetUrlTemplate("files/go/here/$1.br");
-  table.GetPatchMap().AddEntry({10}, 1, SHARED_BROTLI_ENCODING);
-  table.GetPatchMap().AddEntry({20}, 2, SHARED_BROTLI_ENCODING);
-  table.GetPatchMap().AddEntry({30}, 3, SHARED_BROTLI_ENCODING, true);
-  table.GetPatchMap().AddEntry({40}, 4, SHARED_BROTLI_ENCODING, true);
-
-  auto font = table.AddToFont(roboto_ab.get());
-  ASSERT_TRUE(font.ok()) << font.status();
-
-  auto table_from_font = IFTTable::FromFont(*font);
-  ASSERT_TRUE(table_from_font.ok()) << table_from_font.status();
-
-  ASSERT_EQ(table, *table_from_font);
-}
-
-TEST_F(IFTTableTest, RoundTrip_ExtraUrlTemplate) {
-  IFTTable table;
-  table.SetUrlTemplate("files/go/here/$1.br", "extension/files/$1.br");
-  table.GetPatchMap().AddEntry({10}, 1, SHARED_BROTLI_ENCODING);
-  table.GetPatchMap().AddEntry({20}, 2, SHARED_BROTLI_ENCODING);
-  table.GetPatchMap().AddEntry({30}, 3, SHARED_BROTLI_ENCODING, true);
-  table.GetPatchMap().AddEntry({40}, 4, SHARED_BROTLI_ENCODING, true);
-
-  auto font = table.AddToFont(roboto_ab.get());
-  ASSERT_TRUE(font.ok()) << font.status();
-
-  auto table_from_font = IFTTable::FromFont(*font);
-  ASSERT_TRUE(table_from_font.ok()) << table_from_font.status();
-
-  ASSERT_EQ(table, *table_from_font);
-}
-
-TEST_F(IFTTableTest, HasExtensionEntries) {
-  IFTTable table;
-  table.GetPatchMap().AddEntry({10}, 1, SHARED_BROTLI_ENCODING);
-  table.GetPatchMap().AddEntry({20}, 2, SHARED_BROTLI_ENCODING);
-  ASSERT_FALSE(table.HasExtensionEntries());
-
-  table.GetPatchMap().AddEntry({30}, 3, SHARED_BROTLI_ENCODING, true);
-  ASSERT_TRUE(table.HasExtensionEntries());
-}
-
 TEST_F(IFTTableTest, AddToFont_IftbConversion) {
-  auto font = sample.AddToFont(iftb.get(), true);
+  auto font = IFTTable::AddToFont(iftb.get(), sample, std::nullopt, true);
   ASSERT_TRUE(font.ok()) << font.status();
 
   hb_face_unique_ptr face = font->face();
@@ -228,7 +165,7 @@ TEST_F(IFTTableTest, AddToFont_IftbConversion) {
 }
 
 TEST_F(IFTTableTest, AddToFont_IftbConversionRoboto) {
-  auto font = sample.AddToFont(roboto_ab.get(), true);
+  auto font = IFTTable::AddToFont(roboto_ab.get(), sample, std::nullopt, true);
   ASSERT_TRUE(font.ok()) << font.status();
 
   hb_face_unique_ptr face = font->face();
@@ -252,53 +189,16 @@ TEST_F(IFTTableTest, AddToFont_IftbConversionRoboto) {
   EXPECT_EQ(ordered_tags[ordered_tags.size() - 1], "loca");
 }
 
-TEST_F(IFTTableTest, FromFont_Missing) {
-  auto table = IFTTable::FromFont(roboto_ab.get());
-  ASSERT_FALSE(table.ok()) << table.status();
-  ASSERT_TRUE(absl::IsNotFound(table.status()));
-}
-
-TEST_F(IFTTableTest, GetId) {
-  const uint32_t expected[4] = {1, 2, 3, 4};
-  uint32_t actual[4] = {0xFF, 0xFF, 0xFF, 0xFF};
-  sample.GetId(actual);
-
-  ASSERT_EQ(expected[0], actual[0]);
-  ASSERT_EQ(expected[1], actual[1]);
-  ASSERT_EQ(expected[2], actual[2]);
-  ASSERT_EQ(expected[3], actual[3]);
-}
+TEST_F(IFTTableTest, GetId) { ASSERT_EQ(sample.GetId(), CompatId(1, 2, 3, 4)); }
 
 TEST_F(IFTTableTest, GetId_None) {
-  const uint32_t expected[4] = {0, 0, 0, 0};
-  uint32_t actual[4] = {0xFF, 0xFF, 0xFF, 0xFF};
-  empty.GetId(actual);
-
-  ASSERT_EQ(expected[0], actual[0]);
-  ASSERT_EQ(expected[1], actual[1]);
-  ASSERT_EQ(expected[2], actual[2]);
-  ASSERT_EQ(expected[3], actual[3]);
+  ASSERT_EQ(empty.GetId(), CompatId(0, 0, 0, 0));
 }
 
 TEST_F(IFTTableTest, SetId_Good) {
   IFTTable table;
-  auto s = table.SetId({1, 2, 3, 4});
-  ASSERT_TRUE(s.ok()) << s;
-
-  const uint32_t expected[4] = {1, 2, 3, 4};
-  uint32_t actual[4] = {0xFF, 0xFF, 0xFF, 0xFF};
-  table.GetId(actual);
-
-  ASSERT_EQ(expected[0], actual[0]);
-  ASSERT_EQ(expected[1], actual[1]);
-  ASSERT_EQ(expected[2], actual[2]);
-  ASSERT_EQ(expected[3], actual[3]);
-}
-
-TEST_F(IFTTableTest, SetId_Bad) {
-  IFTTable table;
-  auto s = table.SetId({1, 2, 3, 4, 5});
-  ASSERT_TRUE(absl::IsInvalidArgument(s)) << s;
+  table.SetId({5, 2, 3, 4});
+  ASSERT_EQ(table.GetId(), CompatId(5, 2, 3, 4));
 }
 
 }  // namespace ift::proto

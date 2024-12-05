@@ -5,18 +5,17 @@
 #include "common/font_data.h"
 #include "common/font_helper.h"
 #include "common/hb_set_unique_ptr.h"
-#include "common/compat_id.h"
 #include "merger.h"
 
 namespace ift::encoder {
 
 using absl::Span;
 using absl::StatusOr;
+using common::CompatId;
 using common::FontData;
 using common::FontHelper;
 using common::hb_set_unique_ptr;
 using common::make_hb_set;
-using common::CompatId;
 
 using iftb::merger;
 
@@ -89,8 +88,8 @@ StatusOr<FontData> IftbPatchCreator::CreatePatch(
 
   std::vector<uint8_t> patch;
   std::stringstream out;
-  iftb::chunk::compile(out, chunk_idx, compat_id.as_ptr(),
-                       gids_hb.get(), FontHelper::kGlyf, *glyf_recs,
+  iftb::chunk::compile(out, chunk_idx, compat_id.as_ptr(), gids_hb.get(),
+                       FontHelper::kGlyf, *glyf_recs,
                        has_gvar ? FontHelper::kGvar : 0, gvar_recs, 0);
 
   std::string encoded = iftb::chunk::encode(out);

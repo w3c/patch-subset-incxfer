@@ -17,11 +17,10 @@
 #include "common/woff2.h"
 #include "hb.h"
 #include "ift/encoder/encoder.h"
-#include "ift/ift_client.h"
 #include "ift/glyph_keyed_diff.h"
+#include "ift/ift_client.h"
 #include "ift/proto/patch_map.h"
 #include "util/helper.h"
-
 
 /*
  * Utility that converts a standard font file into an IFT font file.
@@ -80,11 +79,11 @@ using common::AxisRange;
 using common::FontData;
 using common::FontHelper;
 using common::Woff2;
+using ift::GlyphKeyedDiff;
 using ift::IFTClient;
 using ift::encoder::Encoder;
 using ift::proto::PatchMap;
 using util::ParseDesignSpace;
-using ift::GlyphKeyedDiff;
 
 absl::flat_hash_set<hb_tag_t> StringsToTags(
     const std::vector<std::string>& tag_strs) {

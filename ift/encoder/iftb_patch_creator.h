@@ -5,8 +5,8 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
-#include "common/font_data.h"
 #include "common/compat_id.h"
+#include "common/font_data.h"
 
 namespace ift::encoder {
 
@@ -21,8 +21,8 @@ namespace ift::encoder {
 class IftbPatchCreator {
  public:
   static absl::StatusOr<common::FontData> CreatePatch(
-      const common::FontData& font, uint32_t chunk_idx,
-      common::CompatId id, const absl::flat_hash_set<uint32_t>& gids);
+      const common::FontData& font, uint32_t chunk_idx, common::CompatId id,
+      const absl::flat_hash_set<uint32_t>& gids);
 };
 
 }  // namespace ift::encoder

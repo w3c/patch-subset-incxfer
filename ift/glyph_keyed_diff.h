@@ -7,8 +7,8 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "common/binary_diff.h"
-#include "common/font_data.h"
 #include "common/compat_id.h"
+#include "common/font_data.h"
 
 namespace ift {
 
@@ -18,9 +18,11 @@ class GlyphKeyedDiff : public common::BinaryDiff {
   static absl::StatusOr<absl::flat_hash_set<uint32_t>> GidsInIftbPatch(
       const common::FontData& patch);
 
-  static absl::StatusOr<common::CompatId> IdInIftbPatch(const common::FontData& patch);
+  static absl::StatusOr<common::CompatId> IdInIftbPatch(
+      const common::FontData& patch);
 
-  GlyphKeyedDiff(common::CompatId base_compat_id) : base_compat_id_(base_compat_id) {}
+  GlyphKeyedDiff(common::CompatId base_compat_id)
+      : base_compat_id_(base_compat_id) {}
 
   absl::Status Diff(const common::FontData& font_base,
                     const common::FontData& font_derived,

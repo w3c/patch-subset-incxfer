@@ -4,13 +4,13 @@
 #include "common/font_data.h"
 #include "gtest/gtest.h"
 #include "hb.h"
-#include "ift/iftb_binary_patch.h"
+#include "ift/glyph_keyed_diff.h"
 #include "merger.h"
 
 using absl::StrCat;
 using common::FontData;
 using common::make_hb_blob;
-using ift::IftbBinaryPatch;
+using ift::GlyphKeyedDiff;
 
 namespace ift::encoder {
 
@@ -47,7 +47,7 @@ class IftbPatchCreatorTest : public ::testing::Test {
 };
 
 TEST_F(IftbPatchCreatorTest, GlyfOnly) {
-  auto gids = IftbBinaryPatch::GidsInPatch(iftb_patches_[2]);
+  auto gids = GlyphKeyedDiff::GidsInIftbPatch(iftb_patches_[2]);
 
   auto patch = IftbPatchCreator::CreatePatch(
       base_font_, 2, {0x3c2bfda0u, 0x890625c9u, 0x40c644deu, 0xb1195627u},
@@ -63,7 +63,7 @@ TEST_F(IftbPatchCreatorTest, GlyfOnly) {
 }
 
 TEST_F(IftbPatchCreatorTest, GlyfAndGvar) {
-  auto gids = IftbBinaryPatch::GidsInPatch(vf_iftb_patches_[2]);
+  auto gids = GlyphKeyedDiff::GidsInIftbPatch(vf_iftb_patches_[2]);
 
   auto patch = IftbPatchCreator::CreatePatch(
       vf_font_, 2, {0x479bb4b0u, 0x20226239u, 0xa7799c0fu, 0x24275be0u}, *gids);
