@@ -47,7 +47,7 @@ cc_test(
         "brotli_stream_test.cc",
     ],
     data = [
-        "//patch_subset:testdata",
+        "//common:testdata",
     ],
     deps = [
         ":encoding",
