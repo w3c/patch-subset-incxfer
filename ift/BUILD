@@ -1,5 +1,5 @@
 cc_library(
-    name = "client",
+    name = "ift",
     srcs = [
         "glyph_keyed_diff.cc",
         "glyph_keyed_diff.h",
@@ -33,7 +33,7 @@ cc_library(
 )
 
 cc_test(
-    name = "client_test",
+    name = "ift_test",
     size = "small",
     srcs = [
         "glyph_keyed_diff_test.cc",
@@ -48,7 +48,7 @@ cc_test(
         "//patch_subset:testdata",
     ],
     deps = [
-        ":client",
+        ":ift",
         "//common",
         "//ift/encoder",
         "//ift/proto",
