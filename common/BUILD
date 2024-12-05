@@ -77,6 +77,14 @@ cc_library(
     ],
 )
 
+filegroup(
+    name = "testdata",
+    srcs = glob(["testdata/**"]),
+    visibility = [
+        "//visibility:public",
+    ],
+)
+
 cc_test(
     name = "common_test",
     size = "small",
@@ -95,7 +103,7 @@ cc_test(
         "fast_hasher_test.cc",
     ],
     data = [
-        "//patch_subset:testdata",
+        "//common:testdata",
         "//ift:testdata",
     ],
     deps = [

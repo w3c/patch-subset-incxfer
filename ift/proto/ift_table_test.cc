@@ -59,7 +59,7 @@ class IFTTableTest : public ::testing::Test {
     complex_ids.GetPatchMap().AddEntry({4}, 4, TABLE_KEYED_PARTIAL);
 
     hb_blob_unique_ptr blob = make_hb_blob(hb_blob_create_from_file(
-        "patch_subset/testdata/Roboto-Regular.ab.ttf"));
+        "common/testdata/Roboto-Regular.ab.ttf"));
     roboto_ab = make_hb_face(hb_face_create(blob.get(), 0));
 
     blob = make_hb_blob(

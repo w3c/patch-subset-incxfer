@@ -10,8 +10,8 @@ namespace common {
 class Woff2Test : public ::testing::Test {
  protected:
   Woff2Test() {
-    font = from_file("patch_subset/testdata/Roboto-Regular.abcd.ttf");
-    woff2_font = from_file("patch_subset/testdata/Roboto-Regular.abcd.woff2");
+    font = from_file("common/testdata/Roboto-Regular.abcd.ttf");
+    woff2_font = from_file("common/testdata/Roboto-Regular.abcd.woff2");
   }
 
   FontData from_file(const char* filename) {
