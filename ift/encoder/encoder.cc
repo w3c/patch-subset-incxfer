@@ -148,9 +148,9 @@ std::vector<Encoder::SubsetDefinition> Encoder::OutgoingEdges(
   return result;
 }
 
-absl::flat_hash_set<uint32_t> subtract(const absl::flat_hash_set<uint32_t>& a,
-                                       const absl::flat_hash_set<uint32_t>& b) {
-  absl::flat_hash_set<uint32_t> c;
+template<typename S>
+S subtract(const S& a, const S& b) {
+  S c;
   for (uint32_t v : a) {
     if (!b.contains(v)) {
       c.insert(v);
@@ -405,7 +405,7 @@ Status Encoder::AddExtensionSubsetOfIftbPatches(
 }
 
 void Encoder::AddOptionalFeatureGroup(
-    const flat_hash_set<hb_tag_t>& feature_tags) {
+    const btree_set<hb_tag_t>& feature_tags) {
   SubsetDefinition def;
   def.feature_tags = feature_tags;
   extension_subsets_.push_back(def);

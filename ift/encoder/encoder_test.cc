@@ -156,6 +156,7 @@ class EncoderTest : public ::testing::Test {
     return result;
   }
 
+  // TODO(garretrieger): create a cli util in the rust IFT client that can produce this graph for us.
   Status ToGraph(const Encoder& encoder, const FontData& base, graph& out) {
     auto ift_table = IFTTable::FromFont(base);
 

@@ -136,7 +136,7 @@ class Encoder {
    * will always be available.
    */
   void AddOptionalFeatureGroup(
-      const absl::flat_hash_set<hb_tag_t>& feature_tag);
+      const absl::btree_set<hb_tag_t>& feature_tag);
 
   void AddOptionalDesignSpace(const design_space_t& space);
 
@@ -175,7 +175,7 @@ class Encoder {
 
     absl::flat_hash_set<uint32_t> codepoints;
     absl::flat_hash_set<uint32_t> gids;
-    absl::flat_hash_set<hb_tag_t> feature_tags;
+    absl::btree_set<hb_tag_t> feature_tags;
     design_space_t design_space;
 
     bool IsVariable() const {
