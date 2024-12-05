@@ -15,7 +15,7 @@ using common::FontData;
 using common::hb_set_unique_ptr;
 using common::make_hb_set;
 
-const std::string kTestDataDir = "patch_subset/testdata/";
+const std::string kTestDataDir = "common/testdata/";
 
 /*
   for debugging:
