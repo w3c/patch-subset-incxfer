@@ -21,7 +21,7 @@ namespace ift::proto {
  */
 class PatchMap {
  public:
-  static bool IsDependent(PatchEncoding encoding) {
+  static bool IsInvalidating(PatchEncoding encoding) {
     return encoding == TABLE_KEYED_PARTIAL || encoding == TABLE_KEYED_FULL;
   }
 
@@ -77,7 +77,7 @@ class PatchMap {
              other.encoding == encoding;
     }
 
-    bool IsDependent() const { return PatchMap::IsDependent(encoding); }
+    bool IsInvalidating() const { return PatchMap::IsInvalidating(encoding); }
 
     Coverage coverage;
     uint32_t patch_index;
@@ -92,6 +92,10 @@ class PatchMap {
 
   bool operator==(const PatchMap& other) const {
     return other.entries_ == entries_;
+  }
+
+  bool operator!=(const PatchMap& other) const {
+    return !(*this == other);
   }
 
   absl::Span<const Entry> GetEntries() const;
