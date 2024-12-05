@@ -88,6 +88,7 @@ StatusOr<FontData> IFTTable::AddToFont(
       return absl::InternalError(
           "Failed to allocate memory for serialized IFT table.");
     }
+
     hb_face_builder_add_table(new_face, IFTX_TAG, blob);
     hb_blob_destroy(blob);
 
@@ -132,7 +133,7 @@ absl::StatusOr<common::FontData> IFTTable::AddToFont(
   StatusOr<std::string> ext_bytes;
   std::optional<absl::string_view> ext_view;
   if (extension) {
-    auto ext_bytes = Format2PatchMap::Serialize(**extension);
+    ext_bytes = Format2PatchMap::Serialize(**extension);
     if (!ext_bytes.ok()) {
       return ext_bytes.status();
     }

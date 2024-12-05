@@ -15,7 +15,7 @@ class CompatId {
  public:
   friend void PrintTo(const CompatId& id, std::ostream* os);
 
-  CompatId() { CompatId(0, 0, 0, 0); }
+  CompatId() : CompatId(0, 0, 0, 0) {}
 
   CompatId(uint32_t values[4])
       : value_{values[0], values[1], values[2], values[3]} {}
