@@ -21,7 +21,6 @@ using common::hb_blob_unique_ptr;
 using common::hb_face_unique_ptr;
 using common::make_hb_blob;
 using common::make_hb_face;
-using ift::proto::IFT;
 using ift::proto::IFTTable;
 using ift::proto::PatchMap;
 using iftb::merger;
