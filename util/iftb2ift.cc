@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <optional>
 #include <string>
 
 #include "absl/flags/flag.h"
@@ -91,7 +92,7 @@ int main(int argc, char** argv) {
 
   std::string out_format = absl::GetFlag(FLAGS_output_format);
   if (out_format == "font" || out_format == "woff2") {
-    auto out_font = ift->AddToFont(face, true);
+    auto out_font = IFTTable::AddToFont(face, *ift, std::nullopt, true);
     if (!out_font.ok()) {
       std::cerr << out_font.status();
       return -1;

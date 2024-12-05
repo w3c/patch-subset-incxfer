@@ -18,8 +18,9 @@
 #include "hb.h"
 #include "ift/encoder/encoder.h"
 #include "ift/glyph_keyed_diff.h"
-#include "ift/ift_client.h"
+#include "ift/url_template.h"
 #include "ift/proto/patch_map.h"
+#include "ift/url_template.h"
 #include "util/helper.h"
 
 /*
@@ -80,14 +81,14 @@ using common::FontData;
 using common::FontHelper;
 using common::Woff2;
 using ift::GlyphKeyedDiff;
-using ift::IFTClient;
+using ift::URLTemplate;
 using ift::encoder::Encoder;
 using ift::proto::PatchMap;
 using util::ParseDesignSpace;
 
-absl::flat_hash_set<hb_tag_t> StringsToTags(
+btree_set<hb_tag_t> StringsToTags(
     const std::vector<std::string>& tag_strs) {
-  absl::flat_hash_set<hb_tag_t> tags;
+  btree_set<hb_tag_t> tags;
   for (const auto& tag_str : tag_strs) {
     if (tag_str.size() != 4) {
       continue;
@@ -99,7 +100,7 @@ absl::flat_hash_set<hb_tag_t> StringsToTags(
 }
 
 FontData load_iftb_patch(uint32_t index, const std::string& path_template) {
-  std::string path = IFTClient::PatchToUrl(path_template, index);
+  std::string path = URLTemplate::PatchToUrl(path_template, index);
   hb_blob_t* blob = hb_blob_create_from_file_or_fail(path.c_str());
   if (!blob) {
     fprintf(stderr, "failed to load file: %s\n", path.c_str());
@@ -183,7 +184,7 @@ void write_patch(const std::string& url, const FontData& patch) {
 
 void write_patch(const std::string& url_template, uint32_t id,
                  const FontData& patch) {
-  std::string name = IFTClient::PatchToUrl(url_template, id);
+  std::string name = URLTemplate::PatchToUrl(url_template, id);
   write_patch(name, patch);
 }
 

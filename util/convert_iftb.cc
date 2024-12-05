@@ -11,6 +11,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
+#include "common/compat_id.h"
 #include "common/font_data.h"
 #include "hb.h"
 #include "ift/proto/IFT.pb.h"
@@ -26,7 +27,8 @@ using absl::Status;
 using absl::StatusOr;
 using absl::string_view;
 using common::FontData;
-using ift::proto::IFTB_ENCODING;
+using common::CompatId;
+using ift::proto::GLYPH_KEYED;
 using ift::proto::IFTTable;
 using ift::proto::PatchMap;
 
@@ -60,14 +62,14 @@ flat_hash_set<std::uint32_t> load_chunk_set(string_view line) {
   return result;
 }
 
-std::vector<uint32_t> load_id(string_view line) {
+CompatId load_id(string_view line) {
   std::vector<uint32_t> result;
   std::string next;
   while (!line.empty()) {
     line = next_token(line, " ", next);
     result.push_back(std::stoul(next, 0, 16));
   }
-  return result;
+  return CompatId(result[0], result[1], result[2], result[3]);
 }
 
 flat_hash_map<std::uint32_t, uint32_t> load_gid_map(string_view line) {
@@ -133,7 +135,7 @@ btree_map<uint32_t, btree_set<uint32_t>> compress_gid_map(
 }
 
 StatusOr<IFTTable> create_table(
-    const std::string& url_template, const std::vector<uint32_t>& id,
+    const std::string& url_template, CompatId id,
     const flat_hash_map<std::uint32_t, uint32_t>& gid_map,
     const flat_hash_set<uint32_t>& loaded_chunks, hb_face_t* face) {
   btree_map<uint32_t, btree_set<uint32_t>> chunk_to_codepoints =
@@ -141,16 +143,13 @@ StatusOr<IFTTable> create_table(
 
   IFTTable ift;
   ift.SetUrlTemplate(url_template);
-  auto s = ift.SetId(Span<const uint32_t>(id.data(), id.size()));
-  if (!s.ok()) {
-    return s;
-  }
+  ift.SetId(id);
 
   for (auto e : chunk_to_codepoints) {
     PatchMap::Coverage coverage;
     std::copy(e.second.begin(), e.second.end(),
               std::inserter(coverage.codepoints, coverage.codepoints.begin()));
-    ift.GetPatchMap().AddEntry(coverage, e.first, IFTB_ENCODING);
+    ift.GetPatchMap().AddEntry(coverage, e.first, GLYPH_KEYED);
   }
 
   // TODO(garretrieger): populate the additional fields.
@@ -160,7 +159,7 @@ StatusOr<IFTTable> create_table(
 StatusOr<IFTTable> convert_iftb(string_view iftb_dump, hb_face_t* face) {
   flat_hash_map<std::uint32_t, uint32_t> gid_map;
   flat_hash_set<uint32_t> loaded_chunks;
-  std::vector<uint32_t> id;
+  CompatId id;
   std::string url_template;
 
   while (!iftb_dump.empty()) {
@@ -195,7 +194,9 @@ StatusOr<IFTTable> convert_iftb(string_view iftb_dump, hb_face_t* face) {
     }
   }
 
-  fprintf(stderr, "Font ID = %x %x %x %x\n", id[0], id[1], id[2], id[3]);
+  std::string id_str;
+  id.WriteTo(id_str);
+  fprintf(stderr, "Font ID = %s\n", id_str.c_str());
   return create_table(url_template, id, gid_map, loaded_chunks, face);
 }
 
