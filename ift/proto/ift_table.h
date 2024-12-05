@@ -4,11 +4,10 @@
 #include <cstdint>
 
 #include "absl/status/statusor.h"
+#include "common/compat_id.h"
 #include "common/font_data.h"
 #include "hb.h"
-#include "common/compat_id.h"
 #include "ift/proto/patch_map.h"
-#include "common/compat_id.h"
 
 namespace ift::proto {
 
@@ -29,23 +28,17 @@ class IFTTable {
 
   const std::string& GetUrlTemplate() const { return url_template_; }
 
-  void SetUrlTemplate(absl::string_view value) {
-    url_template_ = value;
-
-  }
+  void SetUrlTemplate(absl::string_view value) { url_template_ = value; }
 
   void SetUrlTemplate(absl::string_view value,
                       absl::string_view extension_value) {
     url_template_ = value;
   }
 
-  void SetId(common::CompatId compat_id) {
-    id_ = compat_id;
-  }
+  void SetId(common::CompatId compat_id) { id_ = compat_id; }
 
   bool operator==(const IFTTable& other) const {
-    return url_template_ == other.url_template_ &&
-           id_ == other.id_ &&
+    return url_template_ == other.url_template_ && id_ == other.id_ &&
            patch_map_ == other.patch_map_;
   }
 
@@ -56,7 +49,8 @@ class IFTTable {
    * extension table (IFTX) will also be added.
    */
   static absl::StatusOr<common::FontData> AddToFont(
-      hb_face_t* face, const IFTTable& main, std::optional<const IFTTable*> extension, bool iftb_conversion = false);
+      hb_face_t* face, const IFTTable& main,
+      std::optional<const IFTTable*> extension, bool iftb_conversion = false);
 
  private:
   /*
@@ -73,7 +67,8 @@ class IFTTable {
 
   /*
    * Converts this abstract representation to the a serialized format.
-   * Either format 1 or 2: https://w3c.github.io/IFT/Overview.html#patch-map-table
+   * Either format 1 or 2:
+   * https://w3c.github.io/IFT/Overview.html#patch-map-table
    */
   absl::StatusOr<std::string> Serialize() const;
 

@@ -14,12 +14,12 @@
 #include "absl/types/span.h"
 #include "common/axis_range.h"
 #include "common/brotli_binary_diff.h"
+#include "common/compat_id.h"
 #include "common/font_data.h"
 #include "hb-subset.h"
-#include "ift/table_keyed_diff.h"
 #include "ift/proto/ift_table.h"
 #include "ift/proto/patch_map.h"
-#include "common/compat_id.h"
+#include "ift/table_keyed_diff.h"
 
 namespace ift::encoder {
 
@@ -274,29 +274,32 @@ class Encoder {
   void RemoveIftbPatches(T ids);
 
   absl::StatusOr<std::unique_ptr<const common::BinaryDiff>> GetDifferFor(
-      const ift::proto::IFTTable& base_table,
-      const common::FontData& font_data,
+      const ift::proto::IFTTable& base_table, const common::FontData& font_data,
       common::CompatId compat_id) const;
-
 
   common::CompatId GenerateCompatId();
 
-  void SetOverrideCompatId(const design_space_t& design_space, common::CompatId compat_id);
+  void SetOverrideCompatId(const design_space_t& design_space,
+                           common::CompatId compat_id);
 
-  static ift::TableKeyedDiff* FullFontTableKeyedDiff(common::CompatId base_compat_id) {
+  static ift::TableKeyedDiff* FullFontTableKeyedDiff(
+      common::CompatId base_compat_id) {
     return new TableKeyedDiff(base_compat_id);
   }
 
-  static ift::TableKeyedDiff* MixedModeTableKeyedDiff(common::CompatId base_compat_id) {
+  static ift::TableKeyedDiff* MixedModeTableKeyedDiff(
+      common::CompatId base_compat_id) {
     return new TableKeyedDiff(base_compat_id, {"IFT ", "glyf", "loca", "gvar"});
   }
 
-  static ift::TableKeyedDiff* ReplaceIftMapTableKeyedDiff(common::CompatId base_compat_id) {
+  static ift::TableKeyedDiff* ReplaceIftMapTableKeyedDiff(
+      common::CompatId base_compat_id) {
     // the replacement differ is used during design space expansions, both
     // gvar and "IFT " are overwritten to be compatible with the new design
     // space. IFTB Patches for all prev loaded glyphs will be downloaded
     // to repopulate variation data for existing glyphs.
-    return new TableKeyedDiff(base_compat_id, {"glyf", "loca"}, {"IFT ", "gvar"});
+    return new TableKeyedDiff(base_compat_id, {"glyf", "loca"},
+                              {"IFT ", "gvar"});
   }
 
   std::mt19937 gen_;
@@ -314,9 +317,10 @@ class Encoder {
       iftb_feature_mappings_;
 
   SubsetDefinition base_subset_;
-  std::vector<SubsetDefinition> extension_subsets_;  
+  std::vector<SubsetDefinition> extension_subsets_;
   absl::flat_hash_map<design_space_t, std::string> iftb_url_overrides_;
-  absl::flat_hash_map<design_space_t, common::CompatId> glyph_keyed_compat_id_overrides_;
+  absl::flat_hash_map<design_space_t, common::CompatId>
+      glyph_keyed_compat_id_overrides_;
   common::CompatId glyph_keyed_compat_id_;
   uint32_t jump_ahead_ = 1;
 

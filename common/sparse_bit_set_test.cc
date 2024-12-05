@@ -527,7 +527,7 @@ TEST_F(SparseBitSetTest, Entire32BitRange) {
   for (BranchFactor bf : {BF2, BF4, BF8, BF32}) {
     TestEncodeDecode(make_hb_set(1, 0xFFFFFFFE), bf);
   }
-  
+
   EXPECT_EQ(
       "10|000010  "
       "0001 0001 0001 0001 0001 0001 0001 0001 0001 0001 0001 0001 0001 0001 "
@@ -686,7 +686,5 @@ TEST_F(SparseBitSetTest, RegressionTest32BitRanges) {
   TestEncodeDecode(make_hb_set(2, 1, 2546490705), BF8);
   TestEncodeDecode(make_hb_set(2, 1, 2546490705), BF32);
 }
-
-
 
 }  // namespace common

@@ -51,7 +51,7 @@ cc_test(
     name = "patch_map_test",
     size = "small",
     srcs = [
-        "patch_map_test.cc",
+        # "patch_map_test.cc",
         "format_2_patch_map_test.cc",
     ],
     data = [

@@ -3,6 +3,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "common/brotli_binary_diff.h"
+#include "common/compat_id.h"
 #include "common/font_data.h"
 #include "common/font_helper.h"
 #include "gtest/gtest.h"
@@ -12,6 +13,7 @@ using absl::btree_set;
 using absl::StatusOr;
 using absl::string_view;
 using common::BrotliBinaryDiff;
+using common::CompatId;
 using common::FontData;
 using common::FontHelper;
 
@@ -32,12 +34,10 @@ class TableKeyedDiffTest : public ::testing::Test {
   std::string tag3_str = FontHelper::ToString(tag3);
 };
 
-
 StatusOr<std::string> diff_table(std::string before, std::string after) {
   FontData base, derived;
   base.copy(before);
   derived.copy(after);
-  
 
   ;
   BrotliBinaryDiff differ;
@@ -53,31 +53,32 @@ StatusOr<std::string> diff_table(std::string before, std::string after) {
 TEST_F(TableKeyedDiffTest, BasicDiff) {
   char second_offset = 38 + 9 + diff_table("foo", "fooo")->length();
   char third_offset = second_offset + 9 + diff_table("bar", "baar")->length();
-  std::string expected = std::string {
-    'i', 'f', 't', 'k',
-    0, 0, 0, 0, // reserved
+  std::string expected =
+      std::string{
+          'i', 'f', 't', 'k',
+          0,   0,   0,   0,  // reserved
 
-    0, 0, 0, 0,
-    0, 0, 0, 0,
-    0, 0, 0, 0,
-    0, 0, 0, 0, // compat id
+          0,   0,   0,   0,
+          0,   0,   0,   0,
+          0,   0,   0,   0,
+          0,   0,   0,   0,  // compat id
 
-    0, 2, // patches count
-    0, 0, 0, 38, // patches offset[0]
-    0, 0, 0, second_offset, // patches offset[1]
-    0, 0, 0, third_offset, // patches offset[2]
+          0,   2,                        // patches count
+          0,   0,   0,   38,             // patches offset[0]
+          0,   0,   0,   second_offset,  // patches offset[1]
+          0,   0,   0,   third_offset,   // patches offset[2]
 
-    't', 'a', 'g', '1',
-    0, // flags
-    0, 0, 0, 4, // uncompressed size
-  } +
-  *diff_table("foo", "fooo") +
-  std::string {
-    't', 'a', 'g', '2',
-    0, // flags
-    0, 0, 0, 4, // uncompressed size
-  } +
-  *diff_table("bar", "baar");
+          't', 'a', 'g', '1',
+          0,                 // flags
+          0,   0,   0,   4,  // uncompressed size
+      } +
+      *diff_table("foo", "fooo") +
+      std::string{
+          't', 'a', 'g', '2',
+          0,                 // flags
+          0,   0,   0,   4,  // uncompressed size
+      } +
+      *diff_table("bar", "baar");
 
   FontData before = FontHelper::BuildFont({
       {tag1, "foo"},
@@ -89,12 +90,12 @@ TEST_F(TableKeyedDiffTest, BasicDiff) {
       {tag2, "baar"},
   });
 
-  TableKeyedDiff differ;
+  TableKeyedDiff differ(CompatId(1, 2, 3, 4));
   FontData patch;
   auto sc = differ.Diff(before, after, &patch);
   ASSERT_TRUE(sc.ok()) << sc;
   ASSERT_EQ(patch.string(), expected);
-} 
+}
 
 /*
 TODO reimplement these against the new format.

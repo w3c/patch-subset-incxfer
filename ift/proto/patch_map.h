@@ -5,6 +5,7 @@
 #include <initializer_list>
 
 #include "absl/container/btree_map.h"
+#include "absl/container/btree_set.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
@@ -41,7 +42,7 @@ class PatchMap {
     }
 
     bool Intersects(const absl::flat_hash_set<uint32_t>& codepoints,
-                    const absl::flat_hash_set<hb_tag_t>& features,
+                    const absl::btree_set<hb_tag_t>& features,
                     const absl::flat_hash_map<hb_tag_t, common::AxisRange>&
                         design_space) const;
 
@@ -57,7 +58,7 @@ class PatchMap {
 
     // TODO(garretrieger): use hb sets instead?
     absl::flat_hash_set<uint32_t> codepoints;
-    absl::flat_hash_set<hb_tag_t> features;
+    absl::btree_set<hb_tag_t> features;
     absl::btree_map<hb_tag_t, common::AxisRange> design_space;
   };
 
@@ -67,9 +68,7 @@ class PatchMap {
     Entry() {}
     Entry(std::initializer_list<uint32_t> codepoints, uint32_t patch_idx,
           PatchEncoding enc)
-        : coverage(codepoints),
-          patch_index(patch_idx),
-          encoding(enc) {}
+        : coverage(codepoints), patch_index(patch_idx), encoding(enc) {}
 
     friend void PrintTo(const Entry& point, std::ostream* os);
 

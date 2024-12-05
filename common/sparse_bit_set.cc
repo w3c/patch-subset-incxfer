@@ -20,11 +20,9 @@ using std::unordered_map;
 using std::vector;
 
 // Finds the tree height needed to represent the codepoints in the set.
-uint32_t TreeDepthFor(uint32_t max_value,
-                      BranchFactor branch_factor) {
+uint32_t TreeDepthFor(uint32_t max_value, BranchFactor branch_factor) {
   uint32_t depth = 1;
-  uint64_t max_value_64 =
-      max_value >> kBFNodeSizeLog2[branch_factor];
+  uint64_t max_value_64 = max_value >> kBFNodeSizeLog2[branch_factor];
   while (max_value_64) {
     depth++;
     max_value_64 >>= kBFNodeSizeLog2[branch_factor];
@@ -666,7 +664,7 @@ string EncodeSet(const vector<uint32_t>& codepoints, BranchFactor branch_factor,
                  const vector<uint32_t>& filled_twigs) {
   if (codepoints.empty()) {
     // One empty byte signifies an empty set.
-    return string {0b00000000};
+    return string{0b00000000};
   }
   uint32_t tree_height = TreeDepthFor(codepoints, branch_factor);
   // Determine which nodes are completely filled; encode them with zero.
@@ -693,13 +691,14 @@ string EncodeSet(const vector<uint32_t>& codepoints, BranchFactor branch_factor,
 string SparseBitSet::Encode(const hb_set_t& set, BranchFactor branch_factor) {
   uint32_t tree_depth = TreeDepthFor(hb_set_get_max(&set), branch_factor);
   if (tree_depth > kBFMaxDepth[branch_factor] && branch_factor == BF2) {
-    // It's possible for uint32_t::MAX to exceed the max tree depth on BF2, upgrade to 4 in that case.
+    // It's possible for uint32_t::MAX to exceed the max tree depth on BF2,
+    // upgrade to 4 in that case.
     branch_factor = BF4;
   }
 
   uint32_t size = hb_set_get_population(&set);
   if (size == 0) {
-    return string { 0b00000000 };
+    return string{0b00000000};
   }
   vector<hb_codepoint_t> codepoints;
   codepoints.resize(size);

@@ -6,7 +6,6 @@
 #include "common/compat_id.h"
 #include "common/font_data.h"
 #include "common/font_helper.h"
-#include "common/compat_id.h"
 #include "ift/proto/ift_table.h"
 #include "ift/proto/patch_map.h"
 #include "merger.h"
@@ -15,6 +14,7 @@ using absl::flat_hash_set;
 using absl::Status;
 using absl::StatusOr;
 using absl::StrCat;
+using common::CompatId;
 using common::FontData;
 using common::FontHelper;
 using common::hb_blob_unique_ptr;
@@ -26,7 +26,6 @@ using ift::proto::IFTTable;
 using ift::proto::PatchMap;
 using iftb::merger;
 using iftb::sfnt;
-using common::CompatId;
 
 namespace ift {
 
