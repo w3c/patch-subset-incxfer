@@ -12,7 +12,7 @@ using absl::Status;
 class FileFontProviderTest : public ::testing::Test {
  protected:
   FileFontProviderTest()
-      : font_provider_(new FileFontProvider("patch_subset/testdata/")) {}
+      : font_provider_(new FileFontProvider("common/testdata/")) {}
 
   ~FileFontProviderTest() override {}
 

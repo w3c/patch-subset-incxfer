@@ -14,7 +14,7 @@ using absl::Status;
 class BrotliPatchingTest : public ::testing::Test {
  protected:
   BrotliPatchingTest()
-      : font_provider_(new FileFontProvider("patch_subset/testdata/")),
+      : font_provider_(new FileFontProvider("common/testdata/")),
         diff_(new BrotliBinaryDiff()),
         patch_(new BrotliBinaryPatch()) {}
 

@@ -34,7 +34,7 @@ cc_test(
         "ift_table_test.cc",
     ],
     data = [
-        "//patch_subset:testdata",
+        "//common:testdata",
         "//ift:testdata",
     ],
     deps = [
@@ -55,7 +55,7 @@ cc_test(
         "format_2_patch_map_test.cc",
     ],
     data = [
-        "//patch_subset:testdata",
+        "//common:testdata",
         "//ift:testdata",
     ],
     deps = [

@@ -38,7 +38,7 @@ cc_test(
   ],
   data = [
     "//ift:testdata",
-    "//patch_subset:testdata",
+    "//common:testdata",
   ],
   deps = [
     ":encoder",
