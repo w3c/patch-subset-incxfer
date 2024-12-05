@@ -23,34 +23,7 @@ cc_binary(
         "checksum.cc",
     ],
     deps = [
-        "//patch_subset:common",
-    ],
-)
-
-cc_binary(
-    name = "print-request",
-    srcs = [
-        "print-request.cc",
-    ],
-    deps = [
         "//common",
-        "//patch_subset:common",
-        "//patch_subset/cbor",
-        "@base64",
-        "@harfbuzz",
-    ],
-)
-
-cc_binary(
-    name = "print-client-state",
-    srcs = [
-        "print-client-state.cc",
-    ],
-    deps = [
-        "//common",
-        "//patch_subset:common",
-        "//patch_subset/cbor",
-        "@harfbuzz",
     ],
 )
 
@@ -72,7 +45,7 @@ cc_binary(
     ],
     deps = [
         ":helper",
-        "//ift:client",
+        "//ift",
         "//ift/encoder",
         "//common",
         "@com_google_absl//absl/container:flat_hash_set",
@@ -81,38 +54,6 @@ cc_binary(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@harfbuzz",
-    ],
-)
-
-cc_binary(
-    name = "augment",
-    srcs = [
-        "augment.cc",
-    ],
-    deps = [
-        ":helper",
-        "//ift:client",
-        "@com_google_absl//absl/container:flat_hash_set",
-        "@com_google_absl//absl/flags:flag",
-        "@com_google_absl//absl/flags:parse",
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/strings",
-    ],
-)
-
-cc_binary(
-    name = "patch",
-    srcs = [
-        "patch.cc",
-    ],
-    deps = [
-        ":helper",
-        "//ift:client",
-        "@com_google_absl//absl/container:flat_hash_set",
-        "@com_google_absl//absl/flags:flag",
-        "@com_google_absl//absl/flags:parse",
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/strings",
     ],
 )
 
@@ -129,7 +70,7 @@ cc_library(
     deps = [
         "//ift/proto",
         "//ift/proto:IFT_cc_proto",
-        "//patch_subset:common",
+        "//common",
         "@com_google_absl//absl/container:btree",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
@@ -148,19 +89,5 @@ cc_test(
     deps = [
         ":convert_iftb",
         "@gtest//:gtest_main",
-    ],
-)
-
-cc_binary(
-    name = "precompress-test",
-    srcs = [
-        "precompress-test.cc",
-    ],
-    deps = [
-        "//brotli:encoding",
-        "//common",
-        "//patch_subset:client",
-        "//patch_subset:common",
-        "@harfbuzz",
     ],
 )
