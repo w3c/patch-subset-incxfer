@@ -58,10 +58,10 @@ TEST_F(TableKeyedDiffTest, BasicDiff) {
           'i', 'f', 't', 'k',
           0,   0,   0,   0,  // reserved
 
-          0,   0,   0,   0,
-          0,   0,   0,   0,
-          0,   0,   0,   0,
-          0,   0,   0,   0,  // compat id
+          0,   0,   0,   1,
+          0,   0,   0,   2,
+          0,   0,   0,   3,
+          0,   0,   0,   4,  // compat id
 
           0,   2,                        // patches count
           0,   0,   0,   38,             // patches offset[0]

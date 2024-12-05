@@ -9,7 +9,7 @@ cc_library(
   deps = [
     "//ift/proto:IFT_cc_proto",
     "//ift/proto",
-    "//ift:client",
+    "//ift",
     "@com_google_absl//absl/container:flat_hash_map",
     "@com_google_absl//absl/container:flat_hash_set",
     "@com_google_absl//absl/container:btree",
