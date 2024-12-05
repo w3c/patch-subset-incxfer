@@ -3,12 +3,12 @@ cc_library(
     srcs = [
         "glyph_keyed_diff.cc",
         "glyph_keyed_diff.h",
-        "ift_client.cc",
+        "url_template.cc",
         "table_keyed_diff.cc",
         "table_keyed_diff.h",
     ],
     hdrs = [
-        "ift_client.h",
+        "url_template.h",
         "table_keyed_diff.h",
     ],
     visibility = [
@@ -37,7 +37,7 @@ cc_test(
     size = "small",
     srcs = [
         "glyph_keyed_diff_test.cc",
-        "ift_client_test.cc",
+        "url_template_test.cc",
         "table_keyed_diff_test.cc",
     ],
     copts = [

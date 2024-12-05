@@ -19,7 +19,7 @@
 #include "hb-subset.h"
 #include "ift/encoder/iftb_patch_creator.h"
 #include "ift/glyph_keyed_diff.h"
-#include "ift/ift_client.h"
+#include "ift/url_template.h"
 #include "ift/proto/IFT.pb.h"
 #include "ift/proto/ift_table.h"
 #include "ift/proto/patch_map.h"
@@ -472,7 +472,7 @@ Status Encoder::PopulateIftbPatches(const design_space_t& design_space,
 
   for (const auto& e : existing_iftb_patches_) {
     uint32_t index = e.first;
-    std::string url = IFTClient::PatchToUrl(url_template, index);
+    std::string url = URLTemplate::PatchToUrl(url_template, index);
 
     SubsetDefinition subset = e.second;
     auto patch =
@@ -643,7 +643,7 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
       return sc;
     }
 
-    std::string url = IFTClient::PatchToUrl(UrlTemplate(), id);
+    std::string url = URLTemplate::PatchToUrl(UrlTemplate(), id);
     patches_[url].shallow_copy(patch);
   }
 

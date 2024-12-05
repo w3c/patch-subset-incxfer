@@ -1,4 +1,4 @@
-#include "ift/ift_client.h"
+#include "ift/url_template.h"
 
 #include <cstdint>
 
@@ -10,7 +10,7 @@ using uritemplatecpp::UriTemplate;
 
 namespace ift {
 
-std::string IFTClient::PatchToUrl(absl::string_view url_template,
+std::string URLTemplate::PatchToUrl(absl::string_view url_template,
                                   uint32_t patch_idx) {
   uint8_t bytes[4];
   bytes[0] = (patch_idx >> 24) & 0x000000FFu;

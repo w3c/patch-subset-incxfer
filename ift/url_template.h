@@ -1,5 +1,5 @@
-#ifndef IFT_IFT_CLIENT_H_
-#define IFT_IFT_CLIENT_H_
+#ifndef IFT_URL_TEMPLATE_H_
+#define IFT_URL_TEMPLATE_H_
 
 #include <cstdint>
 
@@ -8,10 +8,9 @@
 namespace ift {
 
 /*
- * Client library for IFT fonts. Provides common operations needed by a client
- * trying to use an IFT font.
+ * Implementation of IFT URL template substitution.
  */
-class IFTClient {
+class URLTemplate {
  public:
   static std::string PatchToUrl(absl::string_view url_template,
                                 uint32_t patch_idx);
@@ -19,4 +18,4 @@ class IFTClient {
 
 }  // namespace ift
 
-#endif  // IFT_IFT_CLIENT_H_
+#endif  // IFT_URL_TEMPLATE_H_
