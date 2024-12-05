@@ -14,6 +14,7 @@
 #include "common/sparse_bit_set.h"
 #include "gtest/gtest.h"
 #include "ift/proto/IFT.pb.h"
+#include "ift/proto/format_2_patch_map.h"
 
 using absl::flat_hash_map;
 using absl::flat_hash_set;
@@ -84,8 +85,6 @@ class IFTTableTest : public ::testing::Test {
   IFTTable complex_ids;
 };
 
-// TODO(garretrieger): XXXXX check the serialized contents in these tests
-// (compare to format 2 serializer output).
 TEST_F(IFTTableTest, AddToFont) {
   auto font = IFTTable::AddToFont(roboto_ab.get(), sample, std::nullopt);
   ASSERT_TRUE(font.ok()) << font.status();
@@ -94,9 +93,13 @@ TEST_F(IFTTableTest, AddToFont) {
   hb_blob_unique_ptr blob = make_hb_blob(
       hb_face_reference_table(face.get(), HB_TAG('I', 'F', 'T', ' ')));
 
-  unsigned length = 0;
-  hb_blob_get_data(blob.get(), &length);
-  EXPECT_GT(length, 0);
+  FontData data(blob.get());
+  
+
+  std::string expected = *Format2PatchMap::Serialize(sample);
+  FontData expected_data(expected);
+
+  ASSERT_EQ(data, expected_data);
 
   auto original_tag_order =
       FontHelper::ToStrings(FontHelper::GetOrderedTags(roboto_ab.get()));
@@ -110,7 +113,6 @@ TEST_F(IFTTableTest, AddToFont) {
 }
 
 TEST_F(IFTTableTest, AddToFont_WithExtension) {
-  // TODO(garretrieger): XXXXX rewrite to properly simulate extension table.
   auto font =
       IFTTable::AddToFont(roboto_ab.get(), sample, &sample_with_extensions);
   ASSERT_TRUE(font.ok()) << font.status();
@@ -121,8 +123,10 @@ TEST_F(IFTTableTest, AddToFont_WithExtension) {
   FontData iftx_table =
       FontHelper::TableData(face.get(), HB_TAG('I', 'F', 'T', 'X'));
 
-  ASSERT_GT(ift_table.size(), 1);
-  ASSERT_GT(iftx_table.size(), 1);
+  FontData expected_ift(*Format2PatchMap::Serialize(sample));
+  FontData expected_iftx(*Format2PatchMap::Serialize(sample_with_extensions));
+  ASSERT_EQ(ift_table, expected_ift);
+  ASSERT_EQ(iftx_table, expected_iftx);
 
   auto original_tag_order =
       FontHelper::ToStrings(FontHelper::GetOrderedTags(roboto_ab.get()));
@@ -142,13 +146,11 @@ TEST_F(IFTTableTest, AddToFont_IftbConversion) {
   ASSERT_TRUE(font.ok()) << font.status();
 
   hb_face_unique_ptr face = font->face();
-  hb_blob_unique_ptr blob = make_hb_blob(
-      hb_face_reference_table(face.get(), HB_TAG('I', 'F', 'T', ' ')));
 
-  unsigned length = 0;
-  hb_blob_get_data(blob.get(), &length);
-
-  EXPECT_GT(length, 1);
+  FontData ift_table =
+      FontHelper::TableData(face.get(), HB_TAG('I', 'F', 'T', ' '));
+  FontData expected_ift(*Format2PatchMap::Serialize(sample));
+  ASSERT_EQ(ift_table, expected_ift);
 
   auto expected_tags = FontHelper::GetTags(iftb.get());
   auto new_tags = FontHelper::GetTags(face.get());
@@ -169,12 +171,11 @@ TEST_F(IFTTableTest, AddToFont_IftbConversionRoboto) {
   ASSERT_TRUE(font.ok()) << font.status();
 
   hb_face_unique_ptr face = font->face();
-  hb_blob_unique_ptr blob = make_hb_blob(
-      hb_face_reference_table(face.get(), HB_TAG('I', 'F', 'T', ' ')));
 
-  unsigned length = 0;
-  hb_blob_get_data(blob.get(), &length);
-  EXPECT_GT(length, 1);
+  FontData ift_table =
+      FontHelper::TableData(face.get(), HB_TAG('I', 'F', 'T', ' '));
+  FontData expected_ift(*Format2PatchMap::Serialize(sample));
+  ASSERT_EQ(ift_table, expected_ift);
 
   auto expected_tags = FontHelper::GetTags(roboto_ab.get());
   auto new_tags = FontHelper::GetTags(face.get());
@@ -192,7 +193,7 @@ TEST_F(IFTTableTest, AddToFont_IftbConversionRoboto) {
 TEST_F(IFTTableTest, GetId) { ASSERT_EQ(sample.GetId(), CompatId(1, 2, 3, 4)); }
 
 TEST_F(IFTTableTest, GetId_None) {
-  ASSERT_EQ(empty.GetId(), CompatId(0, 0, 0, 0));
+  ASSERT_EQ(empty.GetId(), CompatId());
 }
 
 TEST_F(IFTTableTest, SetId_Good) {

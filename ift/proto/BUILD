@@ -31,7 +31,7 @@ cc_test(
     name = "ift_table_test",
     size = "small",
     srcs = [
-        "ift_table_test.cc",    
+        "ift_table_test.cc",
     ],
     data = [
         "//patch_subset:testdata",
