@@ -7,12 +7,9 @@
 #include "common/sparse_bit_set.h"
 #include "gtest/gtest.h"
 #include "hb.h"
-#include "ift/proto/IFT.pb.h"
 
 using absl::flat_hash_set;
 using ::common::SparseBitSet;
-using ::ift::proto::IFT;
-using ::ift::proto::SubsetMapping;
 
 namespace util {
 

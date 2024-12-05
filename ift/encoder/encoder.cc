@@ -44,7 +44,6 @@ using common::make_hb_face;
 using common::make_hb_set;
 using common::Woff2;
 using ift::proto::GLYPH_KEYED;
-using ift::proto::IFT;
 using ift::proto::IFTTable;
 using ift::proto::PatchEncoding;
 using ift::proto::PatchMap;

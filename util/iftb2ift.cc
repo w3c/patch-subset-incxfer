@@ -12,7 +12,6 @@
 #include "common/font_data.h"
 #include "common/woff2.h"
 #include "hb.h"
-#include "ift/proto/IFT.pb.h"
 #include "ift/proto/ift_table.h"
 #include "util/convert_iftb.h"
 
@@ -31,7 +30,6 @@ ABSL_FLAG(std::string, output_format, "font",
 using common::FontData;
 using common::Woff2;
 using google::protobuf::TextFormat;
-using ift::proto::IFT;
 using ift::proto::IFTTable;
 using util::convert_iftb;
 
