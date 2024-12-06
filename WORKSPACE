@@ -167,3 +167,64 @@ http_archive(
     integrity = "sha256-XwiP9k9mGukrqab4M1IfVKPEE55FmPOeLiTN3kxZfaw=",
     urls = ["https://github.com/returnzero23/uritemplate-cpp/archive/v1.0.1.zip"],
 )
+
+
+### RUST ####
+
+# Fontations
+
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_archive(
+    name = "fontations",
+    urls = ["https://github.com/googlefonts/fontations/archive/refs/heads/ift_graph.zip"],
+    integrity = "sha256-WDEO4OiRm0MbkPkqrFYhT8n728wJ4y2fFKJc0iRVDqE=",
+    strip_prefix = "fontations-ift_graph",
+    build_file = "//third_party:fontations.BUILD",
+)
+
+http_archive(
+    name = "rules_rust",
+    integrity = "sha256-+ETFhat8dugqC27Vq9WVUIud2AdBGerXW8S8msBSU6E=",
+    urls = ["https://github.com/bazelbuild/rules_rust/releases/download/0.55.0/rules_rust-0.55.0.tar.gz"],
+)
+
+load("@rules_rust//rust:repositories.bzl", "rules_rust_dependencies", "rust_register_toolchains")
+
+rules_rust_dependencies()
+
+rust_register_toolchains(
+    edition = "2021",
+)
+
+load("@rules_rust//crate_universe:repositories.bzl", "crate_universe_dependencies")
+
+crate_universe_dependencies()
+
+load("@rules_rust//crate_universe:defs.bzl", "crates_repository")
+
+crates_repository(
+    name = "fontations_deps",
+    cargo_lockfile = "//fontations:Cargo.lock",
+    manifests = [
+     "@fontations//:Cargo.toml",
+     "@fontations//:fauntlet/Cargo.toml",
+     "@fontations//:font-codegen/Cargo.toml",
+     "@fontations//:font-test-data/Cargo.toml",
+     "@fontations//:font-types/Cargo.toml",
+     "@fontations//:fuzz/Cargo.toml",
+     "@fontations//:incremental-font-transfer/Cargo.toml",
+     "@fontations//:klippa/Cargo.toml",
+     "@fontations//:otexplorer/Cargo.toml",
+     "@fontations//:read-fonts/Cargo.toml",
+     "@fontations//:shared-brotli-patch-decoder/Cargo.toml",
+     "@fontations//:skrifa/Cargo.toml",
+     "@fontations//:write-fonts/Cargo.toml",
+    ],
+)
+
+load("@fontations_deps//:defs.bzl", fontations_deps = "crate_repositories")
+
+fontations_deps()
+
+
