@@ -32,13 +32,13 @@ cc_test(
   name = "encoder_test",
   size = "small",
   srcs = [
-    # TODO(garretrieger): re-enable once we integrate rust IFT cli to allow for testing of encodings.
-    # "encoder_test.cc",
+    "encoder_test.cc",
     "iftb_patch_creator_test.cc",
   ],
   data = [
     "//ift:testdata",
     "//common:testdata",
+    "@fontations//:ift_graph",
   ],
   deps = [
     ":encoder",

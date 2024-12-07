@@ -4,10 +4,13 @@ rust_binary(
     name = "ift_graph",
     srcs = glob(include = ["incremental-font-transfer/src/*.rs"], exclude = ["incremental-font-transfer/src/ift_extend.rs"]),
     deps = [
-        "@fontations_deps//:clap",
-	":incremental_font_transfer",
-	":skrifa",
+      "@fontations_deps//:clap",
+	    ":incremental_font_transfer",
+	    ":skrifa",
+      ":read_fonts",
+      ":font_types",
     ],
+    visibility = ["//visibility:public"],
 )
 
 

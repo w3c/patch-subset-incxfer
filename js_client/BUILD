@@ -1,4 +1,3 @@
-load("@rules_cc//cc:defs.bzl", "cc_binary")
 load("@emsdk//emscripten_toolchain:wasm_rules.bzl", "wasm_cc_binary")
 
 DEFAULT_EMSCRIPTEN_LINKOPTS = [
@@ -20,8 +19,8 @@ cc_binary(
     linkopts = DEFAULT_EMSCRIPTEN_LINKOPTS,
     deps = [
         "//common",
-        "//patch_subset:client",
-        "//patch_subset:common",
+        # "//patch_subset:client",
+        # "//patch_subset:common",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
@@ -41,7 +40,7 @@ cc_binary(
     linkopts = DEFAULT_EMSCRIPTEN_LINKOPTS,
     deps = [
         "//common",
-        "//ift:client",
+        "//ift",
         "@com_google_absl//absl/container:btree",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
