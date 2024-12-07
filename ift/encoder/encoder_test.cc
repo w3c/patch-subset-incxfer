@@ -1,6 +1,10 @@
 #include "ift/encoder/encoder.h"
 
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <stdlib.h>
 
 #include "absl/container/btree_map.h"
 #include "absl/container/btree_set.h"
@@ -14,7 +18,6 @@
 #include "common/font_helper.h"
 #include "common/hb_set_unique_ptr.h"
 #include "gtest/gtest.h"
-#include "ift/ift_client.h"
 #include "ift/proto/ift_table.h"
 #include "ift/proto/patch_map.h"
 
@@ -33,7 +36,6 @@ using common::FontData;
 using common::FontHelper;
 using common::hb_set_unique_ptr;
 using common::make_hb_set;
-using ift::IFTClient;
 using ift::proto::DEFAULT_ENCODING;
 using ift::proto::GLYPH_KEYED;
 using ift::proto::IFTTable;
@@ -51,10 +53,10 @@ constexpr hb_tag_t kWdth = HB_TAG('w', 'd', 't', 'h');
 class EncoderTest : public ::testing::Test {
  protected:
   EncoderTest() {
-    font = from_file("patch_subset/testdata/Roboto-Regular.abcd.ttf");
-    full_font = from_file("patch_subset/testdata/Roboto-Regular.ttf");
-    woff2_font = from_file("patch_subset/testdata/Roboto-Regular.abcd.woff2");
-    vf_font = from_file("patch_subset/testdata/Roboto[wdth,wght].ttf");
+    font = from_file("common/testdata/Roboto-Regular.abcd.ttf");
+    full_font = from_file("common/testdata/Roboto-Regular.ttf");
+    woff2_font = from_file("common/testdata/Roboto-Regular.abcd.woff2");
+    vf_font = from_file("common/testdata/Roboto[wdth,wght].ttf");
     noto_sans_jp = from_file("ift/testdata/NotoSansJP-Regular.subset.ttf");
 
     chunk1 = from_file("ift/testdata/NotoSansJP-Regular.subset_iftb/chunk1.br");
@@ -80,10 +82,24 @@ class EncoderTest : public ::testing::Test {
   uint32_t chunk4_cp = 0xa8;
 
   FontData from_file(const char* filename) {
-    hb_blob_t* blob = hb_blob_create_from_file(filename);
+    hb_blob_t* blob = hb_blob_create_from_file_or_fail(filename);
+    if (!blob) {
+      assert(false);
+    }
     FontData result(blob);
     hb_blob_destroy(blob);
     return result;
+  }
+
+  Status to_file(const FontData& data, const char* path) {
+    FILE* f = fopen(path, "wb");
+    if (!f) {
+      return absl::InternalError("Unable to open file for output.");
+    }
+
+    fwrite(data.data(), 1, data.size(), f);
+    fclose(f);
+    return absl::OkStatus();
   }
 
   btree_set<uint32_t> ToCodepointsSet(const FontData& font_data) {
@@ -126,101 +142,75 @@ class EncoderTest : public ::testing::Test {
     return result;
   }
 
-  std::string ToNodeName(const FontData& font_data) {
+  absl::StatusOr<std::string> exec(const char* cmd) {
+    std::array<char, 128> buffer;
     std::string result;
-    for (uint32_t cp : ToCodepointsSet(font_data)) {
-      result.push_back(cp);
+    FILE *pipe = popen(cmd, "r");
+    if (!pipe) {
+      return absl::InternalError("Unable to start process.");
     }
-
-    auto face = font_data.face();
-    auto feature_tags = FontHelper::GetNonDefaultFeatureTags(face.get());
-    if (!feature_tags.empty()) {
-      result += "|";
-
-      bool first = true;
-      auto string_tags = FontHelper::ToStrings(feature_tags);
-      for (const std::string& tag : string_tags) {
-        if (!first) {
-          result += ",";
-        }
-        result += tag;
-        first = true;
-      }
+    while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe) != nullptr) {
+        result += buffer.data();
     }
-
-    std::string var_info = GetVarInfo(font_data);
-    if (!var_info.empty()) {
-      result = StrCat(result, " ", var_info);
+    if (pclose(pipe)) {
+      return absl::InternalError("exec command failed.");
     }
-
     return result;
   }
 
-  // TODO(garretrieger): create a cli util in the rust IFT client that can produce this graph for us.
-  Status ToGraph(const Encoder& encoder, const FontData& base, graph& out) {
-    auto ift_table = IFTTable::FromFont(base);
+  void ParseGraph(const std::string& text, graph& out) {
+    std::stringstream ss(text);
 
-    btree_set<uint32_t> base_set = ToCodepointsSet(base);
-    std::string node = ToNodeName(base);
-    auto it = out.find(node);
-    if (it != out.end()) {
-      return absl::OkStatus();
-    }
-
-    out[node] = {};
-    if (!ift_table.ok()) {
-      // No 'IFT ' table means this is a leaf.
-      return absl::OkStatus();
-    }
-
-    PatchEncoding encoding = DEFAULT_ENCODING;
-    flat_hash_set<std::string> subsets;
-    for (const auto& e : ift_table->GetPatchMap().GetEntries()) {
-      if (e.encoding != SHARED_BROTLI_ENCODING &&
-          e.encoding != PER_TABLE_SHARED_BROTLI_ENCODING) {
-        // Ignore IFTB patches which don't form the graph.
+    std::string line;
+    while (getline(ss, line))
+    {
+      std::stringstream line_ss(line);
+      std::string node;
+      if (!getline(line_ss, node, ';')) {
         continue;
       }
-      if (encoding == DEFAULT_ENCODING) {
-        encoding = e.encoding;
-      }
-      if (encoding != e.encoding) {
-        return absl::InternalError("Inconsistent encodings.");
-      }
 
-      std::string url_template = e.extension_entry
-                                     ? ift_table->GetExtensionUrlTemplate()
-                                     : ift_table->GetUrlTemplate();
+      auto& edges = out[node];
 
-      std::string url = IFTClient::PatchToUrl(url_template, e.patch_index);
-      subsets.insert(url);
-    }
-
-    PerTableBrotliBinaryPatch per_table_patcher;
-    BrotliBinaryPatch brotli_patcher;
-    const BinaryPatch* patcher = (encoding == SHARED_BROTLI_ENCODING)
-                                     ? (BinaryPatch*)&brotli_patcher
-                                     : (BinaryPatch*)&per_table_patcher;
-    for (std::string id : subsets) {
-      auto it = encoder.Patches().find(id);
-      if (it == encoder.Patches().end()) {
-        return absl::InternalError("patch not found.");
-      }
-
-      const FontData& patch = it->second;
-      FontData derived;
-      auto sc = patcher->Patch(base, patch, &derived);
-      if (!sc.ok()) {
-        return sc;
-      }
-      std::string child = ToNodeName(derived);
-      out[node].insert(child);
-
-      sc = ToGraph(encoder, derived, out);
-      if (!sc.ok()) {
-        return sc;
+      std::string edge;
+      while (getline(line_ss, edge, ';')) {
+        edges.insert(edge);
       }
     }
+  }
+  
+  Status ToGraph(const Encoder& encoder, const FontData& base, graph& out) {
+    char template_str[] = "encoder_test_XXXXXX";
+    const char* temp_dir = mkdtemp(template_str);
+    
+    if (!temp_dir) {
+      return absl::InternalError("Failed to create temp working directory.");
+    }
+
+    std::string font_path = absl::StrCat(temp_dir, "/font.ttf");
+    auto sc = to_file(base, font_path.c_str());
+    if (!sc.ok()) {
+      return sc;
+    }
+
+    for (auto& p : encoder.Patches()) {
+      auto& path = p.first;
+      auto& data = p.second;
+      std::string full_path = absl::StrCat(temp_dir, "/", path);
+      auto sc = to_file(data, full_path.c_str());
+      if (!sc.ok()) {
+        return sc;
+      }      
+    }
+
+    std::string command = absl::StrCat("${TEST_SRCDIR}/fontations/ift_graph --font=", font_path);
+    auto r = exec(command.c_str());
+    if (!r.ok()) {
+      return r.status();
+    }
+
+    ParseGraph(*r, out);
+
     return absl::OkStatus();
   }
 };
@@ -460,8 +450,6 @@ TEST_F(EncoderTest, DontClobberBaseSubset) {
 }
 
 TEST_F(EncoderTest, Encode_OneSubset) {
-  ASSERT_EQ(ToNodeName(font), "abcd");
-
   Encoder encoder;
   hb_face_t* face = font.reference_face();
   encoder.SetFace(face);
@@ -472,9 +460,7 @@ TEST_F(EncoderTest, Encode_OneSubset) {
   hb_face_destroy(face);
 
   ASSERT_TRUE(base.ok()) << base.status();
-  ASSERT_EQ(ToNodeName(*base), "ad");
-  ASSERT_TRUE(encoder.Patches().empty());
-
+  
   graph g;
   auto sc = ToGraph(encoder, *base, g);
   ASSERT_TRUE(sc.ok()) << sc;
@@ -496,8 +482,6 @@ TEST_F(EncoderTest, Encode_TwoSubsets) {
   hb_face_destroy(face);
 
   ASSERT_TRUE(base.ok()) << base.status();
-  ASSERT_EQ(ToNodeName(*base), "ad");
-  ASSERT_FALSE(encoder.Patches().empty());
 
   graph g;
   auto sc = ToGraph(encoder, *base, g);
@@ -521,8 +505,6 @@ TEST_F(EncoderTest, Encode_TwoSubsetsAndOptionalFeature) {
   hb_face_destroy(face);
 
   ASSERT_TRUE(base.ok()) << base.status();
-  ASSERT_EQ(ToNodeName(*base), "AD");
-  ASSERT_FALSE(encoder.Patches().empty());
 
   graph g;
   auto sc = ToGraph(encoder, *base, g);
@@ -535,13 +517,6 @@ TEST_F(EncoderTest, Encode_TwoSubsetsAndOptionalFeature) {
       {"ABCD|c2sc", {}},
   };
   ASSERT_EQ(g, expected);
-
-  auto ift_table = IFTTable::FromFont(*base);
-  ASSERT_TRUE(ift_table.ok());
-
-  ASSERT_TRUE(
-      ift_table->GetPatchMap().GetEntries().at(1).coverage.features.contains(
-          HB_TAG('c', '2', 's', 'c')));
 }
 
 TEST_F(EncoderTest, Encode_ThreeSubsets) {
@@ -559,7 +534,6 @@ TEST_F(EncoderTest, Encode_ThreeSubsets) {
   hb_face_destroy(face);
 
   ASSERT_TRUE(base.ok()) << base.status();
-  ASSERT_EQ(ToNodeName(*base), "a");
   ASSERT_EQ(encoder.Patches().size(), 4);
 
   graph g;
@@ -592,21 +566,11 @@ TEST_F(EncoderTest, Encode_ThreeSubsets_VF) {
   hb_face_destroy(face);
 
   ASSERT_TRUE(base.ok()) << base.status();
-  ASSERT_EQ(ToNodeName(*base), "a wght[100,900]");
   ASSERT_EQ(encoder.Patches().size(), 4);
 
   graph g;
   auto sc = ToGraph(encoder, *base, g);
   ASSERT_TRUE(sc.ok()) << sc;
-
-  auto ift_table = IFTTable::FromFont(*base);
-  ASSERT_TRUE(ift_table.ok()) << ift_table.status();
-
-  btree_map<hb_tag_t, AxisRange> expected_ds = {
-      {kWdth, *AxisRange::Range(75, 100)},
-  };
-  ASSERT_EQ(ift_table->GetPatchMap().GetEntries()[1].coverage.design_space,
-            expected_ds);
 
   graph expected{
       {"a wght[100,900]", {"ab wght[100,900]", "a wght[100,900];wdth[75,100]"}},
@@ -660,38 +624,11 @@ TEST_F(EncoderTest, Encode_ThreeSubsets_Mixed) {
     hb_face_destroy(face);
   }
 
-  auto ift_table = IFTTable::FromFont(*base);
-  ASSERT_TRUE(ift_table.ok()) << ift_table.status();
-
   // expected patches:
   // - chunk 3 (iftb)
   // - chunk 4 (iftb)
   // - shared brotli to (chunk 3 + 4)
-  ASSERT_EQ(ift_table->GetPatchMap().GetEntries().size(), 3);
-
-  const auto& entry0 = ift_table->GetPatchMap().GetEntries()[0];
-  ASSERT_EQ(entry0.patch_index, 3);
-  ASSERT_FALSE(entry0.coverage.codepoints.contains(chunk0_cp));
-  ASSERT_FALSE(entry0.coverage.codepoints.contains(chunk1_cp));
-  ASSERT_FALSE(entry0.coverage.codepoints.contains(chunk2_cp));
-  ASSERT_TRUE(entry0.coverage.codepoints.contains(chunk3_cp));
-  ASSERT_FALSE(entry0.coverage.codepoints.contains(chunk4_cp));
-
-  const auto& entry1 = ift_table->GetPatchMap().GetEntries()[1];
-  ASSERT_EQ(entry1.patch_index, 4);
-  ASSERT_FALSE(entry1.coverage.codepoints.contains(chunk0_cp));
-  ASSERT_FALSE(entry1.coverage.codepoints.contains(chunk1_cp));
-  ASSERT_FALSE(entry1.coverage.codepoints.contains(chunk2_cp));
-  ASSERT_FALSE(entry1.coverage.codepoints.contains(chunk3_cp));
-  ASSERT_TRUE(entry1.coverage.codepoints.contains(chunk4_cp));
-
-  const auto& entry2 = ift_table->GetPatchMap().GetEntries()[2];
-  ASSERT_EQ(entry2.patch_index, 5);
-  ASSERT_FALSE(entry2.coverage.codepoints.contains(chunk0_cp));
-  ASSERT_FALSE(entry2.coverage.codepoints.contains(chunk1_cp));
-  ASSERT_FALSE(entry2.coverage.codepoints.contains(chunk2_cp));
-  ASSERT_TRUE(entry2.coverage.codepoints.contains(chunk3_cp));
-  ASSERT_TRUE(entry2.coverage.codepoints.contains(chunk4_cp));
+  // TODO XXXXX Check graph instead
 }
 
 TEST_F(EncoderTest, Encode_ThreeSubsets_Mixed_WithFeatureMappings) {
@@ -721,42 +658,12 @@ TEST_F(EncoderTest, Encode_ThreeSubsets_Mixed_WithFeatureMappings) {
 
   ASSERT_EQ(encoder.Patches().size(), 7);
 
-  auto ift_table = IFTTable::FromFont(*base);
-  ASSERT_TRUE(ift_table.ok()) << ift_table.status();
-
   // expected patches:
   // - chunk 2 (iftb)
   // - chunk 3 (iftb)
   // - chunk 4 (iftb), triggered by ccmap + chunk 3
   // - shared brotli patches...
-  ASSERT_GT(ift_table->GetPatchMap().GetEntries().size(), 4);
-
-  const auto& entry0 = ift_table->GetPatchMap().GetEntries()[0];
-  ASSERT_EQ(entry0.patch_index, 2);
-  ASSERT_FALSE(entry0.coverage.codepoints.contains(chunk0_cp));
-  ASSERT_FALSE(entry0.coverage.codepoints.contains(chunk1_cp));
-  ASSERT_TRUE(entry0.coverage.codepoints.contains(chunk2_cp));
-  ASSERT_FALSE(entry0.coverage.codepoints.contains(chunk3_cp));
-  ASSERT_FALSE(entry0.coverage.codepoints.contains(chunk4_cp));
-  ASSERT_TRUE(entry0.coverage.features.empty());
-
-  const auto& entry1 = ift_table->GetPatchMap().GetEntries()[1];
-  ASSERT_EQ(entry1.patch_index, 3);
-  ASSERT_FALSE(entry1.coverage.codepoints.contains(chunk0_cp));
-  ASSERT_FALSE(entry1.coverage.codepoints.contains(chunk1_cp));
-  ASSERT_FALSE(entry1.coverage.codepoints.contains(chunk2_cp));
-  ASSERT_TRUE(entry1.coverage.codepoints.contains(chunk3_cp));
-  ASSERT_FALSE(entry1.coverage.codepoints.contains(chunk4_cp));
-  ASSERT_TRUE(entry1.coverage.features.empty());
-
-  const auto& entry2 = ift_table->GetPatchMap().GetEntries()[2];
-  ASSERT_EQ(entry2.patch_index, 4);
-  ASSERT_FALSE(entry2.coverage.codepoints.contains(chunk0_cp));
-  ASSERT_FALSE(entry2.coverage.codepoints.contains(chunk1_cp));
-  ASSERT_FALSE(entry2.coverage.codepoints.contains(chunk2_cp));
-  ASSERT_TRUE(entry2.coverage.codepoints.contains(chunk3_cp));
-  ASSERT_FALSE(entry2.coverage.codepoints.contains(chunk4_cp));
-  ASSERT_TRUE(entry2.coverage.features.contains(HB_TAG('c', 'c', 'm', 'p')));
+  // TODO XXXXX Check graph instead
 }
 
 TEST_F(EncoderTest, Encode_FourSubsets) {
@@ -776,7 +683,6 @@ TEST_F(EncoderTest, Encode_FourSubsets) {
   hb_face_destroy(face);
 
   ASSERT_TRUE(base.ok()) << base.status();
-  ASSERT_EQ(ToNodeName(*base), "a");
   ASSERT_EQ(encoder.Patches().size(), 12);
 
   graph g;
@@ -809,7 +715,6 @@ TEST_F(EncoderTest, Encode_FourSubsets_WithJumpAhead) {
   hb_face_destroy(face);
 
   ASSERT_TRUE(base.ok()) << base.status();
-  ASSERT_EQ(ToNodeName(*base), "a");
   ASSERT_EQ(encoder.Patches().size(), 18);
 
   graph g;

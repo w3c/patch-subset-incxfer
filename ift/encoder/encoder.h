@@ -306,7 +306,7 @@ class Encoder {
   std::uniform_int_distribution<uint32_t> random_values_;
 
   // == IN  ==
-  std::string url_template_ = "patch$5$4$3$2$1.br";
+  std::string url_template_ = "patch{id}.br";
   hb_face_t* face_ = nullptr;
   absl::btree_map<uint32_t, SubsetDefinition> existing_iftb_patches_;
 
