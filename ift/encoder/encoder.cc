@@ -21,7 +21,7 @@
 #include "ift/encoder/iftb_patch_creator.h"
 #include "ift/glyph_keyed_diff.h"
 #include "ift/url_template.h"
-#include "ift/proto/IFT.pb.h"
+#include "ift/proto/patch_encoding.h"
 #include "ift/proto/ift_table.h"
 #include "ift/proto/patch_map.h"
 

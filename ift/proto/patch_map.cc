@@ -10,7 +10,7 @@
 #include "common/hb_set_unique_ptr.h"
 #include "common/sparse_bit_set.h"
 #include "ift/feature_registry/feature_registry.h"
-#include "ift/proto/IFT.pb.h"
+#include "ift/proto/patch_encoding.h"
 
 using absl::btree_set;
 using absl::flat_hash_set;

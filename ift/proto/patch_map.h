@@ -12,7 +12,7 @@
 #include "absl/types/span.h"
 #include "common/axis_range.h"
 #include "hb.h"
-#include "ift/proto/IFT.pb.h"
+#include "ift/proto/patch_encoding.h"
 
 namespace ift::proto {
 

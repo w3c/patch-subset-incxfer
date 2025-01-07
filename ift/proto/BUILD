@@ -9,6 +9,7 @@ cc_library(
     "patch_map.cc",
     "format_2_patch_map.cc",
     "format_2_patch_map.h",
+    "patch_encoding.h",
   ],
   visibility = [
     "//util:__pkg__",
@@ -16,7 +17,6 @@ cc_library(
     "//ift/encoder:__pkg__",
   ],
   deps = [
-      ":IFT_cc_proto",
       "//ift/feature_registry",
       "//common",
       "@com_google_absl//absl/status:statusor",
@@ -39,7 +39,6 @@ cc_test(
     ],
     deps = [
         ":proto",
-        ":IFT_cc_proto",
         "//common",
         "@gtest//:gtest_main",
         "@com_google_absl//absl/container:flat_hash_map",
@@ -60,7 +59,6 @@ cc_test(
     ],
     deps = [
         ":proto",
-        ":IFT_cc_proto",
         "//common",
         "@gtest//:gtest_main",
         "@com_google_absl//absl/container:flat_hash_map",
@@ -68,19 +66,3 @@ cc_test(
         "@com_google_absl//absl/container:flat_hash_set",
     ],
 )
-
-proto_library(
-  name = "IFT_proto",
-  srcs = ["IFT.proto"],
-)
-
-cc_proto_library(
-  name = "IFT_cc_proto",
-  visibility = [
-    "//ift:__subpackages__",
-    "//util:__pkg__",
-    "//patch_subset:__pkg__",
-  ],
-  deps = [":IFT_proto"],
-)
-
