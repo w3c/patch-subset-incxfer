@@ -13,7 +13,7 @@
 #include "common/hb_set_unique_ptr.h"
 #include "common/sparse_bit_set.h"
 #include "gtest/gtest.h"
-#include "ift/proto/IFT.pb.h"
+#include "ift/proto/patch_encoding.h"
 #include "ift/proto/format_2_patch_map.h"
 
 using absl::flat_hash_map;

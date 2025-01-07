@@ -11,7 +11,7 @@
 #include "common/font_helper_macros.h"
 #include "common/hb_set_unique_ptr.h"
 #include "common/sparse_bit_set.h"
-#include "ift/proto/IFT.pb.h"
+#include "ift/proto/patch_encoding.h"
 #include "ift/proto/ift_table.h"
 #include "ift/proto/patch_map.h"
 

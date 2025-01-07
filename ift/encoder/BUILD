@@ -7,7 +7,6 @@ cc_library(
     "iftb_patch_creator.cc",
   ],
   deps = [
-    "//ift/proto:IFT_cc_proto",
     "//ift/proto",
     "//ift",
     "@com_google_absl//absl/container:flat_hash_map",

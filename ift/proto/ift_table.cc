@@ -1,7 +1,5 @@
 #include "ift/proto/ift_table.h"
 
-#include <google/protobuf/text_format.h>
-
 #include <algorithm>
 #include <cstdint>
 #include <string>

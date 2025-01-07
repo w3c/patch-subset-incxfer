@@ -17,7 +17,6 @@ cc_library(
     deps = [
         "//common",
         "//ift/proto",
-        "//ift/proto:IFT_cc_proto",
         "@com_google_absl//absl/container:btree",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
@@ -52,7 +51,6 @@ cc_test(
         "//common",
         "//ift/encoder",
         "//ift/proto",
-        "//ift/proto:IFT_cc_proto",
         "@com_google_absl//absl/container:btree",
         "@gtest//:gtest_main",
     ],
