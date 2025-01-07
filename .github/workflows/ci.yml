@@ -23,14 +23,10 @@ jobs:
       - name: Test (Default Build)
         run: |
           "${GITHUB_WORKSPACE}/bin/bazel" test --enable_workspace //util/... //ift/... //common/... --test_output=all
-        env:
-          CC: gcc-9
 
       - name: Test (Optimized Build)
         run: |
           "${GITHUB_WORKSPACE}/bin/bazel" test --enable_workspace -c opt //util/... //ift/... //common/... --test_output=all
-        env:
-          CC: gcc-9
 
 #      TODO renable once re-implemented using a wasm build of the rust client.
 #      - name: Build Webassembly
