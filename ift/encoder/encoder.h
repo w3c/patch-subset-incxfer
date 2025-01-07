@@ -11,13 +11,10 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/span.h"
 #include "common/axis_range.h"
-#include "common/brotli_binary_diff.h"
 #include "common/compat_id.h"
 #include "common/font_data.h"
 #include "hb-subset.h"
-#include "ift/proto/ift_table.h"
 #include "ift/proto/patch_map.h"
 #include "ift/table_keyed_diff.h"
 
@@ -247,6 +244,9 @@ class Encoder {
   absl::StatusOr<SubsetDefinition> SubsetDefinitionForIftbPatches(
       const absl::flat_hash_set<uint32_t>& ids) const;
 
+  /*
+   * Returns true if this encoding will contain both glyph keyed and table keyed patches.
+   */
   bool IsMixedMode() const { return !existing_iftb_patches_.empty(); }
 
   absl::Status PopulateIftbPatches(const design_space_t& design_space,
@@ -274,8 +274,9 @@ class Encoder {
   void RemoveIftbPatches(T ids);
 
   absl::StatusOr<std::unique_ptr<const common::BinaryDiff>> GetDifferFor(
-      const ift::proto::IFTTable& base_table, const common::FontData& font_data,
-      common::CompatId compat_id) const;
+      const common::FontData& font_data,
+      common::CompatId compat_id,
+      bool replace_url_template) const;
 
   common::CompatId GenerateCompatId();
 

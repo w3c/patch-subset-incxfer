@@ -1,6 +1,7 @@
 #include "ift/encoder/encoder.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <iterator>
 #include <memory>
 #include <optional>
@@ -51,11 +52,6 @@ using ift::proto::TABLE_KEYED_FULL;
 using ift::proto::TABLE_KEYED_PARTIAL;
 
 namespace ift::encoder {
-
-StatusOr<std::string> UrlTemplateFor(const FontData& font) {
-  // TODO(garretrieger): reimplement this.
-  assert(false);
-}
 
 void PrintTo(const Encoder::SubsetDefinition& def, std::ostream* os) {
   *os << "[{";
@@ -632,8 +628,15 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
       return next.status();
     }
 
+    // Check if the main table URL will change with this subset
+    auto override_url_template = iftb_url_overrides_.find(combined_subset.design_space);
+    bool replace_url_template =
+      IsMixedMode() &&
+      (override_url_template != iftb_url_overrides_.end()) &&
+      override_url_template->second != main_table.GetUrlTemplate();
+
     FontData patch;
-    auto differ = GetDifferFor(main_table, *next, table_keyed_compat_id);
+    auto differ = GetDifferFor(*next, table_keyed_compat_id, replace_url_template);
     if (!differ.ok()) {
       return differ.status();
     }
@@ -650,19 +653,15 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
 }
 
 StatusOr<std::unique_ptr<const BinaryDiff>> Encoder::GetDifferFor(
-    const IFTTable& base_table, const FontData& font_data,
-    CompatId compat_id) const {
+    const FontData& font_data,
+    CompatId compat_id,
+    bool replace_url_template) const {
   if (!IsMixedMode()) {
     return std::unique_ptr<const BinaryDiff>(
         Encoder::FullFontTableKeyedDiff(compat_id));
   }
 
-  auto new_url_template = UrlTemplateFor(font_data);
-  if (!new_url_template.ok()) {
-    return new_url_template.status();
-  }
-
-  if (base_table.GetUrlTemplate() != *new_url_template) {
+  if (replace_url_template) {
     return std::unique_ptr<const BinaryDiff>(
         Encoder::ReplaceIftMapTableKeyedDiff(compat_id));
   }
