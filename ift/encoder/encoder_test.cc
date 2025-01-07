@@ -573,10 +573,10 @@ TEST_F(EncoderTest, Encode_ThreeSubsets_VF) {
   ASSERT_TRUE(sc.ok()) << sc;
 
   graph expected{
-      {"a wght[100,900]", {"ab wght[100,900]", "a wght[100,900];wdth[75,100]"}},
-      {"ab wght[100,900]", {"ab wght[100,900];wdth[75,100]"}},
-      {"a wght[100,900];wdth[75,100]", {"ab wght[100,900];wdth[75,100]"}},
-      {"ab wght[100,900];wdth[75,100]", {}},
+      {"a|wght[100..900]", {"ab|wght[100..900]", "a|wght[100..900],wdth[75..100]"}},
+      {"ab|wght[100..900]", {"ab|wght[100..900],wdth[75..100]"}},
+      {"a|wght[100..900],wdth[75..100]", {"ab|wght[100..900],wdth[75..100]"}},
+      {"ab|wght[100..900],wdth[75..100]", {}},
   };
   ASSERT_EQ(g, expected);
 }
