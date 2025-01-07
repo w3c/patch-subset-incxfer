@@ -13,8 +13,8 @@
 #include "common/hb_set_unique_ptr.h"
 #include "common/sparse_bit_set.h"
 #include "gtest/gtest.h"
-#include "ift/proto/patch_encoding.h"
 #include "ift/proto/format_2_patch_map.h"
+#include "ift/proto/patch_encoding.h"
 
 using absl::flat_hash_map;
 using absl::flat_hash_set;
@@ -58,8 +58,8 @@ class IFTTableTest : public ::testing::Test {
     complex_ids.GetPatchMap().AddEntry({2}, 2, TABLE_KEYED_PARTIAL);
     complex_ids.GetPatchMap().AddEntry({4}, 4, TABLE_KEYED_PARTIAL);
 
-    hb_blob_unique_ptr blob = make_hb_blob(hb_blob_create_from_file(
-        "common/testdata/Roboto-Regular.ab.ttf"));
+    hb_blob_unique_ptr blob = make_hb_blob(
+        hb_blob_create_from_file("common/testdata/Roboto-Regular.ab.ttf"));
     roboto_ab = make_hb_face(hb_face_create(blob.get(), 0));
 
     blob = make_hb_blob(
@@ -94,7 +94,6 @@ TEST_F(IFTTableTest, AddToFont) {
       hb_face_reference_table(face.get(), HB_TAG('I', 'F', 'T', ' ')));
 
   FontData data(blob.get());
-  
 
   std::string expected = *Format2PatchMap::Serialize(sample);
   FontData expected_data(expected);
@@ -192,9 +191,7 @@ TEST_F(IFTTableTest, AddToFont_IftbConversionRoboto) {
 
 TEST_F(IFTTableTest, GetId) { ASSERT_EQ(sample.GetId(), CompatId(1, 2, 3, 4)); }
 
-TEST_F(IFTTableTest, GetId_None) {
-  ASSERT_EQ(empty.GetId(), CompatId());
-}
+TEST_F(IFTTableTest, GetId_None) { ASSERT_EQ(empty.GetId(), CompatId()); }
 
 TEST_F(IFTTableTest, SetId_Good) {
   IFTTable table;

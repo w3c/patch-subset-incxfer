@@ -21,24 +21,24 @@ class FontHelperTest : public ::testing::Test {
         roboto(make_hb_face(nullptr)),
         roboto_vf(make_hb_face(nullptr)),
         roboto_vf_abcd(make_hb_face(nullptr)) {
-    hb_blob_unique_ptr blob = make_hb_blob(hb_blob_create_from_file(
-        "common/testdata/Roboto-Regular.ab.ttf"));
+    hb_blob_unique_ptr blob = make_hb_blob(
+        hb_blob_create_from_file("common/testdata/Roboto-Regular.ab.ttf"));
     roboto_ab = make_hb_face(hb_face_create(blob.get(), 0));
 
     blob = make_hb_blob(
         hb_blob_create_from_file("common/testdata/Roboto-Regular.ttf"));
     roboto = make_hb_face(hb_face_create(blob.get(), 0));
 
-    blob = make_hb_blob(hb_blob_create_from_file(
-        "common/testdata/Roboto[wdth,wght].ttf"));
+    blob = make_hb_blob(
+        hb_blob_create_from_file("common/testdata/Roboto[wdth,wght].ttf"));
     roboto_vf = make_hb_face(hb_face_create(blob.get(), 0));
 
-    blob = make_hb_blob(hb_blob_create_from_file(
-        "common/testdata/Roboto[wdth,wght].abcd.ttf"));
+    blob = make_hb_blob(
+        hb_blob_create_from_file("common/testdata/Roboto[wdth,wght].abcd.ttf"));
     roboto_vf_abcd = make_hb_face(hb_face_create(blob.get(), 0));
 
-    blob = make_hb_blob(hb_blob_create_from_file(
-        "common/testdata/NotoSansJP-Regular.otf"));
+    blob = make_hb_blob(
+        hb_blob_create_from_file("common/testdata/NotoSansJP-Regular.otf"));
     noto_sans_jp_otf = make_hb_face(hb_face_create(blob.get(), 0));
 
     blob = make_hb_blob(

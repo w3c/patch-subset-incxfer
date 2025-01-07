@@ -132,8 +132,7 @@ class Encoder {
    * node via a patch. Once enabled data for all codepoints and those features
    * will always be available.
    */
-  void AddOptionalFeatureGroup(
-      const absl::btree_set<hb_tag_t>& feature_tag);
+  void AddOptionalFeatureGroup(const absl::btree_set<hb_tag_t>& feature_tag);
 
   void AddOptionalDesignSpace(const design_space_t& space);
 
@@ -245,7 +244,8 @@ class Encoder {
       const absl::flat_hash_set<uint32_t>& ids) const;
 
   /*
-   * Returns true if this encoding will contain both glyph keyed and table keyed patches.
+   * Returns true if this encoding will contain both glyph keyed and table keyed
+   * patches.
    */
   bool IsMixedMode() const { return !existing_iftb_patches_.empty(); }
 
@@ -274,8 +274,7 @@ class Encoder {
   void RemoveIftbPatches(T ids);
 
   absl::StatusOr<std::unique_ptr<const common::BinaryDiff>> GetDifferFor(
-      const common::FontData& font_data,
-      common::CompatId compat_id,
+      const common::FontData& font_data, common::CompatId compat_id,
       bool replace_url_template) const;
 
   common::CompatId GenerateCompatId();

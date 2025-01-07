@@ -1,10 +1,11 @@
 #include "ift/encoder/encoder.h"
 
+#include <stdlib.h>
+
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <stdlib.h>
 
 #include "absl/container/btree_map.h"
 #include "absl/container/btree_set.h"
@@ -145,12 +146,13 @@ class EncoderTest : public ::testing::Test {
   absl::StatusOr<std::string> exec(const char* cmd) {
     std::array<char, 128> buffer;
     std::string result;
-    FILE *pipe = popen(cmd, "r");
+    FILE* pipe = popen(cmd, "r");
     if (!pipe) {
       return absl::InternalError("Unable to start process.");
     }
-    while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe) != nullptr) {
-        result += buffer.data();
+    while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe) !=
+           nullptr) {
+      result += buffer.data();
     }
     if (pclose(pipe)) {
       return absl::InternalError("exec command failed.");
@@ -162,8 +164,7 @@ class EncoderTest : public ::testing::Test {
     std::stringstream ss(text);
 
     std::string line;
-    while (getline(ss, line))
-    {
+    while (getline(ss, line)) {
       std::stringstream line_ss(line);
       std::string node;
       if (!getline(line_ss, node, ';')) {
@@ -178,11 +179,11 @@ class EncoderTest : public ::testing::Test {
       }
     }
   }
-  
+
   Status ToGraph(const Encoder& encoder, const FontData& base, graph& out) {
     char template_str[] = "encoder_test_XXXXXX";
     const char* temp_dir = mkdtemp(template_str);
-    
+
     if (!temp_dir) {
       return absl::InternalError("Failed to create temp working directory.");
     }
@@ -200,10 +201,11 @@ class EncoderTest : public ::testing::Test {
       auto sc = to_file(data, full_path.c_str());
       if (!sc.ok()) {
         return sc;
-      }      
+      }
     }
 
-    std::string command = absl::StrCat("${TEST_SRCDIR}/fontations/ift_graph --font=", font_path);
+    std::string command =
+        absl::StrCat("${TEST_SRCDIR}/fontations/ift_graph --font=", font_path);
     auto r = exec(command.c_str());
     if (!r.ok()) {
       return r.status();
@@ -460,7 +462,7 @@ TEST_F(EncoderTest, Encode_OneSubset) {
   hb_face_destroy(face);
 
   ASSERT_TRUE(base.ok()) << base.status();
-  
+
   graph g;
   auto sc = ToGraph(encoder, *base, g);
   ASSERT_TRUE(sc.ok()) << sc;
@@ -573,7 +575,8 @@ TEST_F(EncoderTest, Encode_ThreeSubsets_VF) {
   ASSERT_TRUE(sc.ok()) << sc;
 
   graph expected{
-      {"a|wght[100..900]", {"ab|wght[100..900]", "a|wght[100..900],wdth[75..100]"}},
+      {"a|wght[100..900]",
+       {"ab|wght[100..900]", "a|wght[100..900],wdth[75..100]"}},
       {"ab|wght[100..900]", {"ab|wght[100..900],wdth[75..100]"}},
       {"a|wght[100..900],wdth[75..100]", {"ab|wght[100..900],wdth[75..100]"}},
       {"ab|wght[100..900],wdth[75..100]", {}},

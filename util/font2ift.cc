@@ -18,7 +18,6 @@
 #include "hb.h"
 #include "ift/encoder/encoder.h"
 #include "ift/glyph_keyed_diff.h"
-#include "ift/url_template.h"
 #include "ift/proto/patch_map.h"
 #include "ift/url_template.h"
 #include "util/helper.h"
@@ -86,8 +85,7 @@ using ift::encoder::Encoder;
 using ift::proto::PatchMap;
 using util::ParseDesignSpace;
 
-btree_set<hb_tag_t> StringsToTags(
-    const std::vector<std::string>& tag_strs) {
+btree_set<hb_tag_t> StringsToTags(const std::vector<std::string>& tag_strs) {
   btree_set<hb_tag_t> tags;
   for (const auto& tag_str : tag_strs) {
     if (tag_str.size() != 4) {

@@ -94,9 +94,7 @@ class PatchMap {
     return other.entries_ == entries_;
   }
 
-  bool operator!=(const PatchMap& other) const {
-    return !(*this == other);
-  }
+  bool operator!=(const PatchMap& other) const { return !(*this == other); }
 
   absl::Span<const Entry> GetEntries() const;
 

@@ -20,10 +20,10 @@
 #include "hb-subset.h"
 #include "ift/encoder/iftb_patch_creator.h"
 #include "ift/glyph_keyed_diff.h"
-#include "ift/url_template.h"
-#include "ift/proto/patch_encoding.h"
 #include "ift/proto/ift_table.h"
+#include "ift/proto/patch_encoding.h"
 #include "ift/proto/patch_map.h"
+#include "ift/url_template.h"
 
 using absl::btree_set;
 using absl::flat_hash_map;
@@ -143,7 +143,7 @@ std::vector<Encoder::SubsetDefinition> Encoder::OutgoingEdges(
   return result;
 }
 
-template<typename S>
+template <typename S>
 S subtract(const S& a, const S& b) {
   S c;
   for (uint32_t v : a) {
@@ -399,8 +399,7 @@ Status Encoder::AddExtensionSubsetOfIftbPatches(
   return absl::OkStatus();
 }
 
-void Encoder::AddOptionalFeatureGroup(
-    const btree_set<hb_tag_t>& feature_tags) {
+void Encoder::AddOptionalFeatureGroup(const btree_set<hb_tag_t>& feature_tags) {
   SubsetDefinition def;
   def.feature_tags = feature_tags;
   extension_subsets_.push_back(def);
@@ -629,14 +628,15 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
     }
 
     // Check if the main table URL will change with this subset
-    auto override_url_template = iftb_url_overrides_.find(combined_subset.design_space);
+    auto override_url_template =
+        iftb_url_overrides_.find(combined_subset.design_space);
     bool replace_url_template =
-      IsMixedMode() &&
-      (override_url_template != iftb_url_overrides_.end()) &&
-      override_url_template->second != main_table.GetUrlTemplate();
+        IsMixedMode() && (override_url_template != iftb_url_overrides_.end()) &&
+        override_url_template->second != main_table.GetUrlTemplate();
 
     FontData patch;
-    auto differ = GetDifferFor(*next, table_keyed_compat_id, replace_url_template);
+    auto differ =
+        GetDifferFor(*next, table_keyed_compat_id, replace_url_template);
     if (!differ.ok()) {
       return differ.status();
     }
@@ -653,8 +653,7 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
 }
 
 StatusOr<std::unique_ptr<const BinaryDiff>> Encoder::GetDifferFor(
-    const FontData& font_data,
-    CompatId compat_id,
+    const FontData& font_data, CompatId compat_id,
     bool replace_url_template) const {
   if (!IsMixedMode()) {
     return std::unique_ptr<const BinaryDiff>(

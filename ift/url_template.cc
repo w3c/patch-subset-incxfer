@@ -11,7 +11,7 @@ using uritemplatecpp::UriTemplate;
 namespace ift {
 
 std::string URLTemplate::PatchToUrl(absl::string_view url_template,
-                                  uint32_t patch_idx) {
+                                    uint32_t patch_idx) {
   uint8_t bytes[4];
   bytes[0] = (patch_idx >> 24) & 0x000000FFu;
   bytes[1] = (patch_idx >> 16) & 0x000000FFu;
