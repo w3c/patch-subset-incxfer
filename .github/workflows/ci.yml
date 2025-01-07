@@ -22,21 +22,22 @@ jobs:
 
       - name: Test (Default Build)
         run: |
-          "${GITHUB_WORKSPACE}/bin/bazel" test //analysis/... //patch_subset/... //util/... //ift/... //common/... --test_output=all
+          "${GITHUB_WORKSPACE}/bin/bazel" test --enable_workspace //util/... //ift/... //common/... --test_output=all
         env:
           CC: gcc-9
 
       - name: Test (Optimized Build)
         run: |
-          "${GITHUB_WORKSPACE}/bin/bazel" test -c opt //analysis/... //patch_subset/... //util/... //ift/... //common/... --test_output=all
+          "${GITHUB_WORKSPACE}/bin/bazel" test --enable_workspace -c opt //util/... //ift/... //common/... --test_output=all
         env:
           CC: gcc-9
 
-      - name: Build Webassembly
-        run: |
-          "${GITHUB_WORKSPACE}/bin/bazel" build --copt=-Os js_client:patch_subset_wasm js_client:ift_wasm
-        env:
-          CC: gcc-9
+#      TODO renable once re-implemented using a wasm build of the rust client.
+#      - name: Build Webassembly
+#        run: |
+#          "${GITHUB_WORKSPACE}/bin/bazel" build --enable_workspace --copt=-Os js_client:patch_subset_wasm js_client:ift_wasm
+#        env:
+#          CC: gcc-9
 
   check_tests_osx:
     name: Check Tests (Mac OS)
@@ -49,7 +50,7 @@ jobs:
           brew install bazelisk
 
       - name: Run Tests
-        run: bazel test //analysis/... //patch_subset/... //util/... //ift/... //common/... --test_output=all
+        run: bazel test --enable_workspace //util/... //ift/... //common/... --test_output=all
     
   check_formatting:
     name: Check Formatting
