@@ -26,9 +26,8 @@ using ift::feature_registry::IndexToFeatureTag;
 
 namespace ift::proto {
 
-template<typename S>
-static bool sets_intersect(const S& a,
-                           const S& b) {
+template <typename S>
+static bool sets_intersect(const S& a, const S& b) {
   bool a_smaller = a.size() < b.size();
   const auto& smaller = a_smaller ? a : b;
   const auto& larger = a_smaller ? b : a;

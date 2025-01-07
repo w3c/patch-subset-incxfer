@@ -41,34 +41,34 @@ TEST_F(PatchMapTest, GetEntries) {
       {{55, 56, 57}, 2, GLYPH_KEYED},
   };
 
-  PatchMap map {entries[0], entries[1]};
+  PatchMap map{entries[0], entries[1]};
   Span<const PatchMap::Entry> expected(entries);
 
   ASSERT_EQ(map.GetEntries(), expected);
 }
 
 TEST_F(PatchMapTest, Equal) {
-  PatchMap map1 {
+  PatchMap map1{
       {{30, 32}, 1, TABLE_KEYED_FULL},
       {{55, 56, 57}, 2, GLYPH_KEYED},
   };
 
-  PatchMap map2 {
+  PatchMap map2{
       {{30, 32}, 1, TABLE_KEYED_FULL},
       {{55, 56, 57}, 2, GLYPH_KEYED},
   };
 
-  PatchMap map3 {
+  PatchMap map3{
       {{30, 32}, 1, TABLE_KEYED_FULL},
       {{55, 56, 57}, 3, GLYPH_KEYED},
   };
 
-  PatchMap map4 {
+  PatchMap map4{
       {{30, 32}, 1, TABLE_KEYED_FULL},
       {{55, 56, 57}, 2, TABLE_KEYED_FULL},
   };
 
-  PatchMap map5 {
+  PatchMap map5{
       {{30, 32}, 1, TABLE_KEYED_FULL},
       {{55, 56, 58}, 2, GLYPH_KEYED},
   };
@@ -81,11 +81,11 @@ TEST_F(PatchMapTest, Equal) {
 }
 
 TEST_F(PatchMapTest, AddEntry) {
-  PatchMap map {
+  PatchMap map{
       {{30, 32}, 1, TABLE_KEYED_FULL},
       {{55, 56, 57}, 2, GLYPH_KEYED},
   };
-  
+
   map.AddEntry({77, 79, 80}, 5, TABLE_KEYED_FULL);
 
   PatchMap expected = {
@@ -111,10 +111,8 @@ TEST_F(PatchMapTest, AddEntry) {
 TEST_F(PatchMapTest, IsInvalidating) {
   ASSERT_FALSE(PatchMap::Entry({}, 0, GLYPH_KEYED).IsInvalidating());
   ASSERT_TRUE(PatchMap::Entry({}, 0, TABLE_KEYED_FULL).IsInvalidating());
-  ASSERT_TRUE(
-      PatchMap::Entry({}, 0, TABLE_KEYED_PARTIAL).IsInvalidating());
+  ASSERT_TRUE(PatchMap::Entry({}, 0, TABLE_KEYED_PARTIAL).IsInvalidating());
 }
-
 
 TEST_F(PatchMapTest, CoverageIntersection) {
   // important cases:
@@ -138,7 +136,7 @@ TEST_F(PatchMapTest, CoverageIntersection) {
   flat_hash_set<uint32_t> codepoints_in_match = {2, 7};
   flat_hash_set<uint32_t> codepoints_in_no_match = {5};
   btree_set<uint32_t> features_in_match = {HB_TAG('a', 'b', 'c', 'd'),
-                                               HB_TAG('y', 'y', 'y', 'y')};
+                                           HB_TAG('y', 'y', 'y', 'y')};
   btree_set<uint32_t> features_in_no_match = {HB_TAG('x', 'x', 'x', 'x')};
 
   flat_hash_map<hb_tag_t, common::AxisRange> design_space_match = {
@@ -155,10 +153,10 @@ TEST_F(PatchMapTest, CoverageIntersection) {
   btree_set<uint32_t> unspecified_features;
   flat_hash_map<hb_tag_t, common::AxisRange> unspecified_design_space;
 
-  ASSERT_FALSE(codepoints.Intersects(unspecified_codepoints, unspecified_features,
-                                     unspecified_design_space));
-  ASSERT_FALSE(codepoints_features.Intersects(unspecified_codepoints, unspecified_features,
-                                              unspecified_design_space));
+  ASSERT_FALSE(codepoints.Intersects(
+      unspecified_codepoints, unspecified_features, unspecified_design_space));
+  ASSERT_FALSE(codepoints_features.Intersects(
+      unspecified_codepoints, unspecified_features, unspecified_design_space));
   ASSERT_FALSE(features.Intersects(unspecified_codepoints, unspecified_features,
                                    unspecified_design_space));
   ASSERT_TRUE(empty.Intersects(unspecified_codepoints, unspecified_features,
@@ -170,8 +168,8 @@ TEST_F(PatchMapTest, CoverageIntersection) {
                                     unspecified_design_space));
   ASSERT_TRUE(codepoints.Intersects(codepoints_in_match, features_in_no_match,
                                     unspecified_design_space));
-  ASSERT_FALSE(codepoints.Intersects(codepoints_in_no_match, unspecified_features,
-                                     unspecified_design_space));
+  ASSERT_FALSE(codepoints.Intersects(
+      codepoints_in_no_match, unspecified_features, unspecified_design_space));
   ASSERT_FALSE(codepoints.Intersects(codepoints_in_no_match, features_in_match,
                                      unspecified_design_space));
   ASSERT_FALSE(codepoints.Intersects(
@@ -192,8 +190,8 @@ TEST_F(PatchMapTest, CoverageIntersection) {
 
   ASSERT_TRUE(codepoints_features.Intersects(
       codepoints_in_match, features_in_match, unspecified_design_space));
-  ASSERT_FALSE(codepoints_features.Intersects(unspecified_codepoints, features_in_match,
-                                              unspecified_design_space));
+  ASSERT_FALSE(codepoints_features.Intersects(
+      unspecified_codepoints, features_in_match, unspecified_design_space));
   ASSERT_TRUE(codepoints_features.Intersects(
       codepoints_in_match, features_in_match, design_space_no_match_1));
   ASSERT_FALSE(codepoints_features.Intersects(
@@ -203,12 +201,12 @@ TEST_F(PatchMapTest, CoverageIntersection) {
   ASSERT_FALSE(codepoints_features.Intersects(
       codepoints_in_match, features_in_no_match, unspecified_design_space));
 
-  ASSERT_TRUE(design_space.Intersects(unspecified_codepoints, unspecified_features,
-                                      design_space_match));
-  ASSERT_FALSE(design_space.Intersects(unspecified_codepoints, unspecified_features,
-                                       design_space_no_match_1));
-  ASSERT_FALSE(design_space.Intersects(unspecified_codepoints, unspecified_features,
-                                       design_space_no_match_2));
+  ASSERT_TRUE(design_space.Intersects(
+      unspecified_codepoints, unspecified_features, design_space_match));
+  ASSERT_FALSE(design_space.Intersects(
+      unspecified_codepoints, unspecified_features, design_space_no_match_1));
+  ASSERT_FALSE(design_space.Intersects(
+      unspecified_codepoints, unspecified_features, design_space_no_match_2));
 }
 
 }  // namespace ift::proto
