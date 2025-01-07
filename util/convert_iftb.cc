@@ -1,5 +1,3 @@
-#include <google/protobuf/text_format.h>
-
 #include <cstdint>
 #include <cstdlib>
 #include <string>
@@ -14,7 +12,7 @@
 #include "common/compat_id.h"
 #include "common/font_data.h"
 #include "hb.h"
-#include "ift/proto/IFT.pb.h"
+#include "ift/proto/patch_encoding.h"
 #include "ift/proto/ift_table.h"
 #include "ift/proto/patch_map.h"
 
