@@ -67,7 +67,6 @@ cc_library(
     ],
     deps = [
         "//ift/proto",
-        "//ift/proto:IFT_cc_proto",
         "//common",
         "@com_google_absl//absl/container:btree",
         "@com_google_absl//absl/container:flat_hash_map",

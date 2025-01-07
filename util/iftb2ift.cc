@@ -1,5 +1,3 @@
-#include <google/protobuf/text_format.h>
-
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -29,7 +27,6 @@ ABSL_FLAG(std::string, output_format, "font",
 
 using common::FontData;
 using common::Woff2;
-using google::protobuf::TextFormat;
 using ift::proto::IFTTable;
 using util::convert_iftb;
 
