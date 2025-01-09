@@ -56,6 +56,29 @@ cc_test(
     ],
 )
 
+cc_test(
+    name = "integration_test",
+    size = "medium",
+    srcs = [
+        "integration_test.cc",
+    ],
+    copts = [
+        "-DHB_EXPERIMENTAL_API",
+    ],
+    data = [
+        "//ift:testdata",
+        "//common:testdata",
+    ],
+    deps = [
+        ":ift",
+        "//common",
+        "//ift/encoder",
+        "//ift/client:fontations",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@gtest//:gtest_main",
+    ],
+)
+
 filegroup(
     name = "testdata",
     srcs = glob(["testdata/**"]),

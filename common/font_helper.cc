@@ -8,6 +8,7 @@
 #include "common/axis_range.h"
 #include "common/fast_hasher.h"
 #include "common/font_data.h"
+#include "common/hb_set_unique_ptr.h"
 #include "common/indexed_data_reader.h"
 #include "hb-ot.h"
 #include "hb-subset.h"
@@ -149,6 +150,19 @@ flat_hash_map<uint32_t, uint32_t> FontHelper::GidToUnicodeMap(hb_face_t* face) {
 
   hb_map_destroy(unicode_to_gid);
   return gid_to_unicode;
+}
+
+btree_set<uint32_t> FontHelper::ToCodepointsSet(hb_face_t* face) {
+  hb_set_unique_ptr codepoints = make_hb_set();
+  hb_face_collect_unicodes(face, codepoints.get());
+
+  btree_set<uint32_t> result;
+  hb_codepoint_t cp = HB_SET_VALUE_INVALID;
+  while (hb_set_next(codepoints.get(), &cp)) {
+    result.insert(cp);
+  }
+
+  return result;
 }
 
 absl::flat_hash_set<hb_tag_t> FontHelper::GetTags(hb_face_t* face) {

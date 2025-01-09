@@ -19,20 +19,11 @@ checksum = "512761e0bb2578dd7380c6baaa0f4ce03e84f95e960231d1dec8bf4d7d6e2627"
 
 [[package]]
 name = "aho-corasick"
-version = "0.5.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca972c2ea5f742bfce5687b9aef75506a764f61d37f8f649047846a9686ddb66"
-dependencies = [
- "memchr 0.1.11",
-]
-
-[[package]]
-name = "aho-corasick"
 version = "1.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8e60d3430d3a69478ad0993f19238d2df97c507009a52b3c10addcd7f6bcb916"
 dependencies = [
- "memchr 2.7.4",
+ "memchr",
 ]
 
 [[package]]
@@ -53,7 +44,7 @@ version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d52a9bb7ec0cf484c551830a7ce27bd20d67eac647e1befb56b0be4ee39a55d2"
 dependencies = [
- "winapi 0.3.9",
+ "winapi",
 ]
 
 [[package]]
@@ -128,7 +119,7 @@ checksum = "d9b39be18770d11421cdb1b9947a45dd3f37e93092cbf377614828a319d5fee8"
 dependencies = [
  "hermit-abi 0.1.19",
  "libc",
- "winapi 0.3.9",
+ "winapi",
 ]
 
 [[package]]
@@ -355,7 +346,7 @@ dependencies = [
  "oorandom",
  "plotters",
  "rayon",
- "regex 1.11.1",
+ "regex",
  "serde",
  "serde_derive",
  "serde_json",
@@ -466,7 +457,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4f2c92ceda6ceec50f43169f9ee8424fe2db276791afde7b2cd8bc084cb376ab"
 dependencies = [
  "log",
- "regex 1.11.1",
+ "regex",
 ]
 
 [[package]]
@@ -541,7 +532,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rayon",
- "regex 1.11.1",
+ "regex",
  "rustfmt-wrapper",
  "serde",
  "syn 2.0.90",
@@ -682,7 +673,7 @@ dependencies = [
  "futures-macro",
  "futures-sink",
  "futures-task",
- "memchr 2.7.4",
+ "memchr",
  "pin-project-lite",
  "pin-utils",
  "slab",
@@ -793,7 +784,7 @@ dependencies = [
  "read-fonts",
  "shared-brotli-patch-decoder",
  "skrifa",
- "uritemplate",
+ "uri-template-system",
  "write-fonts",
 ]
 
@@ -865,16 +856,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "kernel32-sys"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"
-dependencies = [
- "winapi 0.2.8",
- "winapi-build",
-]
-
-[[package]]
 name = "klippa"
 version = "0.1.0"
 dependencies = [
@@ -883,7 +864,7 @@ dependencies = [
  "fnv",
  "font-test-data",
  "hashbrown",
- "regex 1.11.1",
+ "regex",
  "skrifa",
  "tempdir",
  "thiserror",
@@ -933,15 +914,6 @@ name = "log"
 version = "0.4.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a7a70ba024b9dc04c27ea2f0c0548feb474ec5c54bba33a7f72f873a39d07b24"
-
-[[package]]
-name = "memchr"
-version = "0.1.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8b629fb514376c675b98c1421e80b151d3817ac42d7c667717d282761418d20"
-dependencies = [
- "libc",
-]
 
 [[package]]
 name = "memchr"
@@ -1014,7 +986,7 @@ version = "0.36.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aedf0a2d09c573ed1d8d85b30c119153926a2b36dce0ab28322c09a117a4683e"
 dependencies = [
- "memchr 2.7.4",
+ "memchr",
 ]
 
 [[package]]
@@ -1133,7 +1105,7 @@ dependencies = [
  "libc",
  "rand_core 0.3.1",
  "rdrand",
- "winapi 0.3.9",
+ "winapi",
 ]
 
 [[package]]
@@ -1212,7 +1184,7 @@ dependencies = [
 
 [[package]]
 name = "read-fonts"
-version = "0.25.2"
+version = "0.25.3"
 dependencies = [
  "bytemuck",
  "core_maths",
@@ -1225,27 +1197,14 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "0.1.80"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4fd4ace6a8cf7860714a2c2280d6c1f7e6a413486c13298bbc86fd3da019402f"
-dependencies = [
- "aho-corasick 0.5.3",
- "memchr 0.1.11",
- "regex-syntax 0.3.9",
- "thread_local",
- "utf8-ranges",
-]
-
-[[package]]
-name = "regex"
 version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b544ef1b4eac5dc2db33ea63606ae9ffcfac26c1416a2806ae0bf5f56b201191"
 dependencies = [
- "aho-corasick 1.1.3",
- "memchr 2.7.4",
+ "aho-corasick",
+ "memchr",
  "regex-automata",
- "regex-syntax 0.8.5",
+ "regex-syntax",
 ]
 
 [[package]]
@@ -1254,16 +1213,10 @@ version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "809e8dc61f6de73b46c85f4c96486310fe304c434cfa43669d7b40f711150908"
 dependencies = [
- "aho-corasick 1.1.3",
- "memchr 2.7.4",
- "regex-syntax 0.8.5",
+ "aho-corasick",
+ "memchr",
+ "regex-syntax",
 ]
-
-[[package]]
-name = "regex-syntax"
-version = "0.3.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9ec002c35e86791825ed294b50008eea9ddfc8def4420124fbc6b08db834957"
 
 [[package]]
 name = "regex-syntax"
@@ -1283,7 +1236,7 @@ version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3acd125665422973a33ac9d3dd2df85edad0f4ae9b00dafb1a05e43a9f5ef8e7"
 dependencies = [
- "winapi 0.3.9",
+ "winapi",
 ]
 
 [[package]]
@@ -1308,7 +1261,7 @@ dependencies = [
  "glob",
  "proc-macro2",
  "quote",
- "regex 1.11.1",
+ "regex",
  "relative-path",
  "rustc_version",
  "syn 2.0.90",
@@ -1404,7 +1357,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c7fceb2473b9166b2294ef05efcb65a3db80803f0b03ef86a5fc88a2b85ee377"
 dependencies = [
  "itoa",
- "memchr 2.7.4",
+ "memchr",
  "ryu",
  "serde",
 ]
@@ -1439,7 +1392,7 @@ checksum = "1de1d4f81173b03af4c0cbed3c898f6bff5b870e4a7f5d6f4057d62a7a4b686e"
 
 [[package]]
 name = "skrifa"
-version = "0.26.2"
+version = "0.26.3"
 dependencies = [
  "bytemuck",
  "core_maths",
@@ -1559,7 +1512,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "633c1a546cee861a1a6d0dc69ebeca693bf4296661ba7852b9d21d159e0506df"
 dependencies = [
  "libc",
- "winapi 0.3.9",
+ "winapi",
 ]
 
 [[package]]
@@ -1591,25 +1544,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.90",
-]
-
-[[package]]
-name = "thread-id"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9539db560102d1cef46b8b78ce737ff0bb64e7e18d35b2a5688f7d097d0ff03"
-dependencies = [
- "kernel32-sys",
- "libc",
-]
-
-[[package]]
-name = "thread_local"
-version = "0.2.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8576dbbfcaef9641452d5cf0df9b0e7eeab7694956dd33bb61515fb8f18cfdd5"
-dependencies = [
- "thread-id",
 ]
 
 [[package]]
@@ -1664,7 +1598,7 @@ checksum = "ebc8c9a7f0a2966e1acdaf0461023d0b01471eeead645370cf4c3f5cff153f2a"
 dependencies = [
  "home",
  "once_cell",
- "regex 1.11.1",
+ "regex",
  "semver",
  "walkdir",
 ]
@@ -1688,19 +1622,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7dd6e30e90baa6f72411720665d41d89b9a3d039dc45b8faea1ddd07f617f6af"
 
 [[package]]
-name = "uritemplate"
-version = "0.1.2"
+name = "uri-template-system"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "01eaa32c7380d40c2fd400fb0a95e394b6c40632ca4bcb4bc1683f0fbbf22749"
+checksum = "ed4693c8a4a4ff120a73bd9e0e0b22ae73298f4aadd5bf9a942376d308cec177"
 dependencies = [
- "regex 0.1.80",
+ "uri-template-system-core",
 ]
 
 [[package]]
-name = "utf8-ranges"
-version = "0.1.3"
+name = "uri-template-system-core"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1ca13c08c41c9c3e04224ed9ff80461d97e121589ff27c753a16cb10830ae0f"
+checksum = "26f254395af92efc86d9a0bb0a614dc76865c8a4ea0d71ba66ccd134d7f831fb"
+dependencies = [
+ "fnv",
+ "thiserror",
+]
 
 [[package]]
 name = "utf8parse"
@@ -1800,12 +1738,6 @@ dependencies = [
 
 [[package]]
 name = "winapi"
-version = "0.2.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "167dc9d6949a9b857f3451275e911c3f44255842c1f7a76f33c55103a909087a"
-
-[[package]]
-name = "winapi"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5c839a674fcd7a98952e593242ea400abe93992746761e38641405d28b00f419"
@@ -1813,12 +1745,6 @@ dependencies = [
  "winapi-i686-pc-windows-gnu",
  "winapi-x86_64-pc-windows-gnu",
 ]
-
-[[package]]
-name = "winapi-build"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d315eee3b34aca4797b2da6b13ed88266e6d612562a0c46390af8299fc699bc"
 
 [[package]]
 name = "winapi-i686-pc-windows-gnu"
@@ -1929,12 +1855,12 @@ version = "0.6.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "36c1fec1a2bb5866f07c25f68c26e565c4c200aebb96d7e55710c19d3e8ac49b"
 dependencies = [
- "memchr 2.7.4",
+ "memchr",
 ]
 
 [[package]]
 name = "write-fonts"
-version = "0.33.0"
+version = "0.33.1"
 dependencies = [
  "ansi_term",
  "bincode",
