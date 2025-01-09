@@ -18,7 +18,6 @@
 #include "common/hb_set_unique_ptr.h"
 #include "common/woff2.h"
 #include "hb-subset.h"
-#include "ift/encoder/iftb_patch_creator.h"
 #include "ift/glyph_keyed_diff.h"
 #include "ift/proto/ift_table.h"
 #include "ift/proto/patch_encoding.h"
@@ -44,6 +43,7 @@ using common::make_hb_blob;
 using common::make_hb_face;
 using common::make_hb_set;
 using common::Woff2;
+using ift::GlyphKeyedDiff;
 using ift::proto::GLYPH_KEYED;
 using ift::proto::IFTTable;
 using ift::proto::PatchEncoding;
@@ -430,12 +430,12 @@ StatusOr<FontData> Encoder::Encode() {
     return absl::FailedPreconditionError("Encoder must have a face set.");
   }
 
-  auto sc = PopulateIftbPatches(base_subset_.design_space, UrlTemplate(),
-                                this->glyph_keyed_compat_id_);
+  auto sc = PopulateGlyphKeyedPatches(base_subset_.design_space, UrlTemplate(),
+                                      this->glyph_keyed_compat_id_);
   for (const auto& [ds, url_template] : iftb_url_overrides_) {
     CompatId compat_id = this->GenerateCompatId();
     this->SetOverrideCompatId(ds, compat_id);
-    sc.Update(PopulateIftbPatches(ds, url_template, compat_id));
+    sc.Update(PopulateGlyphKeyedPatches(ds, url_template, compat_id));
   }
 
   if (!sc.ok()) {
@@ -445,9 +445,9 @@ StatusOr<FontData> Encoder::Encode() {
   return Encode(base_subset_, true);
 }
 
-Status Encoder::PopulateIftbPatches(const design_space_t& design_space,
-                                    std::string url_template,
-                                    CompatId compat_id) {
+Status Encoder::PopulateGlyphKeyedPatches(const design_space_t& design_space,
+                                          std::string url_template,
+                                          CompatId compat_id) {
   if (existing_iftb_patches_.empty()) {
     return absl::OkStatus();
   }
@@ -464,13 +464,16 @@ Status Encoder::PopulateIftbPatches(const design_space_t& design_space,
     instance.shallow_copy(*result);
   }
 
+  GlyphKeyedDiff differ(instance, compat_id, {FontHelper::kGlyf, FontHelper::kGvar});
+
   for (const auto& e : existing_iftb_patches_) {
     uint32_t index = e.first;
     std::string url = URLTemplate::PatchToUrl(url_template, index);
 
     SubsetDefinition subset = e.second;
-    auto patch =
-        IftbPatchCreator::CreatePatch(instance, index, compat_id, subset.gids);
+    btree_set<uint32_t> gids;
+    std::copy(subset.gids.begin(), subset.gids.end(), std::inserter(gids, gids.begin()));
+    auto patch = differ.CreatePatch(gids);
     if (!patch.ok()) {
       return patch.status();
     }
@@ -481,8 +484,8 @@ Status Encoder::PopulateIftbPatches(const design_space_t& design_space,
   return absl::OkStatus();
 }
 
-Status Encoder::PopulateIftbPatchMap(PatchMap& patch_map,
-                                     const design_space_t& design_space) const {
+Status Encoder::PopulateGlyphKeyedPatchMap(PatchMap& patch_map,
+                                           const design_space_t& design_space) const {
   if (existing_iftb_patches_.empty()) {
     return absl::OkStatus();
   }
@@ -579,8 +582,8 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
     }
   }
 
-  PatchMap& iftb_patch_map = main_table.GetPatchMap();
-  auto sc = PopulateIftbPatchMap(iftb_patch_map, base_subset.design_space);
+  PatchMap& glyph_keyed_patch_map = main_table.GetPatchMap();
+  auto sc = PopulateGlyphKeyedPatchMap(glyph_keyed_patch_map, base_subset.design_space);
   if (!sc.ok()) {
     return sc;
   }

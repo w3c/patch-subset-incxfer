@@ -3,8 +3,6 @@ cc_library(
   srcs = [
     "encoder.h",
     "encoder.cc",
-    "iftb_patch_creator.h",
-    "iftb_patch_creator.cc",
   ],
   deps = [
     "//ift/proto",
@@ -32,7 +30,6 @@ cc_test(
   size = "small",
   srcs = [
     "encoder_test.cc",
-    "iftb_patch_creator_test.cc",
   ],
   data = [
     "//ift:testdata",
