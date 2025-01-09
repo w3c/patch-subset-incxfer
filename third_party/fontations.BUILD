@@ -13,6 +13,19 @@ rust_binary(
     visibility = ["//visibility:public"],
 )
 
+rust_binary(
+    name = "ift_extend",
+    srcs = glob(include = ["incremental-font-transfer/src/*.rs"], exclude = ["incremental-font-transfer/src/ift_graph.rs"]),
+    deps = [
+      "@fontations_deps//:clap",
+	    ":incremental_font_transfer",
+	    ":skrifa",
+      ":read_fonts",
+      ":font_types",
+    ],
+    visibility = ["//visibility:public"],
+)
+
 
 rust_library(
     name = "incremental_font_transfer",

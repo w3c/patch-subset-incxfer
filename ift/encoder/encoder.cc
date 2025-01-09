@@ -464,7 +464,8 @@ Status Encoder::PopulateGlyphKeyedPatches(const design_space_t& design_space,
     instance.shallow_copy(*result);
   }
 
-  GlyphKeyedDiff differ(instance, compat_id, {FontHelper::kGlyf, FontHelper::kGvar});
+  GlyphKeyedDiff differ(instance, compat_id,
+                        {FontHelper::kGlyf, FontHelper::kGvar});
 
   for (const auto& e : existing_iftb_patches_) {
     uint32_t index = e.first;
@@ -472,7 +473,8 @@ Status Encoder::PopulateGlyphKeyedPatches(const design_space_t& design_space,
 
     SubsetDefinition subset = e.second;
     btree_set<uint32_t> gids;
-    std::copy(subset.gids.begin(), subset.gids.end(), std::inserter(gids, gids.begin()));
+    std::copy(subset.gids.begin(), subset.gids.end(),
+              std::inserter(gids, gids.begin()));
     auto patch = differ.CreatePatch(gids);
     if (!patch.ok()) {
       return patch.status();
@@ -484,8 +486,8 @@ Status Encoder::PopulateGlyphKeyedPatches(const design_space_t& design_space,
   return absl::OkStatus();
 }
 
-Status Encoder::PopulateGlyphKeyedPatchMap(PatchMap& patch_map,
-                                           const design_space_t& design_space) const {
+Status Encoder::PopulateGlyphKeyedPatchMap(
+    PatchMap& patch_map, const design_space_t& design_space) const {
   if (existing_iftb_patches_.empty()) {
     return absl::OkStatus();
   }
@@ -583,7 +585,8 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
   }
 
   PatchMap& glyph_keyed_patch_map = main_table.GetPatchMap();
-  auto sc = PopulateGlyphKeyedPatchMap(glyph_keyed_patch_map, base_subset.design_space);
+  auto sc = PopulateGlyphKeyedPatchMap(glyph_keyed_patch_map,
+                                       base_subset.design_space);
   if (!sc.ok()) {
     return sc;
   }

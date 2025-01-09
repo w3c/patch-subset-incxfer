@@ -21,6 +21,7 @@ cc_library(
   visibility = [
     "//util:__pkg__",
     "//ift:__pkg__",
+    "//ift/client:__pkg__",
     "//js_client:__pkg__",
   ],
 )
@@ -34,9 +35,9 @@ cc_test(
   data = [
     "//ift:testdata",
     "//common:testdata",
-    "@fontations//:ift_graph",
   ],
   deps = [
+    "//ift/client:fontations",
     ":encoder",
      "@gtest//:gtest_main",
      "//common",
