@@ -33,20 +33,20 @@ const uint8_t data_stream_u16_short_loca[] = {
     0x01,                    // table count
 
     // glyphIds[4]
-    0x00, 0x25, // gid 37
-    0x00, 0x28, // gid 40
-    0x00, 0x49, // gid 73
-    0x00, 0x5b, // gid 91
+    0x00, 0x25,  // gid 37
+    0x00, 0x28,  // gid 40
+    0x00, 0x49,  // gid 73
+    0x00, 0x5b,  // gid 91
 
     // tables[1]
     'g', 'l', 'y', 'f',
 
     // offset stream
-    0x00, 0x00, 0x00, 0x00, // gid 37
-    0x00, 0x00, 0x00, 0x8c, // gid 40
-    0x00, 0x00, 0x00, 0x8c, // gid 73
-    0x00, 0x00, 0x01, 0x5e, // gid 91
-    0x00, 0x00, 0x01, 0xfa, // end
+    0x00, 0x00, 0x00, 0x00,  // gid 37
+    0x00, 0x00, 0x00, 0x8c,  // gid 40
+    0x00, 0x00, 0x00, 0x8c,  // gid 73
+    0x00, 0x00, 0x01, 0x5e,  // gid 91
+    0x00, 0x00, 0x01, 0xfa,  // end
 
     // gid 37 - A (140 bytes)
     0x00, 0x02, 0x00, 0x1c, 0x00, 0x00, 0x05, 0x1d, 0x05, 0xb0, 0x00, 0x07,
@@ -107,6 +107,7 @@ class GlyphKeyedDiffTest : public ::testing::Test {
     chunk3 = from_file("ift/testdata/NotoSansJP-Regular.subset_iftb/chunk3.br");
     chunk4 = from_file("ift/testdata/NotoSansJP-Regular.subset_iftb/chunk4.br");
     roboto = from_file("common/testdata/Roboto-Regular.Awesome.ttf");
+    roboto_vf = from_file("common/testdata/Roboto[wdth,wght].abcd.ttf");
   }
 
   FontData from_file(const char* filename) {
@@ -146,6 +147,7 @@ class GlyphKeyedDiffTest : public ::testing::Test {
   FontData chunk3;
   FontData chunk4;
   FontData roboto;
+  FontData roboto_vf;
   BrotliBinaryPatch unbrotli;
 };
 
@@ -228,15 +230,17 @@ TEST_F(GlyphKeyedDiffTest, CreatePatch_Glyf_ShortLoca) {
     FontData empty;
     FontData compressed_stream(patch->str(29));
     FontData uncompressed_stream;
-    auto status = unbrotli.Patch(empty, compressed_stream, &uncompressed_stream);
+    auto status =
+        unbrotli.Patch(empty, compressed_stream, &uncompressed_stream);
     ASSERT_TRUE(status.ok()) << status;
     ASSERT_EQ(uncompressed_stream.str(),
-            absl::string_view((const char*)data_stream_u16_short_loca, 543));
+              absl::string_view((const char*)data_stream_u16_short_loca, 543));
   }
 
   {
     // gvar is not in the font and should be ignored.
-    GlyphKeyedDiff differ(roboto, CompatId(1, 2, 3, 4), {FontHelper::kGlyf, FontHelper::kGvar});
+    GlyphKeyedDiff differ(roboto, CompatId(1, 2, 3, 4),
+                          {FontHelper::kGlyf, FontHelper::kGvar});
     auto patch = differ.CreatePatch({37, 40, 73, 91});
     ASSERT_TRUE(patch.ok()) << patch.status();
 
@@ -245,29 +249,164 @@ TEST_F(GlyphKeyedDiffTest, CreatePatch_Glyf_ShortLoca) {
     FontData empty;
     FontData compressed_stream(patch->str(29));
     FontData uncompressed_stream;
-    auto status = unbrotli.Patch(empty, compressed_stream, &uncompressed_stream);
+    auto status =
+        unbrotli.Patch(empty, compressed_stream, &uncompressed_stream);
     ASSERT_TRUE(status.ok()) << status;
     ASSERT_EQ(uncompressed_stream.str(),
-            absl::string_view((const char*)data_stream_u16_short_loca, 543));
+              absl::string_view((const char*)data_stream_u16_short_loca, 543));
   }
+}
+
+TEST_F(GlyphKeyedDiffTest, CreatePatch_Gvar) {
+  const uint8_t data_stream_header[] = {
+      0x00,
+      0x00,
+      0x00,
+      0x02,  // glyphCount
+      0x01,  // table count
+
+      // glyphIds[4]
+      0x00,
+      0x01,  // gid 1
+      0x00,
+      0x03,  // gid 3
+
+      // tables[1]
+      'g',
+      'v',
+      'a',
+      'r',
+  };
+  std::string data_stream((const char*)data_stream_header, 13);
+
+  auto face = roboto_vf.face();
+  auto g1_gvar = FontHelper::GvarData(face.get(), 1);
+  auto g3_gvar = FontHelper::GvarData(face.get(), 3);
+
+  uint32_t size = 0;
+  FontHelper::WriteUInt32(size, data_stream);
+  size += g1_gvar->size();
+  FontHelper::WriteUInt32(size, data_stream);
+  size += g3_gvar->size();
+  FontHelper::WriteUInt32(size, data_stream);
+
+  data_stream += *g1_gvar;
+  data_stream += *g3_gvar;
+
+  const uint8_t header[] = {
+      'i',  'f',  'g',  'k',  0x00, 0x00, 0x00, 0x00,  // reserved
+      0x00,                                            // flags
+      0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02,
+      0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x04,  // compat id
+  };
+  std::string header_data((const char*)header, 25);
+  FontHelper::WriteUInt32(data_stream.size(), header_data);
+
+  GlyphKeyedDiff differ(roboto_vf, CompatId(1, 2, 3, 4), {FontHelper::kGvar});
+  auto patch = differ.CreatePatch({1, 3});
+  ASSERT_TRUE(patch.ok()) << patch.status();
+
+  ASSERT_EQ(patch->str(0, 29), absl::string_view(header_data));
+
+  FontData empty;
+  FontData compressed_stream(patch->str(29));
+  FontData uncompressed_stream;
+  auto status = unbrotli.Patch(empty, compressed_stream, &uncompressed_stream);
+  ASSERT_TRUE(status.ok()) << status;
+  ASSERT_EQ(uncompressed_stream.str(), data_stream);
+}
+
+TEST_F(GlyphKeyedDiffTest, CreatePatch_GlyfGvar) {
+  const uint8_t data_stream_header[] = {
+      0x00,
+      0x00,
+      0x00,
+      0x02,  // glyphCount
+      0x02,  // table count
+
+      // glyphIds[4]
+      0x00,
+      0x01,  // gid 1
+      0x00,
+      0x03,  // gid 3
+
+      // tables[2]
+      'g',
+      'l',
+      'y',
+      'f',
+      'g',
+      'v',
+      'a',
+      'r',
+  };
+  std::string data_stream((const char*)data_stream_header, 17);
+
+  auto face = roboto_vf.face();
+  auto g1_glyf = FontHelper::GlyfData(face.get(), 1);
+  auto g3_glyf = FontHelper::GlyfData(face.get(), 3);
+  auto g1_gvar = FontHelper::GvarData(face.get(), 1);
+  auto g3_gvar = FontHelper::GvarData(face.get(), 3);
+
+  uint32_t size = 0;
+  FontHelper::WriteUInt32(size, data_stream);
+  size += g1_glyf->size();
+  FontHelper::WriteUInt32(size, data_stream);
+  size += g3_glyf->size();
+  FontHelper::WriteUInt32(size, data_stream);
+  size += g1_gvar->size();
+  FontHelper::WriteUInt32(size, data_stream);
+  size += g3_gvar->size();
+  FontHelper::WriteUInt32(size, data_stream);
+
+  data_stream += *g1_glyf;
+  data_stream += *g3_glyf;
+  data_stream += *g1_gvar;
+  data_stream += *g3_gvar;
+
+  const uint8_t header[] = {
+      'i',  'f',  'g',  'k',  0x00, 0x00, 0x00, 0x00,  // reserved
+      0x00,                                            // flags
+      0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02,
+      0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x04,  // compat id
+  };
+  std::string header_data((const char*)header, 25);
+  FontHelper::WriteUInt32(data_stream.size(), header_data);
+
+  GlyphKeyedDiff differ(roboto_vf, CompatId(1, 2, 3, 4),
+                        {FontHelper::kGlyf, FontHelper::kGvar});
+  auto patch = differ.CreatePatch({1, 3});
+  ASSERT_TRUE(patch.ok()) << patch.status();
+
+  ASSERT_EQ(patch->str(0, 29), absl::string_view(header_data));
+
+  FontData empty;
+  FontData compressed_stream(patch->str(29));
+  FontData uncompressed_stream;
+  auto status = unbrotli.Patch(empty, compressed_stream, &uncompressed_stream);
+  ASSERT_TRUE(status.ok()) << status;
+  ASSERT_EQ(uncompressed_stream.str(), data_stream);
 }
 
 TEST_F(GlyphKeyedDiffTest, CreatePatch_Glyf_InvalidGid) {
   GlyphKeyedDiff differ(roboto, CompatId(1, 2, 3, 4), {FontHelper::kGlyf});
-  auto patch = differ.CreatePatch({37, 40, 73, 91, 100}); // gid 100 is not in the font
-  ASSERT_EQ(patch.status(), absl::NotFoundError("Entry 100 not found in offset table."));
+  auto patch =
+      differ.CreatePatch({37, 40, 73, 91, 100});  // gid 100 is not in the font
+  ASSERT_EQ(patch.status(),
+            absl::NotFoundError("Entry 100 not found in offset table."));
 }
 
 TEST_F(GlyphKeyedDiffTest, CreatePatch_Glyf_InvalidTable) {
-  GlyphKeyedDiff differ(roboto, CompatId(1, 2, 3, 4), {FontHelper::kGlyf, HB_TAG('f', 'o', 'o', 'o')});
+  GlyphKeyedDiff differ(roboto, CompatId(1, 2, 3, 4),
+                        {FontHelper::kGlyf, HB_TAG('f', 'o', 'o', 'o')});
   auto patch = differ.CreatePatch({37, 40, 73, 91});
-  ASSERT_EQ(patch.status(), absl::InvalidArgumentError("Unsupported table type for glyph keyed diff."));
+  ASSERT_EQ(patch.status(),
+            absl::InvalidArgumentError(
+                "Unsupported table type for glyph keyed diff."));
 }
 
 // TODO(garretrieger): more tests for glyph keyed patch creation:
 // - long loca
-// - gvar
-// - gvar + glyf
 // - overflow tests
 
 }  // namespace ift
