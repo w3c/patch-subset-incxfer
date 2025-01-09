@@ -249,12 +249,12 @@ class Encoder {
    */
   bool IsMixedMode() const { return !existing_iftb_patches_.empty(); }
 
-  absl::Status PopulateIftbPatches(const design_space_t& design_space,
-                                   std::string url_template,
-                                   common::CompatId compat_id);
+  absl::Status PopulateGlyphKeyedPatches(const design_space_t& design_space,
+                                         std::string url_template,
+                                         common::CompatId compat_id);
 
-  absl::Status PopulateIftbPatchMap(ift::proto::PatchMap& patch_map,
-                                    const design_space_t& design_space) const;
+  absl::Status PopulateGlyphKeyedPatchMap(ift::proto::PatchMap& patch_map,
+                                          const design_space_t& design_space) const;
 
   absl::StatusOr<common::hb_face_unique_ptr> CutSubsetFaceBuilder(
       hb_face_t* font, const SubsetDefinition& def) const;
