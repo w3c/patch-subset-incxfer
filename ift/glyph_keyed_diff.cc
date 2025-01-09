@@ -149,11 +149,11 @@ StatusOr<FontData> GlyphKeyedDiff::CreatePatch(
 
 StatusOr<FontData> GlyphKeyedDiff::CreateDataStream(
     const btree_set<uint32_t>& gids, bool u16_gids) const {
-
   // check for unsupported tags.
   for (auto tag : tags_) {
     if (tag != FontHelper::kGlyf && tag != FontHelper::kGvar) {
-      return absl::InvalidArgumentError("Unsupported table type for glyph keyed diff.");
+      return absl::InvalidArgumentError(
+          "Unsupported table type for glyph keyed diff.");
     }
   }
 
@@ -164,8 +164,19 @@ StatusOr<FontData> GlyphKeyedDiff::CreateDataStream(
   std::string offset_data;
   std::string per_glyph_data;
 
-  // TODO(garretrieger): add CFF support
-  // TODO(garretrieger): add CFF2 support
+  if (tags_.contains(FontHelper::kCFF) &&
+      face_tags.contains(FontHelper::kCFF)) {
+    // TODO(garretrieger): add CFF support
+    return absl::UnimplementedError(
+        "CFF glyph keyed patching not yet implemented.");
+  }
+
+  if (tags_.contains(FontHelper::kCFF2) &&
+      face_tags.contains(FontHelper::kCFF2)) {
+    // TODO(garretrieger): add CFF2 support
+    return absl::UnimplementedError(
+        "CFF2 glyph keyed patching not yet implemented.");
+  }
 
   if (tags_.contains(FontHelper::kGlyf) &&
       face_tags.contains(FontHelper::kGlyf) &&
@@ -173,8 +184,7 @@ StatusOr<FontData> GlyphKeyedDiff::CreateDataStream(
     processed_tags.insert(FontHelper::kGlyf);
 
     for (auto gid : gids) {
-      auto data = FontHelper::GlyfData(
-          face.get(), gid);  // TODO is the padding trimmed in GlyfData?
+      auto data = FontHelper::GlyfData(face.get(), gid);
       if (!data.ok()) {
         return data.status();
       }
@@ -184,7 +194,20 @@ StatusOr<FontData> GlyphKeyedDiff::CreateDataStream(
     }
   }
 
-  // TODO(garretrieger): add gvar support
+  if (tags_.contains(FontHelper::kGvar) &&
+      face_tags.contains(FontHelper::kGvar)) {
+    processed_tags.insert(FontHelper::kGvar);
+
+    for (auto gid : gids) {
+      auto data = FontHelper::GvarData(face.get(), gid);
+      if (!data.ok()) {
+        return data.status();
+      }
+
+      FontHelper::WriteUInt32(per_glyph_data.size(), offset_data);
+      per_glyph_data += *data;
+    }
+  }
 
   // Add the trailing offset
   FontHelper::WriteUInt32(per_glyph_data.size(), offset_data);
