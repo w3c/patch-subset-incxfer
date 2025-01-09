@@ -2,7 +2,8 @@ load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
 
 rust_binary(
     name = "ift_graph",
-    srcs = glob(include = ["incremental-font-transfer/src/*.rs"], exclude = ["incremental-font-transfer/src/ift_extend.rs"]),
+    srcs = glob(include = ["incremental-font-transfer/src/*.rs"])
+      + ["incremental-font-transfer/src/bin/ift_graph.rs"],
     deps = [
       "@fontations_deps//:clap",
 	    ":incremental_font_transfer",
@@ -15,7 +16,8 @@ rust_binary(
 
 rust_binary(
     name = "ift_extend",
-    srcs = glob(include = ["incremental-font-transfer/src/*.rs"], exclude = ["incremental-font-transfer/src/ift_graph.rs"]),
+    srcs = glob(include = ["incremental-font-transfer/src/*.rs"])
+      + ["incremental-font-transfer/src/bin/ift_extend.rs"],
     deps = [
       "@fontations_deps//:clap",
 	    ":incremental_font_transfer",
@@ -38,7 +40,7 @@ rust_library(
       ":shared_brotli_patch_decoder",
       "@fontations_deps//:data-encoding",
       "@fontations_deps//:data-encoding-macro",
-      "@fontations_deps//:uritemplate",
+      "@fontations_deps//:uri-template-system",
     ],
 )
 
