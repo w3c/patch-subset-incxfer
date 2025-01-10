@@ -469,6 +469,36 @@ TEST_F(EncoderTest, Encode_ThreeSubsets) {
   ASSERT_EQ(g, expected);
 }
 
+TEST_F(EncoderTest, Encode_ThreeSubsets_WithOverlaps) {
+  absl::flat_hash_set<hb_codepoint_t> s1 = {'b', 'c'};
+  absl::flat_hash_set<hb_codepoint_t> s2 = {'b', 'd'};
+  Encoder encoder;
+  hb_face_t* face = font.reference_face();
+  encoder.SetFace(face);
+  auto s = encoder.SetBaseSubset({'a'});
+  ASSERT_TRUE(s.ok()) << s;
+  encoder.AddExtensionSubset(s1);
+  encoder.AddExtensionSubset(s2);
+
+  auto base = encoder.Encode();
+  hb_face_destroy(face);
+
+  ASSERT_TRUE(base.ok()) << base.status();
+  ASSERT_EQ(encoder.Patches().size(), 4);
+
+  graph g;
+  auto sc = ToGraph(encoder, *base, g);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  graph expected{
+      {"a", {"abc", "abd"}},
+      {"abc", {"abcd"}},
+      {"abd", {"abcd"}},
+      {"abcd", {}},
+  };
+  ASSERT_EQ(g, expected);
+}
+
 TEST_F(EncoderTest, Encode_ThreeSubsets_VF) {
   Encoder encoder;
   hb_face_t* face = vf_font.reference_face();

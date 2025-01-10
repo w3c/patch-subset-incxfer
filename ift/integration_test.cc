@@ -352,6 +352,56 @@ TEST_F(IntegrationTest, TableKeyedMultiple) {
   GlyphDataMatches(original_face.get(), extended_face.get(), 0x4E);
 }
 
+TEST_F(IntegrationTest, TableKeyedWithOverlaps) {
+  Encoder encoder;
+  auto sc = InitEncoderForTableKeyed(encoder);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  sc = encoder.SetBaseSubset({0x41, 0x42, 0x43});
+  encoder.AddExtensionSubset(
+      {0x45, 0x46, 0x47, 0x48});  // 0x48 is in two subsets
+  encoder.AddExtensionSubset({0x48, 0x49, 0x4A});
+  encoder.AddExtensionSubset({0x4B, 0x4C, 0x4D});
+  encoder.AddExtensionSubset({0x4E, 0x4F, 0x50});
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  auto encoded = encoder.Encode();
+  ASSERT_TRUE(encoded.ok()) << encoded.status();
+
+  auto encoded_face = encoded->face();
+  auto codepoints = FontHelper::ToCodepointsSet(encoded_face.get());
+  ASSERT_TRUE(codepoints.contains(0x41));
+  ASSERT_FALSE(codepoints.contains(0x45));
+  ASSERT_FALSE(codepoints.contains(0x48));
+  ASSERT_FALSE(codepoints.contains(0x4B));
+  ASSERT_FALSE(codepoints.contains(0x4E));
+
+  auto extended = Extend(encoder, *encoded, {0x48});
+  ASSERT_TRUE(extended.ok()) << extended.status();
+
+  auto extended_face = extended->face();
+  codepoints = FontHelper::ToCodepointsSet(extended_face.get());
+  ASSERT_TRUE(codepoints.contains(0x41));
+  ASSERT_TRUE(codepoints.contains(0x48));
+  auto original_face = noto_sans_jp_.face();
+
+  // Extending for 0x48 should grab one and only one of the two possible
+  // subsets, which specific one is client specific we just care that only one
+  // was applied.
+  if (codepoints.contains(0x45)) {
+    GlyphDataMatches(original_face.get(), extended_face.get(), 0x45);
+    ASSERT_FALSE(codepoints.contains(0x49));
+  } else {
+    ASSERT_TRUE(codepoints.contains(0x49));
+    GlyphDataMatches(original_face.get(), extended_face.get(), 0x49);
+  }
+  ASSERT_FALSE(codepoints.contains(0x4B));
+  ASSERT_FALSE(codepoints.contains(0x4E));
+
+  GlyphDataMatches(original_face.get(), extended_face.get(), 0x41);
+  GlyphDataMatches(original_face.get(), extended_face.get(), 0x48);
+}
+
 TEST_F(IntegrationTest, TableKeyed_DesignSpaceAugmentation_IgnoresDesignSpace) {
   Encoder encoder;
   auto sc = InitEncoderForVf(encoder);
