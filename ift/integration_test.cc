@@ -90,12 +90,12 @@ class IntegrationTest : public ::testing::Test {
       assert(hb_blob_get_length(blob.get()) > 0);
       feature_test_patches_[i].set(blob.get());
     }
-
-    auto blob = make_hb_blob(hb_blob_create_from_file(
-        "patch_subset/testdata/Roboto[wdth,wght].ttf"));
-    auto face = make_hb_face(hb_face_create(blob.get(), 0));
-    roboto_vf_.set(face.get());
     */
+
+    blob = make_hb_blob(hb_blob_create_from_file(
+        "common/testdata/Roboto[wdth,wght].ttf"));
+    face = make_hb_face(hb_face_create(blob.get(), 0));
+    roboto_vf_.set(face.get());
   }
 
   /*
@@ -166,28 +166,22 @@ class IntegrationTest : public ::testing::Test {
   }
   */
 
-  Status InitEncoderForSharedBrotli(Encoder& encoder) {
+  Status InitEncoderForTableKeyed(Encoder& encoder) {
     encoder.SetUrlTemplate("{id}");
     auto face = noto_sans_jp_.face();
     encoder.SetFace(face.get());
     return absl::OkStatus();
   }
-
-  /*
+  
   Status InitEncoderForVf(Encoder& encoder) {
-    encoder.SetUrlTemplate("0x$2$1");
+    encoder.SetUrlTemplate("{id}");
     {
       auto face = roboto_vf_.face();
       encoder.SetFace(face.get());
     }
-    auto sc = encoder.SetId({0x01, 0x02, 0x03, 0x04});
-    if (!sc.ok()) {
-      return sc;
-    }
 
     return absl::OkStatus();
   }
-  */
 
   /*
   Status AddPatches(IFTClient& client, Encoder& encoder) {
@@ -248,12 +242,36 @@ class IntegrationTest : public ::testing::Test {
   // static constexpr hb_tag_t kVrt3 = HB_TAG('v', 'r', 't', '3');
 };
 
+bool GlyphDataMatches(hb_face_t* a, hb_face_t* b, uint32_t codepoint) {
+  uint32_t gid_a, gid_b;
+
+  hb_font_t* font_a = hb_font_create(a);
+  hb_font_t* font_b = hb_font_create(b);
+  bool a_present = hb_font_get_nominal_glyph(font_a, codepoint, &gid_a);
+  bool b_present = hb_font_get_nominal_glyph(font_b, codepoint, &gid_b);
+  hb_font_destroy(font_a);
+  hb_font_destroy(font_b);
+
+  if (!a_present && !b_present) {
+    return true;
+  }
+  
+  if (a_present != b_present) {
+    return false;
+  }
+
+  auto a_data = FontHelper::GlyfData(a, gid_a);
+  auto b_data = FontHelper::GlyfData(b, gid_b);
+  return *a_data == *b_data;
+}
+
+// TODO(garretrieger): test of a woff2 encoded IFT font.
 // TODO(garretrieger): add IFTB only test case.
 // TODO(garretrieger): extension specific url template.
 
-TEST_F(IntegrationTest, SharedBrotliOnly) {
+TEST_F(IntegrationTest, TableKeyedOnly) {
   Encoder encoder;
-  auto sc = InitEncoderForSharedBrotli(encoder);
+  auto sc = InitEncoderForTableKeyed(encoder);
   ASSERT_TRUE(sc.ok()) << sc;
 
   sc = encoder.SetBaseSubset({0x41, 0x42, 0x43});
@@ -285,13 +303,16 @@ TEST_F(IntegrationTest, SharedBrotliOnly) {
   ASSERT_TRUE(codepoints.contains(0x49));
   ASSERT_FALSE(codepoints.contains(0x4B));
   ASSERT_FALSE(codepoints.contains(0x4E));
+
+  auto original_face = noto_sans_jp_.face();
+  GlyphDataMatches(original_face.get(), extended_face.get(), 0x41);
+  GlyphDataMatches(original_face.get(), extended_face.get(), 0x48);
+  GlyphDataMatches(original_face.get(), extended_face.get(), 0x49);
 }
 
-/*
-
-TEST_F(IntegrationTest, SharedBrotliMultiple) {
+TEST_F(IntegrationTest, TableKeyedMultiple) {
   Encoder encoder;
-  auto sc = InitEncoderForSharedBrotli(encoder);
+  auto sc = InitEncoderForTableKeyed(encoder);
   ASSERT_TRUE(sc.ok()) << sc;
 
   sc = encoder.SetBaseSubset({0x41, 0x42, 0x43});
@@ -304,119 +325,34 @@ TEST_F(IntegrationTest, SharedBrotliMultiple) {
   auto encoded = encoder.Encode();
   ASSERT_TRUE(encoded.ok()) << encoded.status();
 
-  auto codepoints = ToCodepointsSet(*encoded);
+  auto encoded_face = encoded->face();
+  auto codepoints = FontHelper::ToCodepointsSet(encoded_face.get());
   ASSERT_TRUE(codepoints.contains(0x41));
   ASSERT_FALSE(codepoints.contains(0x45));
   ASSERT_FALSE(codepoints.contains(0x48));
   ASSERT_FALSE(codepoints.contains(0x4B));
   ASSERT_FALSE(codepoints.contains(0x4E));
 
-  auto client = IFTClient::NewClient(std::move(*encoded));
-  ASSERT_TRUE(client.ok()) << client.status();
+  auto extended = Extend(encoder, *encoded, {0x49, 0x4F});
+  ASSERT_TRUE(extended.ok()) << extended.status();
+  auto extended_face = extended->face();
 
-  client->AddDesiredCodepoints({0x49, 0x4F});
-  auto state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
-
-  // Phase 1
-  auto patches = client->PatchesNeeded();
-  ASSERT_EQ(patches.size(), 1);
-
-  sc = AddPatches(*client, encoder);
-  ASSERT_TRUE(sc.ok()) << sc;
-
-  state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
-
-  // Phase 2
-  patches = client->PatchesNeeded();
-  ASSERT_EQ(patches.size(), 1);
-
-  sc = AddPatches(*client, encoder);
-  ASSERT_TRUE(sc.ok()) << sc;
-
-  state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::READY);
-
-  codepoints = ToCodepointsSet(client->GetFontData());
+  codepoints = FontHelper::ToCodepointsSet(extended_face.get());
   ASSERT_TRUE(codepoints.contains(0x41));
   ASSERT_FALSE(codepoints.contains(0x45));
   ASSERT_TRUE(codepoints.contains(0x48));
   ASSERT_FALSE(codepoints.contains(0x4B));
   ASSERT_TRUE(codepoints.contains(0x4E));
-}
 
-TEST_F(IntegrationTest, SharedBrotli_AddCodepointsWhileInProgress) {
-  Encoder encoder;
-  auto sc = InitEncoderForSharedBrotli(encoder);
-  ASSERT_TRUE(sc.ok()) << sc;
-
-  sc = encoder.SetBaseSubset({0x41, 0x42, 0x43});
-  encoder.AddExtensionSubset({0x45, 0x46, 0x47});
-  encoder.AddExtensionSubset({0x48, 0x49, 0x4A});
-  encoder.AddExtensionSubset({0x4B, 0x4C, 0x4D});
-  encoder.AddExtensionSubset({0x4E, 0x4F});
-  ASSERT_TRUE(sc.ok()) << sc;
-
-  auto encoded = encoder.Encode();
-  ASSERT_TRUE(encoded.ok()) << encoded.status();
-
-  auto codepoints = ToCodepointsSet(*encoded);
-  ASSERT_TRUE(codepoints.contains(0x41));
-  ASSERT_FALSE(codepoints.contains(0x45));
-  ASSERT_FALSE(codepoints.contains(0x48));
-  ASSERT_FALSE(codepoints.contains(0x4B));
-  ASSERT_FALSE(codepoints.contains(0x4E));
-
-  auto client = IFTClient::NewClient(std::move(*encoded));
-  ASSERT_TRUE(client.ok()) << client.status();
-
-  client->AddDesiredCodepoints({0x49});
-  auto state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
-
-  flat_hash_set<std::string> patches_expected = {"0x01"};
-  auto patches = client->PatchesNeeded();
-  ASSERT_EQ(patches, patches_expected);
-
-  client->AddDesiredCodepoints({0x4E, 0x4F});
-  state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
-
-  patches_expected = {"0x01"};
-  patches = client->PatchesNeeded();
-  ASSERT_EQ(patches, patches_expected);
-
-  // Patch resolution
-  sc = AddPatches(*client, encoder);
-  ASSERT_TRUE(sc.ok()) << sc;
-
-  state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
-
-  sc = AddPatches(*client, encoder);
-  ASSERT_TRUE(sc.ok()) << sc;
-
-  state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::READY);
-
-  codepoints = ToCodepointsSet(client->GetFontData());
-  ASSERT_TRUE(codepoints.contains(0x41));
-  ASSERT_FALSE(codepoints.contains(0x45));
-  ASSERT_TRUE(codepoints.contains(0x48));
-  ASSERT_FALSE(codepoints.contains(0x4B));
-  ASSERT_TRUE(codepoints.contains(0x4E));
+  auto original_face = noto_sans_jp_.face();
+  GlyphDataMatches(original_face.get(), extended_face.get(), 0x41);
+  GlyphDataMatches(original_face.get(), extended_face.get(), 0x45);
+  GlyphDataMatches(original_face.get(), extended_face.get(), 0x48);
+  GlyphDataMatches(original_face.get(), extended_face.get(), 0x4E);
 }
 
 TEST_F(IntegrationTest,
-       SharedBrotli_DesignSpaceAugmentation_IgnoresDesignSpace) {
+       TableKeyed_DesignSpaceAugmentation_IgnoresDesignSpace) {
   Encoder encoder;
   auto sc = InitEncoderForVf(encoder);
   ASSERT_TRUE(sc.ok()) << sc;
@@ -432,51 +368,37 @@ TEST_F(IntegrationTest,
 
   auto encoded = encoder.Encode();
   ASSERT_TRUE(encoded.ok()) << encoded.status();
-
-  auto codepoints = ToCodepointsSet(*encoded);
+  auto encoded_face = encoded->face();
+  
+  auto codepoints = FontHelper::ToCodepointsSet(encoded_face.get());
   ASSERT_THAT(codepoints, IsSupersetOf({'a', 'b', 'c'}));
   ASSERT_THAT(codepoints, AllOf(Not(Contains('d')), Not(Contains('e')),
                                 Not(Contains('f')), Not(Contains('h')),
                                 Not(Contains('i')), Not(Contains('j'))));
 
-  auto face = encoded->face();
-  auto ds = FontHelper::GetDesignSpace(face.get());
+    auto ds = FontHelper::GetDesignSpace(encoded_face.get());
   flat_hash_map<hb_tag_t, AxisRange> expected_ds{
       {kWght, *AxisRange::Range(100, 900)},
   };
   ASSERT_EQ(*ds, expected_ds);
 
-  auto client = IFTClient::NewClient(std::move(*encoded));
-  ASSERT_TRUE(client.ok()) << client.status();
+  auto extended = Extend(encoder, *encoded, {'e'});
+  ASSERT_TRUE(extended.ok()) << extended.status();
+  auto extended_face = extended->face();
 
-  client->AddDesiredCodepoints({'e'});
-  auto state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
-
-  auto patches = client->PatchesNeeded();
-  ASSERT_EQ(patches.size(), 1);
-
-  sc = AddPatches(*client, encoder);
-  ASSERT_TRUE(sc.ok()) << sc;
-
-  state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::READY);
-
-  face = client->GetFontData().face();
-  ds = FontHelper::GetDesignSpace(face.get());
+  ds = FontHelper::GetDesignSpace(extended_face.get());
   expected_ds = {
       {kWght, *AxisRange::Range(100, 900)},
   };
   ASSERT_EQ(*ds, expected_ds);
 
-  codepoints = ToCodepointsSet(client->GetFontData());
+  codepoints = FontHelper::ToCodepointsSet(extended_face.get());
   ASSERT_THAT(codepoints, IsSupersetOf({'a', 'b', 'c', 'd', 'e', 'f'}));
   ASSERT_THAT(codepoints, AllOf(Not(Contains('h')), Not(Contains('i')),
                                 Not(Contains('j'))));
 }
 
+/*
 TEST_F(IntegrationTest, SharedBrotli_DesignSpaceAugmentation) {
   Encoder encoder;
   auto sc = InitEncoderForVf(encoder);

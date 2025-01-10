@@ -618,6 +618,9 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
     // For the root node round trip the font through woff2 so that the base for
     // patching can be a decoded woff2 font file.
     base = RoundTripWoff2(new_base->str(), false);
+    if (!base.ok()) {
+      return base.status();
+    }
   } else {
     base->shallow_copy(*new_base);
   }
