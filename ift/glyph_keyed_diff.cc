@@ -164,6 +164,18 @@ StatusOr<FontData> GlyphKeyedDiff::CreateDataStream(
   std::string offset_data;
   std::string per_glyph_data;
 
+  bool include_glyf = tags_.contains(FontHelper::kGlyf) &&
+                      face_tags.contains(FontHelper::kGlyf) &&
+                      face_tags.contains(FontHelper::kLoca);
+  bool include_gvar = tags_.contains(FontHelper::kGvar) &&
+                      face_tags.contains(FontHelper::kGvar);
+
+  uint32_t glyph_count = gids.size();
+  uint32_t glyph_id_width = u16_gids ? 2 : 3;
+  uint32_t table_count = (include_glyf ? 1 : 0) + (include_gvar ? 1 : 0);
+  uint32_t header_size = 5 + glyph_id_width * glyph_count + table_count * 4 +
+                         4 * glyph_count * table_count + 4;
+
   if (tags_.contains(FontHelper::kCFF) &&
       face_tags.contains(FontHelper::kCFF)) {
     // TODO(garretrieger): add CFF support
@@ -178,9 +190,7 @@ StatusOr<FontData> GlyphKeyedDiff::CreateDataStream(
         "CFF2 glyph keyed patching not yet implemented.");
   }
 
-  if (tags_.contains(FontHelper::kGlyf) &&
-      face_tags.contains(FontHelper::kGlyf) &&
-      face_tags.contains(FontHelper::kLoca)) {
+  if (include_glyf) {
     processed_tags.insert(FontHelper::kGlyf);
 
     for (auto gid : gids) {
@@ -189,13 +199,12 @@ StatusOr<FontData> GlyphKeyedDiff::CreateDataStream(
         return data.status();
       }
 
-      FontHelper::WriteUInt32(per_glyph_data.size(), offset_data);
+      FontHelper::WriteUInt32(header_size + per_glyph_data.size(), offset_data);
       per_glyph_data += *data;
     }
   }
 
-  if (tags_.contains(FontHelper::kGvar) &&
-      face_tags.contains(FontHelper::kGvar)) {
+  if (include_gvar) {
     processed_tags.insert(FontHelper::kGvar);
 
     for (auto gid : gids) {
@@ -204,13 +213,13 @@ StatusOr<FontData> GlyphKeyedDiff::CreateDataStream(
         return data.status();
       }
 
-      FontHelper::WriteUInt32(per_glyph_data.size(), offset_data);
+      FontHelper::WriteUInt32(header_size + per_glyph_data.size(), offset_data);
       per_glyph_data += *data;
     }
   }
 
   // Add the trailing offset
-  FontHelper::WriteUInt32(per_glyph_data.size(), offset_data);
+  FontHelper::WriteUInt32(header_size + per_glyph_data.size(), offset_data);
 
   // Stream Construction
   std::string stream;

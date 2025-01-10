@@ -29,6 +29,7 @@ using common::make_hb_font;
 using ift::proto::IFTTable;
 
 const uint8_t data_stream_u16_short_loca[] = {
+    // num header bytes = 37
     0x00, 0x00, 0x00, 0x04,  // glyphCount
     0x01,                    // table count
 
@@ -42,11 +43,12 @@ const uint8_t data_stream_u16_short_loca[] = {
     'g', 'l', 'y', 'f',
 
     // offset stream
-    0x00, 0x00, 0x00, 0x00,  // gid 37
-    0x00, 0x00, 0x00, 0x8c,  // gid 40
-    0x00, 0x00, 0x00, 0x8c,  // gid 73
-    0x00, 0x00, 0x01, 0x5e,  // gid 91
-    0x00, 0x00, 0x01, 0xfa,  // end
+    0x00, 0x00, 0x00, 0x25,  // gid 37
+
+    0x00, 0x00, 0x00, 0xb1,  // gid 40
+    0x00, 0x00, 0x00, 0xb1,  // gid 73
+    0x00, 0x00, 0x01, 0x83,  // gid 91
+    0x00, 0x00, 0x02, 0x1f,  // end
 
     // gid 37 - A (140 bytes)
     0x00, 0x02, 0x00, 0x1c, 0x00, 0x00, 0x05, 0x1d, 0x05, 0xb0, 0x00, 0x07,
@@ -283,7 +285,7 @@ TEST_F(GlyphKeyedDiffTest, CreatePatch_Gvar) {
   auto g1_gvar = FontHelper::GvarData(face.get(), 1);
   auto g3_gvar = FontHelper::GvarData(face.get(), 3);
 
-  uint32_t size = 0;
+  uint32_t size = 25;
   FontHelper::WriteUInt32(size, data_stream);
   size += g1_gvar->size();
   FontHelper::WriteUInt32(size, data_stream);
@@ -324,7 +326,7 @@ TEST_F(GlyphKeyedDiffTest, CreatePatch_GlyfGvar) {
       0x02,  // glyphCount
       0x02,  // table count
 
-      // glyphIds[4]
+      // glyphIds[2]
       0x00,
       0x01,  // gid 1
       0x00,
@@ -348,7 +350,7 @@ TEST_F(GlyphKeyedDiffTest, CreatePatch_GlyfGvar) {
   auto g1_gvar = FontHelper::GvarData(face.get(), 1);
   auto g3_gvar = FontHelper::GvarData(face.get(), 3);
 
-  uint32_t size = 0;
+  uint32_t size = 17 + 4 * 5;
   FontHelper::WriteUInt32(size, data_stream);
   size += g1_glyf->size();
   FontHelper::WriteUInt32(size, data_stream);
