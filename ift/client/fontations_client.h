@@ -6,9 +6,10 @@
  * tests.
  */
 
-#include "absl/container/btree_map.h"
 #include "absl/container/btree_set.h"
+#include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
+#include "common/axis_range.h"
 #include "common/font_data.h"
 #include "ift/encoder/encoder.h"
 
@@ -27,9 +28,17 @@ absl::Status ToGraph(const ift::encoder::Encoder& encoder,
  * Runs 'ift_extend' on the IFT font created by encoder and returns the
  * resulting extended font.
  */
+absl::StatusOr<common::FontData> Extend(
+    const ift::encoder::Encoder& encoder, const common::FontData& ift_font,
+    absl::btree_set<uint32_t> codepoints,
+    absl::flat_hash_map<hb_tag_t, common::AxisRange> design_space);
+
 absl::StatusOr<common::FontData> Extend(const ift::encoder::Encoder& encoder,
                                         const common::FontData& ift_font,
-                                        absl::btree_set<uint32_t> codepoints);
+                                        absl::btree_set<uint32_t> codepoints) {
+  absl::flat_hash_map<hb_tag_t, common::AxisRange> design_space;
+  return Extend(encoder, ift_font, codepoints, design_space);
+}
 
 }  // namespace ift::client
 
