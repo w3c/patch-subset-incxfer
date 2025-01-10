@@ -48,10 +48,8 @@ class IntegrationTest : public ::testing::Test {
     // Noto Sans JP
     auto blob = make_hb_blob(
         hb_blob_create_from_file("ift/testdata/NotoSansJP-Regular.subset.ttf"));
-    auto face = make_hb_face(hb_face_create(blob.get(), 0));
-    noto_sans_jp_.set(face.get());
+    noto_sans_jp_.set(blob.get());
 
-    /*
     iftb_patches_.resize(5);
     for (int i = 1; i <= 4; i++) {
       std::string name =
@@ -61,6 +59,7 @@ class IntegrationTest : public ::testing::Test {
       iftb_patches_[i].set(blob.get());
     }
 
+    /*
     // Noto Sans JP VF
     blob = make_hb_blob(
         hb_blob_create_from_file("ift/testdata/NotoSansJP[wght].subset.ttf"));
@@ -94,21 +93,15 @@ class IntegrationTest : public ::testing::Test {
 
     blob = make_hb_blob(
         hb_blob_create_from_file("common/testdata/Roboto[wdth,wght].ttf"));
-    face = make_hb_face(hb_face_create(blob.get(), 0));
-    roboto_vf_.set(face.get());
+    roboto_vf_.set(blob.get());
   }
 
-  /*
-  Status InitEncoderForIftb(Encoder& encoder) {
-    encoder.SetUrlTemplate("0x$2$1");
+  Status InitEncoderForMixedMode(Encoder& encoder) {
+    encoder.SetUrlTemplate("{id}");
     {
       hb_face_t* face = noto_sans_jp_.reference_face();
       encoder.SetFace(face);
       hb_face_destroy(face);
-    }
-    auto sc = encoder.SetId({0x3c2bfda0, 0x890625c9, 0x40c644de, 0xb1195627});
-    if (!sc.ok()) {
-      return sc;
     }
 
     for (uint i = 1; i < iftb_patches_.size(); i++) {
@@ -121,6 +114,7 @@ class IntegrationTest : public ::testing::Test {
     return absl::OkStatus();
   }
 
+  /*
   Status InitEncoderForVfIftb(Encoder& encoder) {
     encoder.SetUrlTemplate("0x$2$1");
     {
@@ -214,7 +208,7 @@ class IntegrationTest : public ::testing::Test {
   */
 
   FontData noto_sans_jp_;
-  // std::vector<FontData> iftb_patches_;
+  std::vector<FontData> iftb_patches_;
 
   // FontData noto_sans_vf_;
   // std::vector<FontData> vf_iftb_patches_;
@@ -224,7 +218,6 @@ class IntegrationTest : public ::testing::Test {
 
   FontData roboto_vf_;
 
-  /*
   uint32_t chunk0_cp = 0x47;
   uint32_t chunk1_cp = 0xb7;
   uint32_t chunk2_cp = 0xb2;
@@ -237,7 +230,6 @@ class IntegrationTest : public ::testing::Test {
   uint32_t chunk2_gid_non_cmapped = 900;
   uint32_t chunk3_gid = 169;
   uint32_t chunk4_gid = 103;
-  */
 
   // static constexpr hb_tag_t kVrt3 = HB_TAG('v', 'r', 't', '3');
 };
@@ -512,10 +504,9 @@ TEST_F(IntegrationTest, SharedBrotli_DesignSpaceAugmentation) {
   ASSERT_EQ(*ds, expected_ds);
 }
 
-/*
 TEST_F(IntegrationTest, MixedMode) {
   Encoder encoder;
-  auto sc = InitEncoderForIftb(encoder);
+  auto sc = InitEncoderForMixedMode(encoder);
   ASSERT_TRUE(sc.ok()) << sc;
 
   // target paritions: {{0, 1}, {2}, {3, 4}}
@@ -526,49 +517,43 @@ TEST_F(IntegrationTest, MixedMode) {
 
   auto encoded = encoder.Encode();
   ASSERT_TRUE(encoded.ok()) << encoded.status();
+  auto encoded_face = encoded->face();
 
-  auto codepoints = ToCodepointsSet(*encoded);
+  auto codepoints = FontHelper::ToCodepointsSet(encoded_face.get());
   ASSERT_TRUE(codepoints.contains(chunk0_cp));
   ASSERT_TRUE(codepoints.contains(chunk1_cp));
   ASSERT_FALSE(codepoints.contains(chunk2_cp));
   ASSERT_FALSE(codepoints.contains(chunk3_cp));
   ASSERT_FALSE(codepoints.contains(chunk4_cp));
 
-  auto client = IFTClient::NewClient(std::move(*encoded));
-  ASSERT_TRUE(client.ok()) << client.status();
+  auto extended = Extend(encoder, *encoded, {chunk3_cp, chunk4_cp});
+  ASSERT_TRUE(extended.ok()) << extended.status();
+  auto extended_face = extended->face();
 
-  client->AddDesiredCodepoints({chunk3_cp, chunk4_cp});
-  auto state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
-
-  auto patches = client->PatchesNeeded();
-  ASSERT_EQ(patches.size(), 3);  // 1 shared brotli and 2 iftb.
-
-  sc = AddPatches(*client, encoder);
-  ASSERT_TRUE(sc.ok()) << sc;
-
-  state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::READY);
-
-  codepoints = ToCodepointsSet(client->GetFontData());
+  codepoints = FontHelper::ToCodepointsSet(extended_face.get());
   ASSERT_TRUE(codepoints.contains(chunk0_cp));
   ASSERT_TRUE(codepoints.contains(chunk1_cp));
   ASSERT_FALSE(codepoints.contains(chunk2_cp));
   ASSERT_TRUE(codepoints.contains(chunk3_cp));
   ASSERT_TRUE(codepoints.contains(chunk4_cp));
 
-  auto face = client->GetFontData().face();
-  ASSERT_TRUE(!FontHelper::GlyfData(face.get(), chunk0_gid)->empty());
-  ASSERT_TRUE(!FontHelper::GlyfData(face.get(), chunk1_gid)->empty());
-  ASSERT_FALSE(!FontHelper::GlyfData(face.get(), chunk2_gid)->empty());
+  ASSERT_TRUE(!FontHelper::GlyfData(extended_face.get(), chunk0_gid)->empty());
+  ASSERT_TRUE(!FontHelper::GlyfData(extended_face.get(), chunk1_gid)->empty());
+  ASSERT_FALSE(!FontHelper::GlyfData(extended_face.get(), chunk2_gid)->empty());
   ASSERT_FALSE(
-      !FontHelper::GlyfData(face.get(), chunk2_gid_non_cmapped)->empty());
-  ASSERT_TRUE(!FontHelper::GlyfData(face.get(), chunk3_gid)->empty());
-  ASSERT_TRUE(!FontHelper::GlyfData(face.get(), chunk4_gid)->empty());
+      !FontHelper::GlyfData(extended_face.get(), chunk2_gid_non_cmapped)
+           ->empty());
+  ASSERT_TRUE(!FontHelper::GlyfData(extended_face.get(), chunk3_gid)->empty());
+  ASSERT_TRUE(!FontHelper::GlyfData(extended_face.get(), chunk4_gid)->empty());
+
+  auto original_face = noto_sans_jp_.face();
+  GlyphDataMatches(original_face.get(), extended_face.get(), chunk0_gid);
+  GlyphDataMatches(original_face.get(), extended_face.get(), chunk1_gid);
+  GlyphDataMatches(original_face.get(), extended_face.get(), chunk3_gid);
+  GlyphDataMatches(original_face.get(), extended_face.get(), chunk4_gid);
 }
 
+/*
 TEST_F(IntegrationTest, MixedMode_OptionalFeatureTags) {
   Encoder encoder;
   auto sc = InitEncoderForIftbFeatureTest(encoder);
