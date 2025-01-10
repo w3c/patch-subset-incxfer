@@ -20,6 +20,7 @@ rust_binary(
       + ["incremental-font-transfer/src/bin/ift_extend.rs"],
     deps = [
       "@fontations_deps//:clap",
+      "@fontations_deps//:regex",
 	    ":incremental_font_transfer",
 	    ":skrifa",
       ":read_fonts",

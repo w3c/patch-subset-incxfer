@@ -1,15 +1,19 @@
 #include "ift/client/fontations_client.h"
 
+#include <cstdio>
 #include <filesystem>
 #include <sstream>
 
 #include "absl/status/status.h"
+#include "common/axis_range.h"
 #include "common/font_data.h"
 #include "ift/encoder/encoder.h"
 
 using absl::btree_set;
+using absl::flat_hash_map;
 using absl::Status;
 using absl::StatusOr;
+using common::AxisRange;
 using common::FontData;
 using common::make_hb_blob;
 using common::make_hb_face;
@@ -112,7 +116,8 @@ Status ToGraph(const Encoder& encoder, const FontData& base, graph& out) {
 }
 
 StatusOr<FontData> Extend(const Encoder& encoder, const FontData& base,
-                          btree_set<uint32_t> codepoints) {
+                          btree_set<uint32_t> codepoints,
+                          flat_hash_map<hb_tag_t, AxisRange> design_space) {
   auto font_path_str = WriteFontToDisk(encoder, base);
   if (!font_path_str.ok()) {
     return font_path_str.status();
@@ -131,10 +136,27 @@ StatusOr<FontData> Extend(const Encoder& encoder, const FontData& base,
     unicodes = unicodes.substr(0, unicodes.size() - 1);
   }
 
+  std::stringstream ds_ss;
+  for (const auto& [tag, range] : design_space) {
+    char tag_string[5] = {'a', 'a', 'a', 'a', 0};
+    sprintf(tag_string, "%c%c%c%c", HB_UNTAG(tag));
+
+    ds_ss << tag_string << "@" << range.start();
+    if (range.IsRange()) {
+      ds_ss << ":" << range.end();
+    }
+    ds_ss << ",";
+  }
+  std::string design_space_str = ds_ss.str();
+  if (!design_space_str.empty()) {
+    design_space_str = design_space_str.substr(0, design_space_str.size() - 1);
+  }
+
   // Run the extension
   std::string command = absl::StrCat(
       "${TEST_SRCDIR}/fontations/ift_extend --font=", font_path.string(),
-      " --unicodes=\"", unicodes, "\" --output=", output.string());
+      " --unicodes=\"", unicodes, "\" --design-space=\"", design_space_str,
+      "\" --output=", output.string());
   auto r = Exec(command.c_str());
   if (!r.ok()) {
     return r.status();

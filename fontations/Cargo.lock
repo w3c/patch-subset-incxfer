@@ -782,6 +782,7 @@ dependencies = [
  "font-test-data",
  "font-types",
  "read-fonts",
+ "regex",
  "shared-brotli-patch-decoder",
  "skrifa",
  "uri-template-system",

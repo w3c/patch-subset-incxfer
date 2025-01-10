@@ -92,8 +92,8 @@ class IntegrationTest : public ::testing::Test {
     }
     */
 
-    blob = make_hb_blob(hb_blob_create_from_file(
-        "common/testdata/Roboto[wdth,wght].ttf"));
+    blob = make_hb_blob(
+        hb_blob_create_from_file("common/testdata/Roboto[wdth,wght].ttf"));
     face = make_hb_face(hb_face_create(blob.get(), 0));
     roboto_vf_.set(face.get());
   }
@@ -172,7 +172,7 @@ class IntegrationTest : public ::testing::Test {
     encoder.SetFace(face.get());
     return absl::OkStatus();
   }
-  
+
   Status InitEncoderForVf(Encoder& encoder) {
     encoder.SetUrlTemplate("{id}");
     {
@@ -255,7 +255,7 @@ bool GlyphDataMatches(hb_face_t* a, hb_face_t* b, uint32_t codepoint) {
   if (!a_present && !b_present) {
     return true;
   }
-  
+
   if (a_present != b_present) {
     return false;
   }
@@ -265,6 +265,7 @@ bool GlyphDataMatches(hb_face_t* a, hb_face_t* b, uint32_t codepoint) {
   return *a_data == *b_data;
 }
 
+// TODO(garretrieger): full expansion test.
 // TODO(garretrieger): test of a woff2 encoded IFT font.
 // TODO(garretrieger): add IFTB only test case.
 // TODO(garretrieger): extension specific url template.
@@ -351,8 +352,7 @@ TEST_F(IntegrationTest, TableKeyedMultiple) {
   GlyphDataMatches(original_face.get(), extended_face.get(), 0x4E);
 }
 
-TEST_F(IntegrationTest,
-       TableKeyed_DesignSpaceAugmentation_IgnoresDesignSpace) {
+TEST_F(IntegrationTest, TableKeyed_DesignSpaceAugmentation_IgnoresDesignSpace) {
   Encoder encoder;
   auto sc = InitEncoderForVf(encoder);
   ASSERT_TRUE(sc.ok()) << sc;
@@ -369,14 +369,14 @@ TEST_F(IntegrationTest,
   auto encoded = encoder.Encode();
   ASSERT_TRUE(encoded.ok()) << encoded.status();
   auto encoded_face = encoded->face();
-  
+
   auto codepoints = FontHelper::ToCodepointsSet(encoded_face.get());
   ASSERT_THAT(codepoints, IsSupersetOf({'a', 'b', 'c'}));
   ASSERT_THAT(codepoints, AllOf(Not(Contains('d')), Not(Contains('e')),
                                 Not(Contains('f')), Not(Contains('h')),
                                 Not(Contains('i')), Not(Contains('j'))));
 
-    auto ds = FontHelper::GetDesignSpace(encoded_face.get());
+  auto ds = FontHelper::GetDesignSpace(encoded_face.get());
   flat_hash_map<hb_tag_t, AxisRange> expected_ds{
       {kWght, *AxisRange::Range(100, 900)},
   };
@@ -398,7 +398,6 @@ TEST_F(IntegrationTest,
                                 Not(Contains('j'))));
 }
 
-/*
 TEST_F(IntegrationTest, SharedBrotli_DesignSpaceAugmentation) {
   Encoder encoder;
   auto sc = InitEncoderForVf(encoder);
@@ -415,74 +414,47 @@ TEST_F(IntegrationTest, SharedBrotli_DesignSpaceAugmentation) {
 
   auto encoded = encoder.Encode();
   ASSERT_TRUE(encoded.ok()) << encoded.status();
+  auto encoded_face = encoded->face();
 
-  auto codepoints = ToCodepointsSet(*encoded);
+  auto codepoints = FontHelper::ToCodepointsSet(encoded_face.get());
   ASSERT_THAT(codepoints, IsSupersetOf({'a', 'b', 'c'}));
   ASSERT_THAT(codepoints, AllOf(Not(Contains('d')), Not(Contains('e')),
                                 Not(Contains('f')), Not(Contains('h')),
                                 Not(Contains('i')), Not(Contains('j'))));
 
-  auto face = encoded->face();
-  auto ds = FontHelper::GetDesignSpace(face.get());
+  auto ds = FontHelper::GetDesignSpace(encoded_face.get());
   flat_hash_map<hb_tag_t, AxisRange> expected_ds{
       {kWght, *AxisRange::Range(100, 900)},
   };
   ASSERT_EQ(*ds, expected_ds);
 
-  auto client = IFTClient::NewClient(std::move(*encoded));
-  ASSERT_TRUE(client.ok()) << client.status();
+  auto extended = Extend(encoder, *encoded, {'b'},
+                         {{HB_TAG('w', 'd', 't', 'h'), AxisRange::Point(80)}});
+  ASSERT_TRUE(extended.ok()) << extended.status();
+  auto extended_face = extended->face();
 
-  // Phase 1
-  client->AddDesiredCodepoints({'b'});
-  sc.Update(client->AddDesiredDesignSpace(kWdth, 80.0f, 80.0f));
-  ASSERT_TRUE(sc.ok()) << sc;
-  auto state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
-
-  auto patches = client->PatchesNeeded();
-  ASSERT_EQ(patches.size(), 1);
-  sc = AddPatches(*client, encoder);
-  ASSERT_TRUE(sc.ok()) << sc;
-
-  state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::READY);
-
-  face = client->GetFontData().face();
-  ds = FontHelper::GetDesignSpace(face.get());
+  ds = FontHelper::GetDesignSpace(extended_face.get());
   expected_ds = {
       {kWght, *AxisRange::Range(100, 900)},
       {kWdth, *AxisRange::Range(75, 100)},
   };
   ASSERT_EQ(*ds, expected_ds);
 
-  codepoints = ToCodepointsSet(client->GetFontData());
+  codepoints = FontHelper::ToCodepointsSet(extended_face.get());
   ASSERT_THAT(codepoints, IsSupersetOf({'a', 'b', 'c'}));
   ASSERT_THAT(codepoints, AllOf(Not(Contains('d')), Not(Contains('e')),
                                 Not(Contains('f')), Not(Contains('h')),
                                 Not(Contains('i')), Not(Contains('j'))));
 
-  // Phase 2
-  client->AddDesiredCodepoints({'e'});
-  state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
+  // Try extending the updated font again.
+  extended = Extend(encoder, *extended, {'e'});
+  ASSERT_TRUE(extended.ok()) << extended.status();
+  extended_face = extended->face();
 
-  patches = client->PatchesNeeded();
-  ASSERT_EQ(patches.size(), 1);
-  sc = AddPatches(*client, encoder);
-  ASSERT_TRUE(sc.ok()) << sc;
-
-  state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::READY);
-
-  codepoints = ToCodepointsSet(client->GetFontData());
+  codepoints = FontHelper::ToCodepointsSet(extended_face.get());
   ASSERT_THAT(codepoints, IsSupersetOf({'a', 'b', 'c', 'd', 'e', 'f'}));
 
-  face = client->GetFontData().face();
-  ds = FontHelper::GetDesignSpace(face.get());
+  ds = FontHelper::GetDesignSpace(extended_face.get());
   expected_ds = {
       {kWght, *AxisRange::Range(100, 900)},
       {kWdth, *AxisRange::Range(75, 100)},
@@ -490,6 +462,7 @@ TEST_F(IntegrationTest, SharedBrotli_DesignSpaceAugmentation) {
   ASSERT_EQ(*ds, expected_ds);
 }
 
+/*
 TEST_F(IntegrationTest, MixedMode) {
   Encoder encoder;
   auto sc = InitEncoderForIftb(encoder);
