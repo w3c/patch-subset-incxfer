@@ -29,6 +29,7 @@ using common::make_hb_blob;
 using common::make_hb_face;
 using common::make_hb_set;
 using ift::client::Extend;
+using ift::client::ExtendWithDesignSpace;
 using ift::encoder::Encoder;
 using ift::proto::PatchEncoding;
 using ift::proto::PatchMap;
@@ -470,7 +471,7 @@ TEST_F(IntegrationTest, SharedBrotli_DesignSpaceAugmentation) {
   };
   ASSERT_EQ(*ds, expected_ds);
 
-  auto extended = Extend(encoder, *encoded, {'b'},
+  auto extended = ExtendWithDesignSpace(encoder, *encoded, {'b'},
                          {{HB_TAG('w', 'd', 't', 'h'), AxisRange::Point(80)}});
   ASSERT_TRUE(extended.ok()) << extended.status();
   auto extended_face = extended->face();

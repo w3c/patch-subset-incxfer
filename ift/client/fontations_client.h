@@ -28,17 +28,14 @@ absl::Status ToGraph(const ift::encoder::Encoder& encoder,
  * Runs 'ift_extend' on the IFT font created by encoder and returns the
  * resulting extended font.
  */
-absl::StatusOr<common::FontData> Extend(
+absl::StatusOr<common::FontData> ExtendWithDesignSpace(
     const ift::encoder::Encoder& encoder, const common::FontData& ift_font,
     absl::btree_set<uint32_t> codepoints,
     absl::flat_hash_map<hb_tag_t, common::AxisRange> design_space);
 
 absl::StatusOr<common::FontData> Extend(const ift::encoder::Encoder& encoder,
                                         const common::FontData& ift_font,
-                                        absl::btree_set<uint32_t> codepoints) {
-  absl::flat_hash_map<hb_tag_t, common::AxisRange> design_space;
-  return Extend(encoder, ift_font, codepoints, design_space);
-}
+                                        absl::btree_set<uint32_t> codepoints);
 
 }  // namespace ift::client
 
