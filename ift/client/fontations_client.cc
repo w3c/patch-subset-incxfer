@@ -115,9 +115,9 @@ Status ToGraph(const Encoder& encoder, const FontData& base, graph& out) {
   return absl::OkStatus();
 }
 
-StatusOr<FontData> Extend(const Encoder& encoder, const FontData& base,
-                          btree_set<uint32_t> codepoints,
-                          flat_hash_map<hb_tag_t, AxisRange> design_space) {
+StatusOr<FontData> ExtendWithDesignSpace(const Encoder& encoder, const FontData& base,
+                                         btree_set<uint32_t> codepoints,
+                                         flat_hash_map<hb_tag_t, AxisRange> design_space) {
   auto font_path_str = WriteFontToDisk(encoder, base);
   if (!font_path_str.ok()) {
     return font_path_str.status();
@@ -139,7 +139,7 @@ StatusOr<FontData> Extend(const Encoder& encoder, const FontData& base,
   std::stringstream ds_ss;
   for (const auto& [tag, range] : design_space) {
     char tag_string[5] = {'a', 'a', 'a', 'a', 0};
-    sprintf(tag_string, "%c%c%c%c", HB_UNTAG(tag));
+    snprintf(tag_string, 5, "%c%c%c%c", HB_UNTAG(tag));
 
     ds_ss << tag_string << "@" << range.start();
     if (range.IsRange()) {
@@ -163,6 +163,13 @@ StatusOr<FontData> Extend(const Encoder& encoder, const FontData& base,
   }
 
   return FontData(make_hb_blob(hb_blob_create_from_file(output.c_str())));
+}
+
+StatusOr<FontData> Extend(const ift::encoder::Encoder& encoder,
+                          const common::FontData& ift_font,
+                          absl::btree_set<uint32_t> codepoints) {
+  absl::flat_hash_map<hb_tag_t, common::AxisRange> design_space;
+  return ExtendWithDesignSpace(encoder, ift_font, codepoints, design_space);
 }
 
 }  // namespace ift::client
