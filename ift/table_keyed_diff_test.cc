@@ -32,6 +32,12 @@ class TableKeyedDiffTest : public ::testing::Test {
   std::string tag1_str = FontHelper::ToString(tag1);
   std::string tag2_str = FontHelper::ToString(tag2);
   std::string tag3_str = FontHelper::ToString(tag3);
+
+  std::string header{
+      'i', 'f', 't', 'k', 0, 0, 0, 0,  // reserved
+
+      0,   0,   0,   1,   0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4,  // compat id
+  };
 };
 
 StatusOr<std::string> diff_table(std::string before, std::string after) {
@@ -39,7 +45,6 @@ StatusOr<std::string> diff_table(std::string before, std::string after) {
   base.copy(before);
   derived.copy(after);
 
-  ;
   BrotliBinaryDiff differ;
   FontData patch;
   auto sc = differ.Diff(base, derived, &patch);
@@ -53,32 +58,25 @@ StatusOr<std::string> diff_table(std::string before, std::string after) {
 TEST_F(TableKeyedDiffTest, BasicDiff) {
   char second_offset = 38 + 9 + diff_table("foo", "fooo")->length();
   char third_offset = second_offset + 9 + diff_table("bar", "baar")->length();
-  std::string expected =
-      std::string{
-          'i', 'f', 't', 'k',
-          0,   0,   0,   0,  // reserved
-
-          0,   0,   0,   1,
-          0,   0,   0,   2,
-          0,   0,   0,   3,
-          0,   0,   0,   4,  // compat id
-
-          0,   2,                        // patches count
-          0,   0,   0,   38,             // patches offset[0]
-          0,   0,   0,   second_offset,  // patches offset[1]
-          0,   0,   0,   third_offset,   // patches offset[2]
-
-          't', 'a', 'g', '1',
-          0,                 // flags
-          0,   0,   0,   4,  // uncompressed size
-      } +
-      *diff_table("foo", "fooo") +
-      std::string{
-          't', 'a', 'g', '2',
-          0,                 // flags
-          0,   0,   0,   4,  // uncompressed size
-      } +
-      *diff_table("bar", "baar");
+  std::string expected = header +
+                         std::string{
+                             0, 2,                    // patches count
+                             0, 0, 0, 38,             // patches offset[0]
+                             0, 0, 0, second_offset,  // patches offset[1]
+                             0, 0, 0, third_offset,   // patches offset[2]
+                         } +
+                         std::string{
+                             't', 'a', 'g', '1',
+                             0,                 // flags
+                             0,   0,   0,   4,  // uncompressed size
+                         } +
+                         *diff_table("foo", "fooo") +
+                         std::string{
+                             't', 'a', 'g', '2',
+                             0,                 // flags
+                             0,   0,   0,   4,  // uncompressed size
+                         } +
+                         *diff_table("bar", "baar");
 
   FontData before = FontHelper::BuildFont({
       {tag1, "foo"},
@@ -87,6 +85,38 @@ TEST_F(TableKeyedDiffTest, BasicDiff) {
 
   FontData after = FontHelper::BuildFont({
       {tag1, "fooo"},
+      {tag2, "baar"},
+  });
+
+  TableKeyedDiff differ(CompatId(1, 2, 3, 4));
+  FontData patch;
+  auto sc = differ.Diff(before, after, &patch);
+  ASSERT_TRUE(sc.ok()) << sc;
+  ASSERT_EQ(patch.string(), expected);
+}
+
+TEST_F(TableKeyedDiffTest, BasicDiff_IgnoreUnchanged) {
+  char second_offset = 34 + 9 + diff_table("bar", "baar")->length();
+  std::string expected = header +
+                         std::string{
+                             0, 1,                    // patches count
+                             0, 0, 0, 34,             // patches offset[0]
+                             0, 0, 0, second_offset,  // patches offset[1]
+                         } +
+                         std::string{
+                             't', 'a', 'g', '2',
+                             0,                 // flags
+                             0,   0,   0,   4,  // uncompressed size
+                         } +
+                         *diff_table("bar", "baar");
+
+  FontData before = FontHelper::BuildFont({
+      {tag1, "foo"},
+      {tag2, "bar"},
+  });
+
+  FontData after = FontHelper::BuildFont({
+      {tag1, "foo"},
       {tag2, "baar"},
   });
 
@@ -158,37 +188,48 @@ TEST_F(TableKeyedDiffTest, RemoveTable) {
   ASSERT_TRUE(new_table.ok()) << new_table.status();
   ASSERT_EQ(*new_table, "foo");
 }
+*/
 
 TEST_F(TableKeyedDiffTest, AddTable) {
-  FontData before = FontHelper::BuildFont({
-      {tag1, "foo"},
-  });
+  char second_offset = 38 + 9 + diff_table("foo", "fooo")->length();
+  char third_offset = second_offset + 9 + diff_table("bar", "baar")->length();
+  std::string expected = header +
+                         std::string{
+                             0, 2,                    // patches count
+                             0, 0, 0, 38,             // patches offset[0]
+                             0, 0, 0, second_offset,  // patches offset[1]
+                             0, 0, 0, third_offset,   // patches offset[2]
+                         } +
+                         std::string{
+                             't',        'a', 'g', '1',
+                             0b00000001,               // flags
+                             0,          0,   0,   4,  // uncompressed size
+                         } +
+                         *diff_table("foo", "fooo") +
+                         std::string{
+                             't', 'a', 'g', '2',
+                             0,                 // flags
+                             0,   0,   0,   4,  // uncompressed size
+                         } +
+                         *diff_table("bar", "baar");
 
-  FontData after = FontHelper::BuildFont({
-      {tag1, "foo"},
+  FontData before = FontHelper::BuildFont({
       {tag2, "bar"},
   });
 
-  TableKeyedDiff differ;
+  FontData after = FontHelper::BuildFont({
+      {tag1, "fooo"},
+      {tag2, "baar"},
+  });
+
+  TableKeyedDiff differ(CompatId(1, 2, 3, 4));
   FontData patch;
   auto sc = differ.Diff(before, after, &patch);
   ASSERT_TRUE(sc.ok()) << sc;
-
-  PerTablePatch patch_proto;
-  ASSERT_TRUE(patch_proto.ParseFromArray(patch.data(), patch.size()));
-  ASSERT_TRUE(patch_proto.removed_tables().empty());
-
-  ASSERT_EQ(patch_proto.table_patches_size(), 2);
-
-  auto new_table = patch_table("foo", patch_proto.table_patches().at(tag1_str));
-  ASSERT_TRUE(new_table.ok()) << new_table.status();
-  ASSERT_EQ(*new_table, "foo");
-
-  new_table = patch_table("", patch_proto.table_patches().at(tag2_str));
-  ASSERT_TRUE(new_table.ok()) << new_table.status();
-  ASSERT_EQ(*new_table, "bar");
+  ASSERT_EQ(patch.string(), expected);
 }
 
+/*
 TEST_F(TableKeyedDiffTest, FilteredDiff) {
   FontData before = FontHelper::BuildFont({
       {tag1, "foo"},
