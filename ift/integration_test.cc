@@ -619,10 +619,9 @@ TEST_F(IntegrationTest, MixedMode_OptionalFeatureTags) {
   ASSERT_FALSE(FontHelper::GlyfData(extended_face.get(), chunk6_gid)->empty());
 }
 
-/*
 TEST_F(IntegrationTest, MixedMode_LocaLenChange) {
   Encoder encoder;
-  auto sc = InitEncoderForIftb(encoder);
+  auto sc = InitEncoderForMixedMode(encoder);
   ASSERT_TRUE(sc.ok()) << sc;
 
   // target paritions: {{0}, {1}, {2}, {3}, {4}}
@@ -635,8 +634,9 @@ TEST_F(IntegrationTest, MixedMode_LocaLenChange) {
 
   auto encoded = encoder.Encode();
   ASSERT_TRUE(encoded.ok()) << encoded.status();
+  auto encoded_face = encoded->face();
 
-  auto codepoints = ToCodepointsSet(*encoded);
+  auto codepoints = FontHelper::ToCodepointsSet(encoded_face.get());
   ASSERT_TRUE(codepoints.contains(chunk0_cp));
   ASSERT_FALSE(codepoints.contains(chunk1_cp));
   ASSERT_FALSE(codepoints.contains(chunk2_cp));
@@ -644,47 +644,19 @@ TEST_F(IntegrationTest, MixedMode_LocaLenChange) {
   ASSERT_FALSE(codepoints.contains(chunk4_cp));
 
   // ### Phase 1 ###
-  auto client = IFTClient::NewClient(std::move(*encoded));
-  ASSERT_TRUE(client.ok()) << client.status();
-  auto face = client->GetFontData().face();
-  uint32_t gid_count_1 = hb_face_get_glyph_count(face.get());
+  auto extended = Extend(encoder, *encoded, {chunk3_cp});
+  ASSERT_TRUE(extended.ok()) << extended.status();
+  auto extended_face = extended->face();
 
-  client->AddDesiredCodepoints({chunk3_cp});
-  auto state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
-
-  auto patches = client->PatchesNeeded();
-  ASSERT_EQ(patches.size(), 2);  // 1 shared brotli and 1 iftb.
-
-  sc = AddPatches(*client, encoder);
-  ASSERT_TRUE(sc.ok()) << sc;
-
-  state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::READY);
-
-  face = client->GetFontData().face();
-  uint32_t gid_count_2 = hb_face_get_glyph_count(face.get());
+  uint32_t gid_count_1 = hb_face_get_glyph_count(encoded_face.get());
+  uint32_t gid_count_2 = hb_face_get_glyph_count(extended_face.get());
 
   // ### Phase 2 ###
-  client->AddDesiredCodepoints({chunk2_cp});
-  state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
+  extended = Extend(encoder, *encoded, {chunk2_cp, chunk3_cp});
+  ASSERT_TRUE(extended.ok()) << extended.status();
+  extended_face = extended->face();
 
-  patches = client->PatchesNeeded();
-  ASSERT_EQ(patches.size(), 2);  // 1 shared brotli and 1 iftb.
-
-  sc = AddPatches(*client, encoder);
-  ASSERT_TRUE(sc.ok()) << sc;
-
-  state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::READY);
-
-  face = client->GetFontData().face();
-  uint32_t gid_count_3 = hb_face_get_glyph_count(face.get());
+  uint32_t gid_count_3 = hb_face_get_glyph_count(extended_face.get());
 
   // ### Checks ###
 
@@ -694,21 +666,23 @@ TEST_F(IntegrationTest, MixedMode_LocaLenChange) {
   ASSERT_EQ(gid_count_1, gid_count_2);
   ASSERT_EQ(gid_count_2, gid_count_3);
 
-  codepoints = ToCodepointsSet(client->GetFontData());
+  codepoints = FontHelper::ToCodepointsSet(extended_face.get());
   ASSERT_TRUE(codepoints.contains(chunk0_cp));
   ASSERT_FALSE(codepoints.contains(chunk1_cp));
   ASSERT_TRUE(codepoints.contains(chunk2_cp));
   ASSERT_TRUE(codepoints.contains(chunk3_cp));
   ASSERT_FALSE(codepoints.contains(chunk4_cp));
 
-  ASSERT_TRUE(!FontHelper::GlyfData(face.get(), chunk0_gid)->empty());
-  ASSERT_FALSE(!FontHelper::GlyfData(face.get(), chunk1_gid)->empty());
-  ASSERT_TRUE(!FontHelper::GlyfData(face.get(), chunk2_gid)->empty());
-  ASSERT_TRUE(!FontHelper::GlyfData(face.get(), chunk3_gid)->empty());
-  ASSERT_FALSE(!FontHelper::GlyfData(face.get(), chunk4_gid)->empty());
-  ASSERT_TRUE(!FontHelper::GlyfData(face.get(), gid_count_3 - 1)->empty());
+  ASSERT_TRUE(!FontHelper::GlyfData(extended_face.get(), chunk0_gid)->empty());
+  ASSERT_FALSE(!FontHelper::GlyfData(extended_face.get(), chunk1_gid)->empty());
+  ASSERT_TRUE(!FontHelper::GlyfData(extended_face.get(), chunk2_gid)->empty());
+  ASSERT_TRUE(!FontHelper::GlyfData(extended_face.get(), chunk3_gid)->empty());
+  ASSERT_FALSE(!FontHelper::GlyfData(extended_face.get(), chunk4_gid)->empty());
+  ASSERT_TRUE(
+      !FontHelper::GlyfData(extended_face.get(), gid_count_3 - 1)->empty());
 }
 
+/*
 TEST_F(IntegrationTest, MixedMode_Complex) {
   Encoder encoder;
   auto sc = InitEncoderForIftb(encoder);
