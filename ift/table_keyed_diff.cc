@@ -9,6 +9,7 @@
 #include "hb.h"
 
 using absl::btree_set;
+using absl::flat_hash_map;
 using absl::flat_hash_set;
 using absl::Status;
 using common::FontData;
@@ -26,7 +27,9 @@ Status TableKeyedDiff::Diff(const FontData& font_base,
   auto derived_tags = FontHelper::GetTags(face_derived);
   auto diff_tags = TagsToDiff(base_tags, derived_tags);
 
-  absl::flat_hash_map<std::string, std::pair<uint32_t, FontData>> patches;
+  flat_hash_map<std::string, std::pair<uint32_t, FontData>> patches;
+  flat_hash_set<hb_tag_t> new_tables;
+  flat_hash_set<hb_tag_t> unchanged_tables;
 
   for (std::string tag : diff_tags) {
     hb_tag_t t = HB_TAG(tag[0], tag[1], tag[2], tag[3]);
@@ -39,10 +42,20 @@ Status TableKeyedDiff::Diff(const FontData& font_base,
 
     FontData base_table;
     if (!replaced_tags_.contains(tag)) {
-      base_table = FontHelper::TableData(face_base, t);
+      if (in_base) {
+        base_table = FontHelper::TableData(face_base, t);
+      } else {
+        new_tables.insert(t);
+      }
     }
 
     FontData derived_table = FontHelper::TableData(face_derived, t);
+    if (base_table == derived_table) {
+      // If table is unchanged then no diff is needed.
+      unchanged_tables.insert(t);
+      continue;
+    }
+
     FontData table_patch;
     auto sc = binary_diff_.Diff(base_table, derived_table, &table_patch);
     if (!sc.ok()) {
@@ -56,6 +69,14 @@ Status TableKeyedDiff::Diff(const FontData& font_base,
 
   hb_face_destroy(face_base);
   hb_face_destroy(face_derived);
+
+  for (hb_tag_t t : unchanged_tables) {
+    std::string tag = FontHelper::ToString(t);
+    auto it = diff_tags.find(tag);
+    if (it != diff_tags.end()) {
+      diff_tags.erase(it);
+    }
+  }
 
   // Serialize to the binary format
   std::string data;
@@ -86,6 +107,7 @@ Status TableKeyedDiff::Diff(const FontData& font_base,
   // Write out table patches
   for (std::string tag : diff_tags) {
     hb_tag_t t = HB_TAG(tag[0], tag[1], tag[2], tag[3]);
+
     FontHelper::WriteUInt32(t, data);
 
     auto it = patches.find(tag);
@@ -98,7 +120,7 @@ Status TableKeyedDiff::Diff(const FontData& font_base,
 
     FontData& patch_data = it->second.second;
 
-    if (replaced_tags_.contains(tag)) {
+    if (replaced_tags_.contains(tag) || new_tables.contains(t)) {
       WRITE_UINT8(0b00000001, data, "");
     } else {
       WRITE_UINT8(0b00000000, data, "");
