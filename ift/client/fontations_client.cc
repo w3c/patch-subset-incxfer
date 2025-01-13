@@ -115,9 +115,10 @@ Status ToGraph(const Encoder& encoder, const FontData& base, graph& out) {
   return absl::OkStatus();
 }
 
-StatusOr<FontData> ExtendWithDesignSpace(const Encoder& encoder, const FontData& base,
-                                         btree_set<uint32_t> codepoints,
-                                         flat_hash_map<hb_tag_t, AxisRange> design_space) {
+StatusOr<FontData> ExtendWithDesignSpace(
+    const Encoder& encoder, const FontData& base,
+    btree_set<uint32_t> codepoints, absl::btree_set<hb_tag_t> feature_tags,
+    flat_hash_map<hb_tag_t, AxisRange> design_space) {
   auto font_path_str = WriteFontToDisk(encoder, base);
   if (!font_path_str.ok()) {
     return font_path_str.status();
@@ -134,6 +135,17 @@ StatusOr<FontData> ExtendWithDesignSpace(const Encoder& encoder, const FontData&
   std::string unicodes = ss.str();
   if (!unicodes.empty()) {
     unicodes = unicodes.substr(0, unicodes.size() - 1);
+  }
+
+  std::stringstream features_ss;
+  for (uint32_t tag : feature_tags) {
+    char tag_string[5] = {'a', 'a', 'a', 'a', 0};
+    snprintf(tag_string, 5, "%c%c%c%c", HB_UNTAG(tag));
+    features_ss << tag_string << ",";
+  }
+  std::string features = features_ss.str();
+  if (!features.empty()) {
+    features = features.substr(0, features.size() - 1);
   }
 
   std::stringstream ds_ss;
@@ -156,7 +168,7 @@ StatusOr<FontData> ExtendWithDesignSpace(const Encoder& encoder, const FontData&
   std::string command = absl::StrCat(
       "${TEST_SRCDIR}/fontations/ift_extend --font=", font_path.string(),
       " --unicodes=\"", unicodes, "\" --design-space=\"", design_space_str,
-      "\" --output=", output.string());
+      "\" --features=\"", features, "\" --output=", output.string());
   auto r = Exec(command.c_str());
   if (!r.ok()) {
     return r.status();
@@ -169,7 +181,7 @@ StatusOr<FontData> Extend(const ift::encoder::Encoder& encoder,
                           const common::FontData& ift_font,
                           absl::btree_set<uint32_t> codepoints) {
   absl::flat_hash_map<hb_tag_t, common::AxisRange> design_space;
-  return ExtendWithDesignSpace(encoder, ift_font, codepoints, design_space);
+  return ExtendWithDesignSpace(encoder, ift_font, codepoints, {}, design_space);
 }
 
 }  // namespace ift::client
