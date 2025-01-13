@@ -722,10 +722,9 @@ TEST_F(IntegrationTest, MixedMode_Complex) {
   ASSERT_FALSE(!FontHelper::GlyfData(extended_face.get(), chunk4_gid)->empty());
 }
 
-/*
 TEST_F(IntegrationTest, MixedMode_SequentialDependentPatches) {
   Encoder encoder;
-  auto sc = InitEncoderForIftb(encoder);
+  auto sc = InitEncoderForMixedMode(encoder);
   ASSERT_TRUE(sc.ok()) << sc;
 
   // target paritions: {{0, 1}, {2}, {3}, {4}}
@@ -737,38 +736,13 @@ TEST_F(IntegrationTest, MixedMode_SequentialDependentPatches) {
 
   auto encoded = encoder.Encode();
   ASSERT_TRUE(encoded.ok()) << encoded.status();
+  auto encoded_face = encoded->face();
 
-  auto client = IFTClient::NewClient(std::move(*encoded));
-  ASSERT_TRUE(client.ok()) << client.status();
+  auto extended = Extend(encoder, *encoded, {chunk3_cp, chunk4_cp});
+  ASSERT_TRUE(extended.ok()) << extended.status();
+  auto extended_face = extended->face();
 
-  client->AddDesiredCodepoints({chunk3_cp, chunk4_cp});
-  auto state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
-
-  auto patches = client->PatchesNeeded();
-  ASSERT_EQ(patches.size(), 3);  // 1 shared brotli and 2 iftb.
-
-  sc = AddPatches(*client, encoder);
-  ASSERT_TRUE(sc.ok()) << sc;
-
-  state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
-
-  // the first application round would have added one of {3}
-  // and {4}. now that one is applied, the second is still needed.
-  patches = client->PatchesNeeded();
-  ASSERT_EQ(patches.size(), 1);  // 1 shared brotli
-
-  sc = AddPatches(*client, encoder);
-  ASSERT_TRUE(sc.ok()) << sc;
-
-  state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::READY);
-
-  auto codepoints = ToCodepointsSet(client->GetFontData());
+  auto codepoints = FontHelper::ToCodepointsSet(extended_face.get());
   ASSERT_TRUE(codepoints.contains(chunk0_cp));
   ASSERT_TRUE(codepoints.contains(chunk1_cp));
   ASSERT_FALSE(codepoints.contains(chunk2_cp));
@@ -776,6 +750,7 @@ TEST_F(IntegrationTest, MixedMode_SequentialDependentPatches) {
   ASSERT_TRUE(codepoints.contains(chunk4_cp));
 }
 
+/*
 TEST_F(IntegrationTest, MixedMode_DesignSpaceAugmentation) {
   Encoder encoder;
   auto sc = InitEncoderForVfIftb(encoder);
