@@ -31,6 +31,7 @@ absl::Status ToGraph(const ift::encoder::Encoder& encoder,
 absl::StatusOr<common::FontData> ExtendWithDesignSpace(
     const ift::encoder::Encoder& encoder, const common::FontData& ift_font,
     absl::btree_set<uint32_t> codepoints,
+    absl::btree_set<hb_tag_t> feature_tags,
     absl::flat_hash_map<hb_tag_t, common::AxisRange> design_space);
 
 absl::StatusOr<common::FontData> Extend(const ift::encoder::Encoder& encoder,

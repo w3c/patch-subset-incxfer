@@ -1,4 +1,3 @@
-#include <iterator>
 #include <string>
 
 #include "absl/container/flat_hash_set.h"
@@ -75,12 +74,12 @@ class IntegrationTest : public ::testing::Test {
       assert(hb_blob_get_length(blob.get()) > 0);
       vf_iftb_patches_[i].set(blob.get());
     }
+    */
 
     // Feature Test
     blob = make_hb_blob(hb_blob_create_from_file(
         "ift/testdata/NotoSansJP-Regular.feature-test.ttf"));
-    face = make_hb_face(hb_face_create(blob.get(), 0));
-    feature_test_.set(face.get());
+    feature_test_.set(blob.get());
 
     feature_test_patches_.resize(7);
     for (int i = 1; i <= 6; i++) {
@@ -90,7 +89,6 @@ class IntegrationTest : public ::testing::Test {
       assert(hb_blob_get_length(blob.get()) > 0);
       feature_test_patches_[i].set(blob.get());
     }
-    */
 
     blob = make_hb_blob(
         hb_blob_create_from_file("common/testdata/Roboto[wdth,wght].ttf"));
@@ -137,17 +135,14 @@ class IntegrationTest : public ::testing::Test {
 
     return absl::OkStatus();
   }
+  */
 
-  Status InitEncoderForIftbFeatureTest(Encoder& encoder) {
-    encoder.SetUrlTemplate("0x$2$1");
+  Status InitEncoderForMixedModeFeatureTest(Encoder& encoder) {
+    encoder.SetUrlTemplate("{id}");
     {
       hb_face_t* face = feature_test_.reference_face();
       encoder.SetFace(face);
       hb_face_destroy(face);
-    }
-    auto sc = encoder.SetId({0xd673ad42, 0x775df247, 0xabdacfb5, 0x3e1543eb});
-    if (!sc.ok()) {
-      return sc;
     }
 
     for (uint i = 1; i < feature_test_patches_.size(); i++) {
@@ -159,7 +154,6 @@ class IntegrationTest : public ::testing::Test {
 
     return absl::OkStatus();
   }
-  */
 
   Status InitEncoderForTableKeyed(Encoder& encoder) {
     encoder.SetUrlTemplate("{id}");
@@ -214,8 +208,8 @@ class IntegrationTest : public ::testing::Test {
   // FontData noto_sans_vf_;
   // std::vector<FontData> vf_iftb_patches_;
 
-  // FontData feature_test_;
-  // std::vector<FontData> feature_test_patches_;
+  FontData feature_test_;
+  std::vector<FontData> feature_test_patches_;
 
   FontData roboto_vf_;
 
@@ -232,7 +226,7 @@ class IntegrationTest : public ::testing::Test {
   uint32_t chunk3_gid = 169;
   uint32_t chunk4_gid = 103;
 
-  // static constexpr hb_tag_t kVrt3 = HB_TAG('v', 'r', 't', '3');
+  static constexpr hb_tag_t kVrt3 = HB_TAG('v', 'r', 't', '3');
 };
 
 bool GlyphDataMatches(hb_face_t* a, hb_face_t* b, uint32_t codepoint) {
@@ -471,8 +465,9 @@ TEST_F(IntegrationTest, SharedBrotli_DesignSpaceAugmentation) {
   };
   ASSERT_EQ(*ds, expected_ds);
 
-  auto extended = ExtendWithDesignSpace(encoder, *encoded, {'b'},
-                         {{HB_TAG('w', 'd', 't', 'h'), AxisRange::Point(80)}});
+  auto extended = ExtendWithDesignSpace(
+      encoder, *encoded, {'b'}, {},
+      {{HB_TAG('w', 'd', 't', 'h'), AxisRange::Point(80)}});
   ASSERT_TRUE(extended.ok()) << extended.status();
   auto extended_face = extended->face();
 
@@ -554,10 +549,9 @@ TEST_F(IntegrationTest, MixedMode) {
   GlyphDataMatches(original_face.get(), extended_face.get(), chunk4_gid);
 }
 
-/*
 TEST_F(IntegrationTest, MixedMode_OptionalFeatureTags) {
   Encoder encoder;
-  auto sc = InitEncoderForIftbFeatureTest(encoder);
+  auto sc = InitEncoderForMixedModeFeatureTest(encoder);
   ASSERT_TRUE(sc.ok()) << sc;
 
   // target paritions: {{0}, {1}, {2}, {3}, {4}}
@@ -577,84 +571,55 @@ TEST_F(IntegrationTest, MixedMode_OptionalFeatureTags) {
 
   auto encoded = encoder.Encode();
   ASSERT_TRUE(encoded.ok()) << encoded.status();
+  auto encoded_face = encoded->face();
 
-  auto codepoints = ToCodepointsSet(*encoded);
+  auto codepoints = FontHelper::ToCodepointsSet(encoded_face.get());
   ASSERT_TRUE(codepoints.contains(chunk0_cp));
   ASSERT_FALSE(codepoints.contains(chunk1_cp));
   ASSERT_FALSE(codepoints.contains(chunk2_cp));
   ASSERT_FALSE(codepoints.contains(chunk3_cp));
   ASSERT_FALSE(codepoints.contains(chunk4_cp));
 
-  auto client = IFTClient::NewClient(std::move(*encoded));
-  ASSERT_TRUE(client.ok()) << client.status();
+  // Ext 1 - extend to {chunk2_cp}
+  auto extended = Extend(encoder, *encoded, {chunk2_cp});
+  ASSERT_TRUE(extended.ok()) << extended.status();
+  auto extended_face = extended->face();
 
-  client->AddDesiredCodepoints({chunk2_cp});
-  auto state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
-
-  auto patches = client->PatchesNeeded();
-  ASSERT_EQ(patches.size(), 2);  // 1 shared brotli and 1 iftb.
-
-  sc = AddPatches(*client, encoder);
-  ASSERT_TRUE(sc.ok()) << sc;
-
-  state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::READY);
-
-  auto face = client->GetFontData().face();
-  auto feature_tags = FontHelper::GetFeatureTags(face.get());
+  auto feature_tags = FontHelper::GetFeatureTags(extended_face.get());
   ASSERT_FALSE(feature_tags.contains(kVrt3));
 
   static constexpr uint32_t chunk2_gid = 816;
   static constexpr uint32_t chunk4_gid = 800;
   static constexpr uint32_t chunk5_gid = 989;
   static constexpr uint32_t chunk6_gid = 932;
-  ASSERT_FALSE(FontHelper::GlyfData(face.get(), chunk2_gid)->empty());
-  ASSERT_TRUE(FontHelper::GlyfData(face.get(), chunk5_gid)->empty());
+  ASSERT_FALSE(FontHelper::GlyfData(extended_face.get(), chunk2_gid)->empty());
+  ASSERT_TRUE(FontHelper::GlyfData(extended_face.get(), chunk5_gid)->empty());
 
-  client->AddDesiredFeatures({kVrt3});
-  state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
-  sc.Update(AddPatches(*client, encoder));
-  ASSERT_TRUE(sc.ok()) << sc;
+  // Ext 2 - extend to {kVrt3}
+  extended = ExtendWithDesignSpace(encoder, *encoded, {chunk2_cp}, {kVrt3}, {});
+  ASSERT_TRUE(extended.ok()) << extended.status();
+  extended_face = extended->face();
 
-  state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::READY);
-
-  face = client->GetFontData().face();
-  feature_tags = FontHelper::GetFeatureTags(face.get());
+  feature_tags = FontHelper::GetFeatureTags(extended_face.get());
   ASSERT_TRUE(feature_tags.contains(kVrt3));
-  ASSERT_FALSE(FontHelper::GlyfData(face.get(), chunk2_gid)->empty());
-  ASSERT_TRUE(FontHelper::GlyfData(face.get(), chunk4_gid)->empty());
-  ASSERT_FALSE(FontHelper::GlyfData(face.get(), chunk5_gid)->empty());
-  ASSERT_TRUE(FontHelper::GlyfData(face.get(), chunk6_gid)->empty());
+  ASSERT_FALSE(FontHelper::GlyfData(extended_face.get(), chunk2_gid)->empty());
+  ASSERT_TRUE(FontHelper::GlyfData(extended_face.get(), chunk4_gid)->empty());
+  ASSERT_FALSE(FontHelper::GlyfData(extended_face.get(), chunk5_gid)->empty());
+  ASSERT_TRUE(FontHelper::GlyfData(extended_face.get(), chunk6_gid)->empty());
 
-  client->AddDesiredCodepoints({chunk4_cp});
-  state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
+  // Ext 3 - extend to chunk4_cp + kVrt3
+  extended = ExtendWithDesignSpace(encoder, *encoded, {chunk2_cp, chunk4_cp},
+                                   {kVrt3}, {});
+  ASSERT_TRUE(extended.ok()) << extended.status();
+  extended_face = extended->face();
 
-  patches = client->PatchesNeeded();
-  ASSERT_EQ(patches.size(), 3);  // 2 shared brotli and 1 iftb.
-
-  sc.Update(AddPatches(*client, encoder));
-  ASSERT_TRUE(sc.ok()) << sc;
-
-  state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::READY);
-
-  face = client->GetFontData().face();
-  ASSERT_FALSE(FontHelper::GlyfData(face.get(), chunk2_gid)->empty());
-  ASSERT_FALSE(FontHelper::GlyfData(face.get(), chunk4_gid)->empty());
-  ASSERT_FALSE(FontHelper::GlyfData(face.get(), chunk5_gid)->empty());
-  ASSERT_FALSE(FontHelper::GlyfData(face.get(), chunk6_gid)->empty());
+  ASSERT_FALSE(FontHelper::GlyfData(extended_face.get(), chunk2_gid)->empty());
+  ASSERT_FALSE(FontHelper::GlyfData(extended_face.get(), chunk4_gid)->empty());
+  ASSERT_FALSE(FontHelper::GlyfData(extended_face.get(), chunk5_gid)->empty());
+  ASSERT_FALSE(FontHelper::GlyfData(extended_face.get(), chunk6_gid)->empty());
 }
 
+/*
 TEST_F(IntegrationTest, MixedMode_LocaLenChange) {
   Encoder encoder;
   auto sc = InitEncoderForIftb(encoder);

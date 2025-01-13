@@ -161,10 +161,10 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 http_archive(
     name = "fontations",
-    urls = ["https://github.com/googlefonts/fontations/archive/eba2ce7e6b2fdbc0ee74e2a24773caacb5a95499.zip"],
-    strip_prefix = "fontations-eba2ce7e6b2fdbc0ee74e2a24773caacb5a95499",
+    urls = ["https://github.com/googlefonts/fontations/archive/699d1251d8a1959d2a45758719ee24d1e9655b3f.zip"],
+    strip_prefix = "fontations-699d1251d8a1959d2a45758719ee24d1e9655b3f",
     build_file = "//third_party:fontations.BUILD",
-    integrity = "sha256-8UcPJGfqmCoz0Xg7AiTHqp85gELW3ovmu4zyElMUGGQ=",
+    integrity = "sha256-+YH7Wbn43uYhJhdUoDkIuVVSzmGukXE+mOikx7aUjyw=",
 )
 
 http_archive(
