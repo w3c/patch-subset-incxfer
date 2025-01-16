@@ -52,6 +52,19 @@ void ParseGraph(const std::string& text, graph& out) {
   }
 }
 
+void ParseFetched(const std::string& text, btree_set<std::string>& uris_out) {
+  std::stringstream ss(text);
+  std::string marker("    fetching ");
+
+  std::string line;
+  while (getline(ss, line)) {
+    if (line.substr(0, marker.size()) == marker) {
+      std::string uri(line.substr(marker.size()));
+      uris_out.insert(uri);
+    }
+  }
+}
+
 StatusOr<std::string> WriteFontToDisk(const Encoder& encoder,
                                       const FontData& base) {
   char template_str[] = "fontations_client_XXXXXX";
@@ -117,8 +130,9 @@ Status ToGraph(const Encoder& encoder, const FontData& base, graph& out) {
 
 StatusOr<FontData> ExtendWithDesignSpace(
     const Encoder& encoder, const FontData& base,
-    btree_set<uint32_t> codepoints, absl::btree_set<hb_tag_t> feature_tags,
-    flat_hash_map<hb_tag_t, AxisRange> design_space) {
+    btree_set<uint32_t> codepoints, btree_set<hb_tag_t> feature_tags,
+    flat_hash_map<hb_tag_t, AxisRange> design_space,
+    btree_set<std::string>* applied_uris) {
   auto font_path_str = WriteFontToDisk(encoder, base);
   if (!font_path_str.ok()) {
     return font_path_str.status();
@@ -174,6 +188,10 @@ StatusOr<FontData> ExtendWithDesignSpace(
     return r.status();
   }
 
+  if (applied_uris) {
+    ParseFetched(*r, *applied_uris);
+  }
+
   return FontData(make_hb_blob(hb_blob_create_from_file(output.c_str())));
 }
 
@@ -181,7 +199,8 @@ StatusOr<FontData> Extend(const ift::encoder::Encoder& encoder,
                           const common::FontData& ift_font,
                           absl::btree_set<uint32_t> codepoints) {
   absl::flat_hash_map<hb_tag_t, common::AxisRange> design_space;
-  return ExtendWithDesignSpace(encoder, ift_font, codepoints, {}, design_space);
+  return ExtendWithDesignSpace(encoder, ift_font, codepoints, {}, design_space,
+                               nullptr);
 }
 
 }  // namespace ift::client
