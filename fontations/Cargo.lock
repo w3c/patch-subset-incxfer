@@ -781,6 +781,7 @@ dependencies = [
  "data-encoding-macro",
  "font-test-data",
  "font-types",
+ "klippa",
  "read-fonts",
  "regex",
  "shared-brotli-patch-decoder",
@@ -1393,7 +1394,7 @@ checksum = "1de1d4f81173b03af4c0cbed3c898f6bff5b870e4a7f5d6f4057d62a7a4b686e"
 
 [[package]]
 name = "skrifa"
-version = "0.26.3"
+version = "0.26.4"
 dependencies = [
  "bytemuck",
  "core_maths",

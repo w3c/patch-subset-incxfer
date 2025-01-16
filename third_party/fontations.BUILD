@@ -23,6 +23,7 @@ rust_binary(
       "@fontations_deps//:regex",
 	    ":incremental_font_transfer",
 	    ":skrifa",
+      ":klippa",
       ":read_fonts",
       ":font_types",
     ],
@@ -39,6 +40,7 @@ rust_library(
       ":write_fonts",
       ":skrifa",
       ":shared_brotli_patch_decoder",
+      ":klippa",
       "@fontations_deps//:data-encoding",
       "@fontations_deps//:data-encoding-macro",
       "@fontations_deps//:uri-template-system",
@@ -53,6 +55,20 @@ rust_library(
       "@fontations_deps//:bytemuck"
     ],
     crate_features = ["std", "bytemuck"],
+)
+
+rust_library(
+    name = "klippa",
+    srcs = glob(include = ["klippa/src/**/*.rs"]),
+    deps = [
+      ":skrifa",
+      ":write_fonts",
+      "@fontations_deps//:fnv",
+      "@fontations_deps//:hashbrown",
+      "@fontations_deps//:thiserror",
+      "@fontations_deps//:regex",
+    ],
+    # crate_features = ["std", "bytemuck"],
 )
 
 rust_library(
@@ -76,7 +92,7 @@ rust_library(
       "@fontations_deps//:log",
       "@fontations_deps//:indexmap",
     ],
-    crate_features = ["bytemuck", "std"],
+    crate_features = ["bytemuck", "std", "read"],
 )
 
 rust_library(
