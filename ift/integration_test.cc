@@ -251,8 +251,6 @@ bool GvarDataMatches(hb_face_t* a, hb_face_t* b, uint32_t codepoint,
 
 // TODO(garretrieger): full expansion test.
 // TODO(garretrieger): test of a woff2 encoded IFT font.
-// TODO(garretrieger): add IFTB only test case.
-// TODO(garretrieger): extension specific url template.
 
 TEST_F(IntegrationTest, TableKeyedOnly) {
   Encoder encoder;
@@ -791,10 +789,9 @@ TEST_F(IntegrationTest, MixedMode_DesignSpaceAugmentation) {
       GvarDataMatches(orig_face.get(), extended_face.get(), chunk3_cp, 7));
 }
 
-/*
 TEST_F(IntegrationTest, MixedMode_DesignSpaceAugmentation_DropsUnusedPatches) {
   Encoder encoder;
-  auto sc = InitEncoderForVfIftb(encoder);
+  auto sc = InitEncoderForVfMixedMode(encoder);
   ASSERT_TRUE(sc.ok()) << sc;
 
   // target paritions: {{0, 1}, {2}, {3, 4}} + add wght axis
@@ -804,65 +801,34 @@ TEST_F(IntegrationTest, MixedMode_DesignSpaceAugmentation_DropsUnusedPatches) {
   sc.Update(encoder.AddExtensionSubsetOfIftbPatches({3, 4}));
   encoder.AddOptionalDesignSpace({{kWght, *AxisRange::Range(100, 900)}});
   encoder.AddIftbUrlTemplateOverride({{kWght, *AxisRange::Range(100, 900)}},
-                                     "vf-0x$2$1");
+                                     "vf-{id}");
 
   ASSERT_TRUE(sc.ok()) << sc;
 
   auto encoded = encoder.Encode();
   ASSERT_TRUE(encoded.ok()) << encoded.status();
+  auto encoded_face = encoded->face();
 
-  auto client = IFTClient::NewClient(std::move(*encoded));
-  ASSERT_TRUE(client.ok()) << client.status();
+  btree_set<std::string> fetched_uris;
+  auto extended = ExtendWithDesignSpace(
+      encoder, *encoded, {chunk3_cp, chunk4_cp}, {},
+      {{kWght, *AxisRange::Range(100, 900)}}, &fetched_uris);
 
-  // Phase 1
-  client->AddDesiredCodepoints({chunk3_cp, chunk4_cp});
-  sc = client->AddDesiredDesignSpace(kWght, 100, 900);
-  ASSERT_TRUE(sc.ok()) << sc;
-  auto state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
+  // correspond to ids 3, 4, 6, d
+  btree_set<std::string> expected_uris{"0C", "0G",    "0O",
+                                       "1K", "vf-0C", "vf-0G"};
 
-  auto patches = client->PatchesNeeded();
-  flat_hash_set<std::string> expected_patches = {"0x03", "0x04", "0x06"};
-  ASSERT_EQ(patches, expected_patches);
-  sc = AddPatches(*client, encoder);
-  ASSERT_TRUE(sc.ok()) << sc;
+  ASSERT_EQ(fetched_uris, expected_uris);
 
-  state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
+  // TODO check the patches that were used by looking at ift_extend output
+  ASSERT_TRUE(extended.ok()) << extended.status();
+  auto extended_face = extended->face();
 
-  // Phase 2
-  patches = client->PatchesNeeded();
-  expected_patches = {"0x0d"};
-  ASSERT_EQ(patches, expected_patches);
-  sc = AddPatches(*client, encoder);
-  ASSERT_TRUE(sc.ok()) << sc;
-
-  state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
-
-  // Phase 3
-  patches = client->PatchesNeeded();
-  expected_patches = {"vf-0x03", "vf-0x04"};
-  ASSERT_EQ(patches, expected_patches);
-  sc = AddPatches(*client, encoder);
-  ASSERT_TRUE(sc.ok()) << sc;
-
-  state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::READY);
-
-  // Checks
-
-  auto face = client->GetFontData().face();
-  ASSERT_GT(FontHelper::GvarData(face.get(), chunk0_gid)->size(), 0);
-  ASSERT_GT(FontHelper::GvarData(face.get(), chunk1_gid)->size(), 0);
-  ASSERT_EQ(FontHelper::GvarData(face.get(), chunk2_gid)->size(), 0);
-  ASSERT_GT(FontHelper::GvarData(face.get(), chunk3_gid)->size(), 0);
-  ASSERT_GT(FontHelper::GvarData(face.get(), chunk4_gid)->size(), 0);
+  ASSERT_GT(FontHelper::GvarData(extended_face.get(), chunk0_gid)->size(), 0);
+  ASSERT_GT(FontHelper::GvarData(extended_face.get(), chunk1_gid)->size(), 0);
+  ASSERT_EQ(FontHelper::GvarData(extended_face.get(), chunk2_gid)->size(), 0);
+  ASSERT_GT(FontHelper::GvarData(extended_face.get(), chunk3_gid)->size(), 0);
+  ASSERT_GT(FontHelper::GvarData(extended_face.get(), chunk4_gid)->size(), 0);
 }
-*/
 
 }  // namespace ift

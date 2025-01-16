@@ -27,12 +27,16 @@ absl::Status ToGraph(const ift::encoder::Encoder& encoder,
 /**
  * Runs 'ift_extend' on the IFT font created by encoder and returns the
  * resulting extended font.
+ *
+ * if non null, applied_uris will be populated with the set of uris that
+ * the client ended up fetching and applying.
  */
 absl::StatusOr<common::FontData> ExtendWithDesignSpace(
     const ift::encoder::Encoder& encoder, const common::FontData& ift_font,
     absl::btree_set<uint32_t> codepoints,
     absl::btree_set<hb_tag_t> feature_tags,
-    absl::flat_hash_map<hb_tag_t, common::AxisRange> design_space);
+    absl::flat_hash_map<hb_tag_t, common::AxisRange> design_space,
+    absl::btree_set<std::string>* applied_uris = nullptr);
 
 absl::StatusOr<common::FontData> Extend(const ift::encoder::Encoder& encoder,
                                         const common::FontData& ift_font,
