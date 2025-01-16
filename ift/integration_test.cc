@@ -59,12 +59,10 @@ class IntegrationTest : public ::testing::Test {
       iftb_patches_[i].set(blob.get());
     }
 
-    /*
     // Noto Sans JP VF
     blob = make_hb_blob(
         hb_blob_create_from_file("ift/testdata/NotoSansJP[wght].subset.ttf"));
-    face = make_hb_face(hb_face_create(blob.get(), 0));
-    noto_sans_vf_.set(face.get());
+    noto_sans_vf_.set(blob.get());
 
     vf_iftb_patches_.resize(5);
     for (int i = 1; i <= 4; i++) {
@@ -74,7 +72,6 @@ class IntegrationTest : public ::testing::Test {
       assert(hb_blob_get_length(blob.get()) > 0);
       vf_iftb_patches_[i].set(blob.get());
     }
-    */
 
     // Feature Test
     blob = make_hb_blob(hb_blob_create_from_file(
@@ -113,17 +110,12 @@ class IntegrationTest : public ::testing::Test {
     return absl::OkStatus();
   }
 
-  /*
-  Status InitEncoderForVfIftb(Encoder& encoder) {
-    encoder.SetUrlTemplate("0x$2$1");
+  Status InitEncoderForVfMixedMode(Encoder& encoder) {
+    encoder.SetUrlTemplate("{id}");
     {
       hb_face_t* face = noto_sans_vf_.reference_face();
       encoder.SetFace(face);
       hb_face_destroy(face);
-    }
-    auto sc = encoder.SetId({0x479bb4b0, 0x20226239, 0xa7799c0f, 0x24275be0});
-    if (!sc.ok()) {
-      return sc;
     }
 
     for (uint i = 1; i < vf_iftb_patches_.size(); i++) {
@@ -135,7 +127,6 @@ class IntegrationTest : public ::testing::Test {
 
     return absl::OkStatus();
   }
-  */
 
   Status InitEncoderForMixedModeFeatureTest(Encoder& encoder) {
     encoder.SetUrlTemplate("{id}");
@@ -172,24 +163,6 @@ class IntegrationTest : public ::testing::Test {
     return absl::OkStatus();
   }
 
-  /*
-  Status AddPatches(IFTClient& client, Encoder& encoder) {
-    auto patches = client.PatchesNeeded();
-    for (const auto& id : patches) {
-      FontData patch_data;
-      auto it = encoder.Patches().find(id);
-      if (it == encoder.Patches().end()) {
-        return absl::InternalError(StrCat("Patch ", id, " was not found."));
-      }
-      patch_data.shallow_copy(it->second);
-      client.AddPatch(id, patch_data);
-    }
-
-    return absl::OkStatus();
-  }
-  */
-
-  /*
   bool GvarHasLongOffsets(const FontData& font) {
     auto face = font.face();
     auto gvar_data =
@@ -200,13 +173,12 @@ class IntegrationTest : public ::testing::Test {
     uint8_t flags_1 = gvar_data.str().at(15);
     return flags_1 == 0x01;
   }
-  */
 
   FontData noto_sans_jp_;
   std::vector<FontData> iftb_patches_;
 
-  // FontData noto_sans_vf_;
-  // std::vector<FontData> vf_iftb_patches_;
+  FontData noto_sans_vf_;
+  std::vector<FontData> vf_iftb_patches_;
 
   FontData feature_test_;
   std::vector<FontData> feature_test_patches_;
@@ -250,6 +222,31 @@ bool GlyphDataMatches(hb_face_t* a, hb_face_t* b, uint32_t codepoint) {
   auto a_data = FontHelper::GlyfData(a, gid_a);
   auto b_data = FontHelper::GlyfData(b, gid_b);
   return *a_data == *b_data;
+}
+
+bool GvarDataMatches(hb_face_t* a, hb_face_t* b, uint32_t codepoint,
+                     uint32_t ignore_count) {
+  uint32_t gid_a, gid_b;
+
+  hb_font_t* font_a = hb_font_create(a);
+  hb_font_t* font_b = hb_font_create(b);
+  bool a_present = hb_font_get_nominal_glyph(font_a, codepoint, &gid_a);
+  bool b_present = hb_font_get_nominal_glyph(font_b, codepoint, &gid_b);
+  hb_font_destroy(font_a);
+  hb_font_destroy(font_b);
+
+  if (!a_present && !b_present) {
+    return true;
+  }
+
+  if (a_present != b_present) {
+    return false;
+  }
+
+  auto a_data = FontHelper::GvarData(a, gid_a);
+  auto b_data = FontHelper::GvarData(b, gid_b);
+
+  return a_data->substr(ignore_count) == b_data->substr(ignore_count);
 }
 
 // TODO(garretrieger): full expansion test.
@@ -750,10 +747,9 @@ TEST_F(IntegrationTest, MixedMode_SequentialDependentPatches) {
   ASSERT_TRUE(codepoints.contains(chunk4_cp));
 }
 
-/*
 TEST_F(IntegrationTest, MixedMode_DesignSpaceAugmentation) {
   Encoder encoder;
-  auto sc = InitEncoderForVfIftb(encoder);
+  auto sc = InitEncoderForVfMixedMode(encoder);
   ASSERT_TRUE(sc.ok()) << sc;
 
   // target paritions: {{0, 1}, {2}, {3, 4}} + add wght axis
@@ -763,77 +759,39 @@ TEST_F(IntegrationTest, MixedMode_DesignSpaceAugmentation) {
   sc.Update(encoder.AddExtensionSubsetOfIftbPatches({3, 4}));
   encoder.AddOptionalDesignSpace({{kWght, *AxisRange::Range(100, 900)}});
   encoder.AddIftbUrlTemplateOverride({{kWght, *AxisRange::Range(100, 900)}},
-                                     "vf-0x$2$1");
-
+                                     "vf-{id}");
   ASSERT_TRUE(sc.ok()) << sc;
 
   auto encoded = encoder.Encode();
   ASSERT_TRUE(encoded.ok()) << encoded.status();
-
-  auto client = IFTClient::NewClient(std::move(*encoded));
-  ASSERT_TRUE(client.ok()) << client.status();
+  auto encoded_face = encoded->face();
 
   // Phase 1: non VF augmentation.
-  client->AddDesiredCodepoints({chunk3_cp, chunk4_cp});
-  auto state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
-
-  auto patches = client->PatchesNeeded();
-  flat_hash_set<std::string> expected_patches = {"0x03", "0x04", "0x06"};
-  ASSERT_EQ(patches, expected_patches);
-  sc = AddPatches(*client, encoder);
-  ASSERT_TRUE(sc.ok()) << sc;
-
-  state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::READY);
+  auto extended = Extend(encoder, *encoded, {chunk3_cp, chunk4_cp});
+  ASSERT_TRUE(extended.ok()) << extended.status();
+  auto extended_face = extended->face();
 
   // Phase 2: VF augmentation.
-  sc = client->AddDesiredDesignSpace(kWght, 100, 900);
-  ASSERT_TRUE(sc.ok()) << sc;
-  state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
+  extended = ExtendWithDesignSpace(encoder, *encoded, {chunk3_cp, chunk4_cp},
+                                   {}, {{kWght, *AxisRange::Range(100, 900)}});
+  ASSERT_TRUE(extended.ok()) << extended.status();
+  extended_face = extended->face();
 
-  patches = client->PatchesNeeded();
-  expected_patches = {
-      "0x0d",
-  };
-  ASSERT_EQ(patches, expected_patches);
-  sc = AddPatches(*client, encoder);
-  ASSERT_TRUE(sc.ok()) << sc;
+  ASSERT_TRUE(GvarHasLongOffsets(*extended));
+  ASSERT_GT(FontHelper::GvarData(extended_face.get(), chunk0_gid)->size(), 0);
+  ASSERT_GT(FontHelper::GvarData(extended_face.get(), chunk1_gid)->size(), 0);
+  ASSERT_EQ(FontHelper::GvarData(extended_face.get(), chunk2_gid)->size(), 0);
+  ASSERT_GT(FontHelper::GvarData(extended_face.get(), chunk3_gid)->size(), 0);
+  ASSERT_GT(FontHelper::GvarData(extended_face.get(), chunk4_gid)->size(), 0);
 
-  state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::NEEDS_PATCHES);
-
-  ASSERT_TRUE(GvarHasLongOffsets(client->GetFontData()));
-  hb_face_unique_ptr face = client->GetFontData().face();
-  ASSERT_GT(FontHelper::GvarData(face.get(), chunk0_gid)->size(), 0);
-  ASSERT_GT(FontHelper::GvarData(face.get(), chunk1_gid)->size(), 0);
-  ASSERT_EQ(FontHelper::GvarData(face.get(), chunk2_gid)->size(), 0);
-  ASSERT_EQ(FontHelper::GvarData(face.get(), chunk3_gid)->size(), 0);
-  ASSERT_EQ(FontHelper::GvarData(face.get(), chunk4_gid)->size(), 0);
-
-  patches = client->PatchesNeeded();
-  expected_patches = {"vf-0x03", "vf-0x04"};
-  ASSERT_EQ(patches, expected_patches);
-  sc = AddPatches(*client, encoder);
-  ASSERT_TRUE(sc.ok()) << sc;
-
-  state = client->Process();
-  ASSERT_TRUE(state.ok()) << state.status();
-  ASSERT_EQ(*state, IFTClient::READY);
-
-  face = client->GetFontData().face();
-  ASSERT_GT(FontHelper::GvarData(face.get(), chunk0_gid)->size(), 0);
-  ASSERT_GT(FontHelper::GvarData(face.get(), chunk1_gid)->size(), 0);
-  ASSERT_EQ(FontHelper::GvarData(face.get(), chunk2_gid)->size(), 0);
-  ASSERT_GT(FontHelper::GvarData(face.get(), chunk3_gid)->size(), 0);
-  ASSERT_GT(FontHelper::GvarData(face.get(), chunk4_gid)->size(), 0);
+  auto orig_face = noto_sans_vf_.face();
+  // The instancing processes changes some of the flags on the gvar data section
+  // so ignore diffs in the first 7 bytes
+  ASSERT_TRUE(
+      GvarDataMatches(orig_face.get(), extended_face.get(), chunk3_cp, 7));
 }
 
+/*
 TEST_F(IntegrationTest, MixedMode_DesignSpaceAugmentation_DropsUnusedPatches) {
   Encoder encoder;
   auto sc = InitEncoderForVfIftb(encoder);
