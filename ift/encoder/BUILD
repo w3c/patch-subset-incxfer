@@ -38,6 +38,7 @@ cc_test(
   ],
   deps = [
     "//ift/client:fontations",
+    "//ift:test_segments",
     ":encoder",
      "@gtest//:gtest_main",
      "//common",

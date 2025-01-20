@@ -53,8 +53,6 @@ using ift::proto::TABLE_KEYED_PARTIAL;
 
 namespace ift::encoder {
 
-
-
 void PrintTo(const Encoder::SubsetDefinition& def, std::ostream* os) {
   *os << "[{";
 
@@ -266,13 +264,15 @@ Encoder::SubsetDefinition Encoder::Combine(const SubsetDefinition& s1,
   return result;
 }
 
-Status Encoder::AddGlyphDataSegment(uint32_t id, const absl::flat_hash_set<uint32_t>& gids) {
+Status Encoder::AddGlyphDataSegment(uint32_t id,
+                                    const absl::flat_hash_set<uint32_t>& gids) {
   if (!face_) {
     return absl::FailedPreconditionError("Encoder must have a face set.");
   }
 
   if (glyph_data_segments_.contains(id)) {
-    return absl::FailedPreconditionError(StrCat("A segment with id, ", id, ", has already been supplied."));
+    return absl::FailedPreconditionError(
+        StrCat("A segment with id, ", id, ", has already been supplied."));
   }
 
   uint32_t glyph_count = hb_face_get_glyph_count(face_.get());
@@ -300,7 +300,8 @@ Status Encoder::AddGlyphDataSegment(uint32_t id, const absl::flat_hash_set<uint3
   return absl::OkStatus();
 }
 
-Status Encoder::AddFeatureDependency(uint32_t original_id, uint32_t id, hb_tag_t feature_tag) {
+Status Encoder::AddFeatureDependency(uint32_t original_id, uint32_t id,
+                                     hb_tag_t feature_tag) {
   if (!glyph_data_segments_.contains(original_id)) {
     return absl::InvalidArgumentError(
         StrCat("IFTB patch ", original_id,
@@ -326,7 +327,8 @@ Status Encoder::SetBaseSubsetFromSegments(
     const flat_hash_set<uint32_t>& included_segments,
     const design_space_t& design_space) {
   // TODO(garretrieger): support also providing initial features.
-  // TODO(garretrieger): resolve dependencies that are satisified by the included patches, features and design space
+  // TODO(garretrieger): resolve dependencies that are satisified by the
+  // included patches, features and design space
   //                     and pull those into the base subset.
   // TODO(garretrieger): handle the case where a patch included in the
   //  base subset has associated feature specific patches. We could
@@ -380,18 +382,21 @@ Status Encoder::SetBaseSubsetFromSegments(
   // remove all segments that have been placed into the base subset.
   RemoveSegments(included_segments);
 
-  // Glyph keyed patches can't change the glyph count in the font (and hence loca len)
-  // so always include the last gid in the base subset to force the loca table to remain
-  // at the full length from the start.
+  // Glyph keyed patches can't change the glyph count in the font (and hence
+  // loca len) so always include the last gid in the base subset to force the
+  // loca table to remain at the full length from the start.
   //
-  // TODO(garretrieger): this unnecessarily includes the last gid in the subset, should
-  //                     update the subsetter to retain the glyph count but not actually keep
-  //                     the last gid.
+  // TODO(garretrieger): this unnecessarily includes the last gid in the subset,
+  // should
+  //                     update the subsetter to retain the glyph count but not
+  //                     actually keep the last gid.
   //
-  // TODO(garretrieger): instead of forcing max glyph count here we can utilize table keyed patches
-  //                     to change loca len/glyph count to the max for any currently reachable segments.
-  //                     This would improve efficiency slightly by avoid including extra space in the
-  //                     initial font.
+  // TODO(garretrieger): instead of forcing max glyph count here we can utilize
+  // table keyed patches
+  //                     to change loca len/glyph count to the max for any
+  //                     currently reachable segments. This would improve
+  //                     efficiency slightly by avoid including extra space in
+  //                     the initial font.
   uint32_t gid_count = hb_face_get_glyph_count(face_.get());
   if (gid_count > 0) base_subset_.gids.insert(gid_count - 1);
 
@@ -439,11 +444,12 @@ StatusOr<FontData> Encoder::Encode() {
   if (!face_) {
     return absl::FailedPreconditionError("Encoder must have a face set.");
   }
-  
+
   return Encode(base_subset_, true);
 }
 
-bool Encoder::AllocatePatchSet(const design_space_t& design_space, std::string& uri_template, CompatId& compat_id) {
+bool Encoder::AllocatePatchSet(const design_space_t& design_space,
+                               std::string& uri_template, CompatId& compat_id) {
   auto uri_it = patch_set_uri_templates_.find(design_space);
   auto compat_id_it = glyph_keyed_compat_ids_.find(design_space);
 
@@ -465,8 +471,10 @@ bool Encoder::AllocatePatchSet(const design_space_t& design_space, std::string& 
   return true;
 }
 
-Status Encoder::EnsureGlyphKeyedPatchesPopulated(const design_space_t& design_space, std::string& uri_template, CompatId& compat_id) {
-  if (glyph_keyed_compat_ids_.empty()) {
+Status Encoder::EnsureGlyphKeyedPatchesPopulated(
+    const design_space_t& design_space, std::string& uri_template,
+    CompatId& compat_id) {
+  if (glyph_data_segments_.empty()) {
     return absl::OkStatus();
   }
 
@@ -492,6 +500,7 @@ Status Encoder::EnsureGlyphKeyedPatchesPopulated(const design_space_t& design_sp
 
   for (const auto& e : glyph_data_segments_) {
     uint32_t index = e.first;
+
     std::string url = URLTemplate::PatchToUrl(uri_template, index);
 
     SubsetDefinition subset = e.second;
@@ -564,7 +573,9 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
   CompatId table_keyed_compat_id = this->GenerateCompatId();
   std::string glyph_keyed_uri_template;
   CompatId glyph_keyed_compat_id;
-  auto sc = EnsureGlyphKeyedPatchesPopulated(base_subset.design_space, glyph_keyed_uri_template, glyph_keyed_compat_id);
+  auto sc = EnsureGlyphKeyedPatchesPopulated(base_subset.design_space,
+                                             glyph_keyed_uri_template,
+                                             glyph_keyed_compat_id);
   if (!sc.ok()) {
     return sc;
   }
@@ -591,7 +602,7 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
   table_keyed.SetUrlTemplate(table_keyed_uri_template);
   glyph_keyed.SetId(glyph_keyed_compat_id);
   glyph_keyed.SetUrlTemplate(glyph_keyed_uri_template);
-  
+
   PatchMap& glyph_keyed_patch_map = glyph_keyed.GetPatchMap();
   sc = PopulateGlyphKeyedPatchMap(glyph_keyed_patch_map,
                                   base_subset.design_space);
@@ -645,13 +656,16 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
     // Check if the main table URL will change with this subset
     std::string next_glyph_keyed_uri_template;
     CompatId next_glyph_keyed_compat_id;
-    auto sc = EnsureGlyphKeyedPatchesPopulated(base_subset.design_space, glyph_keyed_uri_template, glyph_keyed_compat_id);
+    auto sc = EnsureGlyphKeyedPatchesPopulated(base_subset.design_space,
+                                               glyph_keyed_uri_template,
+                                               glyph_keyed_compat_id);
     if (!sc.ok()) {
       return sc;
     }
 
     bool replace_url_template =
-        IsMixedMode() && (next_glyph_keyed_uri_template != glyph_keyed_uri_template);
+        IsMixedMode() &&
+        (next_glyph_keyed_uri_template != glyph_keyed_uri_template);
 
     FontData patch;
     auto differ =

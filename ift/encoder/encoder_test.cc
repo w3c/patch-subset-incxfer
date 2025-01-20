@@ -22,6 +22,7 @@
 #include "ift/client/fontations_client.h"
 #include "ift/proto/ift_table.h"
 #include "ift/proto/patch_map.h"
+#include "ift/testdata/test_segments.h"
 
 using absl::btree_map;
 using absl::btree_set;
@@ -46,6 +47,10 @@ using ift::proto::PatchEncoding;
 using ift::proto::PatchMap;
 using ift::proto::TABLE_KEYED_FULL;
 using ift::proto::TABLE_KEYED_PARTIAL;
+using ift::testdata::TestSegment1;
+using ift::testdata::TestSegment2;
+using ift::testdata::TestSegment3;
+using ift::testdata::TestSegment4;
 
 namespace ift::encoder {
 
@@ -62,10 +67,10 @@ class EncoderTest : public ::testing::Test {
     vf_font = from_file("common/testdata/Roboto[wdth,wght].ttf");
     noto_sans_jp = from_file("ift/testdata/NotoSansJP-Regular.subset.ttf");
 
-    chunk1 = from_file("ift/testdata/NotoSansJP-Regular.subset_iftb/chunk1.br");
-    chunk2 = from_file("ift/testdata/NotoSansJP-Regular.subset_iftb/chunk2.br");
-    chunk3 = from_file("ift/testdata/NotoSansJP-Regular.subset_iftb/chunk3.br");
-    chunk4 = from_file("ift/testdata/NotoSansJP-Regular.subset_iftb/chunk4.br");
+    segment_1 = TestSegment1();
+    segment_2 = TestSegment2();
+    segment_3 = TestSegment3();
+    segment_4 = TestSegment4();
   }
 
   FontData font;
@@ -73,10 +78,11 @@ class EncoderTest : public ::testing::Test {
   FontData woff2_font;
   FontData vf_font;
   FontData noto_sans_jp;
-  FontData chunk1;
-  FontData chunk2;
-  FontData chunk3;
-  FontData chunk4;
+
+  flat_hash_set<uint32_t> segment_1;
+  flat_hash_set<uint32_t> segment_2;
+  flat_hash_set<uint32_t> segment_3;
+  flat_hash_set<uint32_t> segment_4;
 
   uint32_t chunk0_cp = 0x47;
   uint32_t chunk1_cp = 0xb7;
@@ -140,10 +146,10 @@ class EncoderTest : public ::testing::Test {
 
 TEST_F(EncoderTest, OutgoingEdges) {
   Encoder encoder;
-  encoder.AddExtensionSubset({1, 2});
-  encoder.AddExtensionSubset({3, 4});
-  encoder.AddExtensionSubset({5, 6});
-  encoder.AddExtensionSubset({7, 8});
+  encoder.AddNonGlyphDataSegment({1, 2});
+  encoder.AddNonGlyphDataSegment({3, 4});
+  encoder.AddNonGlyphDataSegment({5, 6});
+  encoder.AddNonGlyphDataSegment({7, 8});
 
   Encoder::SubsetDefinition s1{1, 2};
   Encoder::SubsetDefinition s2{3, 4};
@@ -213,8 +219,8 @@ TEST_F(EncoderTest, OutgoingEdges_DesignSpace_PointToRange) {
   base.design_space[kWght] = AxisRange::Point(300);
 
   Encoder encoder;
-  encoder.AddExtensionSubset({3, 4});
-  encoder.AddOptionalDesignSpace({{kWght, *AxisRange::Range(300, 400)}});
+  encoder.AddNonGlyphDataSegment({3, 4});
+  encoder.AddDesignSpaceSegment({{kWght, *AxisRange::Range(300, 400)}});
 
   Encoder::SubsetDefinition s1{3, 4};
 
@@ -234,8 +240,8 @@ TEST_F(EncoderTest, OutgoingEdges_DesignSpace_AddAxis_1) {
   base.design_space[kWght] = *AxisRange::Range(200, 500);
 
   Encoder encoder;
-  encoder.AddExtensionSubset({3, 4});
-  encoder.AddOptionalDesignSpace({{kWdth, *AxisRange::Range(300, 400)}});
+  encoder.AddNonGlyphDataSegment({3, 4});
+  encoder.AddDesignSpaceSegment({{kWdth, *AxisRange::Range(300, 400)}});
 
   Encoder::SubsetDefinition s1{3, 4};
 
@@ -255,8 +261,8 @@ TEST_F(EncoderTest, OutgoingEdges_DesignSpace_AddAxis_OverlappingAxisRange) {
   base.design_space[kWght] = *AxisRange::Range(200, 500);
 
   Encoder encoder;
-  encoder.AddExtensionSubset({3, 4});
-  encoder.AddOptionalDesignSpace({
+  encoder.AddNonGlyphDataSegment({3, 4});
+  encoder.AddDesignSpaceSegment({
       {kWght, *AxisRange::Range(300, 700)},
       {kWdth, *AxisRange::Range(300, 400)},
   });
@@ -287,10 +293,10 @@ TEST_F(EncoderTest, OutgoingEdges_DesignSpace_AddAxis_MergeSpace) {
   base.design_space[kWdth] = AxisRange::Point(75);
 
   Encoder encoder;
-  encoder.AddOptionalDesignSpace({
+  encoder.AddDesignSpaceSegment({
       {kWght, *AxisRange::Range(300, 700)},
   });
-  encoder.AddOptionalDesignSpace({
+  encoder.AddDesignSpaceSegment({
       {kWdth, *AxisRange::Range(50, 100)},
   });
 
@@ -311,17 +317,17 @@ TEST_F(EncoderTest, OutgoingEdges_DesignSpace_AddAxis_MergeSpace) {
 
 TEST_F(EncoderTest, MissingFace) {
   Encoder encoder;
-  auto s1 = encoder.AddExistingIftbPatch(1, chunk1);
+  auto s1 = encoder.AddGlyphDataSegment(1, segment_1);
   ASSERT_TRUE(absl::IsFailedPrecondition(s1)) << s1;
 
-  auto s2 = encoder.SetBaseSubsetFromIftbPatches({});
+  auto s2 = encoder.SetBaseSubsetFromSegments({});
   ASSERT_TRUE(absl::IsFailedPrecondition(s2)) << s2;
 
   auto s3 = encoder.Encode();
   ASSERT_TRUE(absl::IsFailedPrecondition(s3.status())) << s3.status();
 }
 
-TEST_F(EncoderTest, IftbGidsNotInFace) {
+TEST_F(EncoderTest, GlyphDataSegments_GidsNotInFace) {
   Encoder encoder;
   {
     hb_face_t* face = font.reference_face();
@@ -329,11 +335,11 @@ TEST_F(EncoderTest, IftbGidsNotInFace) {
     hb_face_destroy(face);
   }
 
-  auto s = encoder.AddExistingIftbPatch(1, chunk1);
+  auto s = encoder.AddGlyphDataSegment(1, segment_1);
   ASSERT_TRUE(absl::IsInvalidArgument(s)) << s;
 }
 
-TEST_F(EncoderTest, InvalidIftbIds) {
+TEST_F(EncoderTest, InvalidGlyphDataSegmentIds) {
   Encoder encoder;
   {
     hb_face_t* face = noto_sans_jp.reference_face();
@@ -341,13 +347,13 @@ TEST_F(EncoderTest, InvalidIftbIds) {
     hb_face_destroy(face);
   }
 
-  auto s = encoder.AddExistingIftbPatch(1, chunk1);
+  auto s = encoder.AddGlyphDataSegment(1, segment_1);
   ASSERT_TRUE(s.ok()) << s;
 
-  s = encoder.AddExtensionSubsetOfIftbPatches({2});
+  s = encoder.AddNonGlyphSegmentFromGlyphSegments({2});
   ASSERT_TRUE(absl::IsInvalidArgument(s)) << s;
 
-  s = encoder.SetBaseSubsetFromIftbPatches({2});
+  s = encoder.SetBaseSubsetFromSegments({2});
   ASSERT_TRUE(absl::IsInvalidArgument(s)) << s;
 }
 
@@ -359,16 +365,16 @@ TEST_F(EncoderTest, DontClobberBaseSubset) {
     hb_face_destroy(face);
   }
 
-  auto s = encoder.AddExistingIftbPatch(1, chunk1);
+  auto s = encoder.AddGlyphDataSegment(1, segment_1);
   ASSERT_TRUE(s.ok()) << s;
 
-  s = encoder.SetBaseSubsetFromIftbPatches({});
+  s = encoder.SetBaseSubsetFromSegments({});
   ASSERT_TRUE(s.ok()) << s;
 
   s = encoder.SetBaseSubset({1});
   ASSERT_TRUE(absl::IsFailedPrecondition(s)) << s;
 
-  s = encoder.SetBaseSubsetFromIftbPatches({});
+  s = encoder.SetBaseSubsetFromSegments({});
   ASSERT_TRUE(absl::IsFailedPrecondition(s)) << s;
 }
 
@@ -399,7 +405,7 @@ TEST_F(EncoderTest, Encode_TwoSubsets) {
   encoder.SetFace(face);
   auto s = encoder.SetBaseSubset({'a', 'd'});
   ASSERT_TRUE(s.ok()) << s;
-  encoder.AddExtensionSubset(s1);
+  encoder.AddNonGlyphDataSegment(s1);
 
   auto base = encoder.Encode();
   hb_face_destroy(face);
@@ -421,8 +427,8 @@ TEST_F(EncoderTest, Encode_TwoSubsetsAndOptionalFeature) {
   encoder.SetFace(face);
   auto s = encoder.SetBaseSubset({'A', 'D'});
   ASSERT_TRUE(s.ok()) << s;
-  encoder.AddExtensionSubset(s1);
-  encoder.AddOptionalFeatureGroup({HB_TAG('c', '2', 's', 'c')});
+  encoder.AddNonGlyphDataSegment(s1);
+  encoder.AddFeatureGroupSegment({HB_TAG('c', '2', 's', 'c')});
 
   auto base = encoder.Encode();
   hb_face_destroy(face);
@@ -450,8 +456,8 @@ TEST_F(EncoderTest, Encode_ThreeSubsets) {
   encoder.SetFace(face);
   auto s = encoder.SetBaseSubset({'a'});
   ASSERT_TRUE(s.ok()) << s;
-  encoder.AddExtensionSubset(s1);
-  encoder.AddExtensionSubset(s2);
+  encoder.AddNonGlyphDataSegment(s1);
+  encoder.AddNonGlyphDataSegment(s2);
 
   auto base = encoder.Encode();
   hb_face_destroy(face);
@@ -480,8 +486,8 @@ TEST_F(EncoderTest, Encode_ThreeSubsets_WithOverlaps) {
   encoder.SetFace(face);
   auto s = encoder.SetBaseSubset({'a'});
   ASSERT_TRUE(s.ok()) << s;
-  encoder.AddExtensionSubset(s1);
-  encoder.AddExtensionSubset(s2);
+  encoder.AddNonGlyphDataSegment(s1);
+  encoder.AddNonGlyphDataSegment(s2);
 
   auto base = encoder.Encode();
   hb_face_destroy(face);
@@ -512,8 +518,8 @@ TEST_F(EncoderTest, Encode_ThreeSubsets_VF) {
   auto s = encoder.SetBaseSubsetFromDef(base_def);
   ASSERT_TRUE(s.ok()) << s;
 
-  encoder.AddExtensionSubset({'b'});
-  encoder.AddOptionalDesignSpace({{kWdth, *AxisRange::Range(75.0f, 100.0f)}});
+  encoder.AddNonGlyphDataSegment({'b'});
+  encoder.AddDesignSpaceSegment({{kWdth, *AxisRange::Range(75.0f, 100.0f)}});
 
   auto base = encoder.Encode();
   hb_face_destroy(face);
@@ -543,14 +549,14 @@ TEST_F(EncoderTest, Encode_ThreeSubsets_Mixed) {
     hb_face_destroy(face);
   }
 
-  auto s = encoder.AddExistingIftbPatch(1, chunk1);
-  s.Update(encoder.AddExistingIftbPatch(2, chunk2));
-  s.Update(encoder.AddExistingIftbPatch(3, chunk3));
-  s.Update(encoder.AddExistingIftbPatch(4, chunk4));
+  auto s = encoder.AddGlyphDataSegment(1, segment_1);
+  s.Update(encoder.AddGlyphDataSegment(2, segment_2));
+  s.Update(encoder.AddGlyphDataSegment(3, segment_3));
+  s.Update(encoder.AddGlyphDataSegment(4, segment_4));
   ASSERT_TRUE(s.ok()) << s;
 
-  s.Update(encoder.SetBaseSubsetFromIftbPatches({1, 2}));
-  s.Update(encoder.AddExtensionSubsetOfIftbPatches({3, 4}));
+  s.Update(encoder.SetBaseSubsetFromSegments({1, 2}));
+  s.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({3, 4}));
   ASSERT_TRUE(s.ok()) << s;
 
   auto base = encoder.Encode();
@@ -593,18 +599,17 @@ TEST_F(EncoderTest, Encode_ThreeSubsets_Mixed_WithFeatureMappings) {
     hb_face_destroy(face);
   }
 
-  auto s = encoder.AddExistingIftbPatch(1, chunk1);
-  s.Update(encoder.AddExistingIftbPatch(2, chunk2));
-  s.Update(encoder.AddExistingIftbPatch(3, chunk3));
-  s.Update(encoder.AddExistingIftbPatch(4, chunk4));
-  s.Update(
-      encoder.AddIftbFeatureSpecificPatch(3, 4, HB_TAG('c', 'c', 'm', 'p')));
+  auto s = encoder.AddGlyphDataSegment(1, segment_1);
+  s.Update(encoder.AddGlyphDataSegment(2, segment_2));
+  s.Update(encoder.AddGlyphDataSegment(3, segment_3));
+  s.Update(encoder.AddGlyphDataSegment(4, segment_4));
+  s.Update(encoder.AddFeatureDependency(3, 4, HB_TAG('c', 'c', 'm', 'p')));
   ASSERT_TRUE(s.ok()) << s;
 
   // Partitions {1}, {2, 3, 4}, +ccmp
-  s.Update(encoder.SetBaseSubsetFromIftbPatches({1}));
-  s.Update(encoder.AddExtensionSubsetOfIftbPatches({2, 3, 4}));
-  encoder.AddOptionalFeatureGroup({HB_TAG('c', 'c', 'm', 'p')});
+  s.Update(encoder.SetBaseSubsetFromSegments({1}));
+  s.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({2, 3, 4}));
+  encoder.AddFeatureGroupSegment({HB_TAG('c', 'c', 'm', 'p')});
   ASSERT_TRUE(s.ok()) << s;
 
   auto base = encoder.Encode();
@@ -629,9 +634,9 @@ TEST_F(EncoderTest, Encode_FourSubsets) {
   encoder.SetFace(face);
   auto s = encoder.SetBaseSubset({'a'});
   ASSERT_TRUE(s.ok()) << s;
-  encoder.AddExtensionSubset(s1);
-  encoder.AddExtensionSubset(s2);
-  encoder.AddExtensionSubset(s3);
+  encoder.AddNonGlyphDataSegment(s1);
+  encoder.AddNonGlyphDataSegment(s2);
+  encoder.AddNonGlyphDataSegment(s3);
 
   auto base = encoder.Encode();
   hb_face_destroy(face);
@@ -660,9 +665,9 @@ TEST_F(EncoderTest, Encode_FourSubsets_WithJumpAhead) {
   encoder.SetFace(face);
   auto s = encoder.SetBaseSubset({'a'});
   ASSERT_TRUE(s.ok()) << s;
-  encoder.AddExtensionSubset(s1);
-  encoder.AddExtensionSubset(s2);
-  encoder.AddExtensionSubset(s3);
+  encoder.AddNonGlyphDataSegment(s1);
+  encoder.AddNonGlyphDataSegment(s2);
+  encoder.AddNonGlyphDataSegment(s3);
   encoder.SetJumpAhead(2);
 
   auto base = encoder.Encode();
