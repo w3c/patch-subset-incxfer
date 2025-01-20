@@ -31,6 +31,22 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "test_segments",
+    srcs = [
+        "testdata/test_segments.h",
+    ],
+    hdrs = [
+        "testdata/test_segments.h",
+    ],
+    deps = [
+        "@com_google_absl//absl/container:flat_hash_set",
+    ],
+    visibility = [
+        "//visibility:public",
+    ],
+)
+
 cc_test(
     name = "ift_test",
     size = "small",

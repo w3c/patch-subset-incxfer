@@ -55,6 +55,20 @@ cc_binary(
     ],
 )
 
+cc_binary(
+    name = "glyphs_in_iftb_patch",
+    srcs = [
+        "glyphs_in_iftb_patch.cc",
+    ],
+    deps = [
+        "//ift",
+        "//common",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
 cc_library(
     name = "convert_iftb",
     srcs = [

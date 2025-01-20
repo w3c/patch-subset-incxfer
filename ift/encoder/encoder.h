@@ -49,25 +49,28 @@ class Encoder {
   /*
    * Adds a segmentation of glyph data.
    *
-   * In the generated encoding there will be one glyph keyed patch (containing all
-   * data for all of the glyphs in the segment) per segment and unique design space configuration.
+   * In the generated encoding there will be one glyph keyed patch (containing
+   * all data for all of the glyphs in the segment) per segment and unique
+   * design space configuration.
    *
-   * An id is provided which uniquely identifies this segment and can be used to specify dependencies
-   * against this segment.
+   * An id is provided which uniquely identifies this segment and can be used to
+   * specify dependencies against this segment.
    */
-  absl::Status AddGlyphDataSegment(uint32_t segment_id, const absl::flat_hash_set<uint32_t>& gids);
+  absl::Status AddGlyphDataSegment(uint32_t segment_id,
+                                   const absl::flat_hash_set<uint32_t>& gids);
 
   /*
    * Marks that the segment identified by 'id' will only be loaded if
-   * 'feature_tag' is in the  target subset and the segment identified by 'original_id' has
-   * been matched.
+   * 'feature_tag' is in the  target subset and the segment identified by
+   * 'original_id' has been matched.
    *
    * The segments associated with 'original_id' and 'id' must have been
    * previously supplied via AddGlyphDataSegment().
    */
-  absl::Status AddFeatureDependency(uint32_t original_id, uint32_t id, hb_tag_t feature_tag);
+  absl::Status AddFeatureDependency(uint32_t original_id, uint32_t id,
+                                    hb_tag_t feature_tag);
 
-  void SetFace(hb_face_t* face) { face_.reset(face); }
+  void SetFace(hb_face_t* face) { face_.reset(hb_face_reference(face)); }
 
   /*
    * Configure the base subset to cover the provided codepoints, and the set of
@@ -82,8 +85,9 @@ class Encoder {
     return absl::OkStatus();
   }
 
-  // Set up the base subset to cover all codepoints not listed in any glyph segments
-  // plus codepoints and gids from any segments referenced in 'included_segments'
+  // Set up the base subset to cover all codepoints not listed in any glyph
+  // segments plus codepoints and gids from any segments referenced in
+  // 'included_segments'
   absl::Status SetBaseSubsetFromSegments(
       const absl::flat_hash_set<uint32_t>& included_segments);
 
@@ -91,7 +95,8 @@ class Encoder {
       const absl::flat_hash_set<uint32_t>& included_segments,
       const design_space_t& design_space);
 
-  void AddNonGlyphDataSegment(const absl::flat_hash_set<hb_codepoint_t>& subset) {
+  void AddNonGlyphDataSegment(
+      const absl::flat_hash_set<hb_codepoint_t>& subset) {
     SubsetDefinition def;
     def.codepoints = subset;
     extension_subsets_.push_back(def);
@@ -111,7 +116,8 @@ class Encoder {
    * Configure an extension subset for the non glyph dependent graph formed
    * from the glyphs available in one or more glyph data segments.
    */
-  absl::Status AddNonGlyphSegmentFromGlyphSegments(const absl::flat_hash_set<uint32_t>& ids);
+  absl::Status AddNonGlyphSegmentFromGlyphSegments(
+      const absl::flat_hash_set<uint32_t>& ids);
 
   const absl::flat_hash_map<std::string, common::FontData>& Patches() const {
     return patches_;
@@ -195,7 +201,6 @@ class Encoder {
                                               uint32_t choose) const;
 
  private:
-  
   std::string UrlTemplate(uint32_t patch_set_id) const {
     if (patch_set_id == 0) {
       // patch_set_id 0 is always used for table keyed patches
@@ -232,7 +237,9 @@ class Encoder {
    */
   bool IsMixedMode() const { return !glyph_data_segments_.empty(); }
 
-  absl::Status EnsureGlyphKeyedPatchesPopulated(const design_space_t& design_space, std::string& uri_template, common::CompatId& compat_id);
+  absl::Status EnsureGlyphKeyedPatchesPopulated(
+      const design_space_t& design_space, std::string& uri_template,
+      common::CompatId& compat_id);
 
   absl::Status PopulateGlyphKeyedPatchMap(
       ift::proto::PatchMap& patch_map,
@@ -275,13 +282,14 @@ class Encoder {
       common::CompatId base_compat_id) {
     // the replacement differ is used during design space expansions, both
     // gvar and "IFT " are overwritten to be compatible with the new design
-    // space. Glyph segment patches for all prev loaded glyphs will be downloaded
-    // to repopulate variation data for existing glyphs.
+    // space. Glyph segment patches for all prev loaded glyphs will be
+    // downloaded to repopulate variation data for existing glyphs.
     return new TableKeyedDiff(base_compat_id, {"glyf", "loca"},
                               {"IFTX", "gvar"});
   }
 
-  bool AllocatePatchSet(const design_space_t& design_space, std::string& uri_template, common::CompatId& compat_id);
+  bool AllocatePatchSet(const design_space_t& design_space,
+                        std::string& uri_template, common::CompatId& compat_id);
 
   std::mt19937 gen_;
   std::uniform_int_distribution<uint32_t> random_values_;
@@ -290,13 +298,14 @@ class Encoder {
   common::hb_face_unique_ptr face_;
   absl::btree_map<uint32_t, SubsetDefinition> glyph_data_segments_;
 
-  // TODO(garretrieger): change to more general dependency mechanism that includes other glyph keyed patches as well
+  // TODO(garretrieger): change to more general dependency mechanism that
+  // includes other glyph keyed patches as well
   absl::flat_hash_map<uint32_t,
                       absl::flat_hash_map<hb_tag_t, absl::btree_set<uint32_t>>>
       glyph_data_segment_feature_dependencies_;
 
   SubsetDefinition base_subset_;
-  std::vector<SubsetDefinition> extension_subsets_;    
+  std::vector<SubsetDefinition> extension_subsets_;
   uint32_t jump_ahead_ = 1;
 
   // == OUT ==
@@ -304,7 +313,7 @@ class Encoder {
   absl::flat_hash_map<design_space_t, std::string> patch_set_uri_templates_;
   absl::flat_hash_map<design_space_t, common::CompatId> glyph_keyed_compat_ids_;
   uint32_t next_id_ = 0;
-  uint32_t next_patch_set_id_ = 1; // id 0 is reserved for table keyed patches.
+  uint32_t next_patch_set_id_ = 1;  // id 0 is reserved for table keyed patches.
 
   absl::flat_hash_map<SubsetDefinition, common::FontData> built_subsets_;
   absl::flat_hash_map<std::string, common::FontData> patches_;
