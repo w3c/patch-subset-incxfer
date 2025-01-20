@@ -23,10 +23,6 @@ namespace ift::encoder {
 /*
  * Implementation of an encoder which can convert non-IFT fonts to an IFT
  * font and a set of patches.
- *
- * Currently this only supports producing shared brotli IFT fonts. For IFTB
- * the util/iftb2ift.cc cli can be used to convert IFTB fonts into the IFT
- * format.
  */
 class Encoder {
  public:
@@ -34,26 +30,15 @@ class Encoder {
 
   Encoder()
       : gen_(),
-        random_values_(0, std::numeric_limits<uint32_t>::max())
+        random_values_(0, std::numeric_limits<uint32_t>::max()),
+        face_(common::make_hb_face(nullptr))
 
-  {
-    this->glyph_keyed_compat_id_ = this->GenerateCompatId();
-  }
-
-  ~Encoder() {
-    if (face_) {
-      hb_face_destroy(face_);
-    }
-  }
+  {}
 
   Encoder(const Encoder&) = delete;
   Encoder(Encoder&& other) = delete;
   Encoder& operator=(const Encoder&) = delete;
   Encoder& operator=(Encoder&& other) = delete;
-
-  void SetUrlTemplate(const std::string& value) { url_template_ = value; }
-
-  const std::string& UrlTemplate() const { return url_template_; }
 
   /*
    * Configures how many graph levels can be reached from each node in the
@@ -62,33 +47,27 @@ class Encoder {
   void SetJumpAhead(uint32_t count) { this->jump_ahead_ = count; }
 
   /*
-   * Adds an IFTB patch to be included in the encoded font identified by 'id'
-   * using the provided patch binary data.
-   */
-  absl::Status AddExistingIftbPatch(uint32_t id, const common::FontData& patch);
-
-  /*
-   * Adds an IFTB patch identified by 'id' that will only be loaded if
-   * 'feature_tag' is in the  target subset and the IFTB patch 'original_id' has
-   * been loaded.
+   * Adds a segmentation of glyph data.
    *
-   * The patches associated with 'original_id' and 'id' must have been
-   * previously supplied via AddExistingIftbPatch().
+   * In the generated encoding there will be one glyph keyed patch (containing all
+   * data for all of the glyphs in the segment) per segment and unique design space configuration.
+   *
+   * An id is provided which uniquely identifies this segment and can be used to specify dependencies
+   * against this segment.
    */
-  absl::Status AddIftbFeatureSpecificPatch(uint32_t original_id, uint32_t id,
-                                           hb_tag_t feature_tag);
+  absl::Status AddGlyphDataSegment(uint32_t segment_id, const absl::flat_hash_set<uint32_t>& gids);
 
   /*
-   * Overrides the patch url template used when the current subset matches
-   * the specified design space. The url override only applies to the IFTB
-   * mapping table.
+   * Marks that the segment identified by 'id' will only be loaded if
+   * 'feature_tag' is in the  target subset and the segment identified by 'original_id' has
+   * been matched.
+   *
+   * The segments associated with 'original_id' and 'id' must have been
+   * previously supplied via AddGlyphDataSegment().
    */
-  void AddIftbUrlTemplateOverride(const design_space_t& design_space,
-                                  absl::string_view url_template) {
-    iftb_url_overrides_[design_space] = url_template;
-  }
+  absl::Status AddFeatureDependency(uint32_t original_id, uint32_t id, hb_tag_t feature_tag);
 
-  void SetFace(hb_face_t* face) { face_ = hb_face_reference(face); }
+  void SetFace(hb_face_t* face) { face_.reset(face); }
 
   /*
    * Configure the base subset to cover the provided codepoints, and the set of
@@ -103,28 +82,20 @@ class Encoder {
     return absl::OkStatus();
   }
 
-  // Set up the base subset to cover all codepoints not listed in any IFTB
-  // patches, plus codepoints from any patches referenced in 'included_patches'
-  absl::Status SetBaseSubsetFromIftbPatches(
-      const absl::flat_hash_set<uint32_t>& included_patches);
+  // Set up the base subset to cover all codepoints not listed in any glyph segments
+  // plus codepoints and gids from any segments referenced in 'included_segments'
+  absl::Status SetBaseSubsetFromSegments(
+      const absl::flat_hash_set<uint32_t>& included_segments);
 
-  absl::Status SetBaseSubsetFromIftbPatches(
-      const absl::flat_hash_set<uint32_t>& included_patches,
+  absl::Status SetBaseSubsetFromSegments(
+      const absl::flat_hash_set<uint32_t>& included_segments,
       const design_space_t& design_space);
 
-  void AddExtensionSubset(const absl::flat_hash_set<hb_codepoint_t>& subset) {
+  void AddNonGlyphDataSegment(const absl::flat_hash_set<hb_codepoint_t>& subset) {
     SubsetDefinition def;
     def.codepoints = subset;
     extension_subsets_.push_back(def);
   }
-
-  /*
-   * Configure an extension subset for the dependent graph formed the glyphs
-   * available in one or more IFTB patches (previously provided by calls too
-   * AddExistingIftbPatch())
-   */
-  absl::Status AddExtensionSubsetOfIftbPatches(
-      const absl::flat_hash_set<uint32_t>& ids);
 
   /*
    * Marks the provided group offeature tags as optional. In the dependent
@@ -132,15 +103,16 @@ class Encoder {
    * node via a patch. Once enabled data for all codepoints and those features
    * will always be available.
    */
-  void AddOptionalFeatureGroup(const absl::btree_set<hb_tag_t>& feature_tag);
+  void AddFeatureGroupSegment(const absl::btree_set<hb_tag_t>& feature_tag);
 
-  void AddOptionalDesignSpace(const design_space_t& space);
+  void AddDesignSpaceSegment(const design_space_t& space);
 
-  // TODO(garretrieger): add support for specifying IFTB patch + feature tag
-  // mappings
+  /*
+   * Configure an extension subset for the non glyph dependent graph formed
+   * from the glyphs available in one or more glyph data segments.
+   */
+  absl::Status AddNonGlyphSegmentFromGlyphSegments(const absl::flat_hash_set<uint32_t>& ids);
 
-  // TODO(garretrieger): just like with IFTClient transition to using urls as
-  // the id.
   const absl::flat_hash_map<std::string, common::FontData>& Patches() const {
     return patches_;
   }
@@ -155,6 +127,8 @@ class Encoder {
    */
   absl::StatusOr<common::FontData> Encode();
 
+  // TODO(garretrieger): update handling of encoding for use in woff2,
+  // see: https://w3c.github.io/IFT/Overview.html#ift-and-compression
   static absl::StatusOr<common::FontData> RoundTripWoff2(
       absl::string_view font, bool glyf_transform = true);
 
@@ -221,7 +195,16 @@ class Encoder {
                                               uint32_t choose) const;
 
  private:
-  typedef absl::btree_map<uint32_t, SubsetDefinition> iftb_map;
+  
+  std::string UrlTemplate(uint32_t patch_set_id) const {
+    if (patch_set_id == 0) {
+      // patch_set_id 0 is always used for table keyed patches
+      return "{id}.tk";
+    }
+
+    // All other ids are for glyph keyed.
+    return absl::StrCat(patch_set_id, "_{id}.gk");
+  }
 
   static void AddCombinations(const std::vector<const SubsetDefinition*>& in,
                               uint32_t number,
@@ -240,18 +223,16 @@ class Encoder {
   absl::StatusOr<common::FontData> Encode(const SubsetDefinition& base_subset,
                                           bool is_root = true);
 
-  absl::StatusOr<SubsetDefinition> SubsetDefinitionForIftbPatches(
+  absl::StatusOr<SubsetDefinition> SubsetDefinitionForSegments(
       const absl::flat_hash_set<uint32_t>& ids) const;
 
   /*
    * Returns true if this encoding will contain both glyph keyed and table keyed
    * patches.
    */
-  bool IsMixedMode() const { return !existing_iftb_patches_.empty(); }
+  bool IsMixedMode() const { return !glyph_data_segments_.empty(); }
 
-  absl::Status PopulateGlyphKeyedPatches(const design_space_t& design_space,
-                                         std::string url_template,
-                                         common::CompatId compat_id);
+  absl::Status EnsureGlyphKeyedPatchesPopulated(const design_space_t& design_space, std::string& uri_template, common::CompatId& compat_id);
 
   absl::Status PopulateGlyphKeyedPatchMap(
       ift::proto::PatchMap& patch_map,
@@ -272,16 +253,13 @@ class Encoder {
       hb_face_t* font, const design_space_t& design_space) const;
 
   template <typename T>
-  void RemoveIftbPatches(T ids);
+  void RemoveSegments(T ids);
 
   absl::StatusOr<std::unique_ptr<const common::BinaryDiff>> GetDifferFor(
       const common::FontData& font_data, common::CompatId compat_id,
       bool replace_url_template) const;
 
   common::CompatId GenerateCompatId();
-
-  void SetOverrideCompatId(const design_space_t& design_space,
-                           common::CompatId compat_id);
 
   static ift::TableKeyedDiff* FullFontTableKeyedDiff(
       common::CompatId base_compat_id) {
@@ -290,44 +268,43 @@ class Encoder {
 
   static ift::TableKeyedDiff* MixedModeTableKeyedDiff(
       common::CompatId base_compat_id) {
-    return new TableKeyedDiff(base_compat_id, {"IFT ", "glyf", "loca", "gvar"});
+    return new TableKeyedDiff(base_compat_id, {"IFTX", "glyf", "loca", "gvar"});
   }
 
   static ift::TableKeyedDiff* ReplaceIftMapTableKeyedDiff(
       common::CompatId base_compat_id) {
     // the replacement differ is used during design space expansions, both
     // gvar and "IFT " are overwritten to be compatible with the new design
-    // space. IFTB Patches for all prev loaded glyphs will be downloaded
+    // space. Glyph segment patches for all prev loaded glyphs will be downloaded
     // to repopulate variation data for existing glyphs.
     return new TableKeyedDiff(base_compat_id, {"glyf", "loca"},
-                              {"IFT ", "gvar"});
+                              {"IFTX", "gvar"});
   }
+
+  bool AllocatePatchSet(const design_space_t& design_space, std::string& uri_template, common::CompatId& compat_id);
 
   std::mt19937 gen_;
   std::uniform_int_distribution<uint32_t> random_values_;
 
   // == IN  ==
-  std::string url_template_ = "patch{id}.br";
-  hb_face_t* face_ = nullptr;
-  absl::btree_map<uint32_t, SubsetDefinition> existing_iftb_patches_;
+  common::hb_face_unique_ptr face_;
+  absl::btree_map<uint32_t, SubsetDefinition> glyph_data_segments_;
 
-  // TODO(garretrieger): this likely needs to change once we are generating the
-  // IFTB patches
+  // TODO(garretrieger): change to more general dependency mechanism that includes other glyph keyed patches as well
   absl::flat_hash_map<uint32_t,
                       absl::flat_hash_map<hb_tag_t, absl::btree_set<uint32_t>>>
-      iftb_feature_mappings_;
+      glyph_data_segment_feature_dependencies_;
 
   SubsetDefinition base_subset_;
-  std::vector<SubsetDefinition> extension_subsets_;
-  absl::flat_hash_map<design_space_t, std::string> iftb_url_overrides_;
-  absl::flat_hash_map<design_space_t, common::CompatId>
-      glyph_keyed_compat_id_overrides_;
-  common::CompatId glyph_keyed_compat_id_;
+  std::vector<SubsetDefinition> extension_subsets_;    
   uint32_t jump_ahead_ = 1;
 
   // == OUT ==
 
+  absl::flat_hash_map<design_space_t, std::string> patch_set_uri_templates_;
+  absl::flat_hash_map<design_space_t, common::CompatId> glyph_keyed_compat_ids_;
   uint32_t next_id_ = 0;
+  uint32_t next_patch_set_id_ = 1; // id 0 is reserved for table keyed patches.
 
   absl::flat_hash_map<SubsetDefinition, common::FontData> built_subsets_;
   absl::flat_hash_map<std::string, common::FontData> patches_;

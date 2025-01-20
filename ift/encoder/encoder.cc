@@ -53,6 +53,8 @@ using ift::proto::TABLE_KEYED_PARTIAL;
 
 namespace ift::encoder {
 
+
+
 void PrintTo(const Encoder::SubsetDefinition& def, std::ostream* os) {
   *os << "[{";
 
@@ -264,21 +266,20 @@ Encoder::SubsetDefinition Encoder::Combine(const SubsetDefinition& s1,
   return result;
 }
 
-Status Encoder::AddExistingIftbPatch(uint32_t id, const FontData& patch) {
+Status Encoder::AddGlyphDataSegment(uint32_t id, const absl::flat_hash_set<uint32_t>& gids) {
   if (!face_) {
     return absl::FailedPreconditionError("Encoder must have a face set.");
   }
 
-  auto gids = GlyphKeyedDiff::GidsInIftbPatch(patch);
-  if (!gids.ok()) {
-    return gids.status();
+  if (glyph_data_segments_.contains(id)) {
+    return absl::FailedPreconditionError(StrCat("A segment with id, ", id, ", has already been supplied."));
   }
 
-  uint32_t glyph_count = hb_face_get_glyph_count(face_);
+  uint32_t glyph_count = hb_face_get_glyph_count(face_.get());
 
   SubsetDefinition subset;
-  auto gid_to_unicode = FontHelper::GidToUnicodeMap(face_);
-  for (uint32_t gid : *gids) {
+  auto gid_to_unicode = FontHelper::GidToUnicodeMap(face_.get());
+  for (uint32_t gid : gids) {
     subset.gids.insert(gid);
 
     auto cp = gid_to_unicode.find(gid);
@@ -294,37 +295,39 @@ Status Encoder::AddExistingIftbPatch(uint32_t id, const FontData& patch) {
     subset.codepoints.insert(cp->second);
   }
 
-  existing_iftb_patches_[id] = subset;
+  glyph_data_segments_[id] = subset;
   next_id_ = std::max(next_id_, id + 1);
   return absl::OkStatus();
 }
 
-Status Encoder::AddIftbFeatureSpecificPatch(uint32_t original_id, uint32_t id,
-                                            hb_tag_t feature_tag) {
-  if (!existing_iftb_patches_.contains(original_id)) {
+Status Encoder::AddFeatureDependency(uint32_t original_id, uint32_t id, hb_tag_t feature_tag) {
+  if (!glyph_data_segments_.contains(original_id)) {
     return absl::InvalidArgumentError(
         StrCat("IFTB patch ", original_id,
                " has not been supplied via AddExistingIftbPatch()"));
   }
-  if (!existing_iftb_patches_.contains(id)) {
+  if (!glyph_data_segments_.contains(id)) {
     return absl::InvalidArgumentError(
         StrCat("IFTB patch ", id,
                " has not been supplied via AddExistingIftbPatch()"));
   }
 
-  iftb_feature_mappings_[id][feature_tag].insert(original_id);
+  glyph_data_segment_feature_dependencies_[id][feature_tag].insert(original_id);
   return absl::OkStatus();
 }
 
-Status Encoder::SetBaseSubsetFromIftbPatches(
-    const flat_hash_set<uint32_t>& included_patches) {
+Status Encoder::SetBaseSubsetFromSegments(
+    const flat_hash_set<uint32_t>& included_segments) {
   design_space_t empty;
-  return SetBaseSubsetFromIftbPatches(included_patches, empty);
+  return SetBaseSubsetFromSegments(included_segments, empty);
 }
 
-Status Encoder::SetBaseSubsetFromIftbPatches(
-    const flat_hash_set<uint32_t>& included_patches,
+Status Encoder::SetBaseSubsetFromSegments(
+    const flat_hash_set<uint32_t>& included_segments,
     const design_space_t& design_space) {
+  // TODO(garretrieger): support also providing initial features.
+  // TODO(garretrieger): resolve dependencies that are satisified by the included patches, features and design space
+  //                     and pull those into the base subset.
   // TODO(garretrieger): handle the case where a patch included in the
   //  base subset has associated feature specific patches. We could
   //  merge those in as well, or create special entries for them that only
@@ -337,26 +340,26 @@ Status Encoder::SetBaseSubsetFromIftbPatches(
     return absl::FailedPreconditionError("Base subset has already been set.");
   }
 
-  for (uint32_t id : included_patches) {
-    if (!existing_iftb_patches_.contains(id)) {
+  for (uint32_t id : included_segments) {
+    if (!glyph_data_segments_.contains(id)) {
       return absl::InvalidArgumentError(
-          StrCat("IFTB patch, ", id, ", not added to the encoder."));
+          StrCat("Glyph data segment, ", id, ", not added to the encoder."));
     }
   }
 
-  flat_hash_set<uint32_t> excluded_patches;
-  for (const auto& p : existing_iftb_patches_) {
-    if (!included_patches.contains(p.first)) {
-      excluded_patches.insert(p.first);
+  flat_hash_set<uint32_t> excluded_segments;
+  for (const auto& p : glyph_data_segments_) {
+    if (!included_segments.contains(p.first)) {
+      excluded_segments.insert(p.first);
     }
   }
 
-  auto excluded = SubsetDefinitionForIftbPatches(excluded_patches);
+  auto excluded = SubsetDefinitionForSegments(excluded_segments);
   if (!excluded.ok()) {
     return excluded.status();
   }
 
-  uint32_t glyph_count = hb_face_get_glyph_count(face_);
+  uint32_t glyph_count = hb_face_get_glyph_count(face_.get());
   for (uint32_t gid = 0; gid < glyph_count; gid++) {
     if (!excluded->gids.contains(gid)) {
       base_subset_.gids.insert(gid);
@@ -364,7 +367,7 @@ Status Encoder::SetBaseSubsetFromIftbPatches(
   }
 
   hb_set_unique_ptr cps_in_font = make_hb_set();
-  hb_face_collect_unicodes(face_, cps_in_font.get());
+  hb_face_collect_unicodes(face_.get(), cps_in_font.get());
   uint32_t cp = HB_SET_VALUE_INVALID;
   while (hb_set_next(cps_in_font.get(), &cp)) {
     if (!excluded->codepoints.contains(cp)) {
@@ -374,23 +377,30 @@ Status Encoder::SetBaseSubsetFromIftbPatches(
 
   base_subset_.design_space = design_space;
 
-  // remove all patches that have been placed into the base subset.
-  RemoveIftbPatches(included_patches);
+  // remove all segments that have been placed into the base subset.
+  RemoveSegments(included_segments);
 
-  // TODO(garretrieger):
-  //   This is a hack, the IFTB merger does not support loca len changing.
-  //   so always include the last gid in the base subset to force the
-  //   loca table to remain at the full length from the start. This should
-  //   be removed once that limitation is fixed in the IFTB merger.
-  uint32_t gid_count = hb_face_get_glyph_count(face_);
+  // Glyph keyed patches can't change the glyph count in the font (and hence loca len)
+  // so always include the last gid in the base subset to force the loca table to remain
+  // at the full length from the start.
+  //
+  // TODO(garretrieger): this unnecessarily includes the last gid in the subset, should
+  //                     update the subsetter to retain the glyph count but not actually keep
+  //                     the last gid.
+  //
+  // TODO(garretrieger): instead of forcing max glyph count here we can utilize table keyed patches
+  //                     to change loca len/glyph count to the max for any currently reachable segments.
+  //                     This would improve efficiency slightly by avoid including extra space in the
+  //                     initial font.
+  uint32_t gid_count = hb_face_get_glyph_count(face_.get());
   if (gid_count > 0) base_subset_.gids.insert(gid_count - 1);
 
   return absl::OkStatus();
 }
 
-Status Encoder::AddExtensionSubsetOfIftbPatches(
+Status Encoder::AddNonGlyphSegmentFromGlyphSegments(
     const flat_hash_set<uint32_t>& ids) {
-  auto subset = SubsetDefinitionForIftbPatches(ids);
+  auto subset = SubsetDefinitionForSegments(ids);
   if (!subset.ok()) {
     return subset.status();
   }
@@ -399,26 +409,26 @@ Status Encoder::AddExtensionSubsetOfIftbPatches(
   return absl::OkStatus();
 }
 
-void Encoder::AddOptionalFeatureGroup(const btree_set<hb_tag_t>& feature_tags) {
+void Encoder::AddFeatureGroupSegment(const btree_set<hb_tag_t>& feature_tags) {
   SubsetDefinition def;
   def.feature_tags = feature_tags;
   extension_subsets_.push_back(def);
 }
 
-void Encoder::AddOptionalDesignSpace(const design_space_t& space) {
+void Encoder::AddDesignSpaceSegment(const design_space_t& space) {
   SubsetDefinition def;
   def.design_space = space;
   extension_subsets_.push_back(def);
 }
 
-StatusOr<Encoder::SubsetDefinition> Encoder::SubsetDefinitionForIftbPatches(
+StatusOr<Encoder::SubsetDefinition> Encoder::SubsetDefinitionForSegments(
     const flat_hash_set<uint32_t>& ids) const {
   SubsetDefinition result;
   for (uint32_t id : ids) {
-    auto p = existing_iftb_patches_.find(id);
-    if (p == existing_iftb_patches_.end()) {
+    auto p = glyph_data_segments_.find(id);
+    if (p == glyph_data_segments_.end()) {
       return absl::InvalidArgumentError(
-          StrCat("IFTB patch id, ", id, ", not found."));
+          StrCat("Glyph data segment, ", id, ", not found."));
     }
     result.Union(p->second);
   }
@@ -429,35 +439,48 @@ StatusOr<FontData> Encoder::Encode() {
   if (!face_) {
     return absl::FailedPreconditionError("Encoder must have a face set.");
   }
-
-  auto sc = PopulateGlyphKeyedPatches(base_subset_.design_space, UrlTemplate(),
-                                      this->glyph_keyed_compat_id_);
-  for (const auto& [ds, url_template] : iftb_url_overrides_) {
-    CompatId compat_id = this->GenerateCompatId();
-    this->SetOverrideCompatId(ds, compat_id);
-    sc.Update(PopulateGlyphKeyedPatches(ds, url_template, compat_id));
-  }
-
-  if (!sc.ok()) {
-    return sc;
-  }
-
+  
   return Encode(base_subset_, true);
 }
 
-Status Encoder::PopulateGlyphKeyedPatches(const design_space_t& design_space,
-                                          std::string url_template,
-                                          CompatId compat_id) {
-  if (existing_iftb_patches_.empty()) {
+bool Encoder::AllocatePatchSet(const design_space_t& design_space, std::string& uri_template, CompatId& compat_id) {
+  auto uri_it = patch_set_uri_templates_.find(design_space);
+  auto compat_id_it = glyph_keyed_compat_ids_.find(design_space);
+
+  bool has_uri = (uri_it != patch_set_uri_templates_.end());
+  bool has_compat_id = (compat_id_it != glyph_keyed_compat_ids_.end());
+
+  if (has_uri && has_compat_id) {
+    // already created, return existing.
+    uri_template = uri_it->second;
+    compat_id = compat_id_it->second;
+    return false;
+  }
+
+  uri_template = UrlTemplate(next_patch_set_id_++);
+  compat_id = GenerateCompatId();
+
+  patch_set_uri_templates_[design_space] = uri_template;
+  glyph_keyed_compat_ids_[design_space] = compat_id;
+  return true;
+}
+
+Status Encoder::EnsureGlyphKeyedPatchesPopulated(const design_space_t& design_space, std::string& uri_template, CompatId& compat_id) {
+  if (glyph_keyed_compat_ids_.empty()) {
+    return absl::OkStatus();
+  }
+
+  if (!AllocatePatchSet(design_space, uri_template, compat_id)) {
+    // Patches have already been populated for this design space.
     return absl::OkStatus();
   }
 
   FontData instance;
-  instance.set(face_);
+  instance.set(face_.get());
 
   if (!design_space.empty()) {
     // If a design space is provided, apply it.
-    auto result = Instance(face_, design_space);
+    auto result = Instance(face_.get(), design_space);
     if (!result.ok()) {
       return result.status();
     }
@@ -467,9 +490,9 @@ Status Encoder::PopulateGlyphKeyedPatches(const design_space_t& design_space,
   GlyphKeyedDiff differ(instance, compat_id,
                         {FontHelper::kGlyf, FontHelper::kGvar});
 
-  for (const auto& e : existing_iftb_patches_) {
+  for (const auto& e : glyph_data_segments_) {
     uint32_t index = e.first;
-    std::string url = URLTemplate::PatchToUrl(url_template, index);
+    std::string url = URLTemplate::PatchToUrl(uri_template, index);
 
     SubsetDefinition subset = e.second;
     btree_set<uint32_t> gids;
@@ -488,14 +511,14 @@ Status Encoder::PopulateGlyphKeyedPatches(const design_space_t& design_space,
 
 Status Encoder::PopulateGlyphKeyedPatchMap(
     PatchMap& patch_map, const design_space_t& design_space) const {
-  if (existing_iftb_patches_.empty()) {
+  if (glyph_data_segments_.empty()) {
     return absl::OkStatus();
   }
 
-  for (const auto& e : existing_iftb_patches_) {
+  for (const auto& e : glyph_data_segments_) {
     uint32_t id = e.first;
-    auto it = iftb_feature_mappings_.find(id);
-    if (it == iftb_feature_mappings_.end()) {
+    auto it = glyph_data_segment_feature_dependencies_.find(id);
+    if (it == glyph_data_segment_feature_dependencies_.end()) {
       // Just a regular entry mapped by codepoints only.
       patch_map.AddEntry(e.second.codepoints, e.first, GLYPH_KEYED);
       continue;
@@ -508,10 +531,10 @@ Status Encoder::PopulateGlyphKeyedPatchMap(
       coverage.features.insert(feature_tag);
 
       for (uint32_t original_id : indices) {
-        auto original = existing_iftb_patches_.find(original_id);
-        if (original == existing_iftb_patches_.end()) {
+        auto original = glyph_data_segments_.find(original_id);
+        if (original == glyph_data_segments_.end()) {
           return absl::InvalidArgumentError(
-              StrCat("Original iftb patch ", original_id, " not found."));
+              StrCat("Glyph data patch ", original_id, " not found."));
         }
         const auto& original_def = original->second;
 
@@ -537,12 +560,21 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
     return copy;
   }
 
+  std::string table_keyed_uri_template = UrlTemplate(0);
+  CompatId table_keyed_compat_id = this->GenerateCompatId();
+  std::string glyph_keyed_uri_template;
+  CompatId glyph_keyed_compat_id;
+  auto sc = EnsureGlyphKeyedPatchesPopulated(base_subset.design_space, glyph_keyed_uri_template, glyph_keyed_compat_id);
+  if (!sc.ok()) {
+    return sc;
+  }
+
   std::vector<SubsetDefinition> subsets =
       OutgoingEdges(base_subset, jump_ahead_);
 
   // The first subset forms the base file, the remaining subsets are made
   // reachable via patches.
-  auto base = CutSubset(face_, base_subset);
+  auto base = CutSubset(face_.get(), base_subset);
   if (!base.ok()) {
     return base.status();
   }
@@ -553,47 +585,22 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
     return base;
   }
 
-  IFTTable main_table;
-  IFTTable ext_table;
-
-  auto url_template = iftb_url_overrides_.find(base_subset.design_space);
-  bool replace_url_template =
-      IsMixedMode() && (url_template != iftb_url_overrides_.end());
-  if (!replace_url_template) {
-    main_table.SetUrlTemplate(UrlTemplate());
-    ext_table.SetUrlTemplate(UrlTemplate());
-  } else {
-    // There's a different url template to use for the iftb entries
-    // (which are stored in the main table).
-    const std::string& iftb_url_template = url_template->second;
-    main_table.SetUrlTemplate(iftb_url_template);
-    ext_table.SetUrlTemplate(UrlTemplate());
-  }
-
-  CompatId table_keyed_compat_id = this->GenerateCompatId();
-  ext_table.SetId(table_keyed_compat_id);
-  if (!IsMixedMode()) {
-    main_table.SetId(table_keyed_compat_id);
-  } else {
-    auto it =
-        this->glyph_keyed_compat_id_overrides_.find(base_subset.design_space);
-    if (it == this->glyph_keyed_compat_id_overrides_.end()) {
-      main_table.SetId(this->glyph_keyed_compat_id_);
-    } else {
-      main_table.SetId(it->second);
-    }
-  }
-
-  PatchMap& glyph_keyed_patch_map = main_table.GetPatchMap();
-  auto sc = PopulateGlyphKeyedPatchMap(glyph_keyed_patch_map,
-                                       base_subset.design_space);
+  IFTTable table_keyed;
+  IFTTable glyph_keyed;
+  table_keyed.SetId(table_keyed_compat_id);
+  table_keyed.SetUrlTemplate(table_keyed_uri_template);
+  glyph_keyed.SetId(glyph_keyed_compat_id);
+  glyph_keyed.SetUrlTemplate(glyph_keyed_uri_template);
+  
+  PatchMap& glyph_keyed_patch_map = glyph_keyed.GetPatchMap();
+  sc = PopulateGlyphKeyedPatchMap(glyph_keyed_patch_map,
+                                  base_subset.design_space);
   if (!sc.ok()) {
     return sc;
   }
 
   std::vector<uint32_t> ids;
-  PatchMap& patch_map =
-      IsMixedMode() ? ext_table.GetPatchMap() : main_table.GetPatchMap();
+  PatchMap& table_keyed_patch_map = table_keyed.GetPatchMap();
   PatchEncoding encoding =
       IsMixedMode() ? TABLE_KEYED_PARTIAL : TABLE_KEYED_FULL;
   for (const auto& s : subsets) {
@@ -601,14 +608,13 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
     ids.push_back(id);
 
     PatchMap::Coverage coverage = s.ToCoverage();
-    patch_map.AddEntry(coverage, id, encoding);
+    table_keyed_patch_map.AddEntry(coverage, id, encoding);
   }
 
-  hb_face_t* face = base->reference_face();
+  auto face = base->face();
   std::optional<IFTTable*> ext =
-      IsMixedMode() ? std::optional(&ext_table) : std::nullopt;
-  auto new_base = IFTTable::AddToFont(face, main_table, ext, true);
-  hb_face_destroy(face);
+      IsMixedMode() ? std::optional(&glyph_keyed) : std::nullopt;
+  auto new_base = IFTTable::AddToFont(face.get(), table_keyed, ext, true);
 
   if (!new_base.ok()) {
     return new_base.status();
@@ -637,11 +643,15 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
     }
 
     // Check if the main table URL will change with this subset
-    auto override_url_template =
-        iftb_url_overrides_.find(combined_subset.design_space);
+    std::string next_glyph_keyed_uri_template;
+    CompatId next_glyph_keyed_compat_id;
+    auto sc = EnsureGlyphKeyedPatchesPopulated(base_subset.design_space, glyph_keyed_uri_template, glyph_keyed_compat_id);
+    if (!sc.ok()) {
+      return sc;
+    }
+
     bool replace_url_template =
-        IsMixedMode() && (override_url_template != iftb_url_overrides_.end()) &&
-        override_url_template->second != main_table.GetUrlTemplate();
+        IsMixedMode() && (next_glyph_keyed_uri_template != glyph_keyed_uri_template);
 
     FontData patch;
     auto differ =
@@ -649,12 +659,12 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
     if (!differ.ok()) {
       return differ.status();
     }
-    Status sc = (*differ)->Diff(*base, *next, &patch);
+    sc = (*differ)->Diff(*base, *next, &patch);
     if (!sc.ok()) {
       return sc;
     }
 
-    std::string url = URLTemplate::PatchToUrl(UrlTemplate(), id);
+    std::string url = URLTemplate::PatchToUrl(table_keyed_uri_template, id);
     patches_[url].shallow_copy(patch);
   }
 
@@ -685,7 +695,7 @@ StatusOr<hb_face_unique_ptr> Encoder::CutSubsetFaceBuilder(
     return absl::InternalError("Failed to create subset input.");
   }
 
-  def.ConfigureInput(input, face_);
+  def.ConfigureInput(input, face_.get());
 
   SetIftbSubsettingFlagsIfNeeded(input);
 
@@ -815,9 +825,9 @@ StatusOr<FontData> Encoder::Instance(hb_face_t* face,
 }
 
 template <typename T>
-void Encoder::RemoveIftbPatches(T ids) {
+void Encoder::RemoveSegments(T ids) {
   for (uint32_t id : ids) {
-    existing_iftb_patches_.erase(id);
+    glyph_data_segments_.erase(id);
   }
 }
 
@@ -835,11 +845,6 @@ CompatId Encoder::GenerateCompatId() {
   return CompatId(
       this->random_values_(this->gen_), this->random_values_(this->gen_),
       this->random_values_(this->gen_), this->random_values_(this->gen_));
-}
-
-void Encoder::SetOverrideCompatId(const design_space_t& design_space,
-                                  CompatId compat_id) {
-  this->glyph_keyed_compat_id_overrides_[design_space] = compat_id;
 }
 
 }  // namespace ift::encoder

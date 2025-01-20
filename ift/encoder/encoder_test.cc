@@ -135,6 +135,9 @@ class EncoderTest : public ::testing::Test {
   }
 };
 
+// TODO(garretrieger): additional tests:
+// - rejects duplicate glyph data segment ids.
+
 TEST_F(EncoderTest, OutgoingEdges) {
   Encoder encoder;
   encoder.AddExtensionSubset({1, 2});
