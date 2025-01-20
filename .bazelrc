@@ -1,4 +1,4 @@
-build --cxxopt='-std=c++17'
+build --cxxopt='-std=c++17' --enable_workspace
 
 # Address sanitizer
 # To use it:

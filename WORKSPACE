@@ -3,19 +3,23 @@ workspace(name = "w3c_patch_subset_incxfer")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 ## To create compile commands json for clangd integration:
-#   Hedron's Compile Commands Extractor for Bazel
-#   https://github.com/hedronvision/bazel-compile-commands-extractor
+# Hedron's Compile Commands Extractor for Bazel
+# https://github.com/hedronvision/bazel-compile-commands-extractor
 http_archive(
     name = "hedron_compile_commands",
 
-    # Replace the commit hash in both places (below) with the latest, rather than using the stale one here.
-    # Even better, set up Renovate and let it do the work for you (see "Suggestion: Updates" in the README).
-    sha256 = "3cd0e49f0f4a6d406c1d74b53b7616f5e24f5fd319eafc1bf8eee6e14124d115",
-    url = "https://github.com/hedronvision/bazel-compile-commands-extractor/archive/3dddf205a1f5cde20faf2444c1757abe0564ff4c.tar.gz",
-    strip_prefix = "bazel-compile-commands-extractor-3dddf205a1f5cde20faf2444c1757abe0564ff4c",
+    url = "https://github.com/hedronvision/bazel-compile-commands-extractor/archive/f5fbd4cee671d8d908f37c83abaf70fba5928fc7.tar.gz",
+    strip_prefix = "bazel-compile-commands-extractor-f5fbd4cee671d8d908f37c83abaf70fba5928fc7",
+    integrity = "sha256-uj/u/fV7bUx0njxKv6hvNnPn2zZMsTrPw0ltzm6oAaM=",
 )
 load("@hedron_compile_commands//:workspace_setup.bzl", "hedron_compile_commands_setup")
 hedron_compile_commands_setup()
+load("@hedron_compile_commands//:workspace_setup_transitive.bzl", "hedron_compile_commands_setup_transitive")
+hedron_compile_commands_setup_transitive()
+load("@hedron_compile_commands//:workspace_setup_transitive_transitive.bzl", "hedron_compile_commands_setup_transitive_transitive")
+hedron_compile_commands_setup_transitive_transitive()
+load("@hedron_compile_commands//:workspace_setup_transitive_transitive_transitive.bzl", "hedron_compile_commands_setup_transitive_transitive_transitive")
+hedron_compile_commands_setup_transitive_transitive_transitive()
 
 # Base64
 http_archive(
@@ -95,27 +99,6 @@ http_archive(
   sha256 = "74d544d96f4a5bb630d465ca8bbcfe231e3594e5aae57e1edbf17a6eb3ca2506",
 )
 
-### Emscripten ###
-
-http_archive(
-    name = "emsdk",
-    strip_prefix = "emsdk-3.1.44/bazel",
-    sha256 = "cb8cded78f6953283429d724556e89211e51ac4d871fcf38e0b32405ee248e91",
-    url = "https://github.com/emscripten-core/emsdk/archive/3.1.44.tar.gz",
-)
-
-load("@emsdk//:deps.bzl", emsdk_deps = "deps")
-emsdk_deps()
-
-load("@emsdk//:emscripten_deps.bzl", emsdk_emscripten_deps = "emscripten_deps")
-emsdk_emscripten_deps(emscripten_version = "3.1.44")
-
-load("@emsdk//:toolchains.bzl", "register_emscripten_toolchains")
-register_emscripten_toolchains()
-
-
-### End Emscripten ###
-
 # IFTB - Binned Incremental Font Transfer
 
 http_archive(
@@ -132,15 +115,6 @@ http_archive(
     sha256 = "3c8e7f78c49272b89b878a61729b1863b9f37c722f6623ee2eb146adccb41333",
     strip_prefix = "IFT-01037d264f657f9164f9522b8b16a7bab2e6917c",
     urls = ["https://github.com/w3c/IFT/archive/01037d264f657f9164f9522b8b16a7bab2e6917c.zip"],
-)
-
-# libcbor
-http_archive(
-    name = "libcbor",
-    build_file = "//third_party:libcbor.BUILD",
-    sha256 = "dd04ea1a7df484217058d389e027e7a0143a4f245aa18a9f89a5dd3e1a4fcc9a",
-    strip_prefix = "libcbor-0.8.0",
-    urls = ["https://github.com/PJK/libcbor/archive/refs/tags/v0.8.0.zip"],
 )
 
 # uritemplate-cpp
