@@ -571,7 +571,8 @@ TEST_F(EncoderTest, Encode_ThreeSubsets_Mixed) {
 
   ASSERT_EQ(encoder.Patches().size(), 3);
 
-  // TODO(garretrieger): check the glyph keyed mapping entries in the base and check
+  // TODO(garretrieger): check the glyph keyed mapping entries in the base and
+  // check
   //  they are unmodified in derived fonts.
   // TODO(garretrieger): apply a glyph keyed patch and then check that you
   //  can still form the graph with derived fonts containing the

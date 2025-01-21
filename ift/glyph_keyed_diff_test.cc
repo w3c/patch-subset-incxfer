@@ -118,10 +118,10 @@ class GlyphKeyedDiffTest : public ::testing::Test {
     for (uint32_t gid : gids) {
       hb_set_add(hb_subset_input_glyph_set(input), gid);
     }
-    hb_subset_input_set_flags(
-        input,
-        HB_SUBSET_FLAGS_RETAIN_GIDS | HB_SUBSET_FLAGS_PASSTHROUGH_UNRECOGNIZED |
-            HB_SUBSET_FLAGS_IFTB_REQUIREMENTS | HB_SUBSET_FLAGS_NOTDEF_OUTLINE);
+    hb_subset_input_set_flags(input,
+                              HB_SUBSET_FLAGS_RETAIN_GIDS |
+                                  HB_SUBSET_FLAGS_PASSTHROUGH_UNRECOGNIZED |
+                                  HB_SUBSET_FLAGS_NOTDEF_OUTLINE);
 
     hb_subset_plan_t* plan = hb_subset_plan_create_or_fail(face.get(), input);
     hb_subset_input_destroy(input);

@@ -36,8 +36,7 @@ namespace ift::proto {
 
 class IFTTableTest : public ::testing::Test {
  protected:
-  IFTTableTest()
-      : roboto_ab(make_hb_face(nullptr)) {
+  IFTTableTest() : roboto_ab(make_hb_face(nullptr)) {
     sample.SetUrlTemplate("fonts/go/here");
     sample.SetId({1, 2, 3, 4});
     sample.GetPatchMap().AddEntry({30, 32}, 1, TABLE_KEYED_PARTIAL);
