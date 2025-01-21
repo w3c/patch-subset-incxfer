@@ -12,12 +12,6 @@ namespace ift {
 /* Applies one or more IFTB chunk file patches. */
 class GlyphKeyedDiff {
  public:
-  static absl::StatusOr<absl::flat_hash_set<uint32_t>> GidsInIftbPatch(
-      const common::FontData& patch);
-
-  static absl::StatusOr<common::CompatId> IdInIftbPatch(
-      const common::FontData& patch);
-
   GlyphKeyedDiff(const common::FontData& font, common::CompatId base_compat_id,
                  absl::flat_hash_set<hb_tag_t> included_tags)
       : font_(font), base_compat_id_(base_compat_id), tags_(included_tags) {}
