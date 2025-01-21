@@ -54,11 +54,7 @@ class IFTTable {
 
  private:
   /*
-   * Adds an encoded 'IFT ' table built from the supplied proto to font pointed
-   * to by face. By default this will maintain the physical ordering of tables
-   * already present in the font. If iftb_conversion is set any "IFTB" tables
-   * if present will be be removed and tables in the final font will be ordered
-   * according to IFTB ordering requirements.
+   * Adds an the provided 'IFT ' (and optionally an 'IFTX') tables to by face.
    */
   static absl::StatusOr<common::FontData> AddToFont(
       hb_face_t* face, absl::string_view ift_table,

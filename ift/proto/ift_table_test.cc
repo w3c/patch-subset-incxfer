@@ -37,7 +37,7 @@ namespace ift::proto {
 class IFTTableTest : public ::testing::Test {
  protected:
   IFTTableTest()
-      : roboto_ab(make_hb_face(nullptr)), iftb(make_hb_face(nullptr)) {
+      : roboto_ab(make_hb_face(nullptr)) {
     sample.SetUrlTemplate("fonts/go/here");
     sample.SetId({1, 2, 3, 4});
     sample.GetPatchMap().AddEntry({30, 32}, 1, TABLE_KEYED_PARTIAL);
@@ -61,23 +61,9 @@ class IFTTableTest : public ::testing::Test {
     hb_blob_unique_ptr blob = make_hb_blob(
         hb_blob_create_from_file("common/testdata/Roboto-Regular.ab.ttf"));
     roboto_ab = make_hb_face(hb_face_create(blob.get(), 0));
-
-    blob = make_hb_blob(
-        hb_blob_create_from_file("ift/testdata/NotoSansJP-Regular.iftb.ttf"));
-    FontData font_data(std::move(blob));
-
-    std::string copy = font_data.string();
-    copy[0] = 'O';
-    copy[1] = 'T';
-    copy[2] = 'T';
-    copy[3] = 'O';
-
-    font_data.copy(copy);
-    iftb = font_data.face();
   }
 
   hb_face_unique_ptr roboto_ab;
-  hb_face_unique_ptr iftb;
   IFTTable empty;
   IFTTable sample;
   IFTTable sample_with_extensions;
