@@ -1,3 +1,13 @@
+proto_library(
+    name = "encoder_config_proto",
+    srcs = ["encoder_config.proto"],
+)
+
+cc_proto_library(
+    name = "encoder_config_cc_proto",
+    deps = [":encoder_config_proto"],
+)
+
 cc_library(
     name = "helper",
     srcs = [
@@ -46,6 +56,7 @@ cc_binary(
         "//ift",
         "//ift/encoder",
         "//common",
+        ":encoder_config_cc_proto",
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
