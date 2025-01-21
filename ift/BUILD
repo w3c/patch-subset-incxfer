@@ -26,7 +26,6 @@ cc_library(
         "@abseil-cpp//absl/strings",
         "@cppcodec",
         "@harfbuzz",
-        "@iftb//:merger",
         "@uritemplate-cpp//:uritemplate",
     ],
 )

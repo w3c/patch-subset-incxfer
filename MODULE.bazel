@@ -60,15 +60,6 @@ http_archive(
     url = "https://github.com/tplgy/cppcodec/archive/8019b8b580f8573c33c50372baec7039dfe5a8ce.zip",
 )
 
-# IFTB - Binned Incremental Font Transfer
-http_archive(
-    name = "iftb",
-    build_file = "//third_party:iftb.BUILD",
-    integrity = "sha256-3c4tnaKLikDSVfIvrPSZOFaiLCBIFpeq58foHChScn8=",
-    strip_prefix = "binned-ift-reference-829549eb68e6b9f215ac58a61b39c0c12d35e61f",
-    urls = ["https://github.com/garretrieger/binned-ift-reference/archive/829549eb68e6b9f215ac58a61b39c0c12d35e61f.zip"],
-)
-
 # IFT Specification - for Feature Registry
 http_archive(
     name = "ift_spec",

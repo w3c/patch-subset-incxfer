@@ -13,7 +13,6 @@ cc_library(
     "@abseil-cpp//absl/flags:flag",
     "@abseil-cpp//absl/flags:parse",    
     "@harfbuzz",
-    "@iftb//:chunk",
   ],
   copts = [
     "-DHB_EXPERIMENTAL_API",

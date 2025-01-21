@@ -104,10 +104,6 @@ class GlyphKeyedDiffTest : public ::testing::Test {
   GlyphKeyedDiffTest() {
     font = from_file("ift/testdata/NotoSansJP-Regular.ift.ttf");
     original = from_file("ift/testdata/NotoSansJP-Regular.subset.ttf");
-    chunk1 = from_file("ift/testdata/NotoSansJP-Regular.subset_iftb/chunk1.br");
-    chunk2 = from_file("ift/testdata/NotoSansJP-Regular.subset_iftb/chunk2.br");
-    chunk3 = from_file("ift/testdata/NotoSansJP-Regular.subset_iftb/chunk3.br");
-    chunk4 = from_file("ift/testdata/NotoSansJP-Regular.subset_iftb/chunk4.br");
     roboto = from_file("common/testdata/Roboto-Regular.Awesome.ttf");
     roboto_vf = from_file("common/testdata/Roboto[wdth,wght].abcd.ttf");
   }
@@ -144,10 +140,6 @@ class GlyphKeyedDiffTest : public ::testing::Test {
 
   FontData font;
   FontData original;
-  FontData chunk1;
-  FontData chunk2;
-  FontData chunk3;
-  FontData chunk4;
   FontData roboto;
   FontData roboto_vf;
   BrotliBinaryPatch unbrotli;
@@ -185,32 +177,6 @@ StatusOr<uint32_t> glyph_size(const FontData& font_data,
   }
 
   return *end - *start;
-}
-
-TEST_F(GlyphKeyedDiffTest, GidsInPatch) {
-  auto gids = GlyphKeyedDiff::GidsInIftbPatch(chunk1);
-  ASSERT_TRUE(gids.ok()) << gids.status();
-
-  ASSERT_TRUE(gids->contains(313));
-  ASSERT_TRUE(gids->contains(354));
-  ASSERT_FALSE(gids->contains(71));
-  ASSERT_FALSE(gids->contains(802));
-
-  gids = GlyphKeyedDiff::GidsInIftbPatch(chunk4);
-  ASSERT_TRUE(gids.ok()) << gids.status();
-
-  ASSERT_TRUE(gids->contains(96));
-  ASSERT_TRUE(gids->contains(765));
-  ASSERT_TRUE(gids->contains(841));
-  ASSERT_TRUE(gids->contains(1032));
-  ASSERT_FALSE(gids->contains(313));
-  ASSERT_FALSE(gids->contains(354));
-}
-
-TEST_F(GlyphKeyedDiffTest, IdInPatch) {
-  auto id = GlyphKeyedDiff::IdInIftbPatch(chunk1);
-  ASSERT_TRUE(id.ok()) << id.status();
-  ASSERT_EQ(*id, CompatId(0x3c2bfda0, 0x890625c9, 0x40c644de, 0xb1195627));
 }
 
 TEST_F(GlyphKeyedDiffTest, CreatePatch_Glyf_ShortLoca) {
