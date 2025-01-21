@@ -61,7 +61,7 @@ message EncoderConfig {
   //
   // The key of the mapping is an integer id which other parts of the configuration can use to reference
   // the segment.
-  map<uint32, GlyphPatches> glyph_segments = 1;
+  map<uint32, Glyphs> glyph_segments = 1;
 
   // Encodes a depencies between other glyph patches and layout features.
   //
