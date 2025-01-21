@@ -129,7 +129,6 @@ class GlyphKeyedDiffTest : public ::testing::Test {
     hb_face_unique_ptr subset =
         make_hb_face(hb_subset_plan_execute_or_fail(plan));
     hb_subset_plan_destroy(plan);
-    FontHelper::ApplyIftbTableOrdering(subset.get());
 
     hb_blob_unique_ptr subset_data =
         make_hb_blob(hb_face_reference_blob(subset.get()));

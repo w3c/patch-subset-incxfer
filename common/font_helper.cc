@@ -229,26 +229,6 @@ StatusOr<flat_hash_map<hb_tag_t, AxisRange>> FontHelper::GetDesignSpace(
   return result;
 }
 
-void FontHelper::ApplyIftbTableOrdering(hb_face_t* subset) {
-  std::vector<hb_tag_t> tags = GetOrderedTags(subset);
-  std::vector<hb_tag_t> new_order;
-  for (hb_tag_t t : tags) {
-    if (t != FontHelper::kGlyf && t != FontHelper::kLoca &&
-        t != FontHelper::kCFF && t != FontHelper::kCFF2 &&
-        t != FontHelper::kGvar) {
-      new_order.push_back(t);
-    }
-  }
-
-  new_order.push_back(FontHelper::kCFF);
-  new_order.push_back(FontHelper::kCFF2);
-  new_order.push_back(FontHelper::kGvar);
-  new_order.push_back(FontHelper::kGlyf);
-  new_order.push_back(FontHelper::kLoca);
-  new_order.push_back(0);
-  hb_face_builder_sort_tables(subset, new_order.data());
-}
-
 std::string FontHelper::ToString(hb_tag_t tag) {
   std::string tag_name;
   tag_name.resize(5);  // need 5 for the null terminator

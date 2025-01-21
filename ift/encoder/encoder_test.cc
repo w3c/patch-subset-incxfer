@@ -571,9 +571,9 @@ TEST_F(EncoderTest, Encode_ThreeSubsets_Mixed) {
 
   ASSERT_EQ(encoder.Patches().size(), 3);
 
-  // TODO(garretrieger): check the iftb entries in the base and check
+  // TODO(garretrieger): check the glyph keyed mapping entries in the base and check
   //  they are unmodified in derived fonts.
-  // TODO(garretrieger): apply a iftb patch and then check that you
+  // TODO(garretrieger): apply a glyph keyed patch and then check that you
   //  can still form the graph with derived fonts containing the
   //  modified glyf, loca, and IFT table.
 
@@ -585,9 +585,9 @@ TEST_F(EncoderTest, Encode_ThreeSubsets_Mixed) {
   }
 
   // expected patches:
-  // - chunk 3 (iftb)
-  // - chunk 4 (iftb)
-  // - shared brotli to (chunk 3 + 4)
+  // - segment 3 (glyph keyed)
+  // - segment 4 (glyph keyed)
+  // - shared brotli to (segment 3 + 4)
   // TODO XXXXX Check graph instead
 }
 
@@ -618,10 +618,10 @@ TEST_F(EncoderTest, Encode_ThreeSubsets_Mixed_WithFeatureMappings) {
   ASSERT_EQ(encoder.Patches().size(), 7);
 
   // expected patches:
-  // - chunk 2 (iftb)
-  // - chunk 3 (iftb)
-  // - chunk 4 (iftb), triggered by ccmap + chunk 3
-  // - shared brotli patches...
+  // - segment 2 (glyph keyed)
+  // - segment 3 (glyph keyed)
+  // - segment 4 (glyph keyed), triggered by ccmap + segment 3
+  // - table keyed patches...
   // TODO XXXXX Check graph instead
 }
 

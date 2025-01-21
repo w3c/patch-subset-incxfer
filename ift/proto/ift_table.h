@@ -50,7 +50,7 @@ class IFTTable {
    */
   static absl::StatusOr<common::FontData> AddToFont(
       hb_face_t* face, const IFTTable& main,
-      std::optional<const IFTTable*> extension, bool iftb_conversion = false);
+      std::optional<const IFTTable*> extension);
 
  private:
   /*
@@ -62,8 +62,7 @@ class IFTTable {
    */
   static absl::StatusOr<common::FontData> AddToFont(
       hb_face_t* face, absl::string_view ift_table,
-      std::optional<absl::string_view> iftx_table,
-      bool iftb_conversion = false);
+      std::optional<absl::string_view> iftx_table);
 
   /*
    * Converts this abstract representation to the a serialized format.

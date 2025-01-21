@@ -304,13 +304,13 @@ Status Encoder::AddFeatureDependency(uint32_t original_id, uint32_t id,
                                      hb_tag_t feature_tag) {
   if (!glyph_data_segments_.contains(original_id)) {
     return absl::InvalidArgumentError(
-        StrCat("IFTB patch ", original_id,
-               " has not been supplied via AddExistingIftbPatch()"));
+        StrCat("Glyh keyed segment ", original_id,
+               " has not been supplied via AddGlyphDataSegment()"));
   }
   if (!glyph_data_segments_.contains(id)) {
     return absl::InvalidArgumentError(
-        StrCat("IFTB patch ", id,
-               " has not been supplied via AddExistingIftbPatch()"));
+        StrCat("Glyph keyed segment ", id,
+               " has not been supplied via AddGlyphDataSegment()"));
   }
 
   glyph_data_segment_feature_dependencies_[id][feature_tag].insert(original_id);
@@ -625,7 +625,7 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
   auto face = base->face();
   std::optional<IFTTable*> ext =
       IsMixedMode() ? std::optional(&glyph_keyed) : std::nullopt;
-  auto new_base = IFTTable::AddToFont(face.get(), table_keyed, ext, true);
+  auto new_base = IFTTable::AddToFont(face.get(), table_keyed, ext);
 
   if (!new_base.ok()) {
     return new_base.status();
@@ -711,7 +711,7 @@ StatusOr<hb_face_unique_ptr> Encoder::CutSubsetFaceBuilder(
 
   def.ConfigureInput(input, face_.get());
 
-  SetIftbSubsettingFlagsIfNeeded(input);
+  SetMixedModeSubsettingFlagsIfNeeded(input);
 
   hb_face_unique_ptr result = make_hb_face(hb_subset_or_fail(font, input));
   if (!result.get()) {
@@ -724,10 +724,10 @@ StatusOr<hb_face_unique_ptr> Encoder::CutSubsetFaceBuilder(
 
 StatusOr<FontData> Encoder::GenerateBaseGvar(
     hb_face_t* font, const design_space_t& design_space) const {
-  // When generating a gvar table for use with IFTB patches care
+  // When generating a gvar table for use with glyph keyed patches care
   // must be taken to ensure that the shared tuples in the gvar
   // header match the shared tuples used in the per glyph data
-  // in the previously created (via PopulateIftbPatches()) iftb
+  // in the previously created (via GlyphKeyedDiff) glyph keyed
   // patches. However, we also want the gvar table to only contain
   // the glyphs from base_subset_. If you ran a single subsetting
   // operation through hb which reduced the glyphs and instanced
@@ -735,8 +735,8 @@ StatusOr<FontData> Encoder::GenerateBaseGvar(
   //
   // To keep the shared tuples correct we subset in two steps:
   // 1. Run instancing only, keeping everything else, this matches
-  //    the processing done in PopulateIftbPatches() and will
-  //    result in the same shared tuples.
+  //    the processing done in EnsureGlyphKeyedPatchesPopulated()
+  //    and will result in the same shared tuples.
   // 2. Run the glyph base subset, with no instancing specified.
   //    if there is no specified instancing then harfbuzz will
   //    not modify shared tuples.
@@ -766,13 +766,12 @@ StatusOr<FontData> Encoder::GenerateBaseGvar(
   return result;
 }
 
-void Encoder::SetIftbSubsettingFlagsIfNeeded(hb_subset_input_t* input) const {
+void Encoder::SetMixedModeSubsettingFlagsIfNeeded(hb_subset_input_t* input) const {
   if (IsMixedMode()) {
-    // Mixed mode requires stable gids and IFTB requirements to be met,
-    // set flags accordingly.
+    // Mixed mode requires stable gids set flags accordingly.
     hb_subset_input_set_flags(
         input, hb_subset_input_get_flags(input) | HB_SUBSET_FLAGS_RETAIN_GIDS |
-                   HB_SUBSET_FLAGS_IFTB_REQUIREMENTS |
+                   HB_SUBSET_FLAGS_IFTB_REQUIREMENTS | // TODO(garretrieger): remove this
                    HB_SUBSET_FLAGS_NOTDEF_OUTLINE |
                    HB_SUBSET_FLAGS_PASSTHROUGH_UNRECOGNIZED);
   }
@@ -786,7 +785,7 @@ StatusOr<FontData> Encoder::CutSubset(hb_face_t* font,
   }
 
   if (IsMixedMode() && def.IsVariable()) {
-    // In mixed mode iftb patches handles gvar, except for when design space
+    // In mixed mode glyph keyed patches handles gvar, except for when design space
     // is expanded, in which case a gvar table should be patched in that only
     // has coverage of the base (root) subset definition + the current design
     // space.
@@ -804,7 +803,6 @@ StatusOr<FontData> Encoder::CutSubset(hb_face_t* font,
                               gvar_blob.get());
   }
 
-  FontHelper::ApplyIftbTableOrdering(result->get());
   hb_blob_unique_ptr blob = make_hb_blob(hb_face_reference_blob(result->get()));
 
   FontData subset(blob.get());
@@ -817,7 +815,7 @@ StatusOr<FontData> Encoder::Instance(hb_face_t* face,
 
   // Keep everything in this subset, except for applying the design space.
   hb_subset_input_keep_everything(input);
-  SetIftbSubsettingFlagsIfNeeded(input);
+  SetMixedModeSubsettingFlagsIfNeeded(input);
 
   for (const auto& [tag, range] : design_space) {
     hb_subset_input_set_axis_range(input, face, tag, range.start(), range.end(),
@@ -831,7 +829,6 @@ StatusOr<FontData> Encoder::Instance(hb_face_t* face,
     return absl::InternalError("Instancing failed.");
   }
 
-  FontHelper::ApplyIftbTableOrdering(subset.get());
   hb_blob_unique_ptr out = make_hb_blob(hb_face_reference_blob(subset.get()));
 
   FontData result(out.get());

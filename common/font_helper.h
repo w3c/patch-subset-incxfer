@@ -42,7 +42,6 @@ struct CompareTableOffsets {
 class FontHelper {
  public:
   constexpr static hb_tag_t kIFT = HB_TAG('I', 'F', 'T', ' ');
-  constexpr static hb_tag_t kIFTB = HB_TAG('I', 'F', 'T', 'B');
   constexpr static hb_tag_t kLoca = HB_TAG('l', 'o', 'c', 'a');
   constexpr static hb_tag_t kGlyf = HB_TAG('g', 'l', 'y', 'f');
   constexpr static hb_tag_t kHead = HB_TAG('h', 'e', 'a', 'd');
@@ -186,8 +185,6 @@ class FontHelper {
 
   static absl::StatusOr<absl::flat_hash_map<hb_tag_t, AxisRange>>
   GetDesignSpace(hb_face_t* face);
-
-  static void ApplyIftbTableOrdering(hb_face_t* face);
 
   static std::vector<std::string> ToStrings(const std::vector<hb_tag_t>& input);
   static std::vector<std::string> ToStrings(

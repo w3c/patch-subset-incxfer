@@ -140,55 +140,6 @@ TEST_F(IFTTableTest, AddToFont_WithExtension) {
   EXPECT_EQ(original_tag_order, new_tag_order);
 }
 
-TEST_F(IFTTableTest, AddToFont_IftbConversion) {
-  auto font = IFTTable::AddToFont(iftb.get(), sample, std::nullopt, true);
-  ASSERT_TRUE(font.ok()) << font.status();
-
-  hb_face_unique_ptr face = font->face();
-
-  FontData ift_table =
-      FontHelper::TableData(face.get(), HB_TAG('I', 'F', 'T', ' '));
-  FontData expected_ift(*Format2PatchMap::Serialize(sample));
-  ASSERT_EQ(ift_table, expected_ift);
-
-  auto expected_tags = FontHelper::GetTags(iftb.get());
-  auto new_tags = FontHelper::GetTags(face.get());
-  expected_tags.erase(FontHelper::kIFTB);
-  expected_tags.insert(FontHelper::kIFT);
-
-  EXPECT_EQ(expected_tags, new_tags);
-
-  auto ordered_tags =
-      FontHelper::ToStrings(FontHelper::GetOrderedTags(face.get()));
-  EXPECT_EQ(ordered_tags[ordered_tags.size() - 3], "IFT ");
-  EXPECT_EQ(ordered_tags[ordered_tags.size() - 2], "glyf");
-  EXPECT_EQ(ordered_tags[ordered_tags.size() - 1], "loca");
-}
-
-TEST_F(IFTTableTest, AddToFont_IftbConversionRoboto) {
-  auto font = IFTTable::AddToFont(roboto_ab.get(), sample, std::nullopt, true);
-  ASSERT_TRUE(font.ok()) << font.status();
-
-  hb_face_unique_ptr face = font->face();
-
-  FontData ift_table =
-      FontHelper::TableData(face.get(), HB_TAG('I', 'F', 'T', ' '));
-  FontData expected_ift(*Format2PatchMap::Serialize(sample));
-  ASSERT_EQ(ift_table, expected_ift);
-
-  auto expected_tags = FontHelper::GetTags(roboto_ab.get());
-  auto new_tags = FontHelper::GetTags(face.get());
-  expected_tags.insert(FontHelper::kIFT);
-
-  EXPECT_EQ(expected_tags, new_tags);
-
-  auto ordered_tags =
-      FontHelper::ToStrings(FontHelper::GetOrderedTags(face.get()));
-  EXPECT_EQ(ordered_tags[ordered_tags.size() - 3], "IFT ");
-  EXPECT_EQ(ordered_tags[ordered_tags.size() - 2], "glyf");
-  EXPECT_EQ(ordered_tags[ordered_tags.size() - 1], "loca");
-}
-
 TEST_F(IFTTableTest, GetId) { ASSERT_EQ(sample.GetId(), CompatId(1, 2, 3, 4)); }
 
 TEST_F(IFTTableTest, GetId_None) { ASSERT_EQ(empty.GetId(), CompatId()); }
