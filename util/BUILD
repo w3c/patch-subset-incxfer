@@ -18,20 +18,10 @@ cc_library(
     ],
     deps = [
         "//common",
-        "@com_google_absl//absl/container:flat_hash_set",
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/strings",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
         "@harfbuzz",
-    ],
-)
-
-cc_binary(
-    name = "checksum",
-    srcs = [
-        "checksum.cc",
-    ],
-    deps = [
-        "//common",
     ],
 )
 
@@ -57,11 +47,11 @@ cc_binary(
         "//ift/encoder",
         "//common",
         ":encoder_config_cc_proto",
-        "@com_google_absl//absl/container:flat_hash_set",
-        "@com_google_absl//absl/flags:flag",
-        "@com_google_absl//absl/flags:parse",
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/strings",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/flags:parse",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
         "@harfbuzz",
     ],
 )
@@ -74,9 +64,9 @@ cc_binary(
     deps = [
         "//ift",
         "//common",
-        "@com_google_absl//absl/flags:flag",
-        "@com_google_absl//absl/flags:parse",
-        "@com_google_absl//absl/status:statusor",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/flags:parse",
+        "@abseil-cpp//absl/status:statusor",
     ],
 )
 
@@ -93,11 +83,11 @@ cc_library(
     deps = [
         "//ift/proto",
         "//common",
-        "@com_google_absl//absl/container:btree",
-        "@com_google_absl//absl/container:flat_hash_map",
-        "@com_google_absl//absl/container:flat_hash_set",
-        "@com_google_absl//absl/flags:flag",
-        "@com_google_absl//absl/flags:parse",
+        "@abseil-cpp//absl/container:btree",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/flags:parse",
         "@harfbuzz",
     ],
 )
@@ -110,6 +100,6 @@ cc_test(
     ],
     deps = [
         ":convert_iftb",
-        "@gtest//:gtest_main",
+        "@googletest//:gtest_main",
     ],
 )

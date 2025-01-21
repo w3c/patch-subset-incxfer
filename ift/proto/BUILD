@@ -17,11 +17,11 @@ cc_library(
   deps = [
       "//ift/feature_registry",
       "//common",
-      "@com_google_absl//absl/status:statusor",
-      "@com_google_absl//absl/container:flat_hash_map",
-      "@com_google_absl//absl/container:flat_hash_set",
+      "@abseil-cpp//absl/status:statusor",
+      "@abseil-cpp//absl/container:flat_hash_map",
+      "@abseil-cpp//absl/container:flat_hash_set",
       "@harfbuzz",
-      "@com_google_absl//absl/strings",
+      "@abseil-cpp//absl/strings",
   ]
 )
 
@@ -38,9 +38,9 @@ cc_test(
     deps = [
         ":proto",
         "//common",
-        "@gtest//:gtest_main",
-        "@com_google_absl//absl/container:flat_hash_map",
-        "@com_google_absl//absl/container:flat_hash_set",
+        "@googletest//:gtest_main",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/container:flat_hash_set",
     ],
 )
 
@@ -58,9 +58,9 @@ cc_test(
     deps = [
         ":proto",
         "//common",
-        "@gtest//:gtest_main",
-        "@com_google_absl//absl/container:flat_hash_map",
-        "@com_google_absl//absl/container:btree",
-        "@com_google_absl//absl/container:flat_hash_set",
+        "@googletest//:gtest_main",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/container:btree",
+        "@abseil-cpp//absl/container:flat_hash_set",
     ],
 )

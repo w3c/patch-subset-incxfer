@@ -18,8 +18,8 @@ cc_library(
     ":feature_registry_h",
   ],
   deps = [
-    "@com_google_absl//absl/container:flat_hash_map",
-    "@com_google_absl//absl/base:no_destructor",
+    "@abseil-cpp//absl/container:flat_hash_map",
+    "@abseil-cpp//absl/base:no_destructor",
     "@harfbuzz",
   ],
   visibility = [
@@ -34,7 +34,7 @@ cc_test(
   ],
   deps = [
     ":feature_registry",
-    "@gtest//:gtest_main",
+    "@googletest//:gtest_main",
   ],
 )
 

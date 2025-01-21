@@ -7,8 +7,8 @@ cc_library(
   deps = [
     "//common",
     "//ift/encoder",
-    "@com_google_absl//absl/container:btree",
-    "@com_google_absl//absl/status",
+    "@abseil-cpp//absl/container:btree",
+    "@abseil-cpp//absl/status",
   ],
   data = [
     "@fontations//:ift_graph",

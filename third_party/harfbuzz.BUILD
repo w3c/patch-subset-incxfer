@@ -46,7 +46,7 @@ cc_library(
         ],
     ),
     deps = [
-        "@w3c_patch_subset_incxfer//third_party/harfbuzz:config",
+        "@ift_encoder//third_party/harfbuzz:config",
     ],
     hdrs = [
         "src/hb.h",
