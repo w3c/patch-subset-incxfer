@@ -251,7 +251,7 @@ class Encoder {
   absl::StatusOr<common::FontData> GenerateBaseGvar(
       hb_face_t* font, const design_space_t& design_space) const;
 
-  void SetIftbSubsettingFlagsIfNeeded(hb_subset_input_t* input) const;
+  void SetMixedModeSubsettingFlagsIfNeeded(hb_subset_input_t* input) const;
 
   absl::StatusOr<common::FontData> CutSubset(hb_face_t* font,
                                              const SubsetDefinition& def) const;

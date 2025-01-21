@@ -19,8 +19,6 @@ StatusOr<FontData> Woff2::EncodeWoff2(string_view font, bool glyf_transform) {
   WOFF2Params params;
   params.brotli_quality = 11;
   params.allow_transforms = glyf_transform;
-  params.preserve_table_order =
-      true;  // IFTB patches require a specific table ordering.
   size_t buffer_size =
       MaxWOFF2CompressedSize((const uint8_t*)font.data(), font.size());
   uint8_t* buffer = (uint8_t*)malloc(buffer_size);

@@ -1,5 +1,5 @@
-#ifndef IFT_IFTB_BINARY_PATCH_H_
-#define IFT_IFTB_BINARY_PATCH_H_
+#ifndef IFT_GLYPH_KEYED_DIFF_H_
+#define IFT_GLYPH_KEYED_DIFF_H_
 
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
@@ -9,7 +9,7 @@
 
 namespace ift {
 
-/* Applies one or more IFTB chunk file patches. */
+/* Generates glyph keyed patches. */
 class GlyphKeyedDiff {
  public:
   GlyphKeyedDiff(const common::FontData& font, common::CompatId base_compat_id,
@@ -31,4 +31,4 @@ class GlyphKeyedDiff {
 
 }  // namespace ift
 
-#endif  // IFT_IFTB_BINARY_PATCH_H_
+#endif  // IFT_GLYPH_KEYED_DIFF_H_

@@ -43,24 +43,13 @@ void move_tag_to_back(std::vector<hb_tag_t>& tags, hb_tag_t tag) {
 
 StatusOr<FontData> IFTTable::AddToFont(
     hb_face_t* face, absl::string_view ift_table,
-    std::optional<absl::string_view> iftx_table, bool iftb_conversion) {
+    std::optional<absl::string_view> iftx_table) {
   std::vector<hb_tag_t> tags = FontHelper::GetOrderedTags(face);
   hb_face_t* new_face = hb_face_builder_create();
   for (hb_tag_t tag : tags) {
-    if (iftb_conversion && tag == FontHelper::kIFTB) {
-      // drop IFTB if we're doing an IFTB conversion.
-      continue;
-    }
     hb_blob_t* blob = hb_face_reference_table(face, tag);
     hb_face_builder_add_table(new_face, tag, blob);
     hb_blob_destroy(blob);
-  }
-
-  if (iftb_conversion) {
-    auto it = std::find(tags.begin(), tags.end(), FontHelper::kIFTB);
-    if (it != tags.end()) {
-      tags.erase(it);
-    }
   }
 
   hb_blob_t* blob =
@@ -96,19 +85,6 @@ StatusOr<FontData> IFTTable::AddToFont(
     }
   }
 
-  if (iftb_conversion) {
-    // requirements:
-    // - gvar before glyf.
-    // - glyf before loca.
-    // - loca at end of file.
-    // - CFF/CFF2 at end of file.
-    move_tag_to_back(tags, HB_TAG('g', 'v', 'a', 'r'));
-    move_tag_to_back(tags, HB_TAG('g', 'l', 'y', 'f'));
-    move_tag_to_back(tags, HB_TAG('l', 'o', 'c', 'a'));
-    move_tag_to_back(tags, HB_TAG('C', 'F', 'F', ' '));
-    move_tag_to_back(tags, HB_TAG('C', 'F', 'F', '2'));
-  }
-
   tags.push_back(0);  // null terminate the array as expected by hb.
   hb_face_builder_sort_tables(new_face, tags.data());
 
@@ -122,7 +98,7 @@ StatusOr<FontData> IFTTable::AddToFont(
 
 absl::StatusOr<common::FontData> IFTTable::AddToFont(
     hb_face_t* face, const IFTTable& main,
-    std::optional<const IFTTable*> extension, bool iftb_conversion) {
+    std::optional<const IFTTable*> extension) {
   auto main_bytes = Format2PatchMap::Serialize(main);
   if (!main_bytes.ok()) {
     return main_bytes.status();
@@ -138,7 +114,7 @@ absl::StatusOr<common::FontData> IFTTable::AddToFont(
     ext_view = *ext_bytes;
   }
 
-  return AddToFont(face, *main_bytes, ext_view, iftb_conversion);
+  return AddToFont(face, *main_bytes, ext_view);
 }
 
 CompatId IFTTable::GetId() const { return id_; }

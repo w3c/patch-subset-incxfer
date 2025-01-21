@@ -458,25 +458,6 @@ TEST_F(FontHelperTest, GetDesignSpace_NonVf) {
   EXPECT_EQ(*ds, expected);
 }
 
-TEST_F(FontHelperTest, ApplyIftbTableOrdering) {
-  hb_subset_input_t* input = hb_subset_input_create_or_fail();
-  hb_subset_input_keep_everything(input);
-
-  hb_face_unique_ptr subset =
-      make_hb_face(hb_subset_or_fail(roboto_ab.get(), input));
-  hb_subset_input_destroy(input);
-  FontHelper::ApplyIftbTableOrdering(subset.get());
-
-  hb_blob_unique_ptr blob = make_hb_blob(hb_face_reference_blob(subset.get()));
-  hb_face_unique_ptr subset_concrete =
-      make_hb_face(hb_face_create(blob.get(), 0));
-
-  auto s =
-      FontHelper::ToStrings(FontHelper::GetOrderedTags(subset_concrete.get()));
-  EXPECT_EQ(s[s.size() - 2], "glyf");
-  EXPECT_EQ(s[s.size() - 1], "loca");
-}
-
 TEST_F(FontHelperTest, ToString) {
   ASSERT_EQ("glyf", FontHelper::ToString(HB_TAG('g', 'l', 'y', 'f')));
   ASSERT_EQ("abCD", FontHelper::ToString(HB_TAG('a', 'b', 'C', 'D')));
