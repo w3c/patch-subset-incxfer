@@ -87,6 +87,7 @@ cc_test(
     ],
     deps = [
         ":ift",
+        ":test_segments",
         "//common",
         "//ift/encoder",
         "//ift/client:fontations",
