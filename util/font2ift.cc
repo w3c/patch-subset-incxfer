@@ -4,6 +4,8 @@
 #include <sstream>
 #include <vector>
 
+#include <google/protobuf/text_format.h>
+
 #include "absl/container/btree_set.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
@@ -11,19 +13,26 @@
 #include "absl/flags/parse.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
-#include "common/axis_range.h"
 #include "common/font_data.h"
+#include "hb.h"
+
+#include "util/encoder_config.pb.h"
+
+/*
+#include "common/axis_range.h"
 #include "common/font_helper.h"
 #include "common/woff2.h"
-#include "hb.h"
 #include "ift/encoder/encoder.h"
 #include "ift/glyph_keyed_diff.h"
 #include "ift/proto/patch_map.h"
 #include "ift/url_template.h"
 #include "util/helper.h"
+*/
 
 /*
- * Utility that converts a standard font file into an IFT font file.
+ * Utility that converts a standard font file into an IFT font file following a supplied config.
+ *
+ * Configuration is provided as a textproto file following the encoder_config.proto schema.
  */
 
 ABSL_FLAG(std::string, output_path, "./",
@@ -32,42 +41,8 @@ ABSL_FLAG(std::string, output_path, "./",
 ABSL_FLAG(std::string, output_font, "out.ttf",
           "Name of the outputted base font.");
 
-ABSL_FLAG(std::string, url_template, "patch$5$4$3$2$1.br",
-          "Url template for patch files.");
-
-ABSL_FLAG(std::string, input_iftb_patch_template, "",
-          "Template used to locate existing iftb patches which should be "
-          "used in the output IFT font. If set the input codepoints files "
-          "are interpretted as patch indices instead of codepoints.");
-
-ABSL_FLAG(uint32_t, input_iftb_patch_count, 0,
-          "The number of input iftb patches there are. Should be set if using "
-          "'iftb_patch_groups'.");
-
-ABSL_FLAG(
-    uint32_t, iftb_patch_groups, 0,
-    "If using existing iftb patches this overrides input subsets and evenly "
-    "divides the iftb patches into the specified number of groups for "
-    "forming the non-outline data shared brotli patches.");
-
-ABSL_FLAG(uint32_t, jump_ahead, 1, "Number of levels to encode at each node.");
-
-ABSL_FLAG(std::vector<std::string>, optional_feature_tags, {},
-          "A list of features to make optionally available via a patch.");
-
-ABSL_FLAG(
-    std::vector<std::string>, base_design_space, {},
-    "Design space to cut the initial subset too. List of axis tag range pairs. "
-    "Example: wght=300,wdth=50:100");
-
-ABSL_FLAG(std::vector<std::string>, optional_design_space, {},
-          "Design space to make available via an optional patch. "
-          "List of axis tag range pairs. "
-          "Example: wght=300,wdth=50:100");
-
-ABSL_FLAG(std::string, optional_design_space_url_template, {},
-          "Output URL template to be used for IFTB patches associated "
-          "with the optional design space.");
+ABSL_FLAG(std::string, config, "",
+          "Path to a config file which is a textproto following the encoder_config.proto schema.");
 
 using absl::btree_set;
 using absl::flat_hash_map;
@@ -75,8 +50,11 @@ using absl::flat_hash_set;
 using absl::Status;
 using absl::StatusOr;
 using absl::StrCat;
-using common::AxisRange;
 using common::FontData;
+using common::hb_blob_unique_ptr;
+using common::make_hb_blob;
+/*
+using common::AxisRange;
 using common::FontHelper;
 using common::Woff2;
 using ift::GlyphKeyedDiff;
@@ -84,7 +62,14 @@ using ift::URLTemplate;
 using ift::encoder::Encoder;
 using ift::proto::PatchMap;
 using util::ParseDesignSpace;
+*/
 
+StatusOr<FontData> load_file(const char* path) {
+  hb_blob_unique_ptr blob = make_hb_blob(hb_blob_create_from_file_or_fail(path));
+  return FontData(blob.get());
+}
+
+/*
 btree_set<hb_tag_t> StringsToTags(const std::vector<std::string>& tag_strs) {
   btree_set<hb_tag_t> tags;
   for (const auto& tag_str : tag_strs) {
@@ -285,9 +270,23 @@ Status configure_mixed_mode(std::vector<btree_set<uint32_t>> iftb_patch_groups,
 
   return absl::OkStatus();
 }
+*/
 
 int main(int argc, char** argv) {
   auto args = absl::ParseCommandLine(argc, argv);
+
+  auto config_text = load_file(absl::GetFlag(FLAGS_config).c_str());
+  if (!config_text.ok()) {
+    std::cerr << "Failed to load config file: " << config_text.status() << std::endl;
+    return -1;
+  }
+
+  EncoderConfig config;
+  google::protobuf::TextFormat::ParseFromString(config_text->str(), &config);
+
+
+  /*
+  
   // TODO(garretrieger): add support for taking arguments/config as a proto
   // file,
   //   where command line flags override the proto settings.
@@ -413,4 +412,6 @@ int main(int argc, char** argv) {
 
   std::cout << ">> generating output patches:" << std::endl;
   return write_output(encoder, *base_font);
+  */
+  return -1;
 }
