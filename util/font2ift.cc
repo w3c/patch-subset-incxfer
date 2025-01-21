@@ -1,10 +1,8 @@
+#include <google/protobuf/text_format.h>
+
 #include <cstdio>
 #include <fstream>
 #include <iostream>
-#include <sstream>
-#include <vector>
-
-#include <google/protobuf/text_format.h>
 
 #include "absl/container/btree_set.h"
 #include "absl/container/flat_hash_map.h"
@@ -15,34 +13,42 @@
 #include "absl/strings/str_cat.h"
 #include "common/font_data.h"
 #include "hb.h"
-
+#include "ift/encoder/encoder.h"
 #include "util/encoder_config.pb.h"
 
 /*
-#include "common/axis_range.h"
-#include "common/font_helper.h"
-#include "common/woff2.h"
-#include "ift/encoder/encoder.h"
-#include "ift/glyph_keyed_diff.h"
-#include "ift/proto/patch_map.h"
-#include "ift/url_template.h"
-#include "util/helper.h"
-*/
-
-/*
- * Utility that converts a standard font file into an IFT font file following a supplied config.
+ * Utility that converts a standard font file into an IFT font file following a
+ * supplied config.
  *
- * Configuration is provided as a textproto file following the encoder_config.proto schema.
+ * Configuration is provided as a textproto file following the
+ * encoder_config.proto schema.
  */
+
+#define TRYV(...)              \
+  do {                         \
+    auto res = (__VA_ARGS__);  \
+    if (!res.ok()) return res; \
+  } while (false)
+
+#define TRY(...)                                   \
+  ({                                               \
+    auto res = (__VA_ARGS__);                      \
+    if (!res.ok()) return std::move(res).status(); \
+    std::move(*res);                               \
+  })
+
+ABSL_FLAG(std::string, input_font, "in.ttf",
+          "Name of the font to convert to IFT.");
+
+ABSL_FLAG(std::string, config, "",
+          "Path to a config file which is a textproto following the "
+          "encoder_config.proto schema.");
 
 ABSL_FLAG(std::string, output_path, "./",
           "Path to write output files under (base font and patches).");
 
 ABSL_FLAG(std::string, output_font, "out.ttf",
           "Name of the outputted base font.");
-
-ABSL_FLAG(std::string, config, "",
-          "Path to a config file which is a textproto following the encoder_config.proto schema.");
 
 using absl::btree_set;
 using absl::flat_hash_map;
@@ -51,91 +57,23 @@ using absl::Status;
 using absl::StatusOr;
 using absl::StrCat;
 using common::FontData;
-using common::hb_blob_unique_ptr;
-using common::make_hb_blob;
-/*
-using common::AxisRange;
 using common::FontHelper;
-using common::Woff2;
-using ift::GlyphKeyedDiff;
-using ift::URLTemplate;
+using common::hb_blob_unique_ptr;
+using common::hb_face_unique_ptr;
+using common::make_hb_blob;
 using ift::encoder::Encoder;
-using ift::proto::PatchMap;
-using util::ParseDesignSpace;
-*/
 
 StatusOr<FontData> load_file(const char* path) {
-  hb_blob_unique_ptr blob = make_hb_blob(hb_blob_create_from_file_or_fail(path));
+  hb_blob_unique_ptr blob =
+      make_hb_blob(hb_blob_create_from_file_or_fail(path));
+  if (!blob.get()) {
+    return absl::NotFoundError(StrCat("File ", path, " was not found."));
+  }
   return FontData(blob.get());
 }
 
-/*
-btree_set<hb_tag_t> StringsToTags(const std::vector<std::string>& tag_strs) {
-  btree_set<hb_tag_t> tags;
-  for (const auto& tag_str : tag_strs) {
-    if (tag_str.size() != 4) {
-      continue;
-    }
-
-    tags.insert(HB_TAG(tag_str[0], tag_str[1], tag_str[2], tag_str[3]));
-  }
-  return tags;
-}
-
-FontData load_iftb_patch(uint32_t index, const std::string& path_template) {
-  std::string path = URLTemplate::PatchToUrl(path_template, index);
-  hb_blob_t* blob = hb_blob_create_from_file_or_fail(path.c_str());
-  if (!blob) {
-    fprintf(stderr, "failed to load file: %s\n", path.c_str());
-    exit(-1);
-  }
-
-  FontData result(blob);
-  return result;
-}
-
-FontData load_iftb_patch(uint32_t index) {
-  std::string path_template = absl::GetFlag(FLAGS_input_iftb_patch_template);
-  return load_iftb_patch(index, path_template);
-}
-
-hb_face_t* load_font(const char* filename) {
-  hb_blob_t* blob = hb_blob_create_from_file_or_fail(filename);
-  if (!blob) {
-    fprintf(stderr, "failed to load file: %s\n", filename);
-    exit(-1);
-  }
-
-  hb_face_t* face = hb_face_create(blob, 0);
-  hb_blob_destroy(blob);
-
-  return face;
-}
-
-StatusOr<flat_hash_set<hb_codepoint_t>> load_unicodes_file(
-    const char* filename) {
-  std::ifstream input;
-  input.open(filename, std::ios::in);
-  if (!input.is_open()) {
-    return absl::NotFoundError(StrCat(filename, " was not found."));
-  }
-  flat_hash_set<hb_codepoint_t> result;
-
-  std::string line;
-  while (std::getline(input, line)) {
-    if (line.empty() || line[0] == '#') {
-      continue;
-    }
-
-    std::stringstream ss(line);
-    hb_codepoint_t cp;
-    ss >> std::hex >> cp;
-    result.insert(cp);
-  }
-
-  input.close();
-
-  return result;
+StatusOr<hb_face_unique_ptr> load_font(const char* filename) {
+  return TRY(load_file(filename)).face();
 }
 
 Status write_file(const std::string& name, const FontData& data) {
@@ -165,17 +103,11 @@ void write_patch(const std::string& url, const FontData& patch) {
   }
 }
 
-void write_patch(const std::string& url_template, uint32_t id,
-                 const FontData& patch) {
-  std::string name = URLTemplate::PatchToUrl(url_template, id);
-  write_patch(name, patch);
-}
-
 int write_output(const Encoder& encoder, const FontData& base_font) {
   std::string output_path = absl::GetFlag(FLAGS_output_path);
   std::string output_font = absl::GetFlag(FLAGS_output_font);
 
-  std::cerr << "Writing base font: " << StrCat(output_path, "/", output_font)
+  std::cerr << "  Writing init font: " << StrCat(output_path, "/", output_font)
             << std::endl;
   auto sc = write_file(StrCat(output_path, "/", output_font), base_font);
   if (!sc.ok()) {
@@ -190,228 +122,141 @@ int write_output(const Encoder& encoder, const FontData& base_font) {
   return 0;
 }
 
-StatusOr<std::vector<btree_set<uint32_t>>> get_iftb_patch_groups_from_args(
-    const std::vector<char*>& args) {
-  std::vector<btree_set<uint32_t>> result;
-
-  std::cout << ">> loading input iftb patches:" << std::endl;
-  for (size_t i = 2; i < args.size(); i++) {
-    auto s = load_unicodes_file(args[i]);
-    btree_set<uint32_t> ordered;
-    std::copy(s->begin(), s->end(), std::inserter(ordered, ordered.begin()));
-    if (!s.ok()) {
-      return s.status();
-    }
-
-    result.push_back(std::move(ordered));
+template <typename T>
+flat_hash_set<uint32_t> values(T proto_set) {
+  flat_hash_set<uint32_t> result;
+  for (uint32_t v : proto_set.values()) {
+    result.insert(v);
   }
-
   return result;
 }
 
-std::vector<btree_set<uint32_t>> generate_iftb_patch_groups(
-    uint32_t num_groups, uint32_t num_patches) {
-  // don't include chunk 0 which is already in the base font.
-  uint32_t per_group = (num_patches - 1) / num_groups;
-  uint32_t remainder = (num_patches - 1) % num_groups;
-
-  std::vector<btree_set<uint32_t>> result;
-  uint32_t patch_idx = 1;
-  for (uint32_t i = 0; i < num_groups; i++) {
-    btree_set<uint32_t> group;
-    uint32_t count = per_group;
-    if (remainder > 0) {
-      count++;
-      remainder--;
-    }
-    for (uint32_t j = 0; j < count; j++) {
-      group.insert(patch_idx++);
-    }
-    result.push_back(std::move(group));
+template <typename T>
+btree_set<hb_tag_t> tag_values(T proto_set) {
+  btree_set<hb_tag_t> result;
+  for (const auto& tag : proto_set.values()) {
+    result.insert(FontHelper::ToTag(tag));
   }
-
   return result;
 }
 
-Status configure_mixed_mode(std::vector<btree_set<uint32_t>> iftb_patch_groups,
-                            Encoder& encoder) {
-  for (const auto& grouping : iftb_patch_groups) {
-    for (uint32_t id : grouping) {
-      FontData iftb_patch = load_iftb_patch(id);
-      auto sc = encoder.AddExistingIftbPatch(id, iftb_patch);
-      if (!sc.ok()) {
-        return sc;
-      }
-    }
+Status ConfigureEncoder(EncoderConfig config, Encoder& encoder) {
+  // First configure the glyph keyed segments, including features deps
+  for (const auto& [id, gids] : config.glyph_segments()) {
+    TRYV(encoder.AddGlyphDataSegment(id, values(gids)));
   }
 
-  flat_hash_map<hb_tag_t, AxisRange> design_space = {};
-  if (!absl::GetFlag(FLAGS_base_design_space).empty()) {
-    auto ds = ParseDesignSpace(absl::GetFlag(FLAGS_base_design_space));
-    if (!ds.ok()) {
-      return ds.status();
+  for (const auto& [id, dep] : config.glyph_patch_dependencies()) {
+    if (dep.required_patches().values_size() != 1 ||
+        dep.required_features().values_size() != 1) {
+      return absl::UnimplementedError(
+          "Deps with more than one feature or segment aren't supported yet.");
     }
-    design_space = *ds;
+
+    uint32_t required_segment_id = dep.required_patches().values().at(0);
+    hb_tag_t tag = FontHelper::ToTag(dep.required_features().values().at(0));
+    TRYV(encoder.AddFeatureDependency(required_segment_id, id, tag));
   }
 
-  Status sc = encoder.SetBaseSubsetFromIftbPatches({}, design_space);
-  if (!sc.ok()) {
-    return sc;
+  // Initial subset definition
+  auto init_codepoints = values(config.initial_codepoints());
+  auto init_features = tag_values(config.initial_features());
+  auto init_segments = values(config.initial_glyph_patches());
+  // TODO(garretrieger): support init design space too
+
+  if ((!init_codepoints.empty() || !init_features.empty()) &&
+      init_segments.empty()) {
+    Encoder::SubsetDefinition base_subset;
+    base_subset.codepoints = init_codepoints;
+    base_subset.feature_tags = init_features;
+    TRYV(encoder.SetBaseSubsetFromDef(base_subset));
+  } else if (init_codepoints.empty() && init_features.empty() &&
+             !init_segments.empty()) {
+    TRYV(encoder.SetBaseSubsetFromSegments(init_segments));
+  } else {
+    return absl::UnimplementedError(
+        "Setting base subset from both codepoints and glyph patches is not yet "
+        "supported.");
   }
-  for (const auto& grouping : iftb_patch_groups) {
-    flat_hash_set<uint32_t> set;
-    std::copy(grouping.begin(), grouping.end(),
-              std::inserter(set, set.begin()));
-    sc = encoder.AddExtensionSubsetOfIftbPatches(set);
-    if (!sc.ok()) {
-      return sc;
-    }
+
+  // Next configure the table keyed segments
+  for (const auto& codepoints : config.non_glyph_codepoint_segmentation()) {
+    encoder.AddNonGlyphDataSegment(values(codepoints));
+  }
+
+  for (const auto& features : config.non_glyph_feature_segmentation()) {
+    encoder.AddFeatureGroupSegment(tag_values(features));
+  }
+
+  // TODO(garretrieger): support design space.
+
+  for (const auto& segments : config.glyph_patch_groupings()) {
+    TRYV(encoder.AddNonGlyphSegmentFromGlyphSegments(values(segments)));
+  }
+
+  // Lastly graph shape parameters
+  if (config.jump_ahead() > 1) {
+    encoder.SetJumpAhead(config.jump_ahead());
+  }
+
+  // Check for unsupported settings
+  if (config.add_everything_else_segments()) {
+    return absl::UnimplementedError(
+        "add_everything_else_segments is not yet supported.");
+  }
+
+  if (config.include_all_segment_patches()) {
+    return absl::UnimplementedError(
+        "include_all_segment_patches is not yet supported.");
+  }
+
+  if (config.max_depth() > 0) {
+    return absl::UnimplementedError("max_depth is not yet supported.");
   }
 
   return absl::OkStatus();
 }
-*/
 
 int main(int argc, char** argv) {
   auto args = absl::ParseCommandLine(argc, argv);
 
   auto config_text = load_file(absl::GetFlag(FLAGS_config).c_str());
   if (!config_text.ok()) {
-    std::cerr << "Failed to load config file: " << config_text.status() << std::endl;
+    std::cerr << "Failed to load config file: " << config_text.status()
+              << std::endl;
     return -1;
   }
 
   EncoderConfig config;
-  google::protobuf::TextFormat::ParseFromString(config_text->str(), &config);
+  if (!google::protobuf::TextFormat::ParseFromString(config_text->str(),
+                                                     &config)) {
+    std::cerr << "Failed to parse input config." << std::endl;
+    return -1;
+  }
 
-
-  /*
-  
-  // TODO(garretrieger): add support for taking arguments/config as a proto
-  // file,
-  //   where command line flags override the proto settings.
-  bool mixed_mode = !absl::GetFlag(FLAGS_input_iftb_patch_template).empty();
-  bool generated_groups = mixed_mode &&
-                          absl::GetFlag(FLAGS_iftb_patch_groups) &&
-                          absl::GetFlag(FLAGS_input_iftb_patch_count);
-
-  if (args.size() < (generated_groups ? 2 : 3)) {
-    std::cerr
-        << "creates an IFT font from <input font> that can incrementally load "
-        << "the provided subsets." << std::endl
-        << std::endl
-        << "usage: <input font> <codepoints file> [<codepoints file> ...]"
-        << std::endl
-        << "flags: " << std::endl
-        << " --output_path: directory to write the output font and patches "
-           "into."
-        << std::endl
-        << " --output_font: name of the output font file." << std::endl
-        << " --url_template: url template to use for the patch files."
-        << std::endl
-        << std::endl;
+  auto font = load_font(absl::GetFlag(FLAGS_input_font).c_str());
+  if (!font.ok()) {
+    std::cerr << "Failed to load input font: " << font.status() << std::endl;
     return -1;
   }
 
   Encoder encoder;
-  encoder.SetUrlTemplate(absl::GetFlag(FLAGS_url_template));
-  {
-    hb_face_t* input_font = load_font(args[1]);
-    encoder.SetFace(input_font);
-    hb_face_destroy(input_font);
-  }
+  encoder.SetFace(font->get());
 
-  encoder.SetJumpAhead(absl::GetFlag(FLAGS_jump_ahead));
-  auto feature_tags_str = absl::GetFlag(FLAGS_optional_feature_tags);
-  encoder.AddOptionalFeatureGroup(StringsToTags(feature_tags_str));
-
-  if (!absl::GetFlag(FLAGS_optional_design_space).empty()) {
-    auto ds = ParseDesignSpace(absl::GetFlag(FLAGS_optional_design_space));
-    if (!ds.ok()) {
-      std::cerr << ds.status().message() << std::endl;
-      return -1;
-    }
-    encoder.AddOptionalDesignSpace(*ds);
-    std::string design_space_url_template =
-        absl::GetFlag(FLAGS_optional_design_space_url_template);
-    if (!design_space_url_template.empty()) {
-      encoder.AddIftbUrlTemplateOverride(*ds, design_space_url_template);
-    }
-  }
-
-  if (mixed_mode) {
-    std::cout << ">> configuring encoder with iftb patches:" << std::endl;
-    if (generated_groups) {
-      auto sc =
-          configure_mixed_mode(generate_iftb_patch_groups(
-                                   absl::GetFlag(FLAGS_iftb_patch_groups),
-                                   absl::GetFlag(FLAGS_input_iftb_patch_count)),
-                               encoder);
-      if (!sc.ok()) {
-        std::cerr
-            << "Failure configuring mixed mode with generated patch groups: "
-            << sc.message() << std::endl;
-        return -1;
-      }
-    } else {
-      auto groups = get_iftb_patch_groups_from_args(args);
-      if (!groups.ok()) {
-        std::cerr << "Failure loading input patch groups: "
-                  << groups.status().message() << std::endl;
-        return -1;
-      }
-      auto sc = configure_mixed_mode(*groups, encoder);
-      if (!sc.ok()) {
-        std::cerr
-            << "Failure configuring mixed mode with supplied patch groups: "
-            << sc.message() << std::endl;
-        return -1;
-      }
-    }
-  } else {
-    std::cout << ">> configuring encoder:" << std::endl;
-    bool first = true;
-    for (size_t i = 2; i < args.size(); i++) {
-      auto s = load_unicodes_file(args[i]);
-      if (!s.ok()) {
-        std::cerr << s.status().message() << std::endl;
-        return -1;
-      }
-
-      Status sc;
-      if (first) {
-        Encoder::SubsetDefinition base;
-        base.codepoints = *s;
-        if (!absl::GetFlag(FLAGS_base_design_space).empty()) {
-          auto ds = ParseDesignSpace(absl::GetFlag(FLAGS_base_design_space));
-          if (!ds.ok()) {
-            std::cerr << ds.status().message() << std::endl;
-            return -1;
-          }
-          base.design_space = *ds;
-        }
-        sc = encoder.SetBaseSubsetFromDef(base);
-        if (!sc.ok()) {
-          std::cerr << sc.message() << std::endl;
-          return -1;
-        }
-        first = false;
-      } else {
-        encoder.AddExtensionSubset(*s);
-      }
-    }
+  auto sc = ConfigureEncoder(config, encoder);
+  if (!sc.ok()) {
+    std::cerr << "Failed to apply configuration to the encoder: " << sc
+              << std::endl;
+    return -1;
   }
 
   std::cout << ">> encoding:" << std::endl;
-  auto base_font = encoder.Encode();
-  base_font = Woff2::EncodeWoff2(base_font->str(), false);
-  if (!base_font.ok()) {
-    std::cerr << base_font.status().message() << std::endl;
+  auto encoded = encoder.Encode();
+  if (!encoded.ok()) {
+    std::cerr << "Encoding failed: " << encoded.status() << std::endl;
     return -1;
   }
 
   std::cout << ">> generating output patches:" << std::endl;
-  return write_output(encoder, *base_font);
-  */
-  return -1;
+  return write_output(encoder, *encoded);
 }

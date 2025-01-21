@@ -116,8 +116,8 @@ Status ToGraph(const Encoder& encoder, const FontData& base, graph& out) {
     return font_path.status();
   }
 
-  std::string command =
-      absl::StrCat("${TEST_SRCDIR}/+_repo_rules+fontations/ift_graph --font=", *font_path);
+  std::string command = absl::StrCat(
+      "${TEST_SRCDIR}/+_repo_rules+fontations/ift_graph --font=", *font_path);
   auto r = Exec(command.c_str());
   if (!r.ok()) {
     return r.status();
@@ -179,10 +179,11 @@ StatusOr<FontData> ExtendWithDesignSpace(
   }
 
   // Run the extension
-  std::string command = absl::StrCat(
-      "${TEST_SRCDIR}/+_repo_rules+fontations/ift_extend --font=", font_path.string(),
-      " --unicodes=\"", unicodes, "\" --design-space=\"", design_space_str,
-      "\" --features=\"", features, "\" --output=", output.string());
+  std::string command =
+      absl::StrCat("${TEST_SRCDIR}/+_repo_rules+fontations/ift_extend --font=",
+                   font_path.string(), " --unicodes=\"", unicodes,
+                   "\" --design-space=\"", design_space_str, "\" --features=\"",
+                   features, "\" --output=", output.string());
   auto r = Exec(command.c_str());
   if (!r.ok()) {
     return r.status();
