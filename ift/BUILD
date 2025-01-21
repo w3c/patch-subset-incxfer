@@ -17,13 +17,13 @@ cc_library(
     deps = [
         "//common",
         "//ift/proto",
-        "@com_google_absl//absl/container:btree",
-        "@com_google_absl//absl/container:flat_hash_map",
-        "@com_google_absl//absl/container:flat_hash_set",
-        "@com_google_absl//absl/log",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/strings",
+        "@abseil-cpp//absl/container:btree",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
         "@cppcodec",
         "@harfbuzz",
         "@iftb//:merger",
@@ -40,7 +40,7 @@ cc_library(
         "testdata/test_segments.h",
     ],
     deps = [
-        "@com_google_absl//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/container:flat_hash_set",
     ],
     visibility = [
         "//visibility:public",
@@ -67,8 +67,8 @@ cc_test(
         "//common",
         "//ift/encoder",
         "//ift/proto",
-        "@com_google_absl//absl/container:btree",
-        "@gtest//:gtest_main",
+        "@abseil-cpp//absl/container:btree",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -91,8 +91,8 @@ cc_test(
         "//common",
         "//ift/encoder",
         "//ift/client:fontations",
-        "@com_google_absl//absl/container:flat_hash_set",
-        "@gtest//:gtest_main",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@googletest//:gtest_main",
     ],
 )
 

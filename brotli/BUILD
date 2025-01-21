@@ -21,7 +21,7 @@ cc_library(
     deps = [
         "//common",
         "@brotli//:brotlienc",
-        "@com_google_absl//absl/types:span",
+        "@abseil-cpp//absl/types:span",
     ],
 )
 
@@ -53,7 +53,7 @@ cc_test(
         ":encoding",
         "//common",
         "@brotli//:brotlienc",
-        "@com_google_absl//absl/types:span",
-        "@gtest//:gtest_main",
+        "@abseil-cpp//absl/types:span",
+        "@googletest//:gtest_main",
     ],
 )

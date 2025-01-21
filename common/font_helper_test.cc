@@ -362,16 +362,6 @@ TEST_F(FontHelperTest, GvarSharedTupleCount) {
   ASSERT_EQ(*count, 6);
 }
 
-TEST_F(FontHelperTest, GvarSharedTupleChecksum) {
-  auto checksum = FontHelper::GvarSharedTupleChecksum(roboto_vf.get());
-  ASSERT_TRUE(checksum.ok()) << checksum.status();
-  ASSERT_EQ(*checksum, 0x56ADBE3852392412);
-
-  checksum = FontHelper::GvarSharedTupleChecksum(roboto_vf_abcd.get());
-  ASSERT_TRUE(checksum.ok()) << checksum.status();
-  ASSERT_EQ(*checksum, 0x56ADBE3852392412);
-}
-
 TEST_F(FontHelperTest, GvarData_NotFound) {
   auto data = FontHelper::GvarData(roboto_vf.get(), 1300);
   ASSERT_TRUE(absl::IsNotFound(data.status())) << data.status();

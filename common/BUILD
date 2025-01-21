@@ -13,7 +13,6 @@ cc_library(
         "sparse_bit_set.cc",
         "axis_range.cc",
         "indexed_data_reader.h",
-        "fast_hasher.cc",
         "woff2.cc",
         "compat_id.h",
         "compat_id.cc",
@@ -34,7 +33,6 @@ cc_library(
         "axis_range.h",
         "woff2.h",
         "hasher.h",
-        "fast_hasher.h",
         "compat_id.h",
     ],
     visibility = [
@@ -44,15 +42,14 @@ cc_library(
         "//brotli:shared_brotli_encoder",
         "@brotli//:brotlidec",
         "@brotli//:brotlienc",
-        "@com_google_absl//absl/container:flat_hash_map",
-        "@com_google_absl//absl/container:flat_hash_set",
-        "@com_google_absl//absl/container:btree",
-        "@com_google_absl//absl/log",
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/strings",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/container:btree",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
         "@harfbuzz",
         "@woff2",
-        "@fasthash",
     ],
 )
 
@@ -73,7 +70,7 @@ cc_library(
     ],
     deps = [
         ":common",
-        "@gtest//:gtest_main",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -100,7 +97,6 @@ cc_test(
         "font_helper_test.cc",
         "sparse_bit_set_test.cc",
         "woff2_test.cc",
-        "fast_hasher_test.cc",
     ],
     data = [
         "//common:testdata",
@@ -109,7 +105,7 @@ cc_test(
     deps = [
         ":common",
         ":mocks",
-        "@gtest//:gtest_main",
-        "@com_google_absl//absl/container:btree",
+        "@googletest//:gtest_main",
+        "@abseil-cpp//absl/container:btree",
     ],
 )
