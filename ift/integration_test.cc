@@ -12,6 +12,7 @@
 #include "ift/client/fontations_client.h"
 #include "ift/encoder/encoder.h"
 #include "ift/proto/patch_map.h"
+#include "ift/testdata/test_segments.h"
 
 using absl::btree_set;
 using absl::flat_hash_map;
@@ -32,6 +33,20 @@ using ift::client::ExtendWithDesignSpace;
 using ift::encoder::Encoder;
 using ift::proto::PatchEncoding;
 using ift::proto::PatchMap;
+using ift::testdata::TestFeatureSegment1;
+using ift::testdata::TestFeatureSegment2;
+using ift::testdata::TestFeatureSegment3;
+using ift::testdata::TestFeatureSegment4;
+using ift::testdata::TestFeatureSegment5;
+using ift::testdata::TestFeatureSegment6;
+using ift::testdata::TestSegment1;
+using ift::testdata::TestSegment2;
+using ift::testdata::TestSegment3;
+using ift::testdata::TestSegment4;
+using ift::testdata::TestVfSegment1;
+using ift::testdata::TestVfSegment2;
+using ift::testdata::TestVfSegment3;
+using ift::testdata::TestVfSegment4;
 using ::testing::AllOf;
 using ::testing::Contains;
 using ::testing::IsSupersetOf;
@@ -50,42 +65,15 @@ class IntegrationTest : public ::testing::Test {
         hb_blob_create_from_file("ift/testdata/NotoSansJP-Regular.subset.ttf"));
     noto_sans_jp_.set(blob.get());
 
-    iftb_patches_.resize(5);
-    for (int i = 1; i <= 4; i++) {
-      std::string name =
-          StrCat("ift/testdata/NotoSansJP-Regular.subset_iftb/chunk", i, ".br");
-      blob = make_hb_blob(hb_blob_create_from_file(name.c_str()));
-      assert(hb_blob_get_length(blob.get()) > 0);
-      iftb_patches_[i].set(blob.get());
-    }
-
     // Noto Sans JP VF
     blob = make_hb_blob(
         hb_blob_create_from_file("ift/testdata/NotoSansJP[wght].subset.ttf"));
     noto_sans_vf_.set(blob.get());
 
-    vf_iftb_patches_.resize(5);
-    for (int i = 1; i <= 4; i++) {
-      std::string name = StrCat(
-          "ift/testdata/NotoSansJP[wght].subset_iftb/outline-chunk", i, ".br");
-      blob = make_hb_blob(hb_blob_create_from_file(name.c_str()));
-      assert(hb_blob_get_length(blob.get()) > 0);
-      vf_iftb_patches_[i].set(blob.get());
-    }
-
     // Feature Test
     blob = make_hb_blob(hb_blob_create_from_file(
         "ift/testdata/NotoSansJP-Regular.feature-test.ttf"));
     feature_test_.set(blob.get());
-
-    feature_test_patches_.resize(7);
-    for (int i = 1; i <= 6; i++) {
-      std::string name = StrCat(
-          "ift/testdata/NotoSansJP-Regular.feature-test_iftb/chunk", i, ".br");
-      blob = make_hb_blob(hb_blob_create_from_file(name.c_str()));
-      assert(hb_blob_get_length(blob.get()) > 0);
-      feature_test_patches_[i].set(blob.get());
-    }
 
     blob = make_hb_blob(
         hb_blob_create_from_file("common/testdata/Roboto[wdth,wght].ttf"));
@@ -93,73 +81,49 @@ class IntegrationTest : public ::testing::Test {
   }
 
   Status InitEncoderForMixedMode(Encoder& encoder) {
-    encoder.SetUrlTemplate("{id}");
-    {
-      hb_face_t* face = noto_sans_jp_.reference_face();
-      encoder.SetFace(face);
-      hb_face_destroy(face);
-    }
+    auto face = noto_sans_jp_.face();
+    encoder.SetFace(face.get());
 
-    for (uint i = 1; i < iftb_patches_.size(); i++) {
-      auto sc = encoder.AddExistingIftbPatch(i, iftb_patches_[i]);
-      if (!sc.ok()) {
-        return sc;
-      }
-    }
-
-    return absl::OkStatus();
+    auto sc = encoder.AddGlyphDataSegment(1, TestSegment1());
+    sc.Update(encoder.AddGlyphDataSegment(2, TestSegment2()));
+    sc.Update(encoder.AddGlyphDataSegment(3, TestSegment3()));
+    sc.Update(encoder.AddGlyphDataSegment(4, TestSegment4()));
+    return sc;
   }
 
   Status InitEncoderForVfMixedMode(Encoder& encoder) {
-    encoder.SetUrlTemplate("{id}");
-    {
-      hb_face_t* face = noto_sans_vf_.reference_face();
-      encoder.SetFace(face);
-      hb_face_destroy(face);
-    }
+    auto face = noto_sans_vf_.face();
+    encoder.SetFace(face.get());
 
-    for (uint i = 1; i < vf_iftb_patches_.size(); i++) {
-      auto sc = encoder.AddExistingIftbPatch(i, vf_iftb_patches_[i]);
-      if (!sc.ok()) {
-        return sc;
-      }
-    }
-
-    return absl::OkStatus();
+    auto sc = encoder.AddGlyphDataSegment(1, TestVfSegment1());
+    sc.Update(encoder.AddGlyphDataSegment(2, TestVfSegment2()));
+    sc.Update(encoder.AddGlyphDataSegment(3, TestVfSegment3()));
+    sc.Update(encoder.AddGlyphDataSegment(4, TestVfSegment4()));
+    return sc;
   }
 
   Status InitEncoderForMixedModeFeatureTest(Encoder& encoder) {
-    encoder.SetUrlTemplate("{id}");
-    {
-      hb_face_t* face = feature_test_.reference_face();
-      encoder.SetFace(face);
-      hb_face_destroy(face);
-    }
+    auto face = feature_test_.face();
+    encoder.SetFace(face.get());
 
-    for (uint i = 1; i < feature_test_patches_.size(); i++) {
-      auto sc = encoder.AddExistingIftbPatch(i, feature_test_patches_[i]);
-      if (!sc.ok()) {
-        return sc;
-      }
-    }
-
-    return absl::OkStatus();
+    auto sc = encoder.AddGlyphDataSegment(1, TestFeatureSegment1());
+    sc.Update(encoder.AddGlyphDataSegment(2, TestFeatureSegment2()));
+    sc.Update(encoder.AddGlyphDataSegment(3, TestFeatureSegment3()));
+    sc.Update(encoder.AddGlyphDataSegment(4, TestFeatureSegment4()));
+    sc.Update(encoder.AddGlyphDataSegment(5, TestFeatureSegment5()));
+    sc.Update(encoder.AddGlyphDataSegment(6, TestFeatureSegment6()));
+    return sc;
   }
 
   Status InitEncoderForTableKeyed(Encoder& encoder) {
-    encoder.SetUrlTemplate("{id}");
     auto face = noto_sans_jp_.face();
     encoder.SetFace(face.get());
     return absl::OkStatus();
   }
 
   Status InitEncoderForVf(Encoder& encoder) {
-    encoder.SetUrlTemplate("{id}");
-    {
-      auto face = roboto_vf_.face();
-      encoder.SetFace(face.get());
-    }
-
+    auto face = roboto_vf_.face();
+    encoder.SetFace(face.get());
     return absl::OkStatus();
   }
 
@@ -175,13 +139,9 @@ class IntegrationTest : public ::testing::Test {
   }
 
   FontData noto_sans_jp_;
-  std::vector<FontData> iftb_patches_;
-
   FontData noto_sans_vf_;
-  std::vector<FontData> vf_iftb_patches_;
 
   FontData feature_test_;
-  std::vector<FontData> feature_test_patches_;
 
   FontData roboto_vf_;
 
@@ -258,10 +218,10 @@ TEST_F(IntegrationTest, TableKeyedOnly) {
   ASSERT_TRUE(sc.ok()) << sc;
 
   sc = encoder.SetBaseSubset({0x41, 0x42, 0x43});
-  encoder.AddExtensionSubset({0x45, 0x46, 0x47});
-  encoder.AddExtensionSubset({0x48, 0x49, 0x4A});
-  encoder.AddExtensionSubset({0x4B, 0x4C, 0x4D});
-  encoder.AddExtensionSubset({0x4E, 0x4F, 0x50});
+  encoder.AddNonGlyphDataSegment({0x45, 0x46, 0x47});
+  encoder.AddNonGlyphDataSegment({0x48, 0x49, 0x4A});
+  encoder.AddNonGlyphDataSegment({0x4B, 0x4C, 0x4D});
+  encoder.AddNonGlyphDataSegment({0x4E, 0x4F, 0x50});
   ASSERT_TRUE(sc.ok()) << sc;
 
   auto encoded = encoder.Encode();
@@ -299,10 +259,10 @@ TEST_F(IntegrationTest, TableKeyedMultiple) {
   ASSERT_TRUE(sc.ok()) << sc;
 
   sc = encoder.SetBaseSubset({0x41, 0x42, 0x43});
-  encoder.AddExtensionSubset({0x45, 0x46, 0x47});
-  encoder.AddExtensionSubset({0x48, 0x49, 0x4A});
-  encoder.AddExtensionSubset({0x4B, 0x4C, 0x4D});
-  encoder.AddExtensionSubset({0x4E, 0x4F, 0x50});
+  encoder.AddNonGlyphDataSegment({0x45, 0x46, 0x47});
+  encoder.AddNonGlyphDataSegment({0x48, 0x49, 0x4A});
+  encoder.AddNonGlyphDataSegment({0x4B, 0x4C, 0x4D});
+  encoder.AddNonGlyphDataSegment({0x4E, 0x4F, 0x50});
   ASSERT_TRUE(sc.ok()) << sc;
 
   auto encoded = encoder.Encode();
@@ -340,11 +300,11 @@ TEST_F(IntegrationTest, TableKeyedWithOverlaps) {
   ASSERT_TRUE(sc.ok()) << sc;
 
   sc = encoder.SetBaseSubset({0x41, 0x42, 0x43});
-  encoder.AddExtensionSubset(
+  encoder.AddNonGlyphDataSegment(
       {0x45, 0x46, 0x47, 0x48});  // 0x48 is in two subsets
-  encoder.AddExtensionSubset({0x48, 0x49, 0x4A});
-  encoder.AddExtensionSubset({0x4B, 0x4C, 0x4D});
-  encoder.AddExtensionSubset({0x4E, 0x4F, 0x50});
+  encoder.AddNonGlyphDataSegment({0x48, 0x49, 0x4A});
+  encoder.AddNonGlyphDataSegment({0x4B, 0x4C, 0x4D});
+  encoder.AddNonGlyphDataSegment({0x4E, 0x4F, 0x50});
   ASSERT_TRUE(sc.ok()) << sc;
 
   auto encoded = encoder.Encode();
@@ -393,9 +353,9 @@ TEST_F(IntegrationTest, TableKeyed_DesignSpaceAugmentation_IgnoresDesignSpace) {
   def.design_space[kWdth] = AxisRange::Point(100.0f);
   sc = encoder.SetBaseSubsetFromDef(def);
 
-  encoder.AddExtensionSubset({'d', 'e', 'f'});
-  encoder.AddExtensionSubset({'h', 'i', 'j'});
-  encoder.AddOptionalDesignSpace({{kWdth, *AxisRange::Range(75.0f, 100.0f)}});
+  encoder.AddNonGlyphDataSegment({'d', 'e', 'f'});
+  encoder.AddNonGlyphDataSegment({'h', 'i', 'j'});
+  encoder.AddDesignSpaceSegment({{kWdth, *AxisRange::Range(75.0f, 100.0f)}});
   ASSERT_TRUE(sc.ok()) << sc;
 
   auto encoded = encoder.Encode();
@@ -439,9 +399,9 @@ TEST_F(IntegrationTest, SharedBrotli_DesignSpaceAugmentation) {
   def.design_space[kWdth] = AxisRange::Point(100.0f);
   sc = encoder.SetBaseSubsetFromDef(def);
 
-  encoder.AddExtensionSubset({'d', 'e', 'f'});
-  encoder.AddExtensionSubset({'h', 'i', 'j'});
-  encoder.AddOptionalDesignSpace({{kWdth, *AxisRange::Range(75.0f, 100.0f)}});
+  encoder.AddNonGlyphDataSegment({'d', 'e', 'f'});
+  encoder.AddNonGlyphDataSegment({'h', 'i', 'j'});
+  encoder.AddDesignSpaceSegment({{kWdth, *AxisRange::Range(75.0f, 100.0f)}});
   ASSERT_TRUE(sc.ok()) << sc;
 
   auto encoded = encoder.Encode();
@@ -501,9 +461,9 @@ TEST_F(IntegrationTest, MixedMode) {
   ASSERT_TRUE(sc.ok()) << sc;
 
   // target paritions: {{0, 1}, {2}, {3, 4}}
-  sc = encoder.SetBaseSubsetFromIftbPatches({1});
-  sc.Update(encoder.AddExtensionSubsetOfIftbPatches({2}));
-  sc.Update(encoder.AddExtensionSubsetOfIftbPatches({3, 4}));
+  sc = encoder.SetBaseSubsetFromSegments({1});
+  sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({2}));
+  sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({3, 4}));
   ASSERT_TRUE(sc.ok()) << sc;
 
   auto encoded = encoder.Encode();
@@ -553,15 +513,15 @@ TEST_F(IntegrationTest, MixedMode_OptionalFeatureTags) {
   // With optional feature chunks for vrt3:
   //   1, 2 -> 5
   //   4    -> 6
-  sc = encoder.SetBaseSubsetFromIftbPatches({});
-  sc.Update(encoder.AddExtensionSubsetOfIftbPatches({1}));
-  sc.Update(encoder.AddExtensionSubsetOfIftbPatches({2}));
-  sc.Update(encoder.AddExtensionSubsetOfIftbPatches({3}));
-  sc.Update(encoder.AddExtensionSubsetOfIftbPatches({4}));
-  sc.Update(encoder.AddIftbFeatureSpecificPatch(1, 5, kVrt3));
-  sc.Update(encoder.AddIftbFeatureSpecificPatch(2, 5, kVrt3));
-  sc.Update(encoder.AddIftbFeatureSpecificPatch(4, 6, kVrt3));
-  encoder.AddOptionalFeatureGroup({kVrt3});
+  sc = encoder.SetBaseSubsetFromSegments({});
+  sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({1}));
+  sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({2}));
+  sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({3}));
+  sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({4}));
+  sc.Update(encoder.AddFeatureDependency(1, 5, kVrt3));
+  sc.Update(encoder.AddFeatureDependency(2, 5, kVrt3));
+  sc.Update(encoder.AddFeatureDependency(4, 6, kVrt3));
+  encoder.AddFeatureGroupSegment({kVrt3});
   ASSERT_TRUE(sc.ok()) << sc;
 
   auto encoded = encoder.Encode();
@@ -620,11 +580,11 @@ TEST_F(IntegrationTest, MixedMode_LocaLenChange) {
   ASSERT_TRUE(sc.ok()) << sc;
 
   // target paritions: {{0}, {1}, {2}, {3}, {4}}
-  sc = encoder.SetBaseSubsetFromIftbPatches({});
-  sc.Update(encoder.AddExtensionSubsetOfIftbPatches({1}));
-  sc.Update(encoder.AddExtensionSubsetOfIftbPatches({2}));
-  sc.Update(encoder.AddExtensionSubsetOfIftbPatches({3}));
-  sc.Update(encoder.AddExtensionSubsetOfIftbPatches({4}));
+  sc = encoder.SetBaseSubsetFromSegments({});
+  sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({1}));
+  sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({2}));
+  sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({3}));
+  sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({4}));
   ASSERT_TRUE(sc.ok()) << sc;
 
   auto encoded = encoder.Encode();
@@ -683,9 +643,9 @@ TEST_F(IntegrationTest, MixedMode_Complex) {
   ASSERT_TRUE(sc.ok()) << sc;
 
   // target paritions: {{0}, {1, 2}, {3, 4}}
-  sc = encoder.SetBaseSubsetFromIftbPatches({});
-  sc.Update(encoder.AddExtensionSubsetOfIftbPatches({1, 2}));
-  sc.Update(encoder.AddExtensionSubsetOfIftbPatches({3, 4}));
+  sc = encoder.SetBaseSubsetFromSegments({});
+  sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({1, 2}));
+  sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({3, 4}));
   ASSERT_TRUE(sc.ok()) << sc;
 
   auto encoded = encoder.Encode();
@@ -723,10 +683,10 @@ TEST_F(IntegrationTest, MixedMode_SequentialDependentPatches) {
   ASSERT_TRUE(sc.ok()) << sc;
 
   // target paritions: {{0, 1}, {2}, {3}, {4}}
-  sc = encoder.SetBaseSubsetFromIftbPatches({1});
-  sc.Update(encoder.AddExtensionSubsetOfIftbPatches({2}));
-  sc.Update(encoder.AddExtensionSubsetOfIftbPatches({3}));
-  sc.Update(encoder.AddExtensionSubsetOfIftbPatches({4}));
+  sc = encoder.SetBaseSubsetFromSegments({1});
+  sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({2}));
+  sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({3}));
+  sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({4}));
   ASSERT_TRUE(sc.ok()) << sc;
 
   auto encoded = encoder.Encode();
@@ -751,13 +711,10 @@ TEST_F(IntegrationTest, MixedMode_DesignSpaceAugmentation) {
   ASSERT_TRUE(sc.ok()) << sc;
 
   // target paritions: {{0, 1}, {2}, {3, 4}} + add wght axis
-  sc = encoder.SetBaseSubsetFromIftbPatches({1},
-                                            {{kWght, AxisRange::Point(100)}});
-  sc.Update(encoder.AddExtensionSubsetOfIftbPatches({2}));
-  sc.Update(encoder.AddExtensionSubsetOfIftbPatches({3, 4}));
-  encoder.AddOptionalDesignSpace({{kWght, *AxisRange::Range(100, 900)}});
-  encoder.AddIftbUrlTemplateOverride({{kWght, *AxisRange::Range(100, 900)}},
-                                     "vf-{id}");
+  sc = encoder.SetBaseSubsetFromSegments({1}, {{kWght, AxisRange::Point(100)}});
+  sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({2}));
+  sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({3, 4}));
+  encoder.AddDesignSpaceSegment({{kWght, *AxisRange::Range(100, 900)}});
   ASSERT_TRUE(sc.ok()) << sc;
 
   auto encoded = encoder.Encode();
@@ -795,13 +752,10 @@ TEST_F(IntegrationTest, MixedMode_DesignSpaceAugmentation_DropsUnusedPatches) {
   ASSERT_TRUE(sc.ok()) << sc;
 
   // target paritions: {{0, 1}, {2}, {3, 4}} + add wght axis
-  sc = encoder.SetBaseSubsetFromIftbPatches({1},
-                                            {{kWght, AxisRange::Point(100)}});
-  sc.Update(encoder.AddExtensionSubsetOfIftbPatches({2}));
-  sc.Update(encoder.AddExtensionSubsetOfIftbPatches({3, 4}));
-  encoder.AddOptionalDesignSpace({{kWght, *AxisRange::Range(100, 900)}});
-  encoder.AddIftbUrlTemplateOverride({{kWght, *AxisRange::Range(100, 900)}},
-                                     "vf-{id}");
+  sc = encoder.SetBaseSubsetFromSegments({1}, {{kWght, AxisRange::Point(100)}});
+  sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({2}));
+  sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({3, 4}));
+  encoder.AddDesignSpaceSegment({{kWght, *AxisRange::Range(100, 900)}});
 
   ASSERT_TRUE(sc.ok()) << sc;
 
@@ -815,8 +769,8 @@ TEST_F(IntegrationTest, MixedMode_DesignSpaceAugmentation_DropsUnusedPatches) {
       {{kWght, *AxisRange::Range(100, 900)}}, &fetched_uris);
 
   // correspond to ids 3, 4, 6, d
-  btree_set<std::string> expected_uris{"0C", "0G",    "0O",
-                                       "1K", "vf-0C", "vf-0G"};
+  btree_set<std::string> expected_uris{"0O.tk",   "1K.tk",   "1_0C.gk",
+                                       "1_0G.gk", "2_0C.gk", "2_0G.gk"};
 
   ASSERT_EQ(fetched_uris, expected_uris);
 
