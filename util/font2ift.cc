@@ -144,7 +144,8 @@ btree_set<hb_tag_t> tag_values(const T& proto_set) {
 StatusOr<Encoder::design_space_t> to_design_space(const DesignSpace& proto) {
   Encoder::design_space_t result;
   for (const auto& [tag_str, range_proto] : proto.ranges()) {
-    auto range = TRY(common::AxisRange::Range(range_proto.start(), range_proto.end()));
+    auto range =
+        TRY(common::AxisRange::Range(range_proto.start(), range_proto.end()));
     result[FontHelper::ToTag(tag_str)] = range;
   }
   return result;
@@ -181,11 +182,11 @@ Status ConfigureEncoder(EncoderConfig config, Encoder& encoder) {
     base_subset.feature_tags = init_features;
     base_subset.design_space = init_design_space;
     TRYV(encoder.SetBaseSubsetFromDef(base_subset));
-  } else if (init_codepoints.empty() && init_features.empty() && init_design_space.empty() &&
-             !init_segments.empty()) {
+  } else if (init_codepoints.empty() && init_features.empty() &&
+             init_design_space.empty() && !init_segments.empty()) {
     TRYV(encoder.SetBaseSubsetFromSegments(init_segments));
-  } else if (init_codepoints.empty() && init_features.empty() && !init_design_space.empty() &&
-             !init_segments.empty()) {
+  } else if (init_codepoints.empty() && init_features.empty() &&
+             !init_design_space.empty() && !init_segments.empty()) {
     TRYV(encoder.SetBaseSubsetFromSegments(init_segments, init_design_space));
   } else {
     return absl::UnimplementedError(
@@ -202,7 +203,8 @@ Status ConfigureEncoder(EncoderConfig config, Encoder& encoder) {
     encoder.AddFeatureGroupSegment(tag_values(features));
   }
 
-  for (const auto& design_space_proto : config.non_glyph_design_space_segmentation()) {
+  for (const auto& design_space_proto :
+       config.non_glyph_design_space_segmentation()) {
     auto design_space = TRY(to_design_space(design_space_proto));
     encoder.AddDesignSpaceSegment(design_space);
   }
