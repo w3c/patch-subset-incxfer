@@ -11,6 +11,7 @@
 #include "absl/flags/parse.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "common/axis_range.h"
 #include "common/font_data.h"
 #include "hb.h"
 #include "ift/encoder/encoder.h"
@@ -123,7 +124,7 @@ int write_output(const Encoder& encoder, const FontData& base_font) {
 }
 
 template <typename T>
-flat_hash_set<uint32_t> values(T proto_set) {
+flat_hash_set<uint32_t> values(const T& proto_set) {
   flat_hash_set<uint32_t> result;
   for (uint32_t v : proto_set.values()) {
     result.insert(v);
@@ -132,10 +133,19 @@ flat_hash_set<uint32_t> values(T proto_set) {
 }
 
 template <typename T>
-btree_set<hb_tag_t> tag_values(T proto_set) {
+btree_set<hb_tag_t> tag_values(const T& proto_set) {
   btree_set<hb_tag_t> result;
   for (const auto& tag : proto_set.values()) {
     result.insert(FontHelper::ToTag(tag));
+  }
+  return result;
+}
+
+StatusOr<Encoder::design_space_t> to_design_space(const DesignSpace& proto) {
+  Encoder::design_space_t result;
+  for (const auto& [tag_str, range_proto] : proto.ranges()) {
+    auto range = TRY(common::AxisRange::Range(range_proto.start(), range_proto.end()));
+    result[FontHelper::ToTag(tag_str)] = range;
   }
   return result;
 }
@@ -162,17 +172,21 @@ Status ConfigureEncoder(EncoderConfig config, Encoder& encoder) {
   auto init_codepoints = values(config.initial_codepoints());
   auto init_features = tag_values(config.initial_features());
   auto init_segments = values(config.initial_glyph_patches());
-  // TODO(garretrieger): support init design space too
+  auto init_design_space = TRY(to_design_space(config.initial_design_space()));
 
   if ((!init_codepoints.empty() || !init_features.empty()) &&
       init_segments.empty()) {
     Encoder::SubsetDefinition base_subset;
     base_subset.codepoints = init_codepoints;
     base_subset.feature_tags = init_features;
+    base_subset.design_space = init_design_space;
     TRYV(encoder.SetBaseSubsetFromDef(base_subset));
-  } else if (init_codepoints.empty() && init_features.empty() &&
+  } else if (init_codepoints.empty() && init_features.empty() && init_design_space.empty() &&
              !init_segments.empty()) {
     TRYV(encoder.SetBaseSubsetFromSegments(init_segments));
+  } else if (init_codepoints.empty() && init_features.empty() && !init_design_space.empty() &&
+             !init_segments.empty()) {
+    TRYV(encoder.SetBaseSubsetFromSegments(init_segments, init_design_space));
   } else {
     return absl::UnimplementedError(
         "Setting base subset from both codepoints and glyph patches is not yet "
@@ -188,7 +202,10 @@ Status ConfigureEncoder(EncoderConfig config, Encoder& encoder) {
     encoder.AddFeatureGroupSegment(tag_values(features));
   }
 
-  // TODO(garretrieger): support design space.
+  for (const auto& design_space_proto : config.non_glyph_design_space_segmentation()) {
+    auto design_space = TRY(to_design_space(design_space_proto));
+    encoder.AddDesignSpaceSegment(design_space);
+  }
 
   for (const auto& segments : config.glyph_patch_groupings()) {
     TRYV(encoder.AddNonGlyphSegmentFromGlyphSegments(values(segments)));
