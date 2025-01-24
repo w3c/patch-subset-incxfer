@@ -214,6 +214,10 @@ class Encoder {
   static void AddCombinations(const std::vector<const SubsetDefinition*>& in,
                               uint32_t number,
                               std::vector<SubsetDefinition>& out);
+
+  SubsetDefinition AddFeatureSpecificChunksIfNeeded(
+      const SubsetDefinition& def) const;
+
   SubsetDefinition Combine(const SubsetDefinition& s1,
                            const SubsetDefinition& s2) const;
 
