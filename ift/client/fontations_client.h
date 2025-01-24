@@ -21,8 +21,8 @@ typedef absl::btree_map<std::string, absl::btree_set<std::string>> graph;
  * Runs 'ift_graph' on the IFT font created by encoder and writes a
  * representation of the graph into 'out'.
  */
-absl::Status ToGraph(const ift::encoder::Encoder& encoder,
-                     const common::FontData& base, graph& out);
+absl::Status ToGraph(const ift::encoder::Encoder::Encoding& encoding,
+                     graph& out);
 
 /**
  * Runs 'ift_extend' on the IFT font created by encoder and returns the
@@ -32,15 +32,15 @@ absl::Status ToGraph(const ift::encoder::Encoder& encoder,
  * the client ended up fetching and applying.
  */
 absl::StatusOr<common::FontData> ExtendWithDesignSpace(
-    const ift::encoder::Encoder& encoder, const common::FontData& ift_font,
+    const ift::encoder::Encoder::Encoding& encoding,
     absl::btree_set<uint32_t> codepoints,
     absl::btree_set<hb_tag_t> feature_tags,
     absl::flat_hash_map<hb_tag_t, common::AxisRange> design_space,
     absl::btree_set<std::string>* applied_uris = nullptr);
 
-absl::StatusOr<common::FontData> Extend(const ift::encoder::Encoder& encoder,
-                                        const common::FontData& ift_font,
-                                        absl::btree_set<uint32_t> codepoints);
+absl::StatusOr<common::FontData> Extend(
+    const ift::encoder::Encoder::Encoding& encoding,
+    absl::btree_set<uint32_t> codepoints);
 
 }  // namespace ift::client
 

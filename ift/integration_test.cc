@@ -224,10 +224,10 @@ TEST_F(IntegrationTest, TableKeyedOnly) {
   encoder.AddNonGlyphDataSegment({0x4E, 0x4F, 0x50});
   ASSERT_TRUE(sc.ok()) << sc;
 
-  auto encoded = encoder.Encode();
-  ASSERT_TRUE(encoded.ok()) << encoded.status();
+  auto encoding = encoder.Encode();
+  ASSERT_TRUE(encoding.ok()) << encoding.status();
 
-  auto encoded_face = encoded->face();
+  auto encoded_face = encoding->init_font.face();
   auto codepoints = FontHelper::ToCodepointsSet(encoded_face.get());
   ASSERT_TRUE(codepoints.contains(0x41));
   ASSERT_FALSE(codepoints.contains(0x45));
@@ -235,7 +235,7 @@ TEST_F(IntegrationTest, TableKeyedOnly) {
   ASSERT_FALSE(codepoints.contains(0x4B));
   ASSERT_FALSE(codepoints.contains(0x4E));
 
-  auto extended = Extend(encoder, *encoded, {0x49});
+  auto extended = Extend(*encoding, {0x49});
   ASSERT_TRUE(extended.ok()) << extended.status();
 
   auto extended_face = extended->face();
@@ -265,10 +265,10 @@ TEST_F(IntegrationTest, TableKeyedMultiple) {
   encoder.AddNonGlyphDataSegment({0x4E, 0x4F, 0x50});
   ASSERT_TRUE(sc.ok()) << sc;
 
-  auto encoded = encoder.Encode();
-  ASSERT_TRUE(encoded.ok()) << encoded.status();
+  auto encoding = encoder.Encode();
+  ASSERT_TRUE(encoding.ok()) << encoding.status();
 
-  auto encoded_face = encoded->face();
+  auto encoded_face = encoding->init_font.face();
   auto codepoints = FontHelper::ToCodepointsSet(encoded_face.get());
   ASSERT_TRUE(codepoints.contains(0x41));
   ASSERT_FALSE(codepoints.contains(0x45));
@@ -276,7 +276,7 @@ TEST_F(IntegrationTest, TableKeyedMultiple) {
   ASSERT_FALSE(codepoints.contains(0x4B));
   ASSERT_FALSE(codepoints.contains(0x4E));
 
-  auto extended = Extend(encoder, *encoded, {0x49, 0x4F});
+  auto extended = Extend(*encoding, {0x49, 0x4F});
   ASSERT_TRUE(extended.ok()) << extended.status();
   auto extended_face = extended->face();
 
@@ -307,10 +307,10 @@ TEST_F(IntegrationTest, TableKeyedWithOverlaps) {
   encoder.AddNonGlyphDataSegment({0x4E, 0x4F, 0x50});
   ASSERT_TRUE(sc.ok()) << sc;
 
-  auto encoded = encoder.Encode();
-  ASSERT_TRUE(encoded.ok()) << encoded.status();
+  auto encoding = encoder.Encode();
+  ASSERT_TRUE(encoding.ok()) << encoding.status();
 
-  auto encoded_face = encoded->face();
+  auto encoded_face = encoding->init_font.face();
   auto codepoints = FontHelper::ToCodepointsSet(encoded_face.get());
   ASSERT_TRUE(codepoints.contains(0x41));
   ASSERT_FALSE(codepoints.contains(0x45));
@@ -318,7 +318,7 @@ TEST_F(IntegrationTest, TableKeyedWithOverlaps) {
   ASSERT_FALSE(codepoints.contains(0x4B));
   ASSERT_FALSE(codepoints.contains(0x4E));
 
-  auto extended = Extend(encoder, *encoded, {0x48});
+  auto extended = Extend(*encoding, {0x48});
   ASSERT_TRUE(extended.ok()) << extended.status();
 
   auto extended_face = extended->face();
@@ -358,9 +358,9 @@ TEST_F(IntegrationTest, TableKeyed_DesignSpaceAugmentation_IgnoresDesignSpace) {
   encoder.AddDesignSpaceSegment({{kWdth, *AxisRange::Range(75.0f, 100.0f)}});
   ASSERT_TRUE(sc.ok()) << sc;
 
-  auto encoded = encoder.Encode();
-  ASSERT_TRUE(encoded.ok()) << encoded.status();
-  auto encoded_face = encoded->face();
+  auto encoding = encoder.Encode();
+  ASSERT_TRUE(encoding.ok()) << encoding.status();
+  auto encoded_face = encoding->init_font.face();
 
   auto codepoints = FontHelper::ToCodepointsSet(encoded_face.get());
   ASSERT_THAT(codepoints, IsSupersetOf({'a', 'b', 'c'}));
@@ -374,7 +374,7 @@ TEST_F(IntegrationTest, TableKeyed_DesignSpaceAugmentation_IgnoresDesignSpace) {
   };
   ASSERT_EQ(*ds, expected_ds);
 
-  auto extended = Extend(encoder, *encoded, {'e'});
+  auto extended = Extend(*encoding, {'e'});
   ASSERT_TRUE(extended.ok()) << extended.status();
   auto extended_face = extended->face();
 
@@ -404,9 +404,9 @@ TEST_F(IntegrationTest, SharedBrotli_DesignSpaceAugmentation) {
   encoder.AddDesignSpaceSegment({{kWdth, *AxisRange::Range(75.0f, 100.0f)}});
   ASSERT_TRUE(sc.ok()) << sc;
 
-  auto encoded = encoder.Encode();
-  ASSERT_TRUE(encoded.ok()) << encoded.status();
-  auto encoded_face = encoded->face();
+  auto encoding = encoder.Encode();
+  ASSERT_TRUE(encoding.ok()) << encoding.status();
+  auto encoded_face = encoding->init_font.face();
 
   auto codepoints = FontHelper::ToCodepointsSet(encoded_face.get());
   ASSERT_THAT(codepoints, IsSupersetOf({'a', 'b', 'c'}));
@@ -421,7 +421,7 @@ TEST_F(IntegrationTest, SharedBrotli_DesignSpaceAugmentation) {
   ASSERT_EQ(*ds, expected_ds);
 
   auto extended = ExtendWithDesignSpace(
-      encoder, *encoded, {'b'}, {},
+      *encoding, {'b'}, {},
       {{HB_TAG('w', 'd', 't', 'h'), AxisRange::Point(80)}});
   ASSERT_TRUE(extended.ok()) << extended.status();
   auto extended_face = extended->face();
@@ -440,7 +440,8 @@ TEST_F(IntegrationTest, SharedBrotli_DesignSpaceAugmentation) {
                                 Not(Contains('i')), Not(Contains('j'))));
 
   // Try extending the updated font again.
-  extended = Extend(encoder, *extended, {'e'});
+  encoding->init_font.shallow_copy(*extended);
+  extended = Extend(*encoding, {'e'});
   ASSERT_TRUE(extended.ok()) << extended.status();
   extended_face = extended->face();
 
@@ -466,9 +467,9 @@ TEST_F(IntegrationTest, MixedMode) {
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({3, 4}));
   ASSERT_TRUE(sc.ok()) << sc;
 
-  auto encoded = encoder.Encode();
-  ASSERT_TRUE(encoded.ok()) << encoded.status();
-  auto encoded_face = encoded->face();
+  auto encoding = encoder.Encode();
+  ASSERT_TRUE(encoding.ok()) << encoding.status();
+  auto encoded_face = encoding->init_font.face();
 
   auto codepoints = FontHelper::ToCodepointsSet(encoded_face.get());
   ASSERT_TRUE(codepoints.contains(chunk0_cp));
@@ -477,7 +478,7 @@ TEST_F(IntegrationTest, MixedMode) {
   ASSERT_FALSE(codepoints.contains(chunk3_cp));
   ASSERT_FALSE(codepoints.contains(chunk4_cp));
 
-  auto extended = Extend(encoder, *encoded, {chunk3_cp, chunk4_cp});
+  auto extended = Extend(*encoding, {chunk3_cp, chunk4_cp});
   ASSERT_TRUE(extended.ok()) << extended.status();
   auto extended_face = extended->face();
 
@@ -524,9 +525,9 @@ TEST_F(IntegrationTest, MixedMode_OptionalFeatureTags) {
   encoder.AddFeatureGroupSegment({kVrt3});
   ASSERT_TRUE(sc.ok()) << sc;
 
-  auto encoded = encoder.Encode();
-  ASSERT_TRUE(encoded.ok()) << encoded.status();
-  auto encoded_face = encoded->face();
+  auto encoding = encoder.Encode();
+  ASSERT_TRUE(encoding.ok()) << encoding.status();
+  auto encoded_face = encoding->init_font.face();
 
   auto codepoints = FontHelper::ToCodepointsSet(encoded_face.get());
   ASSERT_TRUE(codepoints.contains(chunk0_cp));
@@ -536,7 +537,7 @@ TEST_F(IntegrationTest, MixedMode_OptionalFeatureTags) {
   ASSERT_FALSE(codepoints.contains(chunk4_cp));
 
   // Ext 1 - extend to {chunk2_cp}
-  auto extended = Extend(encoder, *encoded, {chunk2_cp});
+  auto extended = Extend(*encoding, {chunk2_cp});
   ASSERT_TRUE(extended.ok()) << extended.status();
   auto extended_face = extended->face();
 
@@ -551,7 +552,8 @@ TEST_F(IntegrationTest, MixedMode_OptionalFeatureTags) {
   ASSERT_TRUE(FontHelper::GlyfData(extended_face.get(), chunk5_gid)->empty());
 
   // Ext 2 - extend to {kVrt3}
-  extended = ExtendWithDesignSpace(encoder, *encoded, {chunk2_cp}, {kVrt3}, {});
+  encoding->init_font.shallow_copy(*extended);
+  extended = ExtendWithDesignSpace(*encoding, {chunk2_cp}, {kVrt3}, {});
   ASSERT_TRUE(extended.ok()) << extended.status();
   extended_face = extended->face();
 
@@ -563,8 +565,9 @@ TEST_F(IntegrationTest, MixedMode_OptionalFeatureTags) {
   ASSERT_TRUE(FontHelper::GlyfData(extended_face.get(), chunk6_gid)->empty());
 
   // Ext 3 - extend to chunk4_cp + kVrt3
-  extended = ExtendWithDesignSpace(encoder, *encoded, {chunk2_cp, chunk4_cp},
-                                   {kVrt3}, {});
+  encoding->init_font.shallow_copy(*extended);
+  extended =
+      ExtendWithDesignSpace(*encoding, {chunk2_cp, chunk4_cp}, {kVrt3}, {});
   ASSERT_TRUE(extended.ok()) << extended.status();
   extended_face = extended->face();
 
@@ -587,9 +590,9 @@ TEST_F(IntegrationTest, MixedMode_LocaLenChange) {
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({4}));
   ASSERT_TRUE(sc.ok()) << sc;
 
-  auto encoded = encoder.Encode();
-  ASSERT_TRUE(encoded.ok()) << encoded.status();
-  auto encoded_face = encoded->face();
+  auto encoding = encoder.Encode();
+  ASSERT_TRUE(encoding.ok()) << encoding.status();
+  auto encoded_face = encoding->init_font.face();
 
   auto codepoints = FontHelper::ToCodepointsSet(encoded_face.get());
   ASSERT_TRUE(codepoints.contains(chunk0_cp));
@@ -599,7 +602,7 @@ TEST_F(IntegrationTest, MixedMode_LocaLenChange) {
   ASSERT_FALSE(codepoints.contains(chunk4_cp));
 
   // ### Phase 1 ###
-  auto extended = Extend(encoder, *encoded, {chunk3_cp});
+  auto extended = Extend(*encoding, {chunk3_cp});
   ASSERT_TRUE(extended.ok()) << extended.status();
   auto extended_face = extended->face();
 
@@ -607,7 +610,8 @@ TEST_F(IntegrationTest, MixedMode_LocaLenChange) {
   uint32_t gid_count_2 = hb_face_get_glyph_count(extended_face.get());
 
   // ### Phase 2 ###
-  extended = Extend(encoder, *encoded, {chunk2_cp, chunk3_cp});
+  encoding->init_font.shallow_copy(*extended);
+  extended = Extend(*encoding, {chunk2_cp, chunk3_cp});
   ASSERT_TRUE(extended.ok()) << extended.status();
   extended_face = extended->face();
 
@@ -648,17 +652,18 @@ TEST_F(IntegrationTest, MixedMode_Complex) {
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({3, 4}));
   ASSERT_TRUE(sc.ok()) << sc;
 
-  auto encoded = encoder.Encode();
-  ASSERT_TRUE(encoded.ok()) << encoded.status();
-  auto encoded_face = encoded->face();
+  auto encoding = encoder.Encode();
+  ASSERT_TRUE(encoding.ok()) << encoding.status();
+  auto encoded_face = encoding->init_font.face();
 
   // Phase 1
-  auto extended = Extend(encoder, *encoded, {chunk1_cp});
+  auto extended = Extend(*encoding, {chunk1_cp});
   ASSERT_TRUE(extended.ok()) << extended.status();
   auto extended_face = extended->face();
 
   // Phase 2
-  extended = Extend(encoder, *extended, {chunk1_cp, chunk3_cp});
+  encoding->init_font.shallow_copy(*extended);
+  extended = Extend(*encoding, {chunk1_cp, chunk3_cp});
   ASSERT_TRUE(extended.ok()) << extended.status();
   extended_face = extended->face();
 
@@ -689,11 +694,11 @@ TEST_F(IntegrationTest, MixedMode_SequentialDependentPatches) {
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({4}));
   ASSERT_TRUE(sc.ok()) << sc;
 
-  auto encoded = encoder.Encode();
-  ASSERT_TRUE(encoded.ok()) << encoded.status();
-  auto encoded_face = encoded->face();
+  auto encoding = encoder.Encode();
+  ASSERT_TRUE(encoding.ok()) << encoding.status();
+  auto encoded_face = encoding->init_font.face();
 
-  auto extended = Extend(encoder, *encoded, {chunk3_cp, chunk4_cp});
+  auto extended = Extend(*encoding, {chunk3_cp, chunk4_cp});
   ASSERT_TRUE(extended.ok()) << extended.status();
   auto extended_face = extended->face();
 
@@ -717,18 +722,19 @@ TEST_F(IntegrationTest, MixedMode_DesignSpaceAugmentation) {
   encoder.AddDesignSpaceSegment({{kWght, *AxisRange::Range(100, 900)}});
   ASSERT_TRUE(sc.ok()) << sc;
 
-  auto encoded = encoder.Encode();
-  ASSERT_TRUE(encoded.ok()) << encoded.status();
-  auto encoded_face = encoded->face();
+  auto encoding = encoder.Encode();
+  ASSERT_TRUE(encoding.ok()) << encoding.status();
+  auto encoded_face = encoding->init_font.face();
 
   // Phase 1: non VF augmentation.
-  auto extended = Extend(encoder, *encoded, {chunk3_cp, chunk4_cp});
+  auto extended = Extend(*encoding, {chunk3_cp, chunk4_cp});
   ASSERT_TRUE(extended.ok()) << extended.status();
   auto extended_face = extended->face();
 
   // Phase 2: VF augmentation.
-  extended = ExtendWithDesignSpace(encoder, *encoded, {chunk3_cp, chunk4_cp},
-                                   {}, {{kWght, *AxisRange::Range(100, 900)}});
+  encoding->init_font.shallow_copy(*extended);
+  extended = ExtendWithDesignSpace(*encoding, {chunk3_cp, chunk4_cp}, {},
+                                   {{kWght, *AxisRange::Range(100, 900)}});
   ASSERT_TRUE(extended.ok()) << extended.status();
   extended_face = extended->face();
 
@@ -759,14 +765,14 @@ TEST_F(IntegrationTest, MixedMode_DesignSpaceAugmentation_DropsUnusedPatches) {
 
   ASSERT_TRUE(sc.ok()) << sc;
 
-  auto encoded = encoder.Encode();
-  ASSERT_TRUE(encoded.ok()) << encoded.status();
-  auto encoded_face = encoded->face();
+  auto encoding = encoder.Encode();
+  ASSERT_TRUE(encoding.ok()) << encoding.status();
+  auto encoded_face = encoding->init_font.face();
 
   btree_set<std::string> fetched_uris;
-  auto extended = ExtendWithDesignSpace(
-      encoder, *encoded, {chunk3_cp, chunk4_cp}, {},
-      {{kWght, *AxisRange::Range(100, 900)}}, &fetched_uris);
+  auto extended = ExtendWithDesignSpace(*encoding, {chunk3_cp, chunk4_cp}, {},
+                                        {{kWght, *AxisRange::Range(100, 900)}},
+                                        &fetched_uris);
 
   // correspond to ids 3, 4, 6, d
   btree_set<std::string> expected_uris{"0O.tk",   "1K.tk",   "1_0C.gk",
