@@ -104,19 +104,20 @@ void write_patch(const std::string& url, const FontData& patch) {
   }
 }
 
-int write_output(const Encoder& encoder, const FontData& base_font) {
+int write_output(const Encoder::Encoding& encoding) {
   std::string output_path = absl::GetFlag(FLAGS_output_path);
   std::string output_font = absl::GetFlag(FLAGS_output_font);
 
   std::cerr << "  Writing init font: " << StrCat(output_path, "/", output_font)
             << std::endl;
-  auto sc = write_file(StrCat(output_path, "/", output_font), base_font);
+  auto sc =
+      write_file(StrCat(output_path, "/", output_font), encoding.init_font);
   if (!sc.ok()) {
     std::cerr << sc.message() << std::endl;
     return -1;
   }
 
-  for (const auto& p : encoder.Patches()) {
+  for (const auto& p : encoding.patches) {
     write_patch(p.first, p.second);
   }
 
@@ -270,12 +271,12 @@ int main(int argc, char** argv) {
   }
 
   std::cout << ">> encoding:" << std::endl;
-  auto encoded = encoder.Encode();
-  if (!encoded.ok()) {
-    std::cerr << "Encoding failed: " << encoded.status() << std::endl;
+  auto encoding = encoder.Encode();
+  if (!encoding.ok()) {
+    std::cerr << "Encoding failed: " << encoding.status() << std::endl;
     return -1;
   }
 
   std::cout << ">> generating output patches:" << std::endl;
-  return write_output(encoder, *encoded);
+  return write_output(*encoding);
 }

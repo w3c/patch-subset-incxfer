@@ -22,6 +22,29 @@ using common::FontData;
 
 namespace common {
 
+bool FontHelper::HasLongLoca(const hb_face_t* face) {
+  FontData head = TableData(face, kHead);
+  if (head.size() < 52) {
+    return false;
+  }
+
+  return (bool)head.str()[51];
+}
+
+bool FontHelper::HasWideGvar(const hb_face_t* face) {
+  auto gvar = TableData(face, kGvar);
+  if (gvar.empty()) {
+    return false;
+  }
+
+  constexpr uint32_t gvar_flags_offset = 15;
+  if (gvar.size() < gvar_flags_offset + 1) {
+    return false;
+  }
+
+  return (((uint8_t)gvar.str()[gvar_flags_offset]) & 0x01);
+}
+
 absl::StatusOr<string_view> FontHelper::GlyfData(const hb_face_t* face,
                                                  uint32_t gid) {
   auto loca = Loca(face);

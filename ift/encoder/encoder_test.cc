@@ -385,13 +385,13 @@ TEST_F(EncoderTest, Encode_OneSubset) {
 
   auto s = encoder.SetBaseSubset({'a', 'd'});
   ASSERT_TRUE(s.ok()) << s;
-  auto base = encoder.Encode();
+  auto encoding = encoder.Encode();
   hb_face_destroy(face);
 
-  ASSERT_TRUE(base.ok()) << base.status();
+  ASSERT_TRUE(encoding.ok()) << encoding.status();
 
   graph g;
-  auto sc = ToGraph(encoder, *base, g);
+  auto sc = ToGraph(*encoding, g);
   ASSERT_TRUE(sc.ok()) << sc;
 
   graph expected{{"ad", {}}};
@@ -407,13 +407,13 @@ TEST_F(EncoderTest, Encode_TwoSubsets) {
   ASSERT_TRUE(s.ok()) << s;
   encoder.AddNonGlyphDataSegment(s1);
 
-  auto base = encoder.Encode();
+  auto encoding = encoder.Encode();
   hb_face_destroy(face);
 
-  ASSERT_TRUE(base.ok()) << base.status();
+  ASSERT_TRUE(encoding.ok()) << encoding.status();
 
   graph g;
-  auto sc = ToGraph(encoder, *base, g);
+  auto sc = ToGraph(*encoding, g);
   ASSERT_TRUE(sc.ok()) << sc;
 
   graph expected{{"ad", {"abcd"}}, {"abcd", {}}};
@@ -430,13 +430,13 @@ TEST_F(EncoderTest, Encode_TwoSubsetsAndOptionalFeature) {
   encoder.AddNonGlyphDataSegment(s1);
   encoder.AddFeatureGroupSegment({HB_TAG('c', '2', 's', 'c')});
 
-  auto base = encoder.Encode();
+  auto encoding = encoder.Encode();
   hb_face_destroy(face);
 
-  ASSERT_TRUE(base.ok()) << base.status();
+  ASSERT_TRUE(encoding.ok()) << encoding.status();
 
   graph g;
-  auto sc = ToGraph(encoder, *base, g);
+  auto sc = ToGraph(*encoding, g);
   ASSERT_TRUE(sc.ok()) << sc;
 
   graph expected{
@@ -459,14 +459,14 @@ TEST_F(EncoderTest, Encode_ThreeSubsets) {
   encoder.AddNonGlyphDataSegment(s1);
   encoder.AddNonGlyphDataSegment(s2);
 
-  auto base = encoder.Encode();
+  auto encoding = encoder.Encode();
   hb_face_destroy(face);
 
-  ASSERT_TRUE(base.ok()) << base.status();
-  ASSERT_EQ(encoder.Patches().size(), 4);
+  ASSERT_TRUE(encoding.ok()) << encoding.status();
+  ASSERT_EQ(encoding->patches.size(), 4);
 
   graph g;
-  auto sc = ToGraph(encoder, *base, g);
+  auto sc = ToGraph(*encoding, g);
   ASSERT_TRUE(sc.ok()) << sc;
 
   graph expected{
@@ -489,14 +489,14 @@ TEST_F(EncoderTest, Encode_ThreeSubsets_WithOverlaps) {
   encoder.AddNonGlyphDataSegment(s1);
   encoder.AddNonGlyphDataSegment(s2);
 
-  auto base = encoder.Encode();
+  auto encoding = encoder.Encode();
   hb_face_destroy(face);
 
-  ASSERT_TRUE(base.ok()) << base.status();
-  ASSERT_EQ(encoder.Patches().size(), 4);
+  ASSERT_TRUE(encoding.ok()) << encoding.status();
+  ASSERT_EQ(encoding->patches.size(), 4);
 
   graph g;
-  auto sc = ToGraph(encoder, *base, g);
+  auto sc = ToGraph(*encoding, g);
   ASSERT_TRUE(sc.ok()) << sc;
 
   graph expected{
@@ -521,14 +521,14 @@ TEST_F(EncoderTest, Encode_ThreeSubsets_VF) {
   encoder.AddNonGlyphDataSegment({'b'});
   encoder.AddDesignSpaceSegment({{kWdth, *AxisRange::Range(75.0f, 100.0f)}});
 
-  auto base = encoder.Encode();
+  auto encoding = encoder.Encode();
   hb_face_destroy(face);
 
-  ASSERT_TRUE(base.ok()) << base.status();
-  ASSERT_EQ(encoder.Patches().size(), 4);
+  ASSERT_TRUE(encoding.ok()) << encoding.status();
+  ASSERT_EQ(encoding->patches.size(), 4);
 
   graph g;
-  auto sc = ToGraph(encoder, *base, g);
+  auto sc = ToGraph(*encoding, g);
   ASSERT_TRUE(sc.ok()) << sc;
 
   graph expected{
@@ -559,17 +559,17 @@ TEST_F(EncoderTest, Encode_ThreeSubsets_Mixed) {
   s.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({3, 4}));
   ASSERT_TRUE(s.ok()) << s;
 
-  auto base = encoder.Encode();
+  auto encoding = encoder.Encode();
 
-  ASSERT_TRUE(base.ok()) << base.status();
-  auto cps = ToCodepointsSet(*base);
+  ASSERT_TRUE(encoding.ok()) << encoding.status();
+  auto cps = ToCodepointsSet(encoding->init_font);
   ASSERT_TRUE(cps.contains(chunk0_cp));
   ASSERT_TRUE(cps.contains(chunk1_cp));
   ASSERT_TRUE(cps.contains(chunk2_cp));
   ASSERT_FALSE(cps.contains(chunk3_cp));
   ASSERT_FALSE(cps.contains(chunk4_cp));
 
-  ASSERT_EQ(encoder.Patches().size(), 3);
+  ASSERT_EQ(encoding->patches.size(), 3);
 
   // TODO(garretrieger): check the glyph keyed mapping entries in the base and
   // check
@@ -579,10 +579,10 @@ TEST_F(EncoderTest, Encode_ThreeSubsets_Mixed) {
   //  modified glyf, loca, and IFT table.
 
   {
-    hb_face_t* face = base->reference_face();
-    auto iftx_data = FontHelper::TableData(face, HB_TAG('I', 'F', 'T', 'X'));
+    auto face = encoding->init_font.face();
+    auto iftx_data =
+        FontHelper::TableData(face.get(), HB_TAG('I', 'F', 'T', 'X'));
     ASSERT_FALSE(iftx_data.empty());
-    hb_face_destroy(face);
   }
 
   // expected patches:
@@ -613,10 +613,10 @@ TEST_F(EncoderTest, Encode_ThreeSubsets_Mixed_WithFeatureMappings) {
   encoder.AddFeatureGroupSegment({HB_TAG('c', 'c', 'm', 'p')});
   ASSERT_TRUE(s.ok()) << s;
 
-  auto base = encoder.Encode();
-  ASSERT_TRUE(base.ok()) << base.status();
+  auto encoding = encoder.Encode();
+  ASSERT_TRUE(encoding.ok()) << encoding.status();
 
-  ASSERT_EQ(encoder.Patches().size(), 7);
+  ASSERT_EQ(encoding->patches.size(), 7);
 
   // expected patches:
   // - segment 2 (glyph keyed)
@@ -639,14 +639,14 @@ TEST_F(EncoderTest, Encode_FourSubsets) {
   encoder.AddNonGlyphDataSegment(s2);
   encoder.AddNonGlyphDataSegment(s3);
 
-  auto base = encoder.Encode();
+  auto encoding = encoder.Encode();
   hb_face_destroy(face);
 
-  ASSERT_TRUE(base.ok()) << base.status();
-  ASSERT_EQ(encoder.Patches().size(), 12);
+  ASSERT_TRUE(encoding.ok()) << encoding.status();
+  ASSERT_EQ(encoding->patches.size(), 12);
 
   graph g;
-  auto sc = ToGraph(encoder, *base, g);
+  auto sc = ToGraph(*encoding, g);
   ASSERT_TRUE(sc.ok()) << sc;
 
   graph expected{
@@ -671,14 +671,14 @@ TEST_F(EncoderTest, Encode_FourSubsets_WithJumpAhead) {
   encoder.AddNonGlyphDataSegment(s3);
   encoder.SetJumpAhead(2);
 
-  auto base = encoder.Encode();
+  auto encoding = encoder.Encode();
   hb_face_destroy(face);
 
-  ASSERT_TRUE(base.ok()) << base.status();
-  ASSERT_EQ(encoder.Patches().size(), 18);
+  ASSERT_TRUE(encoding.ok()) << encoding.status();
+  ASSERT_EQ(encoding->patches.size(), 18);
 
   graph g;
-  auto sc = ToGraph(encoder, *base, g);
+  auto sc = ToGraph(*encoding, g);
   ASSERT_TRUE(sc.ok()) << sc;
 
   graph expected{

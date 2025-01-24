@@ -117,6 +117,26 @@ void Encoder::AddCombinations(const std::vector<const SubsetDefinition*>& in,
   }
 }
 
+StatusOr<FontData> Encoder::FullyExpandedSubset(
+    const ProcessingContext& context) const {
+  SubsetDefinition all;
+  all.Union(base_subset_);
+  for (const auto& s : extension_subsets_) {
+    all.Union(s);
+  }
+  for (const auto& [id, s] : glyph_data_segments_) {
+    all.Union(s);
+  }
+
+  // Union doesn't work completely correctly with respect to design spaces so
+  // clear out design space which will just include the full original design
+  // space.
+  // TODO(garretrieger): once union works correctly remove this.
+  all.design_space.clear();
+
+  return CutSubset(context, face_.get(), all);
+}
+
 bool is_subset(const flat_hash_set<uint32_t>& a,
                const flat_hash_set<uint32_t>& b) {
   return std::all_of(b.begin(), b.end(),
@@ -493,21 +513,44 @@ StatusOr<Encoder::SubsetDefinition> Encoder::SubsetDefinitionForSegments(
   return result;
 }
 
-StatusOr<FontData> Encoder::Encode() {
+StatusOr<Encoder::Encoding> Encoder::Encode() const {
   if (!face_) {
     return absl::FailedPreconditionError("Encoder must have a face set.");
   }
 
-  return Encode(base_subset_, true);
+  ProcessingContext context(next_id_);
+  context.force_long_loca_and_gvar_ = false;
+  auto expanded = FullyExpandedSubset(context);
+  if (!expanded.ok()) {
+    return expanded.status();
+  }
+
+  context.fully_expanded_subset_.shallow_copy(*expanded);
+  auto expanded_face = expanded->face();
+  context.force_long_loca_and_gvar_ =
+      FontHelper::HasLongLoca(expanded_face.get()) ||
+      FontHelper::HasWideGvar(expanded_face.get());
+
+  auto init_font = Encode(context, base_subset_, true);
+  if (!init_font.ok()) {
+    return init_font.status();
+  }
+
+  Encoding result;
+  result.init_font.shallow_copy(*init_font);
+  result.patches = std::move(context.patches_);
+  return result;
 }
 
-bool Encoder::AllocatePatchSet(const design_space_t& design_space,
-                               std::string& uri_template, CompatId& compat_id) {
-  auto uri_it = patch_set_uri_templates_.find(design_space);
-  auto compat_id_it = glyph_keyed_compat_ids_.find(design_space);
+bool Encoder::AllocatePatchSet(ProcessingContext& context,
+                               const design_space_t& design_space,
+                               std::string& uri_template,
+                               CompatId& compat_id) const {
+  auto uri_it = context.patch_set_uri_templates_.find(design_space);
+  auto compat_id_it = context.glyph_keyed_compat_ids_.find(design_space);
 
-  bool has_uri = (uri_it != patch_set_uri_templates_.end());
-  bool has_compat_id = (compat_id_it != glyph_keyed_compat_ids_.end());
+  bool has_uri = (uri_it != context.patch_set_uri_templates_.end());
+  bool has_compat_id = (compat_id_it != context.glyph_keyed_compat_ids_.end());
 
   if (has_uri && has_compat_id) {
     // already created, return existing.
@@ -516,32 +559,33 @@ bool Encoder::AllocatePatchSet(const design_space_t& design_space,
     return false;
   }
 
-  uri_template = UrlTemplate(next_patch_set_id_++);
-  compat_id = GenerateCompatId();
+  uri_template = UrlTemplate(context.next_patch_set_id_++);
+  compat_id = context.GenerateCompatId();
 
-  patch_set_uri_templates_[design_space] = uri_template;
-  glyph_keyed_compat_ids_[design_space] = compat_id;
+  context.patch_set_uri_templates_[design_space] = uri_template;
+  context.glyph_keyed_compat_ids_[design_space] = compat_id;
   return true;
 }
 
 Status Encoder::EnsureGlyphKeyedPatchesPopulated(
-    const design_space_t& design_space, std::string& uri_template,
-    CompatId& compat_id) {
+    ProcessingContext& context, const design_space_t& design_space,
+    std::string& uri_template, CompatId& compat_id) const {
   if (glyph_data_segments_.empty()) {
     return absl::OkStatus();
   }
 
-  if (!AllocatePatchSet(design_space, uri_template, compat_id)) {
+  if (!AllocatePatchSet(context, design_space, uri_template, compat_id)) {
     // Patches have already been populated for this design space.
     return absl::OkStatus();
   }
 
+  auto full_face = context.fully_expanded_subset_.face();
   FontData instance;
-  instance.set(face_.get());
+  instance.set(full_face.get());
 
   if (!design_space.empty()) {
     // If a design space is provided, apply it.
-    auto result = Instance(face_.get(), design_space);
+    auto result = Instance(context, full_face.get(), design_space);
     if (!result.ok()) {
       return result.status();
     }
@@ -565,7 +609,7 @@ Status Encoder::EnsureGlyphKeyedPatchesPopulated(
       return patch.status();
     }
 
-    patches_[url].shallow_copy(*patch);
+    context.patches_[url].shallow_copy(*patch);
   }
 
   return absl::OkStatus();
@@ -613,20 +657,21 @@ Status Encoder::PopulateGlyphKeyedPatchMap(
   return absl::OkStatus();
 }
 
-StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
-                                   bool is_root) {
-  auto it = built_subsets_.find(base_subset);
-  if (it != built_subsets_.end()) {
+StatusOr<FontData> Encoder::Encode(ProcessingContext& context,
+                                   const SubsetDefinition& base_subset,
+                                   bool is_root) const {
+  auto it = context.built_subsets_.find(base_subset);
+  if (it != context.built_subsets_.end()) {
     FontData copy;
     copy.shallow_copy(it->second);
     return copy;
   }
 
   std::string table_keyed_uri_template = UrlTemplate(0);
-  CompatId table_keyed_compat_id = this->GenerateCompatId();
+  CompatId table_keyed_compat_id = context.GenerateCompatId();
   std::string glyph_keyed_uri_template;
   CompatId glyph_keyed_compat_id;
-  auto sc = EnsureGlyphKeyedPatchesPopulated(base_subset.design_space,
+  auto sc = EnsureGlyphKeyedPatchesPopulated(context, base_subset.design_space,
                                              glyph_keyed_uri_template,
                                              glyph_keyed_compat_id);
   if (!sc.ok()) {
@@ -638,14 +683,15 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
 
   // The first subset forms the base file, the remaining subsets are made
   // reachable via patches.
-  auto base = CutSubset(face_.get(), base_subset);
+  auto full_face = context.fully_expanded_subset_.face();
+  auto base = CutSubset(context, full_face.get(), base_subset);
   if (!base.ok()) {
     return base.status();
   }
 
   if (subsets.empty() && !IsMixedMode()) {
     // This is a leaf node, a IFT table isn't needed.
-    built_subsets_[base_subset].shallow_copy(*base);
+    context.built_subsets_[base_subset].shallow_copy(*base);
     return base;
   }
 
@@ -668,7 +714,7 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
   PatchEncoding encoding =
       IsMixedMode() ? TABLE_KEYED_PARTIAL : TABLE_KEYED_FULL;
   for (const auto& s : subsets) {
-    uint32_t id = next_id_++;
+    uint32_t id = context.next_id_++;
     ids.push_back(id);
 
     PatchMap::Coverage coverage = s.ToCoverage();
@@ -695,13 +741,13 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
     base->shallow_copy(*new_base);
   }
 
-  built_subsets_[base_subset].shallow_copy(*base);
+  context.built_subsets_[base_subset].shallow_copy(*base);
 
   uint32_t i = 0;
   for (const auto& s : subsets) {
     uint32_t id = ids[i++];
     SubsetDefinition combined_subset = Combine(base_subset, s);
-    auto next = Encode(combined_subset, false);
+    auto next = Encode(context, combined_subset, false);
     if (!next.ok()) {
       return next.status();
     }
@@ -709,9 +755,9 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
     // Check if the main table URL will change with this subset
     std::string next_glyph_keyed_uri_template;
     CompatId next_glyph_keyed_compat_id;
-    auto sc = EnsureGlyphKeyedPatchesPopulated(base_subset.design_space,
-                                               glyph_keyed_uri_template,
-                                               glyph_keyed_compat_id);
+    auto sc = EnsureGlyphKeyedPatchesPopulated(
+        context, base_subset.design_space, glyph_keyed_uri_template,
+        glyph_keyed_compat_id);
     if (!sc.ok()) {
       return sc;
     }
@@ -732,7 +778,7 @@ StatusOr<FontData> Encoder::Encode(const SubsetDefinition& base_subset,
     }
 
     std::string url = URLTemplate::PatchToUrl(table_keyed_uri_template, id);
-    patches_[url].shallow_copy(patch);
+    context.patches_[url].shallow_copy(patch);
   }
 
   return base;
@@ -756,15 +802,16 @@ StatusOr<std::unique_ptr<const BinaryDiff>> Encoder::GetDifferFor(
 }
 
 StatusOr<hb_face_unique_ptr> Encoder::CutSubsetFaceBuilder(
-    hb_face_t* font, const SubsetDefinition& def) const {
+    const ProcessingContext& context, hb_face_t* font,
+    const SubsetDefinition& def) const {
   hb_subset_input_t* input = hb_subset_input_create_or_fail();
   if (!input) {
     return absl::InternalError("Failed to create subset input.");
   }
 
-  def.ConfigureInput(input, face_.get());
+  def.ConfigureInput(input, font);
 
-  SetMixedModeSubsettingFlagsIfNeeded(input);
+  SetMixedModeSubsettingFlagsIfNeeded(context, input);
 
   hb_face_unique_ptr result = make_hb_face(hb_subset_or_fail(font, input));
   if (!result.get()) {
@@ -776,7 +823,8 @@ StatusOr<hb_face_unique_ptr> Encoder::CutSubsetFaceBuilder(
 }
 
 StatusOr<FontData> Encoder::GenerateBaseGvar(
-    hb_face_t* font, const design_space_t& design_space) const {
+    const ProcessingContext& context, hb_face_t* font,
+    const design_space_t& design_space) const {
   // When generating a gvar table for use with glyph keyed patches care
   // must be taken to ensure that the shared tuples in the gvar
   // header match the shared tuples used in the per glyph data
@@ -795,7 +843,7 @@ StatusOr<FontData> Encoder::GenerateBaseGvar(
   //    not modify shared tuples.
 
   // Step 1: Instancing
-  auto instance = Instance(font, design_space);
+  auto instance = Instance(context, font, design_space);
   if (!instance.ok()) {
     return instance.status();
   }
@@ -807,7 +855,8 @@ StatusOr<FontData> Encoder::GenerateBaseGvar(
   subset.design_space = {};
 
   hb_face_unique_ptr instanced_face = instance->face();
-  auto face_builder = CutSubsetFaceBuilder(instanced_face.get(), subset);
+  auto face_builder =
+      CutSubsetFaceBuilder(context, instanced_face.get(), subset);
   if (!face_builder.ok()) {
     return face_builder.status();
   }
@@ -820,22 +869,27 @@ StatusOr<FontData> Encoder::GenerateBaseGvar(
 }
 
 void Encoder::SetMixedModeSubsettingFlagsIfNeeded(
-    hb_subset_input_t* input) const {
+    const ProcessingContext& context, hb_subset_input_t* input) const {
   if (IsMixedMode()) {
     // Mixed mode requires stable gids set flags accordingly.
     hb_subset_input_set_flags(
-        input,
-        hb_subset_input_get_flags(input) | HB_SUBSET_FLAGS_RETAIN_GIDS |
-            // HB_SUBSET_FLAGS_IFTB_REQUIREMENTS |  // TODO(garretrieger):
-            //  remove this
-            HB_SUBSET_FLAGS_NOTDEF_OUTLINE |
-            HB_SUBSET_FLAGS_PASSTHROUGH_UNRECOGNIZED);
+        input, hb_subset_input_get_flags(input) | HB_SUBSET_FLAGS_RETAIN_GIDS |
+                   HB_SUBSET_FLAGS_NOTDEF_OUTLINE |
+                   HB_SUBSET_FLAGS_PASSTHROUGH_UNRECOGNIZED);
+
+    if (context.force_long_loca_and_gvar_) {
+      // IFTB requirements flag has the side effect of forcing long loca and
+      // gvar.
+      hb_subset_input_set_flags(input, hb_subset_input_get_flags(input) |
+                                           HB_SUBSET_FLAGS_IFTB_REQUIREMENTS);
+    }
   }
 }
 
-StatusOr<FontData> Encoder::CutSubset(hb_face_t* font,
+StatusOr<FontData> Encoder::CutSubset(const ProcessingContext& context,
+                                      hb_face_t* font,
                                       const SubsetDefinition& def) const {
-  auto result = CutSubsetFaceBuilder(font, def);
+  auto result = CutSubsetFaceBuilder(context, font, def);
   if (!result.ok()) {
     return result.status();
   }
@@ -849,7 +903,7 @@ StatusOr<FontData> Encoder::CutSubset(hb_face_t* font,
     // Create such a gvar table here and overwrite the one that was otherwise
     // generated by the normal subsetting operation. The patch generation will
     // handle including a replacement gvar patch when needed.
-    auto base_gvar = GenerateBaseGvar(font, def.design_space);
+    auto base_gvar = GenerateBaseGvar(context, font, def.design_space);
     if (!base_gvar.ok()) {
       return base_gvar.status();
     }
@@ -865,13 +919,14 @@ StatusOr<FontData> Encoder::CutSubset(hb_face_t* font,
   return subset;
 }
 
-StatusOr<FontData> Encoder::Instance(hb_face_t* face,
+StatusOr<FontData> Encoder::Instance(const ProcessingContext& context,
+                                     hb_face_t* face,
                                      const design_space_t& design_space) const {
   hb_subset_input_t* input = hb_subset_input_create_or_fail();
 
   // Keep everything in this subset, except for applying the design space.
   hb_subset_input_keep_everything(input);
-  SetMixedModeSubsettingFlagsIfNeeded(input);
+  SetMixedModeSubsettingFlagsIfNeeded(context, input);
 
   for (const auto& [tag, range] : design_space) {
     hb_subset_input_set_axis_range(input, face, tag, range.start(), range.end(),
@@ -908,7 +963,7 @@ StatusOr<FontData> Encoder::RoundTripWoff2(string_view font,
   return Woff2::DecodeWoff2(r->str());
 }
 
-CompatId Encoder::GenerateCompatId() {
+CompatId Encoder::ProcessingContext::GenerateCompatId() {
   return CompatId(
       this->random_values_(this->gen_), this->random_values_(this->gen_),
       this->random_values_(this->gen_), this->random_values_(this->gen_));

@@ -29,9 +29,7 @@ class Encoder {
   typedef absl::flat_hash_map<hb_tag_t, common::AxisRange> design_space_t;
 
   Encoder()
-      : gen_(),
-        random_values_(0, std::numeric_limits<uint32_t>::max()),
-        face_(common::make_hb_face(nullptr))
+      : face_(common::make_hb_face(nullptr))
 
   {}
 
@@ -119,9 +117,10 @@ class Encoder {
   absl::Status AddNonGlyphSegmentFromGlyphSegments(
       const absl::flat_hash_set<uint32_t>& ids);
 
-  const absl::flat_hash_map<std::string, common::FontData>& Patches() const {
-    return patches_;
-  }
+  struct Encoding {
+    common::FontData init_font;
+    absl::flat_hash_map<std::string, common::FontData> patches;
+  };
 
   /*
    * Create an IFT encoded version of 'font' that initially supports
@@ -131,7 +130,7 @@ class Encoder {
    * Returns: the IFT encoded initial font. Patches() will be populated with the
    * set of associated patch files.
    */
-  absl::StatusOr<common::FontData> Encode();
+  absl::StatusOr<Encoding> Encode() const;
 
   // TODO(garretrieger): update handling of encoding for use in woff2,
   // see: https://w3c.github.io/IFT/Overview.html#ift-and-compression
@@ -201,6 +200,13 @@ class Encoder {
                                               uint32_t choose) const;
 
  private:
+  struct ProcessingContext;
+
+  // Returns the font subset which would be reach if all segments where added to
+  // the font.
+  absl::StatusOr<common::FontData> FullyExpandedSubset(
+      const ProcessingContext& context) const;
+
   std::string UrlTemplate(uint32_t patch_set_id) const {
     if (patch_set_id == 0) {
       // patch_set_id 0 is always used for table keyed patches
@@ -229,8 +235,9 @@ class Encoder {
    * Returns: the IFT encoded initial font. Patches() will be populated with the
    * set of associated patch files.
    */
-  absl::StatusOr<common::FontData> Encode(const SubsetDefinition& base_subset,
-                                          bool is_root = true);
+  absl::StatusOr<common::FontData> Encode(ProcessingContext& context,
+                                          const SubsetDefinition& base_subset,
+                                          bool is_root = true) const;
 
   absl::StatusOr<SubsetDefinition> SubsetDefinitionForSegments(
       const absl::flat_hash_set<uint32_t>& ids) const;
@@ -242,26 +249,31 @@ class Encoder {
   bool IsMixedMode() const { return !glyph_data_segments_.empty(); }
 
   absl::Status EnsureGlyphKeyedPatchesPopulated(
-      const design_space_t& design_space, std::string& uri_template,
-      common::CompatId& compat_id);
+      ProcessingContext& context, const design_space_t& design_space,
+      std::string& uri_template, common::CompatId& compat_id) const;
 
   absl::Status PopulateGlyphKeyedPatchMap(
       ift::proto::PatchMap& patch_map,
       const design_space_t& design_space) const;
 
   absl::StatusOr<common::hb_face_unique_ptr> CutSubsetFaceBuilder(
-      hb_face_t* font, const SubsetDefinition& def) const;
+      const ProcessingContext& context, hb_face_t* font,
+      const SubsetDefinition& def) const;
 
   absl::StatusOr<common::FontData> GenerateBaseGvar(
-      hb_face_t* font, const design_space_t& design_space) const;
+      const ProcessingContext& context, hb_face_t* font,
+      const design_space_t& design_space) const;
 
-  void SetMixedModeSubsettingFlagsIfNeeded(hb_subset_input_t* input) const;
+  void SetMixedModeSubsettingFlagsIfNeeded(const ProcessingContext& context,
+                                           hb_subset_input_t* input) const;
 
-  absl::StatusOr<common::FontData> CutSubset(hb_face_t* font,
+  absl::StatusOr<common::FontData> CutSubset(const ProcessingContext& context,
+                                             hb_face_t* font,
                                              const SubsetDefinition& def) const;
 
   absl::StatusOr<common::FontData> Instance(
-      hb_face_t* font, const design_space_t& design_space) const;
+      const ProcessingContext& context, hb_face_t* font,
+      const design_space_t& design_space) const;
 
   template <typename T>
   void RemoveSegments(T ids);
@@ -269,8 +281,6 @@ class Encoder {
   absl::StatusOr<std::unique_ptr<const common::BinaryDiff>> GetDifferFor(
       const common::FontData& font_data, common::CompatId compat_id,
       bool replace_url_template) const;
-
-  common::CompatId GenerateCompatId();
 
   static ift::TableKeyedDiff* FullFontTableKeyedDiff(
       common::CompatId base_compat_id) {
@@ -292,13 +302,11 @@ class Encoder {
                               {"IFTX", "gvar"});
   }
 
-  bool AllocatePatchSet(const design_space_t& design_space,
-                        std::string& uri_template, common::CompatId& compat_id);
+  bool AllocatePatchSet(ProcessingContext& context,
+                        const design_space_t& design_space,
+                        std::string& uri_template,
+                        common::CompatId& compat_id) const;
 
-  std::mt19937 gen_;
-  std::uniform_int_distribution<uint32_t> random_values_;
-
-  // == IN  ==
   common::hb_face_unique_ptr face_;
   absl::btree_map<uint32_t, SubsetDefinition> glyph_data_segments_;
 
@@ -311,16 +319,32 @@ class Encoder {
   SubsetDefinition base_subset_;
   std::vector<SubsetDefinition> extension_subsets_;
   uint32_t jump_ahead_ = 1;
-
-  // == OUT ==
-
-  absl::flat_hash_map<design_space_t, std::string> patch_set_uri_templates_;
-  absl::flat_hash_map<design_space_t, common::CompatId> glyph_keyed_compat_ids_;
   uint32_t next_id_ = 0;
-  uint32_t next_patch_set_id_ = 1;  // id 0 is reserved for table keyed patches.
 
-  absl::flat_hash_map<SubsetDefinition, common::FontData> built_subsets_;
-  absl::flat_hash_map<std::string, common::FontData> patches_;
+  struct ProcessingContext {
+    ProcessingContext(uint32_t next_id)
+        : gen_(),
+          random_values_(0, std::numeric_limits<uint32_t>::max()),
+          next_id_(next_id) {}
+
+    std::mt19937 gen_;
+    std::uniform_int_distribution<uint32_t> random_values_;
+
+    common::FontData fully_expanded_subset_;
+    bool force_long_loca_and_gvar_ = false;
+
+    uint32_t next_id_ = 0;
+    uint32_t next_patch_set_id_ =
+        1;  // id 0 is reserved for table keyed patches.
+    absl::flat_hash_map<design_space_t, std::string> patch_set_uri_templates_;
+    absl::flat_hash_map<design_space_t, common::CompatId>
+        glyph_keyed_compat_ids_;
+
+    absl::flat_hash_map<SubsetDefinition, common::FontData> built_subsets_;
+    absl::flat_hash_map<std::string, common::FontData> patches_;
+
+    common::CompatId GenerateCompatId();
+  };
 };
 
 }  // namespace ift::encoder

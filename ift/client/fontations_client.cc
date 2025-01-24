@@ -65,8 +65,7 @@ void ParseFetched(const std::string& text, btree_set<std::string>& uris_out) {
   }
 }
 
-StatusOr<std::string> WriteFontToDisk(const Encoder& encoder,
-                                      const FontData& base) {
+StatusOr<std::string> WriteFontToDisk(const Encoder::Encoding& encoding) {
   char template_str[] = "fontations_client_XXXXXX";
   const char* temp_dir = mkdtemp(template_str);
 
@@ -75,12 +74,12 @@ StatusOr<std::string> WriteFontToDisk(const Encoder& encoder,
   }
 
   std::string font_path = absl::StrCat(temp_dir, "/font.ttf");
-  auto sc = ToFile(base, font_path.c_str());
+  auto sc = ToFile(encoding.init_font, font_path.c_str());
   if (!sc.ok()) {
     return sc;
   }
 
-  for (auto& p : encoder.Patches()) {
+  for (auto& p : encoding.patches) {
     auto& path = p.first;
     auto& data = p.second;
     std::string full_path = absl::StrCat(temp_dir, "/", path);
@@ -110,8 +109,8 @@ StatusOr<std::string> Exec(const char* cmd) {
   return result;
 }
 
-Status ToGraph(const Encoder& encoder, const FontData& base, graph& out) {
-  auto font_path = WriteFontToDisk(encoder, base);
+Status ToGraph(const Encoder::Encoding& encoding, graph& out) {
+  auto font_path = WriteFontToDisk(encoding);
   if (!font_path.ok()) {
     return font_path.status();
   }
@@ -129,11 +128,11 @@ Status ToGraph(const Encoder& encoder, const FontData& base, graph& out) {
 }
 
 StatusOr<FontData> ExtendWithDesignSpace(
-    const Encoder& encoder, const FontData& base,
-    btree_set<uint32_t> codepoints, btree_set<hb_tag_t> feature_tags,
+    const Encoder::Encoding& encoding, btree_set<uint32_t> codepoints,
+    btree_set<hb_tag_t> feature_tags,
     flat_hash_map<hb_tag_t, AxisRange> design_space,
     btree_set<std::string>* applied_uris) {
-  auto font_path_str = WriteFontToDisk(encoder, base);
+  auto font_path_str = WriteFontToDisk(encoding);
   if (!font_path_str.ok()) {
     return font_path_str.status();
   }
@@ -196,12 +195,10 @@ StatusOr<FontData> ExtendWithDesignSpace(
   return FontData(make_hb_blob(hb_blob_create_from_file(output.c_str())));
 }
 
-StatusOr<FontData> Extend(const ift::encoder::Encoder& encoder,
-                          const common::FontData& ift_font,
+StatusOr<FontData> Extend(const Encoder::Encoding& encoding,
                           absl::btree_set<uint32_t> codepoints) {
   absl::flat_hash_map<hb_tag_t, common::AxisRange> design_space;
-  return ExtendWithDesignSpace(encoder, ift_font, codepoints, {}, design_space,
-                               nullptr);
+  return ExtendWithDesignSpace(encoding, codepoints, {}, design_space, nullptr);
 }
 
 }  // namespace ift::client
