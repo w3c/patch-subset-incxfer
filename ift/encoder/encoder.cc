@@ -117,6 +117,58 @@ void Encoder::AddCombinations(const std::vector<const SubsetDefinition*>& in,
   }
 }
 
+bool is_subset(const flat_hash_set<uint32_t>& a,
+               const flat_hash_set<uint32_t>& b) {
+  return std::all_of(b.begin(), b.end(),
+                     [&a](const uint32_t& v) { return a.count(v) > 0; });
+}
+
+Encoder::SubsetDefinition Encoder::AddFeatureSpecificChunksIfNeeded(
+    const SubsetDefinition& def) const {
+  // When using optional feature segments we may encounter a particular subset
+  // during the table keyed analysis whose subset definition contains the
+  // necessary prerequisites to trigger the inclusion of a some feature specific
+  // glyph keyed patches. If this is the case then the subset def must be
+  // expanded to include any glyphs from those patches since the IFT font can
+  // access those glyphs at this level of extension and inclusion of the extra
+  // glyphs may affect things like loca size.
+  SubsetDefinition out;
+  out.Union(def);
+  for (hb_tag_t feature : def.feature_tags) {
+    // for each included feature check if for any glyph keyed patches that could
+    // be activated under def and add them to the subset.
+    for (const auto& [added_segment_id, triggers] :
+         glyph_data_segment_feature_dependencies_) {
+      auto added_segment = glyph_data_segments_.find(added_segment_id);
+      if (added_segment == glyph_data_segments_.end()) {
+        continue;
+      }
+
+      for (const auto& [trigger_feature, trigger_segments] : triggers) {
+        if (trigger_feature != feature) {
+          continue;
+        }
+
+        for (uint32_t trigger_id : trigger_segments) {
+          auto segment = glyph_data_segments_.find(trigger_id);
+          if (segment == glyph_data_segments_.end()) {
+            continue;
+          }
+
+          if (!is_subset(def.gids, segment->second.gids)) {
+            continue;
+          }
+
+          // The appropriate feature and glyphs are present in def to trigger
+          // the inclusion of added_segment_id so union it into the subset def.
+          out.Union(added_segment->second);
+        }
+      }
+    }
+  }
+  return out;
+}
+
 std::vector<Encoder::SubsetDefinition> Encoder::OutgoingEdges(
     const SubsetDefinition& base_subset, uint32_t choose) const {
   std::vector<SubsetDefinition> remaining_subsets;
@@ -261,7 +313,8 @@ Encoder::SubsetDefinition Encoder::Combine(const SubsetDefinition& s1,
   SubsetDefinition result;
   result.Union(s1);
   result.Union(s2);
-  return result;
+
+  return AddFeatureSpecificChunksIfNeeded(result);
 }
 
 Status Encoder::AddGlyphDataSegment(uint32_t id,
@@ -771,11 +824,12 @@ void Encoder::SetMixedModeSubsettingFlagsIfNeeded(
   if (IsMixedMode()) {
     // Mixed mode requires stable gids set flags accordingly.
     hb_subset_input_set_flags(
-        input, hb_subset_input_get_flags(input) | HB_SUBSET_FLAGS_RETAIN_GIDS |
-                   HB_SUBSET_FLAGS_IFTB_REQUIREMENTS |  // TODO(garretrieger):
-                                                        // remove this
-                   HB_SUBSET_FLAGS_NOTDEF_OUTLINE |
-                   HB_SUBSET_FLAGS_PASSTHROUGH_UNRECOGNIZED);
+        input,
+        hb_subset_input_get_flags(input) | HB_SUBSET_FLAGS_RETAIN_GIDS |
+            // HB_SUBSET_FLAGS_IFTB_REQUIREMENTS |  // TODO(garretrieger):
+            //  remove this
+            HB_SUBSET_FLAGS_NOTDEF_OUTLINE |
+            HB_SUBSET_FLAGS_PASSTHROUGH_UNRECOGNIZED);
   }
 }
 
