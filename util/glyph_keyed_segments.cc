@@ -11,6 +11,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "common/font_data.h"
+#include "common/try.h"
 #include "hb.h"
 #include "ift/encoder/encoder.h"
 #include "ift/encoder/glyph_segmentation.h"
@@ -20,20 +21,6 @@
  * segmentation and associated activation conditions that maintain the "closure
  * requirement".
  */
-
-// TODO XXXX move to a helper
-#define TRYV(...)              \
-  do {                         \
-    auto res = (__VA_ARGS__);  \
-    if (!res.ok()) return res; \
-  } while (false)
-
-#define TRY(...)                                   \
-  ({                                               \
-    auto res = (__VA_ARGS__);                      \
-    if (!res.ok()) return std::move(res).status(); \
-    std::move(*res);                               \
-  })
 
 ABSL_FLAG(std::string, input_font, "in.ttf",
           "Name of the font to convert to IFT.");

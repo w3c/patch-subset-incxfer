@@ -13,6 +13,7 @@
 #include "absl/strings/str_cat.h"
 #include "common/axis_range.h"
 #include "common/font_data.h"
+#include "common/try.h"
 #include "hb.h"
 #include "ift/encoder/encoder.h"
 #include "util/encoder_config.pb.h"
@@ -24,19 +25,6 @@
  * Configuration is provided as a textproto file following the
  * encoder_config.proto schema.
  */
-
-#define TRYV(...)              \
-  do {                         \
-    auto res = (__VA_ARGS__);  \
-    if (!res.ok()) return res; \
-  } while (false)
-
-#define TRY(...)                                   \
-  ({                                               \
-    auto res = (__VA_ARGS__);                      \
-    if (!res.ok()) return std::move(res).status(); \
-    std::move(*res);                               \
-  })
 
 ABSL_FLAG(std::string, input_font, "in.ttf",
           "Name of the font to convert to IFT.");
