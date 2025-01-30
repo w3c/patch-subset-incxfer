@@ -17,8 +17,9 @@
 #include "ift/encoder/glyph_segmentation.h"
 
 /*
- * Given a code point based segmentation creates an appropriate glyph based segmentation
- * and associated activation conditions that maintain the "closure requirement".
+ * Given a code point based segmentation creates an appropriate glyph based
+ * segmentation and associated activation conditions that maintain the "closure
+ * requirement".
  */
 
 #define TRYV(...)              \
@@ -34,10 +35,8 @@
     std::move(*res);                               \
   })
 
-
 ABSL_FLAG(std::string, input_font, "in.ttf",
           "Name of the font to convert to IFT.");
-
 
 using absl::btree_set;
 using absl::flat_hash_map;
@@ -65,7 +64,6 @@ StatusOr<hb_face_unique_ptr> load_font(const char* filename) {
   return TRY(load_file(filename)).face();
 }
 
-
 int main(int argc, char** argv) {
   auto args = absl::ParseCommandLine(argc, argv);
 
@@ -75,11 +73,18 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  auto result = ift::encoder::GlyphSegmentation::CodepointToGlyphSegments(font->get(), {'a', 'b'}, {{'c', 'd', 'f'}, {'i'}});
+  auto result = ift::encoder::GlyphSegmentation::CodepointToGlyphSegments(
+      font->get(), {'a', 'b'}, {{'c', 'd', 'f'}, {'i'}});
   if (!result.ok()) {
     std::cerr << result.status() << std::endl;
     return -1;
   }
+
+  std::cout << "initial font: { ";
+  for (auto gid : result->init_font_glyphs()) {
+    std::cout << "gid" << gid << ", ";
+  }
+  std::cout << "}" << std::endl;
 
   for (const auto& [segment_id, gids] : result->gid_segments()) {
     std::cout << "p" << segment_id << ": { ";
@@ -116,6 +121,12 @@ int main(int argc, char** argv) {
     }
     std::cout << " => p" << condition.activated() << std::endl;
   }
+
+  std::cout << "unmapped: { ";
+  for (auto gid : result->unmapped_glyphs()) {
+    std::cout << "gid" << gid << ", ";
+  }
+  std::cout << "}" << std::endl;
 
   return 0;
 }
