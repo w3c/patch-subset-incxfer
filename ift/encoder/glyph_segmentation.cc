@@ -17,6 +17,7 @@ using absl::btree_map;
 using absl::btree_set;
 using absl::flat_hash_map;
 using absl::flat_hash_set;
+using absl::Status;
 using absl::StatusOr;
 using common::hb_face_unique_ptr;
 using common::hb_set_unique_ptr;
@@ -113,68 +114,64 @@ class GlyphConditions {
   hb_set_unique_ptr or_segments;
 };
 
-StatusOr<GlyphSegmentation> GlyphSegmentation::CodepointToGlyphSegments(
-    hb_face_t* face, flat_hash_set<hb_codepoint_t> initial_segment,
-    std::vector<flat_hash_set<hb_codepoint_t>> codepoint_segments) {
-  SegmentationContext context(face, initial_segment, codepoint_segments);
+Status AnalyzeSegment(SegmentationContext& context,
+                      GlyphSegmentation::segment_index_t segment_index,
+                      const hb_set_t* codepoints,
+                      std::vector<GlyphConditions>& gid_conditions) {
+  hb_set_unique_ptr except_segment = make_hb_set();
+  hb_set_union(except_segment.get(), context.all_codepoints.get());
+  hb_set_subtract(except_segment.get(), codepoints);
+  auto B_except_segment_closure =
+      TRY(context.glyph_closure(except_segment.get()));
 
-  std::vector<GlyphConditions> gid_conditions;
-  gid_conditions.resize(hb_face_get_glyph_count(context.original_face.get()));
+  hb_set_unique_ptr only_segment = make_hb_set();
+  hb_set_union(only_segment.get(), context.initial_codepoints.get());
+  hb_set_union(only_segment.get(), codepoints);
+  auto I_only_segment_closure = TRY(context.glyph_closure(only_segment.get()));
+  hb_set_subtract(I_only_segment_closure.get(), context.initial_closure.get());
 
-  segment_index_t segment_index = 0;
-  for (const auto& segment : context.segments) {
-    hb_set_unique_ptr except_segment = make_hb_set();
-    hb_set_union(except_segment.get(), context.all_codepoints.get());
-    hb_set_subtract(except_segment.get(), segment.get());
-    auto B_except_segment_closure =
-        TRY(context.glyph_closure(except_segment.get()));
+  hb_set_unique_ptr D_dropped = make_hb_set();
+  hb_set_union(D_dropped.get(), context.full_closure.get());
+  hb_set_subtract(D_dropped.get(), B_except_segment_closure.get());
 
-    hb_set_unique_ptr only_segment = make_hb_set();
-    hb_set_union(only_segment.get(), context.initial_codepoints.get());
-    hb_set_union(only_segment.get(), segment.get());
-    auto I_only_segment_closure =
-        TRY(context.glyph_closure(only_segment.get()));
-    hb_set_subtract(I_only_segment_closure.get(),
-                    context.initial_closure.get());
+  hb_set_unique_ptr and_gids = make_hb_set();
+  hb_set_union(and_gids.get(), D_dropped.get());
+  hb_set_subtract(and_gids.get(), I_only_segment_closure.get());
 
-    hb_set_unique_ptr D_dropped = make_hb_set();
-    hb_set_union(D_dropped.get(), context.full_closure.get());
-    hb_set_subtract(D_dropped.get(), B_except_segment_closure.get());
+  hb_set_unique_ptr or_gids = make_hb_set();
+  hb_set_union(or_gids.get(), I_only_segment_closure.get());
+  hb_set_subtract(or_gids.get(), D_dropped.get());
 
-    hb_set_unique_ptr and_gids = make_hb_set();
-    hb_set_union(and_gids.get(), D_dropped.get());
-    hb_set_subtract(and_gids.get(), I_only_segment_closure.get());
+  hb_set_unique_ptr exclusive_gids = make_hb_set();
+  hb_set_union(exclusive_gids.get(), I_only_segment_closure.get());
+  hb_set_intersect(exclusive_gids.get(), D_dropped.get());
 
-    hb_set_unique_ptr or_gids = make_hb_set();
-    hb_set_union(or_gids.get(), I_only_segment_closure.get());
-    hb_set_subtract(or_gids.get(), D_dropped.get());
-
-    hb_set_unique_ptr exclusive_gids = make_hb_set();
-    hb_set_union(exclusive_gids.get(), I_only_segment_closure.get());
-    hb_set_intersect(exclusive_gids.get(), D_dropped.get());
-
-    hb_codepoint_t and_gid = HB_SET_VALUE_INVALID;
-    while (hb_set_next(exclusive_gids.get(), &and_gid)) {
-      // TODO(garretrieger): if we are assign an exclusive gid there should be
-      // no other and segments, check and error if this is violated.
-      hb_set_add(gid_conditions[and_gid].and_segments.get(), segment_index);
-    }
-    while (hb_set_next(and_gids.get(), &and_gid)) {
-      hb_set_add(gid_conditions[and_gid].and_segments.get(), segment_index);
-    }
-
-    hb_codepoint_t or_gid = HB_SET_VALUE_INVALID;
-    while (hb_set_next(or_gids.get(), &or_gid)) {
-      hb_set_add(gid_conditions[or_gid].or_segments.get(), segment_index);
-    }
-
-    segment_index++;
+  hb_codepoint_t and_gid = HB_SET_VALUE_INVALID;
+  while (hb_set_next(exclusive_gids.get(), &and_gid)) {
+    // TODO(garretrieger): if we are assign an exclusive gid there should be
+    // no other and segments, check and error if this is violated.
+    hb_set_add(gid_conditions[and_gid].and_segments.get(), segment_index);
+  }
+  while (hb_set_next(and_gids.get(), &and_gid)) {
+    hb_set_add(gid_conditions[and_gid].and_segments.get(), segment_index);
   }
 
-  // TODO XXXXX extract
-  btree_map<btree_set<segment_index_t>, btree_set<glyph_id_t>> and_glyph_groups;
-  btree_map<btree_set<segment_index_t>, btree_set<glyph_id_t>> or_glyph_groups;
-  for (glyph_id_t gid = 0; gid < gid_conditions.size(); gid++) {
+  hb_codepoint_t or_gid = HB_SET_VALUE_INVALID;
+  while (hb_set_next(or_gids.get(), &or_gid)) {
+    hb_set_add(gid_conditions[or_gid].or_segments.get(), segment_index);
+  }
+
+  return absl::OkStatus();
+}
+
+void GroupGlyphs(
+    const std::vector<GlyphConditions>& gid_conditions,
+    btree_map<btree_set<GlyphSegmentation::segment_index_t>,
+              btree_set<GlyphSegmentation::glyph_id_t>>& and_glyph_groups,
+    btree_map<btree_set<GlyphSegmentation::segment_index_t>,
+              btree_set<GlyphSegmentation::glyph_id_t>>& or_glyph_groups) {
+  for (GlyphSegmentation::glyph_id_t gid = 0; gid < gid_conditions.size();
+       gid++) {
     const auto& condition = gid_conditions[gid];
     if (!hb_set_is_empty(condition.and_segments.get())) {
       auto set = to_btree_set(condition.and_segments.get());
@@ -185,6 +182,25 @@ StatusOr<GlyphSegmentation> GlyphSegmentation::CodepointToGlyphSegments(
       or_glyph_groups[set].insert(gid);
     }
   }
+}
+
+StatusOr<GlyphSegmentation> GlyphSegmentation::CodepointToGlyphSegments(
+    hb_face_t* face, flat_hash_set<hb_codepoint_t> initial_segment,
+    std::vector<flat_hash_set<hb_codepoint_t>> codepoint_segments) {
+  SegmentationContext context(face, initial_segment, codepoint_segments);
+
+  std::vector<GlyphConditions> gid_conditions;
+  gid_conditions.resize(hb_face_get_glyph_count(context.original_face.get()));
+
+  segment_index_t segment_index = 0;
+  for (const auto& segment : context.segments) {
+    TRYV(AnalyzeSegment(context, segment_index, segment.get(), gid_conditions));
+    segment_index++;
+  }
+
+  btree_map<btree_set<segment_index_t>, btree_set<glyph_id_t>> and_glyph_groups;
+  btree_map<btree_set<segment_index_t>, btree_set<glyph_id_t>> or_glyph_groups;
+  GroupGlyphs(gid_conditions, and_glyph_groups, or_glyph_groups);
 
   GlyphSegmentation segmentation;
   patch_id_t next_id = 0;
