@@ -11,6 +11,10 @@
 
 namespace ift::encoder {
 
+typedef uint32_t segment_index_t;
+typedef uint32_t patch_id_t;
+typedef uint32_t glyph_id_t;
+
 /*
  * Describes how the glyphs in a font should be segmented into glyph keyed
  * patches.
@@ -27,10 +31,6 @@ namespace ift::encoder {
  */
 class GlyphSegmentation {
  public:
-  typedef uint32_t segment_index_t;
-  typedef uint32_t patch_id_t;
-  typedef uint32_t glyph_id_t;
-
   class ActivationCondition {
    public:
     /*
@@ -124,6 +124,13 @@ class GlyphSegmentation {
   };
 
  private:
+  static void GroupsToSegmentation(
+      const absl::btree_map<absl::btree_set<segment_index_t>,
+                            absl::btree_set<glyph_id_t>>& and_glyph_groups,
+      const absl::btree_map<absl::btree_set<segment_index_t>,
+                            absl::btree_set<glyph_id_t>>& or_glyph_groups,
+      GlyphSegmentation& segmentation);
+
   absl::btree_set<glyph_id_t> init_font_glyphs_;
   absl::btree_set<glyph_id_t> unmapped_glyphs_;
   std::vector<ActivationCondition> conditions_;
