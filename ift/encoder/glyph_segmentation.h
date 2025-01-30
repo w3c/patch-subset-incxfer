@@ -77,7 +77,7 @@ class GlyphSegmentation {
    * initial_segment is the set of codepoints that will be placed into the
    * initial ift font.
    */
-   // TODO(garretrieger): also support optional feature segments.
+  // TODO(garretrieger): also support optional feature segments.
   static absl::StatusOr<GlyphSegmentation> CodepointToGlyphSegments(
       hb_face_t* face, absl::flat_hash_set<hb_codepoint_t> initial_segment,
       std::vector<absl::flat_hash_set<hb_codepoint_t>> codepoint_segments);
