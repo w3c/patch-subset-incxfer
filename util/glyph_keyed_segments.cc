@@ -69,5 +69,9 @@ int main(int argc, char** argv) {
 
   std::cout << result->ToString();
 
+  std::cout << std::endl;
+  std::cout << "Number of glyphs placed in fallback patch: "
+            << result->UnmappedGlyphs().size() << std::endl;
+
   return 0;
 }
