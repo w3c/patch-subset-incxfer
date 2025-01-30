@@ -27,6 +27,25 @@ cc_binary(
     ],
 )
 
+cc_binary(
+    name = "glyph_keyed_segments",
+    srcs = [
+        "glyph_keyed_segments.cc",
+    ],
+    deps = [
+        "//ift",
+        "//ift/encoder",
+        "//common",
+        ":encoder_config_cc_proto",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/flags:parse",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@harfbuzz",
+    ],
+)
+
 cc_library(
     name = "convert_iftb",
     srcs = [

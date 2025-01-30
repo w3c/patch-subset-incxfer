@@ -3,6 +3,8 @@ cc_library(
   srcs = [
     "encoder.h",
     "encoder.cc",
+    "glyph_segmentation.h",
+    "glyph_segmentation.cc"
   ],
   deps = [
     "//ift/proto",

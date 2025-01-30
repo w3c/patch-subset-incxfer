@@ -3,6 +3,7 @@
 
 #include <memory>
 
+#include "absl/container/flat_hash_set.h"
 #include "hb.h"
 
 namespace common {
@@ -11,9 +12,14 @@ typedef std::unique_ptr<hb_set_t, decltype(&hb_set_destroy)> hb_set_unique_ptr;
 
 hb_set_unique_ptr make_hb_set();
 
+hb_set_unique_ptr make_hb_set(const absl::flat_hash_set<uint32_t>& int_set);
+
 hb_set_unique_ptr make_hb_set(int length, ...);
 
 hb_set_unique_ptr make_hb_set_from_ranges(int number_of_ranges, ...);
+
+hb_set_unique_ptr make_hb_set(int length, ...);
+
 
 }  // namespace common
 

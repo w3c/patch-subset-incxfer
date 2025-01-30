@@ -1,0 +1,121 @@
+#include <google/protobuf/text_format.h>
+
+#include <cstdio>
+#include <fstream>
+#include <iostream>
+
+#include "absl/container/btree_set.h"
+#include "absl/container/flat_hash_map.h"
+#include "absl/container/flat_hash_set.h"
+#include "absl/flags/flag.h"
+#include "absl/flags/parse.h"
+#include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
+#include "common/font_data.h"
+#include "hb.h"
+#include "ift/encoder/encoder.h"
+#include "ift/encoder/glyph_segmentation.h"
+
+/*
+ * Given a code point based segmentation creates an appropriate glyph based segmentation
+ * and associated activation conditions that maintain the "closure requirement".
+ */
+
+#define TRYV(...)              \
+  do {                         \
+    auto res = (__VA_ARGS__);  \
+    if (!res.ok()) return res; \
+  } while (false)
+
+#define TRY(...)                                   \
+  ({                                               \
+    auto res = (__VA_ARGS__);                      \
+    if (!res.ok()) return std::move(res).status(); \
+    std::move(*res);                               \
+  })
+
+
+ABSL_FLAG(std::string, input_font, "in.ttf",
+          "Name of the font to convert to IFT.");
+
+
+using absl::btree_set;
+using absl::flat_hash_map;
+using absl::flat_hash_set;
+using absl::Status;
+using absl::StatusOr;
+using absl::StrCat;
+using common::FontData;
+using common::FontHelper;
+using common::hb_blob_unique_ptr;
+using common::hb_face_unique_ptr;
+using common::make_hb_blob;
+using ift::encoder::Encoder;
+
+StatusOr<FontData> load_file(const char* path) {
+  hb_blob_unique_ptr blob =
+      make_hb_blob(hb_blob_create_from_file_or_fail(path));
+  if (!blob.get()) {
+    return absl::NotFoundError(StrCat("File ", path, " was not found."));
+  }
+  return FontData(blob.get());
+}
+
+StatusOr<hb_face_unique_ptr> load_font(const char* filename) {
+  return TRY(load_file(filename)).face();
+}
+
+
+int main(int argc, char** argv) {
+  auto args = absl::ParseCommandLine(argc, argv);
+
+  auto font = load_font(absl::GetFlag(FLAGS_input_font).c_str());
+  if (!font.ok()) {
+    std::cerr << "Failed to load input font: " << font.status() << std::endl;
+    return -1;
+  }
+
+  auto result = ift::encoder::GlyphSegmentation::CodepointToGlyphSegments(font->get(), {'a', 'b'}, {{'c', 'd', 'f'}, {'i'}});
+  if (!result.ok()) {
+    std::cerr << result.status() << std::endl;
+    return -1;
+  }
+
+  for (const auto& [segment_id, gids] : result->gid_segments()) {
+    std::cout << "p" << segment_id << ": { ";
+    for (auto gid : gids) {
+      std::cout << "gid" << gid << ", ";
+    }
+    std::cout << "}" << std::endl;
+  }
+
+  for (const auto& condition : result->conditions()) {
+    bool first = true;
+    for (const auto& set : condition.segment_sets()) {
+      if (!first) {
+        std::cout << " AND ";
+      } else {
+        first = false;
+      }
+
+      if (set.size() > 1) {
+        std::cout << "(";
+      }
+      bool first_inner = true;
+      for (uint32_t id : set) {
+        if (!first_inner) {
+          std::cout << " OR ";
+        } else {
+          first_inner = false;
+        }
+        std::cout << "p" << id;
+      }
+      if (set.size() > 1) {
+        std::cout << ")";
+      }
+    }
+    std::cout << " => p" << condition.activated() << std::endl;
+  }
+
+  return 0;
+}
