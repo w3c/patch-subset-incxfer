@@ -25,6 +25,11 @@ using common::make_hb_set;
 
 namespace ift::encoder {
 
+// TODO(garretrieger): extensions/improvements that could be made:
+// - Multi segment combination testing with GSUB dep analysis to guide.
+// - Use merging and/or duplication to ensure minimum patch size.
+
+
 btree_set<uint32_t> to_btree_set(const hb_set_t* set) {
   btree_set<uint32_t> out;
   uint32_t v = HB_SET_VALUE_INVALID;
@@ -105,6 +110,7 @@ class SegmentationContext {
   hb_set_unique_ptr all_codepoints;
   hb_set_unique_ptr full_closure;
   hb_set_unique_ptr initial_closure;
+  btree_set<glyph_id_t> unmapped_glyphs;
 };
 
 class GlyphConditions {
@@ -187,11 +193,17 @@ Status AnalyzeSegment(SegmentationContext& context,
   return absl::OkStatus();
 }
 
-void GroupGlyphs(const std::vector<GlyphConditions>& gid_conditions,
+void GroupGlyphs(SegmentationContext& context,
+                 const std::vector<GlyphConditions>& gid_conditions,
                  btree_map<btree_set<segment_index_t>, btree_set<glyph_id_t>>&
                      and_glyph_groups,
                  btree_map<btree_set<segment_index_t>, btree_set<glyph_id_t>>&
                      or_glyph_groups) {
+  btree_set<segment_index_t> all_segments_set;
+  for (segment_index_t s = 0; s < context.segments.size(); s++) {
+    all_segments_set.insert(s);
+  }
+
   for (glyph_id_t gid = 0; gid < gid_conditions.size(); gid++) {
     const auto& condition = gid_conditions[gid];
     if (!hb_set_is_empty(condition.and_segments.get())) {
@@ -201,6 +213,16 @@ void GroupGlyphs(const std::vector<GlyphConditions>& gid_conditions,
     if (!hb_set_is_empty(condition.or_segments.get())) {
       auto set = to_btree_set(condition.or_segments.get());
       or_glyph_groups[set].insert(gid);
+    }
+
+    if (hb_set_is_empty(condition.and_segments.get()) &&
+        hb_set_is_empty(condition.or_segments.get()) &&
+        !hb_set_has(context.initial_closure.get(), gid) &&
+        hb_set_has(context.full_closure.get(), gid)) {
+      // this glyph is not activated anywhere but is needed in the full closure
+      // so add it to an activation condition of any segment.
+      or_glyph_groups[all_segments_set].insert(gid);
+      context.unmapped_glyphs.insert(gid);
     }
   }
 }
@@ -224,7 +246,6 @@ void GlyphSegmentation::GroupsToSegmentation(
     segmentation.patches_.insert(std::pair(next_id, glyphs));
     segmentation.conditions_.push_back(
         ActivationCondition::and_patches({next_id}, next_id));
-    subtract(segmentation.unmapped_glyphs_, glyphs);
 
     if (segment + 1 > segment_to_patch_id.size()) {
       segment_to_patch_id.resize(segment + 1);
@@ -246,7 +267,6 @@ void GlyphSegmentation::GroupsToSegmentation(
     segmentation.patches_.insert(std::pair(next_id, glyphs));
     segmentation.conditions_.push_back(
         ActivationCondition::and_patches(and_patches, next_id));
-    subtract(segmentation.unmapped_glyphs_, glyphs);
     next_id++;
   }
 
@@ -258,7 +278,6 @@ void GlyphSegmentation::GroupsToSegmentation(
     segmentation.patches_.insert(std::pair(next_id, glyphs));
     segmentation.conditions_.push_back(
         ActivationCondition::or_patches(or_patches, next_id));
-    subtract(segmentation.unmapped_glyphs_, glyphs);
     next_id++;
   }
 }
@@ -279,12 +298,10 @@ StatusOr<GlyphSegmentation> GlyphSegmentation::CodepointToGlyphSegments(
 
   btree_map<btree_set<segment_index_t>, btree_set<glyph_id_t>> and_glyph_groups;
   btree_map<btree_set<segment_index_t>, btree_set<glyph_id_t>> or_glyph_groups;
-  GroupGlyphs(gid_conditions, and_glyph_groups, or_glyph_groups);
+  GroupGlyphs(context, gid_conditions, and_glyph_groups, or_glyph_groups);
 
   GlyphSegmentation segmentation;
-  segmentation.unmapped_glyphs_ = to_btree_set(context.full_closure.get());
-  subtract(segmentation.unmapped_glyphs_,
-           to_btree_set(context.initial_closure.get()));
+  segmentation.unmapped_glyphs_ = context.unmapped_glyphs;
   segmentation.init_font_glyphs_ = to_btree_set(context.initial_closure.get());
 
   GroupsToSegmentation(and_glyph_groups, or_glyph_groups, segmentation);
@@ -346,10 +363,6 @@ std::string GlyphSegmentation::ToString() const {
   out << "initial font: ";
   output_set("gid", InitialFontGlyphs().begin(), InitialFontGlyphs().end(),
              out);
-  out << std::endl;
-
-  out << "unmapped: ";
-  output_set("gid", UnmappedGlyphs().begin(), UnmappedGlyphs().end(), out);
   out << std::endl;
 
   for (const auto& [segment_id, gids] : GidSegments()) {

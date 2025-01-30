@@ -11,8 +11,12 @@ namespace ift::encoder {
 
 class GlyphSegmentationTest : public ::testing::Test {
  protected:
-  GlyphSegmentationTest() : roboto(make_hb_face(nullptr)) {
+  GlyphSegmentationTest()
+      : roboto(make_hb_face(nullptr)),
+        noto_nastaliq_urdu(make_hb_face(nullptr)) {
     roboto = from_file("common/testdata/Roboto-Regular.ttf");
+    noto_nastaliq_urdu =
+        from_file("common/testdata/NotoNastaliqUrdu.subset.ttf");
   }
 
   hb_face_unique_ptr from_file(const char* filename) {
@@ -26,6 +30,7 @@ class GlyphSegmentationTest : public ::testing::Test {
   }
 
   hb_face_unique_ptr roboto;
+  hb_face_unique_ptr noto_nastaliq_urdu;
 };
 
 TEST_F(GlyphSegmentationTest, SimpleSegmentation) {
@@ -35,7 +40,6 @@ TEST_F(GlyphSegmentationTest, SimpleSegmentation) {
 
   ASSERT_EQ(segmentation->ToString(),
             R"(initial font: { gid0, gid69 }
-unmapped: {}
 p0: { gid70 }
 p1: { gid71 }
 if (p0) then p0
@@ -50,7 +54,6 @@ TEST_F(GlyphSegmentationTest, AndCondition) {
 
   ASSERT_EQ(segmentation->ToString(),
             R"(initial font: { gid0, gid69 }
-unmapped: {}
 p0: { gid74 }
 p1: { gid77 }
 p2: { gid444, gid446 }
@@ -67,7 +70,6 @@ TEST_F(GlyphSegmentationTest, OrCondition) {
 
   ASSERT_EQ(segmentation->ToString(),
             R"(initial font: { gid0, gid69 }
-unmapped: {}
 p0: { gid37, gid640 }
 p1: { gid39, gid700 }
 p2: { gid117 }
@@ -84,7 +86,6 @@ TEST_F(GlyphSegmentationTest, MixedAndOr) {
 
   ASSERT_EQ(segmentation->ToString(),
             R"(initial font: { gid0, gid69 }
-unmapped: {}
 p0: { gid37, gid74, gid640 }
 p1: { gid39, gid77, gid700 }
 p2: { gid444, gid446 }
@@ -96,6 +97,30 @@ if ((p0 OR p1)) then p3
 )");
 }
 
-// TODO(garretrieger): test that results in unmapped glyphs.
+TEST_F(GlyphSegmentationTest, UnmappedGlyphs_FallbackSegment) {
+  auto segmentation = GlyphSegmentation::CodepointToGlyphSegments(
+      noto_nastaliq_urdu.get(), {}, {{0x62a}, {0x62b}, {0x62c}, {0x62d}});
+  ASSERT_TRUE(segmentation.ok()) << segmentation.status();
+
+  ASSERT_EQ(segmentation->UnmappedGlyphs().size(), 12);
+
+  ASSERT_EQ(segmentation->ToString(),
+            R"(initial font: { gid0 }
+p0: { gid3, gid9, gid155 }
+p1: { gid4, gid10, gid156 }
+p2: { gid5, gid6, gid11, gid157 }
+p3: { gid158 }
+p4: { gid12, gid13, gid24, gid30, gid38, gid39, gid57, gid59, gid62, gid68, gid139, gid140, gid153, gid172 }
+p5: { gid47, gid64, gid73, gid74, gid75, gid76, gid77, gid83, gid111, gid149, gid174, gid190, gid191 }
+p6: { gid14, gid33, gid60, gid91, gid112, gid145, gid152 }
+if (p0) then p0
+if (p1) then p1
+if (p2) then p2
+if (p3) then p3
+if ((p0 OR p1)) then p4
+if ((p0 OR p1 OR p2 OR p3)) then p5
+if ((p2 OR p3)) then p6
+)");
+}
 
 }  // namespace ift::encoder
