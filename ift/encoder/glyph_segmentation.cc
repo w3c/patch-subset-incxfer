@@ -10,6 +10,7 @@
 #include "absl/status/statusor.h"
 #include "common/font_data.h"
 #include "common/hb_set_unique_ptr.h"
+#include "common/try.h"
 #include "hb-subset.h"
 
 using absl::btree_map;
@@ -20,19 +21,6 @@ using absl::StatusOr;
 using common::hb_face_unique_ptr;
 using common::hb_set_unique_ptr;
 using common::make_hb_set;
-
-#define TRYV(...)              \
-  do {                         \
-    auto res = (__VA_ARGS__);  \
-    if (!res.ok()) return res; \
-  } while (false)
-
-#define TRY(...)                                   \
-  ({                                               \
-    auto res = (__VA_ARGS__);                      \
-    if (!res.ok()) return std::move(res).status(); \
-    std::move(*res);                               \
-  })
 
 namespace ift::encoder {
 

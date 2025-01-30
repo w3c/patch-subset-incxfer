@@ -34,6 +34,7 @@ cc_library(
         "woff2.h",
         "hasher.h",
         "compat_id.h",
+        "try.h",
     ],
     visibility = [
         "//visibility:public",
