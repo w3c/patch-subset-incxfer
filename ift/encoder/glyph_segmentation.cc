@@ -1,5 +1,6 @@
 #include "ift/encoder/glyph_segmentation.h"
 
+#include <cstdio>
 #include <sstream>
 
 #include "absl/container/btree_map.h"
@@ -167,8 +168,7 @@ StatusOr<GlyphSegmentation> GlyphSegmentation::CodepointToGlyphSegments(
     hb_codepoint_t and_gid = HB_SET_VALUE_INVALID;
     while (hb_set_next(exclusive_gids.get(), &and_gid)) {
       // TODO(garretrieger): if we are assign an exclusive gid there should be
-      // no other and segments,
-      //                     check and error if this is violated.
+      // no other and segments, check and error if this is violated.
       hb_set_add(gid_conditions[and_gid].and_segments.get(), segment_index);
     }
     while (hb_set_next(and_gids.get(), &and_gid)) {
@@ -176,7 +176,7 @@ StatusOr<GlyphSegmentation> GlyphSegmentation::CodepointToGlyphSegments(
     }
 
     hb_codepoint_t or_gid = HB_SET_VALUE_INVALID;
-    while (hb_set_next(or_gids.get(), &and_gid)) {
+    while (hb_set_next(or_gids.get(), &or_gid)) {
       hb_set_add(gid_conditions[or_gid].or_segments.get(), segment_index);
     }
 
@@ -301,7 +301,7 @@ void output_set(const char* prefix, It begin, It end, std::stringstream& out) {
 
   out << "{ ";
   output_set_inner(prefix, ", ", begin, end, out);
-  out << " } ";
+  out << " }";
 }
 
 std::string GlyphSegmentation::ToString() const {

@@ -45,3 +45,20 @@ cc_test(
      "//common",
   ],
 )
+
+cc_test(
+  name = "glyph_segmentation_test",
+  size = "small",
+  srcs = [
+    "glyph_segmentation_test.cc",
+  ],
+  data = [
+    "//ift:testdata",
+    "//common:testdata",
+  ],
+  deps = [
+    ":encoder",
+     "@googletest//:gtest_main",
+     "//common",
+  ],
+)
