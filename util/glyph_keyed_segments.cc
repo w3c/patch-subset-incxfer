@@ -1,7 +1,6 @@
 #include <google/protobuf/text_format.h>
 
 #include <cstdio>
-#include <fstream>
 #include <iostream>
 
 #include "absl/container/btree_set.h"
@@ -22,6 +21,7 @@
  * requirement".
  */
 
+// TODO XXXX move to a helper
 #define TRYV(...)              \
   do {                         \
     auto res = (__VA_ARGS__);  \
@@ -80,53 +80,7 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  std::cout << "initial font: { ";
-  for (auto gid : result->init_font_glyphs()) {
-    std::cout << "gid" << gid << ", ";
-  }
-  std::cout << "}" << std::endl;
-
-  for (const auto& [segment_id, gids] : result->gid_segments()) {
-    std::cout << "p" << segment_id << ": { ";
-    for (auto gid : gids) {
-      std::cout << "gid" << gid << ", ";
-    }
-    std::cout << "}" << std::endl;
-  }
-
-  for (const auto& condition : result->conditions()) {
-    bool first = true;
-    for (const auto& set : condition.segment_sets()) {
-      if (!first) {
-        std::cout << " AND ";
-      } else {
-        first = false;
-      }
-
-      if (set.size() > 1) {
-        std::cout << "(";
-      }
-      bool first_inner = true;
-      for (uint32_t id : set) {
-        if (!first_inner) {
-          std::cout << " OR ";
-        } else {
-          first_inner = false;
-        }
-        std::cout << "p" << id;
-      }
-      if (set.size() > 1) {
-        std::cout << ")";
-      }
-    }
-    std::cout << " => p" << condition.activated() << std::endl;
-  }
-
-  std::cout << "unmapped: { ";
-  for (auto gid : result->unmapped_glyphs()) {
-    std::cout << "gid" << gid << ", ";
-  }
-  std::cout << "}" << std::endl;
+  std::cout << result->ToString();
 
   return 0;
 }

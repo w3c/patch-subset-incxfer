@@ -1,5 +1,7 @@
 #include "ift/encoder/glyph_segmentation.h"
 
+#include <sstream>
+
 #include "absl/container/btree_map.h"
 #include "absl/container/btree_set.h"
 #include "absl/container/flat_hash_map.h"
@@ -214,7 +216,7 @@ StatusOr<GlyphSegmentation> GlyphSegmentation::CodepointToGlyphSegments(
     segment_index_t segment = *and_segments.begin();
     segmentation.patches_.insert(std::pair(next_id, glyphs));
     segmentation.conditions_.push_back(
-        ActivationCondition::and_segments({next_id}, next_id));
+        ActivationCondition::and_patches({next_id}, next_id));
     subtract(segmentation.unmapped_glyphs_, glyphs);
     segment_to_patch_id[segment] = next_id++;
   }
@@ -233,7 +235,7 @@ StatusOr<GlyphSegmentation> GlyphSegmentation::CodepointToGlyphSegments(
 
     segmentation.patches_.insert(std::pair(next_id, glyphs));
     segmentation.conditions_.push_back(
-        ActivationCondition::and_segments(and_patches, next_id));
+        ActivationCondition::and_patches(and_patches, next_id));
     subtract(segmentation.unmapped_glyphs_, glyphs);
     next_id++;
   }
@@ -245,7 +247,7 @@ StatusOr<GlyphSegmentation> GlyphSegmentation::CodepointToGlyphSegments(
     }
     segmentation.patches_.insert(std::pair(next_id, glyphs));
     segmentation.conditions_.push_back(
-        ActivationCondition::or_segments(or_patches, next_id));
+        ActivationCondition::or_patches(or_patches, next_id));
     subtract(segmentation.unmapped_glyphs_, glyphs);
     next_id++;
   }
@@ -254,26 +256,101 @@ StatusOr<GlyphSegmentation> GlyphSegmentation::CodepointToGlyphSegments(
 }
 
 GlyphSegmentation::ActivationCondition
-GlyphSegmentation::ActivationCondition::and_segments(
+GlyphSegmentation::ActivationCondition::and_patches(
     const absl::btree_set<patch_id_t>& ids, patch_id_t activated) {
   ActivationCondition conditions;
   conditions.activated_ = activated;
 
   for (auto id : ids) {
-    conditions.segment_sets_.push_back({id});
+    conditions.conditions_.push_back({id});
   }
 
   return conditions;
 }
 
 GlyphSegmentation::ActivationCondition
-GlyphSegmentation::ActivationCondition::or_segments(
+GlyphSegmentation::ActivationCondition::or_patches(
     const absl::btree_set<patch_id_t>& ids, patch_id_t activated) {
   ActivationCondition conditions;
   conditions.activated_ = activated;
-  conditions.segment_sets_.push_back(ids);
+  conditions.conditions_.push_back(ids);
 
   return conditions;
+}
+
+template <typename It>
+void output_set_inner(const char* prefix, const char* seperator, It begin,
+                      It end, std::stringstream& out) {
+  bool first = true;
+  while (begin != end) {
+    if (!first) {
+      out << ", ";
+    } else {
+      first = false;
+    }
+    out << prefix << *(begin++);
+  }
+}
+
+template <typename It>
+void output_set(const char* prefix, It begin, It end, std::stringstream& out) {
+  if (begin == end) {
+    out << "{}";
+    return;
+  }
+
+  out << "{ ";
+  output_set_inner(prefix, ", ", begin, end, out);
+  out << " } ";
+}
+
+std::string GlyphSegmentation::ToString() const {
+  std::stringstream out;
+  out << "initial font: ";
+  output_set("gid", InitialFontGlyphs().begin(), InitialFontGlyphs().end(),
+             out);
+  out << std::endl;
+
+  out << "unmapped: ";
+  output_set("gid", UnmappedGlyphs().begin(), UnmappedGlyphs().end(), out);
+  out << std::endl;
+
+  for (const auto& [segment_id, gids] : GidSegments()) {
+    out << "p" << segment_id << ": ";
+    output_set("gid", gids.begin(), gids.end(), out);
+    out << std::endl;
+  }
+
+  for (const auto& condition : Conditions()) {
+    bool first = true;
+    out << "if (";
+    for (const auto& set : condition.conditions()) {
+      if (!first) {
+        out << " AND ";
+      } else {
+        first = false;
+      }
+
+      if (set.size() > 1) {
+        out << "(";
+      }
+      bool first_inner = true;
+      for (uint32_t id : set) {
+        if (!first_inner) {
+          out << " OR ";
+        } else {
+          first_inner = false;
+        }
+        out << "p" << id;
+      }
+      if (set.size() > 1) {
+        out << ")";
+      }
+    }
+    out << ") then p" << condition.activated() << std::endl;
+  }
+
+  return out.str();
 }
 
 }  // namespace ift::encoder
