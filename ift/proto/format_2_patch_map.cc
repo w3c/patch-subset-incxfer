@@ -263,7 +263,12 @@ Status EncodeEntry(const PatchMap::Entry& entry, uint32_t last_entry_index,
       (has_patch_encoding ? encoding_bit_mask : 0) |  // bit 3
       (has_codepoints ? codepoint_bit_mask & BiasFormat(bias_bytes)
                       : 0);  // bit 4 and 5
-  // not set, ignore (bit 6)
+
+  // set ignore bit if needed
+  if (entry.ignored) {
+    format = format | ignore_bit_mask;
+  }
+
   FontHelper::WriteUInt8(format, out);
 
   if (has_features_or_design_space) {

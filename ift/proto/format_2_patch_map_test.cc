@@ -51,6 +51,27 @@ TEST_F(Format2PatchMapTest, Simple) {
   ASSERT_EQ(*encoded, absl::StrCat(HeaderSimple(), entry_0));
 }
 
+TEST_F(Format2PatchMapTest, IgnoreBit) {
+  IFTTable table;
+  PatchMap& map = table.GetPatchMap();
+  PatchMap::Coverage coverage{1, 2, 3};
+  auto sc = map.AddEntry(coverage, 1, TABLE_KEYED_FULL, true);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  table.SetUrlTemplate("foo/$1");
+  table.SetId({1, 2, 3, 4});
+
+  auto encoded = Format2PatchMap::Serialize(table);
+  ASSERT_TRUE(encoded.ok()) << encoded.status();
+
+  std::string entry_0 = {
+      // entry 0
+      0b01010000,             // format = Ignored + Codepoints
+      0b00000101, 0b00001110  // codepoints (BF4, depth 1)= {1, 2, 3}
+  };
+  ASSERT_EQ(*encoded, absl::StrCat(HeaderSimple(), entry_0));
+}
+
 TEST_F(Format2PatchMapTest, TwoByteBias) {
   IFTTable table;
   PatchMap& map = table.GetPatchMap();
