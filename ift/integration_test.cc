@@ -87,7 +87,8 @@ class IntegrationTest : public ::testing::Test {
     auto sc = encoder.AddGlyphDataSegment(1, TestSegment1());
     sc.Update(encoder.AddGlyphDataSegment(2, TestSegment2()));
     sc.Update(encoder.AddGlyphDataSegment(3, TestSegment3()));
-    sc.Update(encoder.AddGlyphDataSegment(4, TestSegment4()));
+    sc.Update(encoder.AddGlyphDataSegment(4, TestSegment4()));    
+
     return sc;
   }
 
@@ -467,6 +468,11 @@ TEST_F(IntegrationTest, MixedMode) {
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({3, 4}));
   ASSERT_TRUE(sc.ok()) << sc;
 
+  // Setup activations for 2 through 4 (1 is init)
+  sc.Update(encoder.AddGlyphDataActivationCondition(Encoder::Condition(2)));
+  sc.Update(encoder.AddGlyphDataActivationCondition(Encoder::Condition(3)));
+  sc.Update(encoder.AddGlyphDataActivationCondition(Encoder::Condition(4)));
+
   auto encoding = encoder.Encode();
   ASSERT_TRUE(encoding.ok()) << encoding.status();
   auto encoded_face = encoding->init_font.face();
@@ -519,9 +525,16 @@ TEST_F(IntegrationTest, MixedMode_OptionalFeatureTags) {
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({2}));
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({3}));
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({4}));
+
+  sc.Update(encoder.AddGlyphDataActivationCondition(Encoder::Condition(1)));
+  sc.Update(encoder.AddGlyphDataActivationCondition(Encoder::Condition(2)));
+  sc.Update(encoder.AddGlyphDataActivationCondition(Encoder::Condition(3)));
+  sc.Update(encoder.AddGlyphDataActivationCondition(Encoder::Condition(4)));
+
   sc.Update(encoder.AddFeatureDependency(1, 5, kVrt3));
   sc.Update(encoder.AddFeatureDependency(2, 5, kVrt3));
   sc.Update(encoder.AddFeatureDependency(4, 6, kVrt3));
+
   encoder.AddFeatureGroupSegment({kVrt3});
   ASSERT_TRUE(sc.ok()) << sc;
 
@@ -588,6 +601,10 @@ TEST_F(IntegrationTest, MixedMode_LocaLenChange) {
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({2}));
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({3}));
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({4}));
+  sc.Update(encoder.AddGlyphDataActivationCondition(Encoder::Condition(1)));
+  sc.Update(encoder.AddGlyphDataActivationCondition(Encoder::Condition(2)));
+  sc.Update(encoder.AddGlyphDataActivationCondition(Encoder::Condition(3)));
+  sc.Update(encoder.AddGlyphDataActivationCondition(Encoder::Condition(4)));
   ASSERT_TRUE(sc.ok()) << sc;
 
   auto encoding = encoder.Encode();
@@ -650,6 +667,11 @@ TEST_F(IntegrationTest, MixedMode_Complex) {
   sc = encoder.SetBaseSubsetFromSegments({});
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({1, 2}));
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({3, 4}));
+
+  sc.Update(encoder.AddGlyphDataActivationCondition(Encoder::Condition(1)));
+  sc.Update(encoder.AddGlyphDataActivationCondition(Encoder::Condition(2)));
+  sc.Update(encoder.AddGlyphDataActivationCondition(Encoder::Condition(3)));
+  sc.Update(encoder.AddGlyphDataActivationCondition(Encoder::Condition(4)));
   ASSERT_TRUE(sc.ok()) << sc;
 
   auto encoding = encoder.Encode();
@@ -692,6 +714,10 @@ TEST_F(IntegrationTest, MixedMode_SequentialDependentPatches) {
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({2}));
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({3}));
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({4}));
+
+  sc.Update(encoder.AddGlyphDataActivationCondition(Encoder::Condition(2)));
+  sc.Update(encoder.AddGlyphDataActivationCondition(Encoder::Condition(3)));
+  sc.Update(encoder.AddGlyphDataActivationCondition(Encoder::Condition(4)));
   ASSERT_TRUE(sc.ok()) << sc;
 
   auto encoding = encoder.Encode();
@@ -720,6 +746,10 @@ TEST_F(IntegrationTest, MixedMode_DesignSpaceAugmentation) {
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({2}));
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({3, 4}));
   encoder.AddDesignSpaceSegment({{kWght, *AxisRange::Range(100, 900)}});
+
+  sc.Update(encoder.AddGlyphDataActivationCondition(Encoder::Condition(2)));
+  sc.Update(encoder.AddGlyphDataActivationCondition(Encoder::Condition(3)));
+  sc.Update(encoder.AddGlyphDataActivationCondition(Encoder::Condition(4)));
   ASSERT_TRUE(sc.ok()) << sc;
 
   auto encoding = encoder.Encode();
@@ -762,6 +792,10 @@ TEST_F(IntegrationTest, MixedMode_DesignSpaceAugmentation_DropsUnusedPatches) {
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({2}));
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({3, 4}));
   encoder.AddDesignSpaceSegment({{kWght, *AxisRange::Range(100, 900)}});
+
+  sc.Update(encoder.AddGlyphDataActivationCondition(Encoder::Condition(2)));
+  sc.Update(encoder.AddGlyphDataActivationCondition(Encoder::Condition(3)));
+  sc.Update(encoder.AddGlyphDataActivationCondition(Encoder::Condition(4)));
 
   ASSERT_TRUE(sc.ok()) << sc;
 
