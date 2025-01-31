@@ -246,6 +246,7 @@ Status EncodeEntry(const PatchMap::Entry& entry, uint32_t last_entry_index,
   bool has_codepoints = !coverage.codepoints.empty();
   bool has_features = !coverage.features.empty();
   bool has_design_space = !coverage.design_space.empty();
+  bool has_copy_indices = !coverage.copy_indices.empty();
   bool has_features_or_design_space = has_features || has_design_space;
   int64_t delta =
       ((int64_t)entry.patch_index) - ((int64_t)last_entry_index + 1);
@@ -257,17 +258,13 @@ Status EncodeEntry(const PatchMap::Entry& entry, uint32_t last_entry_index,
   // format
   uint8_t format =
       (has_features_or_design_space ? features_and_design_space_bit_mask
-                                    : 0) |  // bit 0
-      // not set, has copy mapping indices (bit 1) // bit 1
-      (has_delta ? index_delta_bit_mask : 0) |        // bit 2
-      (has_patch_encoding ? encoding_bit_mask : 0) |  // bit 3
+                                    : 0) |              // bit 0
+      (has_copy_indices ? copy_indices_bit_mask : 0) |  // bit 1
+      (has_delta ? index_delta_bit_mask : 0) |          // bit 2
+      (has_patch_encoding ? encoding_bit_mask : 0) |    // bit 3
       (has_codepoints ? codepoint_bit_mask & BiasFormat(bias_bytes)
-                      : 0);  // bit 4 and 5
-
-  // set ignore bit if needed
-  if (entry.ignored) {
-    format = format | ignore_bit_mask;
-  }
+                      : 0) |                  // bit 4 and 5
+      (entry.ignored ? ignore_bit_mask : 0);  // bit 6
 
   FontHelper::WriteUInt8(format, out);
 
@@ -285,6 +282,24 @@ Status EncodeEntry(const PatchMap::Entry& entry, uint32_t last_entry_index,
       if (!s.ok()) {
         return s;
       }
+    }
+  }
+
+  if (has_copy_indices) {
+    if (entry.coverage.copy_indices.size() >
+        0b01111111) {  // 7 bits are used to store the count.
+      return absl::InvalidArgumentError(
+          StrCat("Maximum number of copy indices exceeded: ",
+                 entry.coverage.copy_indices.size(), " > 127."));
+    }
+    uint8_t count = (uint8_t)entry.coverage.copy_indices.size();
+    if (entry.coverage.copy_mode_append) {
+      // MSB is used to record the append mode bit.
+      count |= 0b10000000;
+    }
+    FontHelper::WriteUInt8(count, out);
+    for (uint32_t index : entry.coverage.copy_indices) {
+      WRITE_UINT24(index, out, "Exceeded max copy index size.");
     }
   }
 
