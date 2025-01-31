@@ -4,6 +4,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "ift/proto/ift_table.h"
+#include "ift/proto/patch_encoding.h"
 #include "ift/proto/patch_map.h"
 
 using testing::UnorderedElementsAre;
@@ -15,18 +16,26 @@ class Format2PatchMapTest : public ::testing::Test {
   Format2PatchMapTest() {}
 };
 
-static std::string HeaderSimple() {
+static std::string HeaderSimple(uint8_t entry_count = 1) {
   return {
-      0x02,                    // format
-      0x00, 0x00, 0x00, 0x00,  // reserved
-      0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02,
-      0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x04,  // compat id
-      0x01,                                // default format = Table Keyed Full
-      0x00, 0x00, 0x01,                    // entry count
-      0x00, 0x00, 0x00, 0x29,              // entries offset
-      0x00, 0x00, 0x00, 0x00,              // entry id string data offset
-      0x00, 0x06,                          // uri template length
-      0x66, 0x6f, 0x6f, 0x2f, 0x24, 0x31,  // foo/$1
+      0x02,  // format
+      0x00, 0x00, 0x00,
+      0x00,  // reserved
+      0x00, 0x00, 0x00,
+      0x01, 0x00, 0x00,
+      0x00, 0x02, 0x00,
+      0x00, 0x00, 0x03,
+      0x00, 0x00, 0x00,
+      0x04,                           // compat id
+      0x01,                           // default format = Table Keyed Full
+      0x00, 0x00, (char)entry_count,  // entry count
+      0x00, 0x00, 0x00,
+      0x29,  // entries offset
+      0x00, 0x00, 0x00,
+      0x00,        // entry id string data offset
+      0x00, 0x06,  // uri template length
+      0x66, 0x6f, 0x6f,
+      0x2f, 0x24, 0x31,  // foo/$1
   };
 }
 
@@ -70,6 +79,57 @@ TEST_F(Format2PatchMapTest, IgnoreBit) {
       0b00000101, 0b00001110  // codepoints (BF4, depth 1)= {1, 2, 3}
   };
   ASSERT_EQ(*encoded, absl::StrCat(HeaderSimple(), entry_0));
+}
+
+TEST_F(Format2PatchMapTest, CopyIndices) {
+  IFTTable table;
+  PatchMap& map = table.GetPatchMap();
+  PatchMap::Coverage coverage{1, 2, 3};
+  auto sc = map.AddEntry(coverage, 1, TABLE_KEYED_FULL);
+  sc.Update(map.AddEntry(coverage, 2, TABLE_KEYED_FULL));
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  PatchMap::Coverage union_cov;
+  union_cov.copy_indices.insert(1);
+  union_cov.copy_indices.insert(0);
+  sc = map.AddEntry(union_cov, 3, TABLE_KEYED_FULL);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  PatchMap::Coverage append_cov;
+  append_cov.copy_indices.insert(2);
+  append_cov.copy_mode_append = true;
+  sc = map.AddEntry(append_cov, 4, TABLE_KEYED_FULL);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  table.SetUrlTemplate("foo/$1");
+  table.SetId({1, 2, 3, 4});
+
+  auto encoded = Format2PatchMap::Serialize(table);
+  ASSERT_TRUE(encoded.ok()) << encoded.status();
+
+  std::string entry_0 = {
+      0x10,                   // format = 00010000 = Codepoints
+      0b00000101, 0b00001110  // codepoints (BF4, depth 1)= {1, 2, 3}
+  };
+  std::string entry_1 = {
+      0x10,                   // format = 00010000 = Codepoints
+      0b00000101, 0b00001110  // codepoints (BF4, depth 1)= {1, 2, 3}
+  };
+  std::string entry_2 = {
+      0b00000010,        // format = Copy Indices
+      0b00000010,        // count = 2
+      0,          0, 0,  // 0
+      0,          0, 1,  // 1
+  };
+  std::string entry_3 = {
+      0b00000010,        // format = Copy Indices
+      (char)0b10000001,  // count = 1 + append mode
+      0,
+      0,
+      2,  // 2
+  };
+  ASSERT_EQ(*encoded,
+            absl::StrCat(HeaderSimple(4), entry_0, entry_1, entry_2, entry_3));
 }
 
 TEST_F(Format2PatchMapTest, TwoByteBias) {
