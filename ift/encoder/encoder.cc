@@ -155,6 +155,8 @@ Encoder::SubsetDefinition Encoder::AddFeatureSpecificChunksIfNeeded(
   // glyphs may affect things like loca size.
   SubsetDefinition out;
   out.Union(def);
+  /*
+  // TODO XXXX reimplement under the new conditions framework.
   for (hb_tag_t feature : def.feature_tags) {
     // for each included feature check if for any glyph keyed patches that could
     // be activated under def and add them to the subset.
@@ -187,6 +189,7 @@ Encoder::SubsetDefinition Encoder::AddFeatureSpecificChunksIfNeeded(
       }
     }
   }
+  */
   return out;
 }
 
@@ -374,8 +377,9 @@ Status Encoder::AddGlyphDataSegment(uint32_t id,
   return absl::OkStatus();
 }
 
-Status Encoder::AddFeatureDependency(uint32_t original_id, uint32_t id,
-                                     hb_tag_t feature_tag) {
+Status Encoder::AddGlyphDataActivationCondition(Condition condition) {
+  /*
+  TODO check all referenced ids exist.
   if (!glyph_data_segments_.contains(original_id)) {
     return absl::InvalidArgumentError(
         StrCat("Glyh keyed segment ", original_id,
@@ -386,9 +390,18 @@ Status Encoder::AddFeatureDependency(uint32_t original_id, uint32_t id,
         StrCat("Glyph keyed segment ", id,
                " has not been supplied via AddGlyphDataSegment()"));
   }
+  */
+  return absl::UnimplementedError("TODO");
+}
 
-  glyph_data_segment_feature_dependencies_[id][feature_tag].insert(original_id);
-  return absl::OkStatus();
+Status Encoder::AddFeatureDependency(uint32_t original_id, uint32_t id,
+                                     hb_tag_t feature_tag) {
+  Condition condition;
+  condition.activated_segment_id = id;
+  condition.required_features.insert(feature_tag);
+  condition.required_groups.push_back({original_id});
+
+  return AddGlyphDataActivationCondition(std::move(condition));
 }
 
 Status Encoder::SetBaseSubsetFromSegments(
@@ -616,45 +629,205 @@ Status Encoder::EnsureGlyphKeyedPatchesPopulated(
   return absl::OkStatus();
 }
 
-Status Encoder::PopulateGlyphKeyedPatchMap(
-    PatchMap& patch_map, const design_space_t& design_space) const {
+void PrintTo(const Encoder::Condition& c, std::ostream* os) {
+  *os << "{";
+  for (const auto& group : c.required_groups) {
+    *os << "{";
+    for (auto v : group) {
+      *os << v << ", ";
+    }
+    *os << "}, ";
+  }
+
+  *os << "}, {";
+
+  for (auto t : c.required_features) {
+    *os << FontHelper::ToString(t) << ", ";
+  }
+
+  *os << "} => " << c.activated_segment_id;
+}
+
+bool Encoder::Condition::operator<(const Condition& other) const {
+  if (required_groups.size() != other.required_groups.size()) {
+    return required_groups.size() < other.required_groups.size();
+  }
+
+  auto a = required_groups.begin();
+  auto b = other.required_groups.begin();
+  while (a != required_groups.end() && b != required_groups.end()) {
+    if (a->size() != b->size()) {
+      return a->size() < b->size();
+    }
+
+    auto aa = a->begin();
+    auto bb = b->begin();
+    while (aa != a->end() && bb != b->end()) {
+      if (*aa != *bb) {
+        return *aa < *bb;
+      }
+      aa++;
+      bb++;
+    }
+
+    a++;
+    b++;
+  }
+
+  if (required_features.size() != other.required_features.size()) {
+    return required_features.size() < other.required_features.size();
+  }
+
+  auto f_a = required_features.begin();
+  auto f_b = other.required_features.begin();
+  while (f_a != required_features.end() &&
+         f_b != other.required_features.end()) {
+    if (*f_a != *f_b) {
+      return *f_a < *f_b;
+    }
+    f_a++;
+    f_b++;
+  }
+
+  if (activated_segment_id != other.activated_segment_id) {
+    return activated_segment_id < other.activated_segment_id;
+  }
+
+  // These two are equal
+  return false;
+}
+
+Status Encoder::PopulateGlyphKeyedPatchMap(PatchMap& patch_map) const {
   if (glyph_data_segments_.empty()) {
     return absl::OkStatus();
   }
 
-  for (const auto& e : glyph_data_segments_) {
-    uint32_t id = e.first;
-    auto it = glyph_data_segment_feature_dependencies_.find(id);
-    if (it == glyph_data_segment_feature_dependencies_.end()) {
-      // Just a regular entry mapped by codepoints only.
-      TRYV(patch_map.AddEntry(e.second.codepoints, e.first, GLYPH_KEYED));
-      continue;
-    }
+  // TODO XXXXX handle features.
 
-    // this is a feature specific entry and so uses the subset definition from
-    // another patch + a feature tag.
-    for (const auto& [feature_tag, indices] : it->second) {
-      PatchMap::Coverage coverage;
-      coverage.features.insert(feature_tag);
+  // The conditions list describes what the patch map should do, here
+  // we need to convert that into an equivalent list of entries.
+  //
+  // To minimize encoded size we can reuse set definitions in later entries
+  // via the copy indices mechanism. The conditions are evaluated in three
+  // phases to successively build up a set of common entries which can be reused
+  // by later ones.
 
-      for (uint32_t original_id : indices) {
-        auto original = glyph_data_segments_.find(original_id);
+  // Tracks the list of conditions which have not yet been placed in a map
+  // entry.
+  btree_set<Condition> remaining_conditions = activation_conditions_;
+
+  // Phase 1 generate the base entries, there should be one for each
+  // unique glyph segment that is referenced in at least one condition.
+  // the conditions will refer back to these base entries via copy indices
+  //
+  // Each base entry can be used to map one condition as well.
+  flat_hash_map<uint32_t, uint32_t> patch_id_to_entry_index;
+  uint32_t next_entry_index = 0;
+  uint32_t last_patch_id = 0;
+  for (auto condition = remaining_conditions.begin();
+       condition != remaining_conditions.begin();) {
+    bool remove = false;
+    for (const auto& group : condition->required_groups) {
+      for (uint32_t patch_id : group) {
+        if (patch_id_to_entry_index.contains(patch_id)) {
+          continue;
+        }
+
+        auto original = glyph_data_segments_.find(patch_id);
         if (original == glyph_data_segments_.end()) {
           return absl::InvalidArgumentError(
-              StrCat("Glyph data patch ", original_id, " not found."));
+              StrCat("Glyph data patch ", patch_id, " not found."));
         }
         const auto& original_def = original->second;
 
-        // TODO(garretrieger): optimize the patch map and use "subset indices"
-        //  instead of respecifying the codepoint subset.
-        std::copy(
-            original_def.codepoints.begin(), original_def.codepoints.end(),
-            std::inserter(coverage.codepoints, coverage.codepoints.begin()));
-      }
+        PatchMap::Coverage coverage;
+        coverage.codepoints = original_def.codepoints;
 
-      TRYV(patch_map.AddEntry(coverage, id, GLYPH_KEYED));
+        if (condition->IsUnitary()) {
+          // this condition can use this entry to map itself.
+          TRYV(patch_map.AddEntry(coverage, condition->activated_segment_id,
+                                  GLYPH_KEYED));
+          last_patch_id = condition->activated_segment_id;
+          remove = true;
+        } else {
+          // Otherwise this entry does nothing (ignored = true), but will be
+          // referenced by later entries the assigned id doesn't matter, but
+          // using last_patch_id + 1 it will avoid needing to encoding the entry
+          // id delta.
+          TRYV(
+              patch_map.AddEntry(coverage, ++last_patch_id, GLYPH_KEYED, true));
+        }
+
+        patch_id_to_entry_index[patch_id] = next_entry_index++;
+      }
+    }
+
+    if (remove) {
+      remaining_conditions.erase(condition++);
+    } else {
+      ++condition;
     }
   }
+
+  // Phase 2 generate entries for all groups of patches reusing the base entries
+  // written in phase one. When writing an entry if the triggering group is the
+  // only one in the condition then that condition can utilize the entry (just
+  // like in Phase 1).
+  flat_hash_map<btree_set<uint32_t>, uint32_t> patch_group_to_entry_index;
+  for (auto condition = remaining_conditions.begin();
+       condition != remaining_conditions.begin();) {
+    bool remove = false;
+    for (const auto& group : condition->required_groups) {
+      if (group.size() <= 1 || patch_group_to_entry_index.contains(group)) {
+        // don't handle groups of size one, those will just reference the base
+        // entry directly.
+        continue;
+      }
+
+      PatchMap::Coverage coverage;
+      coverage.copy_mode_append =
+          false;  // union the group members together (OR).
+      coverage.copy_indices = group;
+
+      if (condition->required_groups.size() == 1) {
+        TRYV(patch_map.AddEntry(coverage, condition->activated_segment_id,
+                                GLYPH_KEYED));
+        last_patch_id = condition->activated_segment_id;
+        remove = true;
+      } else {
+        TRYV(patch_map.AddEntry(coverage, ++last_patch_id, GLYPH_KEYED, true));
+      }
+
+      patch_group_to_entry_index[group] = next_entry_index++;
+    }
+
+    if (remove) {
+      remaining_conditions.erase(condition++);
+    } else {
+      ++condition;
+    }
+  }
+
+  // Phase 3 for any remaining conditions create the actual entries utilizing
+  // the groups (phase 2) and base entries (phase 1) as needed
+  for (auto condition = remaining_conditions.begin();
+       condition != remaining_conditions.begin(); condition++) {
+    PatchMap::Coverage coverage;
+    coverage.copy_mode_append = true;  // append the groups (AND)
+
+    for (const auto& group : condition->required_groups) {
+      if (group.size() == 1) {
+        coverage.copy_indices.insert(patch_id_to_entry_index[*group.begin()]);
+        continue;
+      }
+
+      coverage.copy_indices.insert(patch_group_to_entry_index[group]);
+    }
+
+    TRYV(patch_map.AddEntry(coverage, condition->activated_segment_id,
+                            GLYPH_KEYED));
+  }
+
   return absl::OkStatus();
 }
 
@@ -704,8 +877,7 @@ StatusOr<FontData> Encoder::Encode(ProcessingContext& context,
   glyph_keyed.SetUrlTemplate(glyph_keyed_uri_template);
 
   PatchMap& glyph_keyed_patch_map = glyph_keyed.GetPatchMap();
-  sc = PopulateGlyphKeyedPatchMap(glyph_keyed_patch_map,
-                                  base_subset.design_space);
+  sc = PopulateGlyphKeyedPatchMap(glyph_keyed_patch_map);
   if (!sc.ok()) {
     return sc;
   }

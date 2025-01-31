@@ -28,6 +28,36 @@ class Encoder {
  public:
   typedef absl::flat_hash_map<hb_tag_t, common::AxisRange> design_space_t;
 
+  // TODO XXXXXX be consistent with terminology used for patches/segments (ie. standardize on one or the other throughout).
+
+  /*
+   *  This conditions is satisfied if the input subset definition matches at
+   * least one segment in each required group and every feature in
+   * required_features.
+   */
+  struct Condition {
+    std::vector<absl::btree_set<uint32_t>> required_groups;
+    absl::btree_set<hb_tag_t> required_features;
+    uint32_t activated_segment_id;
+
+    // Returns true if this condition is activated by exactly one segment and no
+    // features.
+    bool IsUnitary() const {
+      return (required_groups.size() == 1) &&
+             required_groups.at(0).size() == 1 && required_features.size() == 0;
+    }
+
+    bool operator<(const Condition& other) const;
+
+    bool operator==(const Condition& other) const {
+      return required_groups == other.required_groups &&
+             required_features == other.required_features &&
+             activated_segment_id == other.activated_segment_id;
+    }
+
+    friend void PrintTo(const Condition& point, std::ostream* os);
+  };
+
   Encoder()
       : face_(common::make_hb_face(nullptr))
 
@@ -57,15 +87,17 @@ class Encoder {
   absl::Status AddGlyphDataSegment(uint32_t segment_id,
                                    const absl::flat_hash_set<uint32_t>& gids);
 
+  absl::Status AddGlyphDataActivationCondition(Condition condition);
+
   /*
-   * Marks that the segment identified by 'id' will only be loaded if
+   * Marks that the segment identified by 'activated_id' will only be loaded if
    * 'feature_tag' is in the  target subset and the segment identified by
    * 'original_id' has been matched.
    *
    * The segments associated with 'original_id' and 'id' must have been
    * previously supplied via AddGlyphDataSegment().
    */
-  absl::Status AddFeatureDependency(uint32_t original_id, uint32_t id,
+  absl::Status AddFeatureDependency(uint32_t original_id, uint32_t activated_id,
                                     hb_tag_t feature_tag);
 
   void SetFace(hb_face_t* face) { face_.reset(hb_face_reference(face)); }
@@ -253,8 +285,7 @@ class Encoder {
       std::string& uri_template, common::CompatId& compat_id) const;
 
   absl::Status PopulateGlyphKeyedPatchMap(
-      ift::proto::PatchMap& patch_map,
-      const design_space_t& design_space) const;
+      ift::proto::PatchMap& patch_map) const;
 
   absl::StatusOr<common::hb_face_unique_ptr> CutSubsetFaceBuilder(
       const ProcessingContext& context, hb_face_t* font,
@@ -310,11 +341,7 @@ class Encoder {
   common::hb_face_unique_ptr face_;
   absl::btree_map<uint32_t, SubsetDefinition> glyph_data_segments_;
 
-  // TODO(garretrieger): change to more general dependency mechanism that
-  // includes other glyph keyed patches as well
-  absl::flat_hash_map<uint32_t,
-                      absl::flat_hash_map<hb_tag_t, absl::btree_set<uint32_t>>>
-      glyph_data_segment_feature_dependencies_;
+  absl::btree_set<Condition> activation_conditions_;
 
   SubsetDefinition base_subset_;
   std::vector<SubsetDefinition> extension_subsets_;

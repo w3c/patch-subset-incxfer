@@ -708,4 +708,78 @@ TEST_F(EncoderTest, RoundTripWoff2_Fails) {
   ASSERT_TRUE(absl::IsInternal(ttf.status())) << ttf.status();
 }
 
+TEST_F(EncoderTest, Condition_IsUnitary) {
+  Encoder::Condition empty;
+  ASSERT_FALSE(empty.IsUnitary());
+
+  Encoder::Condition a;
+  a.required_groups = {{3}};
+  ASSERT_TRUE(a.IsUnitary());
+
+  a.required_features = {100};
+  ASSERT_FALSE(a.IsUnitary());
+
+  Encoder::Condition b;
+  b.required_groups = {{3}, {4}};
+  ASSERT_FALSE(b.IsUnitary());
+
+  b.required_groups = {{1, 2}};
+  ASSERT_FALSE(b.IsUnitary());
+}
+
+TEST_F(EncoderTest, Condition_Ordering) {
+  Encoder::Condition empty;
+
+  Encoder::Condition a;
+  a.required_groups = {{2}};
+
+  Encoder::Condition b;
+  b.required_groups = {{3}};
+
+  Encoder::Condition c;
+  c.required_groups = {{1, 2}};
+
+  Encoder::Condition d;
+  d.required_groups = {{1, 2}};
+  d.required_features = {100};
+
+  Encoder::Condition e;
+  e.required_groups = {{1, 2}};
+  e.required_features = {101};
+
+  Encoder::Condition f;
+  f.required_groups = {{1, 2}};
+  f.required_features = {100, 200};
+
+  Encoder::Condition g;
+  g.required_groups = {{1}, {2}};
+  g.activated_segment_id = 5;
+
+  Encoder::Condition h;
+  h.required_groups = {{1}, {2}};
+  h.activated_segment_id = 7;
+
+  Encoder::Condition i;
+  i.required_groups = {{1}, {3}};
+
+  Encoder::Condition j;
+  j.required_groups = {{1}, {1, 2}};
+
+  btree_set<Encoder::Condition> conditions{i, h,     g, f, e, d, c,
+                                           b, empty, a, b, h, g, j};
+
+  auto it = conditions.begin();
+  ASSERT_EQ(*it++, empty);
+  ASSERT_EQ(*it++, a);
+  ASSERT_EQ(*it++, b);
+  ASSERT_EQ(*it++, c);
+  ASSERT_EQ(*it++, d);
+  ASSERT_EQ(*it++, e);
+  ASSERT_EQ(*it++, f);
+  ASSERT_EQ(*it++, g);
+  ASSERT_EQ(*it++, h);
+  ASSERT_EQ(*it++, i);
+  ASSERT_EQ(*it++, j);
+}
+
 }  // namespace ift::encoder
