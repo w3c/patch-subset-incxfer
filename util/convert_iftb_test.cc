@@ -41,14 +41,14 @@ TEST_F(ConvertIftbTest, BasicConversion) {
   ASSERT_TRUE(config.ok()) << config.status();
 
   std::string expected_config =
-      "glyph_segments {\n"
+      "glyph_patches {\n"
       "  key: 0\n"
       "  value {\n"
       "    values: 0\n"
       "    values: 5\n"
       "  }\n"
       "}\n"
-      "glyph_segments {\n"
+      "glyph_patches {\n"
       "  key: 1\n"
       "  value {\n"
       "    values: 1\n"
@@ -56,7 +56,7 @@ TEST_F(ConvertIftbTest, BasicConversion) {
       "    values: 3\n"
       "  }\n"
       "}\n"
-      "glyph_segments {\n"
+      "glyph_patches {\n"
       "  key: 2\n"
       "  value {\n"
       "    values: 4\n"

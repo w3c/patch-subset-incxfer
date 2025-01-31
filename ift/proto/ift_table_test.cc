@@ -39,23 +39,26 @@ class IFTTableTest : public ::testing::Test {
   IFTTableTest() : roboto_ab(make_hb_face(nullptr)) {
     sample.SetUrlTemplate("fonts/go/here");
     sample.SetId({1, 2, 3, 4});
-    sample.GetPatchMap().AddEntry({30, 32}, 1, TABLE_KEYED_PARTIAL);
-    sample.GetPatchMap().AddEntry({55, 56, 57}, 2, GLYPH_KEYED);
+    auto sc = sample.GetPatchMap().AddEntry({30, 32}, 1, TABLE_KEYED_PARTIAL);
+    sc.Update(sample.GetPatchMap().AddEntry({55, 56, 57}, 2, GLYPH_KEYED));
+    assert(sc.ok());
 
     sample_with_extensions = sample;
-    sample_with_extensions.GetPatchMap().AddEntry(
+    sc = sample_with_extensions.GetPatchMap().AddEntry(
         {77, 78}, 3,
         TABLE_KEYED_PARTIAL);  // TODO XXXXX we don't track extensions here
                                // anymore.
 
     overlap_sample = sample;
-    overlap_sample.GetPatchMap().AddEntry({55}, 3, TABLE_KEYED_PARTIAL);
+    sc.Update(
+        overlap_sample.GetPatchMap().AddEntry({55}, 3, TABLE_KEYED_PARTIAL));
 
     complex_ids.SetUrlTemplate("fonts/go/here");
-    complex_ids.GetPatchMap().AddEntry({0}, 0, TABLE_KEYED_PARTIAL);
-    complex_ids.GetPatchMap().AddEntry({5}, 5, TABLE_KEYED_PARTIAL);
-    complex_ids.GetPatchMap().AddEntry({2}, 2, TABLE_KEYED_PARTIAL);
-    complex_ids.GetPatchMap().AddEntry({4}, 4, TABLE_KEYED_PARTIAL);
+    sc.Update(complex_ids.GetPatchMap().AddEntry({0}, 0, TABLE_KEYED_PARTIAL));
+    sc.Update(complex_ids.GetPatchMap().AddEntry({5}, 5, TABLE_KEYED_PARTIAL));
+    sc.Update(complex_ids.GetPatchMap().AddEntry({2}, 2, TABLE_KEYED_PARTIAL));
+    sc.Update(complex_ids.GetPatchMap().AddEntry({4}, 4, TABLE_KEYED_PARTIAL));
+    assert(sc.ok());
 
     hb_blob_unique_ptr blob = make_hb_blob(
         hb_blob_create_from_file("common/testdata/Roboto-Regular.ab.ttf"));

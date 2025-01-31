@@ -15,12 +15,6 @@ class Format2PatchMapTest : public ::testing::Test {
   Format2PatchMapTest() {}
 };
 
-constexpr int min_header_size = 34;
-constexpr int min_entry_size = 1;
-constexpr int min_codepoints_size = 1;
-constexpr int min_feature_design_space_size = 3;
-constexpr int segment_size = 12;
-
 static std::string HeaderSimple() {
   return {
       0x02,                    // format
@@ -40,7 +34,8 @@ TEST_F(Format2PatchMapTest, Simple) {
   IFTTable table;
   PatchMap& map = table.GetPatchMap();
   PatchMap::Coverage coverage{1, 2, 3};
-  map.AddEntry(coverage, 1, TABLE_KEYED_FULL);
+  auto sc = map.AddEntry(coverage, 1, TABLE_KEYED_FULL);
+  ASSERT_TRUE(sc.ok()) << sc;
 
   table.SetUrlTemplate("foo/$1");
   table.SetId({1, 2, 3, 4});
@@ -60,7 +55,8 @@ TEST_F(Format2PatchMapTest, TwoByteBias) {
   IFTTable table;
   PatchMap& map = table.GetPatchMap();
   PatchMap::Coverage coverage{10251, 10252, 10253};
-  map.AddEntry(coverage, 1, TABLE_KEYED_FULL);
+  auto sc = map.AddEntry(coverage, 1, TABLE_KEYED_FULL);
+  ASSERT_TRUE(sc.ok()) << sc;
 
   table.SetUrlTemplate("foo/$1");
   table.SetId({1, 2, 3, 4});
@@ -82,7 +78,8 @@ TEST_F(Format2PatchMapTest, ThreeByteBias) {
   IFTTable table;
   PatchMap& map = table.GetPatchMap();
   PatchMap::Coverage coverage{100251, 100252, 100253};
-  map.AddEntry(coverage, 1, TABLE_KEYED_FULL);
+  auto sc = map.AddEntry(coverage, 1, TABLE_KEYED_FULL);
+  ASSERT_TRUE(sc.ok()) << sc;
 
   table.SetUrlTemplate("foo/$1");
   table.SetId({1, 2, 3, 4});
@@ -104,7 +101,8 @@ TEST_F(Format2PatchMapTest, ComplexSet) {
   IFTTable table;
   PatchMap& map = table.GetPatchMap();
   PatchMap::Coverage coverage{123, 155, 179, 180, 181, 182, 1013};
-  map.AddEntry(coverage, 1, TABLE_KEYED_FULL);
+  auto sc = map.AddEntry(coverage, 1, TABLE_KEYED_FULL);
+  ASSERT_TRUE(sc.ok()) << sc;
 
   std::string uri_template = "foo/$1";
   table.SetUrlTemplate(uri_template);
@@ -128,7 +126,8 @@ TEST_F(Format2PatchMapTest, Features) {
   PatchMap::Coverage coverage{1, 2, 3};
   coverage.features.insert(HB_TAG('w', 'g', 'h', 't'));
   coverage.features.insert(HB_TAG('w', 'd', 't', 'h'));
-  table.GetPatchMap().AddEntry(coverage, 1, TABLE_KEYED_FULL);
+  auto sc = table.GetPatchMap().AddEntry(coverage, 1, TABLE_KEYED_FULL);
+  ASSERT_TRUE(sc.ok()) << sc;
 
   std::string uri_template = "foo/$1";
   table.SetUrlTemplate(uri_template);
@@ -157,7 +156,8 @@ TEST_F(Format2PatchMapTest, DesignSpace) {
       *common::AxisRange::Range(100.0f, 200.0f);
   coverage.design_space[HB_TAG('w', 'd', 't', 'h')] =
       common::AxisRange::Point(0.75f);
-  table.GetPatchMap().AddEntry(coverage, 1, TABLE_KEYED_FULL);
+  auto sc = table.GetPatchMap().AddEntry(coverage, 1, TABLE_KEYED_FULL);
+  ASSERT_TRUE(sc.ok()) << sc;
 
   std::string uri_template = "foo/$1";
   table.SetUrlTemplate(uri_template);
@@ -186,13 +186,16 @@ TEST_F(Format2PatchMapTest, NonDefaultPatchFormat) {
   IFTTable table;
 
   PatchMap::Coverage coverage1{1, 2, 3};
-  table.GetPatchMap().AddEntry(coverage1, 1, TABLE_KEYED_PARTIAL);
+  auto sc = table.GetPatchMap().AddEntry(coverage1, 1, TABLE_KEYED_PARTIAL);
+  ASSERT_TRUE(sc.ok()) << sc;
 
   PatchMap::Coverage coverage2{15, 16, 17};
-  table.GetPatchMap().AddEntry(coverage2, 2, TABLE_KEYED_PARTIAL);
+  sc = table.GetPatchMap().AddEntry(coverage2, 2, TABLE_KEYED_PARTIAL);
+  ASSERT_TRUE(sc.ok()) << sc;
 
   PatchMap::Coverage coverage3{25, 26, 27};
-  table.GetPatchMap().AddEntry(coverage3, 3, GLYPH_KEYED);
+  sc = table.GetPatchMap().AddEntry(coverage3, 3, GLYPH_KEYED);
+  ASSERT_TRUE(sc.ok()) << sc;
 
   std::string uri_template = "foo/$1";
   table.SetUrlTemplate(uri_template);
@@ -239,13 +242,16 @@ TEST_F(Format2PatchMapTest, NonDefaultPatchFormat) {
 TEST_F(Format2PatchMapTest, IndexDeltas) {
   IFTTable table;
   PatchMap::Coverage coverage1{1, 2, 3};
-  table.GetPatchMap().AddEntry(coverage1, 7, TABLE_KEYED_FULL);
+  auto sc = table.GetPatchMap().AddEntry(coverage1, 7, TABLE_KEYED_FULL);
+  ASSERT_TRUE(sc.ok()) << sc;
 
   PatchMap::Coverage coverage2{15, 16, 17};
-  table.GetPatchMap().AddEntry(coverage2, 4, TABLE_KEYED_FULL);
+  sc = table.GetPatchMap().AddEntry(coverage2, 4, TABLE_KEYED_FULL);
+  ASSERT_TRUE(sc.ok()) << sc;
 
   PatchMap::Coverage coverage3{25, 26, 27};
-  table.GetPatchMap().AddEntry(coverage3, 10, TABLE_KEYED_FULL);
+  sc = table.GetPatchMap().AddEntry(coverage3, 10, TABLE_KEYED_FULL);
+  ASSERT_TRUE(sc.ok()) << sc;
 
   std::string uri_template = "foo/$1";
   table.SetUrlTemplate(uri_template);

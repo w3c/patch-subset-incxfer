@@ -41,11 +41,6 @@ class PatchMap {
              other.design_space == design_space;
     }
 
-    bool Intersects(const absl::flat_hash_set<uint32_t>& codepoints,
-                    const absl::btree_set<hb_tag_t>& features,
-                    const absl::flat_hash_map<hb_tag_t, common::AxisRange>&
-                        design_space) const;
-
     uint32_t SmallestCodepoint() const {
       uint32_t min = 0xFFFFFFFF;
       for (uint32_t cp : codepoints) {
@@ -60,6 +55,15 @@ class PatchMap {
     absl::flat_hash_set<uint32_t> codepoints;
     absl::btree_set<hb_tag_t> features;
     absl::btree_map<hb_tag_t, common::AxisRange> design_space;
+
+    // If true copy mode
+    // (https://w3c.github.io/IFT/Overview.html#mapping-entry-copymodeandcount)
+    // is "append", other it's "union".
+    bool copy_mode_append = false;
+    // Set of copy indices
+    // (https://w3c.github.io/IFT/Overview.html#mapping-entry-copyindices)
+    // values are the indices of previous entries.
+    absl::btree_set<uint32_t> copy_indices;
   };
 
   struct Entry {
@@ -74,7 +78,7 @@ class PatchMap {
 
     bool operator==(const Entry& other) const {
       return other.coverage == coverage && other.patch_index == patch_index &&
-             other.encoding == encoding;
+             other.encoding == encoding && other.ignored == ignored;
     }
 
     bool IsInvalidating() const { return PatchMap::IsInvalidating(encoding); }
@@ -82,6 +86,7 @@ class PatchMap {
     Coverage coverage;
     uint32_t patch_index;
     PatchEncoding encoding;
+    bool ignored = false;
   };
 
   // TODO(garretrieger): move constructors?
@@ -98,8 +103,9 @@ class PatchMap {
 
   absl::Span<const Entry> GetEntries() const;
 
-  void AddEntry(const Coverage& coverage, uint32_t patch_index,
-                ift::proto::PatchEncoding);
+  absl::Status AddEntry(const Coverage& coverage, uint32_t patch_index,
+                        ift::proto::PatchEncoding encoding,
+                        bool ignored = false);
 
  private:
   // TODO(garretrieger): keep an index which maps from patch_index to entry

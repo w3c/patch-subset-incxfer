@@ -29,7 +29,6 @@ namespace ift::encoder {
 // - Multi segment combination testing with GSUB dep analysis to guide.
 // - Use merging and/or duplication to ensure minimum patch size.
 
-
 btree_set<uint32_t> to_btree_set(const hb_set_t* set) {
   btree_set<uint32_t> out;
   uint32_t v = HB_SET_VALUE_INVALID;

@@ -16,6 +16,7 @@
 #include "common/font_data.h"
 #include "common/font_helper.h"
 #include "common/hb_set_unique_ptr.h"
+#include "common/try.h"
 #include "common/woff2.h"
 #include "hb-subset.h"
 #include "ift/glyph_keyed_diff.h"
@@ -626,7 +627,7 @@ Status Encoder::PopulateGlyphKeyedPatchMap(
     auto it = glyph_data_segment_feature_dependencies_.find(id);
     if (it == glyph_data_segment_feature_dependencies_.end()) {
       // Just a regular entry mapped by codepoints only.
-      patch_map.AddEntry(e.second.codepoints, e.first, GLYPH_KEYED);
+      TRYV(patch_map.AddEntry(e.second.codepoints, e.first, GLYPH_KEYED));
       continue;
     }
 
@@ -651,7 +652,7 @@ Status Encoder::PopulateGlyphKeyedPatchMap(
             std::inserter(coverage.codepoints, coverage.codepoints.begin()));
       }
 
-      patch_map.AddEntry(coverage, id, GLYPH_KEYED);
+      TRYV(patch_map.AddEntry(coverage, id, GLYPH_KEYED));
     }
   }
   return absl::OkStatus();
@@ -718,7 +719,7 @@ StatusOr<FontData> Encoder::Encode(ProcessingContext& context,
     ids.push_back(id);
 
     PatchMap::Coverage coverage = s.ToCoverage();
-    table_keyed_patch_map.AddEntry(coverage, id, encoding);
+    TRYV(table_keyed_patch_map.AddEntry(coverage, id, encoding));
   }
 
   auto face = base->face();

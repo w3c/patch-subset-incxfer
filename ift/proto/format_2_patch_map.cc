@@ -30,7 +30,7 @@ using common::SparseBitSet;
 namespace ift::proto {
 
 constexpr uint8_t features_and_design_space_bit_mask = 1;
-constexpr uint8_t copy_mappings_bit_mask = 1 << 1;
+constexpr uint8_t copy_indices_bit_mask = 1 << 1;
 constexpr uint8_t index_delta_bit_mask = 1 << 2;
 constexpr uint8_t encoding_bit_mask = 1 << 3;
 constexpr uint8_t codepoint_bit_mask = 0b11 << 4;
@@ -55,20 +55,6 @@ static StatusOr<uint8_t> EncodingToInt(PatchEncoding encoding) {
 
   return absl::InvalidArgumentError(
       StrCat("Unknown patch encoding, ", encoding));
-}
-
-static StatusOr<PatchEncoding> IntToEncoding(uint8_t value) {
-  switch (value) {
-    case 1:
-      return TABLE_KEYED_FULL;
-    case 2:
-      return TABLE_KEYED_PARTIAL;
-    case 3:
-      return GLYPH_KEYED;
-      // fall through.
-    default:
-      return absl::InvalidArgumentError("Unrecognized encoding value.");
-  }
 }
 
 static PatchEncoding PickDefaultEncoding(const PatchMap& patch_map) {
@@ -100,8 +86,6 @@ static uint32_t NumEntries(const PatchMap& map) {
 // Decides whether to use 0, 1, or 2 bytes of bias.
 static uint8_t BiasBytes(const PatchMap::Coverage& coverage);
 
-static uint8_t BiasBytes(uint8_t format);
-
 // Returns the two bit format used for the given number of bias bytes.
 static uint8_t BiasFormat(uint8_t bias_bytes);
 
@@ -118,17 +102,6 @@ static Status EncodeEntry(const PatchMap::Entry& entry,
 static void EncodeCodepoints(uint8_t bias_bytes,
                              const PatchMap::Coverage& coverage,
                              std::string& out);
-
-static Status DecodeAxisSegment(absl::string_view data, hb_tag_t& tag,
-                                common::AxisRange& range);
-
-static Status DecodeEntries(absl::string_view data, uint16_t count,
-                            PatchEncoding default_encoding, PatchMap& out);
-
-static StatusOr<absl::string_view> DecodeEntry(absl::string_view data,
-                                               PatchEncoding default_encoding,
-                                               uint32_t& entry_index,
-                                               PatchMap& out);
 
 StatusOr<std::string> Format2PatchMap::Serialize(const IFTTable& ift_table) {
   // TODO(garretrieger): pre-reserve estimated capacity based on patch_map.
@@ -194,112 +167,6 @@ Status DecodeAxisSegment(absl::string_view data, hb_tag_t& tag,
   return absl::OkStatus();
 }
 
-Status DecodeEntries(absl::string_view data, uint16_t count,
-                     PatchEncoding default_encoding, PatchMap& out) {
-  uint32_t entry_index = 0;
-  for (uint32_t i = 0; i < count; i++) {
-    auto s = DecodeEntry(data, default_encoding, entry_index, out);
-    if (!s.ok()) {
-      return s.status();
-    }
-    data = *s;
-  }
-  return absl::OkStatus();
-}
-
-StatusOr<absl::string_view> DecodeEntry(absl::string_view data,
-                                        PatchEncoding default_encoding,
-                                        uint32_t& entry_index, PatchMap& out) {
-  if (data.empty()) {
-    return absl::InvalidArgumentError(
-        "Not enough input data to decode mapping entry.");
-  }
-
-  PatchMap::Coverage coverage;
-
-  READ_UINT8(format, data, 0);
-  uint32_t offset = 1;
-
-  if (format & features_and_design_space_bit_mask) {
-    READ_UINT8(feature_count, data, offset++);
-    for (unsigned i = 0; i < feature_count; i++) {
-      READ_UINT32(next_tag, data, offset);
-      coverage.features.insert(next_tag);
-      offset += 4;
-    }
-    READ_UINT16(segment_count, data, offset);
-    offset += 2;
-    for (uint16_t i = 0; i < segment_count; i++) {
-      hb_tag_t tag;
-      common::AxisRange range;
-      auto s = DecodeAxisSegment(data.substr(offset), tag, range);
-      if (!s.ok()) {
-        return s;
-      }
-      coverage.design_space[tag] = range;
-      offset += 12;
-    }
-  }
-
-  if (format & copy_mappings_bit_mask) {
-    READ_UINT16(copy_count, data, offset);
-    offset += 2 + copy_count * 2;
-    // TODO(garretrieger): read in copies
-  }
-
-  entry_index++;
-  if (format & index_delta_bit_mask) {
-    READ_INT16(delta, data, offset);
-    entry_index += delta;
-    offset += 2;
-  }
-
-  if (format & encoding_bit_mask) {
-    READ_UINT8(encoding_int, data, offset++);
-    auto new_encoding = IntToEncoding(encoding_int);
-    if (!new_encoding.ok()) {
-      return new_encoding.status();
-    }
-    default_encoding = *new_encoding;
-  }
-
-  if (format & codepoint_bit_mask) {
-    uint8_t bias_bytes = BiasBytes(format);
-    uint32_t bias = 0;
-    if (bias_bytes == 2) {
-      READ_UINT16(bias_val, data, offset);
-      bias = bias_val;
-      offset += bias_bytes;
-    }
-
-    if (bias_bytes == 3) {
-      READ_UINT24(bias_val, data, offset);
-      bias = bias_val;
-      offset += bias_bytes;
-    }
-
-    hb_set_unique_ptr codepoint_set = make_hb_set();
-    auto s = SparseBitSet::Decode(data.substr(offset), codepoint_set.get());
-    if (!s.ok()) {
-      return s;
-    }
-
-    data = *s;
-    offset = 0;
-
-    hb_codepoint_t cp = HB_SET_VALUE_INVALID;
-    while (hb_set_next(codepoint_set.get(), &cp)) {
-      coverage.codepoints.insert(cp + bias);
-    }
-  }
-
-  if (!(format & ignore_bit_mask)) {
-    out.AddEntry(coverage, entry_index, default_encoding);
-  }
-
-  return data.substr(offset);
-}
-
 Status EncodeAxisSegment(hb_tag_t tag, const common::AxisRange& range,
                          std::string& out) {
   FontHelper::WriteUInt32(tag, out);
@@ -338,18 +205,6 @@ uint8_t BiasBytes(const PatchMap::Coverage& coverage) {
   }
 
   return result;
-}
-
-static uint8_t BiasBytes(uint8_t format) {
-  if ((format & codepoint_bit_mask) == two_byte_bias) {
-    return 2;
-  }
-
-  if ((format & codepoint_bit_mask) == three_byte_bias) {
-    return 3;
-  }
-
-  return 0;
 }
 
 void EncodeCodepoints(uint8_t bias_bytes, const PatchMap::Coverage& coverage,
