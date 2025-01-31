@@ -154,7 +154,8 @@ Status ConfigureEncoder(EncoderConfig config, Encoder& encoder) {
           "Deps with more than one feature or segment aren't supported yet.");
     }
 
-    uint32_t required_segment_id = dep.required_patch_groups().at(0).values().at(0);
+    uint32_t required_segment_id =
+        dep.required_patch_groups().at(0).values().at(0);
     hb_tag_t tag = FontHelper::ToTag(dep.required_features().values().at(0));
     TRYV(encoder.AddFeatureDependency(required_segment_id, id, tag));
   }

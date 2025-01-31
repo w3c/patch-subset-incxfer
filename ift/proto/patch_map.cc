@@ -39,57 +39,6 @@ static bool sets_intersect(const S& a, const S& b) {
   return false;
 }
 
-bool PatchMap::Coverage::Intersects(
-    const flat_hash_set<uint32_t>& codepoints_in,
-    const btree_set<hb_tag_t>& features_in,
-    const absl::flat_hash_map<hb_tag_t, common::AxisRange>& design_space_in)
-    const {
-  // If an input set is unspecified (empty), it is considered to not match the
-  // corresponding coverage set if that set is specified (not empty).
-  if (codepoints_in.empty() && !codepoints.empty()) {
-    return false;
-  }
-
-  if (features_in.empty() && !features.empty()) {
-    return false;
-  }
-
-  if (design_space_in.empty() && !design_space.empty()) {
-    return false;
-  }
-
-  // Otherwise, if the coverage set is unspecified (empty) it is considered to
-  // match all things so only check for intersections if the input and coverage
-  // sets are non-empty.
-  if (!codepoints_in.empty() && !codepoints.empty()) {
-    if (!sets_intersect(codepoints_in, codepoints)) {
-      return false;
-    }
-  }
-
-  if (!features_in.empty() && !features.empty()) {
-    if (!sets_intersect(features_in, features)) {
-      return false;
-    }
-  }
-
-  if (!design_space_in.empty() && !design_space.empty()) {
-    bool has_intersection = false;
-    for (const auto& [tag, range] : design_space) {
-      auto e = design_space_in.find(tag);
-      if (e != design_space_in.end() && range.Intersects(e->second)) {
-        has_intersection = true;
-        break;
-      }
-    }
-    if (!has_intersection) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
 void PrintTo(const PatchMap::Coverage& coverage, std::ostream* os) {
   absl::btree_set<uint32_t> sorted_codepoints;
   std::copy(coverage.codepoints.begin(), coverage.codepoints.end(),
@@ -161,13 +110,27 @@ void PrintTo(const PatchMap& map, std::ostream* os) {
 
 Span<const PatchMap::Entry> PatchMap::GetEntries() const { return entries_; }
 
-void PatchMap::AddEntry(const PatchMap::Coverage& coverage,
-                        uint32_t patch_index, PatchEncoding encoding) {
+Status PatchMap::AddEntry(const PatchMap::Coverage& coverage,
+                          uint32_t patch_index, PatchEncoding encoding,
+                          bool ignored) {
+  // If copy indices are present ensure they refer only to entries prior to this
+  // one.
+  if (!coverage.copy_indices.empty()) {
+    for (uint32_t index : coverage.copy_indices) {
+      if (index >= entries_.size()) {
+        return absl::InvalidArgumentError(
+            absl::StrCat("Invalid copy index. ", index, " is out of bounds."));
+      }
+    }
+  }
+
   Entry e;
   e.coverage = coverage;
   e.patch_index = patch_index;
   e.encoding = encoding;
+  e.ignored = ignored;
   entries_.push_back(std::move(e));
+  return absl::OkStatus();
 }
 
 }  // namespace ift::proto
