@@ -63,15 +63,16 @@ message EncoderConfig {
   //
   // The key of the mapping is an integer id which other parts of the configuration can use to reference
   // the segment.
-  map<uint32, Glyphs> glyph_segments = 1;
+  map<uint32, Glyphs> glyph_patches = 1;
 
-  // Encodes a depencies between other glyph patches and layout features.
+  // Lists the conditions under which the patches specified in glyph_patches will be loaded. Every patch
+  // should be given at least one condition here other wise it won't be accessible in the produced mapping.
   //
   // An entry in this map implies that the patch mapping entry for the glyph patch identified by the key
-  // will be set up such that it will only be matched for loading iff:
-  // - All of GlyphPatchDependency.required_patches are matched, AND
+  // will be set up such that it will only be activated for loading iff:
+  // - At least one patch in each ActivationCondition.required_patch_groups is matched, AND
   // - All of GlyphPatchDependency.required_features are matched.
-  map<uint32, GlyphPatchDependency> glyph_patch_dependencies = 2;
+  map<uint32, ActivationCondition> glyph_patch_conditions = 2;
 
   // ### Non Glyph Extension Configuration ###
 
@@ -142,8 +143,13 @@ message EncoderConfig {
   bool add_everything_else_segments = 14;
 }
 
-message GlyphPatchDependency {
-  GlyphPatches required_patches = 1;
+// Activated when at least one of every patch group is matched and all required_features match.
+// More formally, if p_i_j is patch j in group i, and f_i is feature i:
+//
+// (p_1_1 OR p_1_2 OR ...) AND (p_2_1 OR ...) AND
+// f_1 AND f_2 AND ...
+message ActivationCondition {
+  repeated GlyphPatches required_patch_groups = 1;
   Features required_features = 2;
 }
 
