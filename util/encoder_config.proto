@@ -68,11 +68,14 @@ message EncoderConfig {
   // Lists the conditions under which the patches specified in glyph_patches will be loaded. Every patch
   // should be given at least one condition here other wise it won't be accessible in the produced mapping.
   //
-  // An entry in this map implies that the patch mapping entry for the glyph patch identified by the key
-  // will be set up such that it will only be activated for loading iff:
+  // An entry in this map implies that the patch mapping entry for the glyph patch identified by
+  // ActivationCondition.activated_patch will be set up such that it will only be activated for loading iff:
   // - At least one patch in each ActivationCondition.required_patch_groups is matched, AND
   // - All of GlyphPatchDependency.required_features are matched.
-  map<uint32, ActivationCondition> glyph_patch_conditions = 2;
+  //
+  // More then one condition can exist for the same patch. That patch will be activated when at least one
+  // condition is satisfied.
+  repeated ActivationCondition glyph_patch_conditions = 2;
 
   // ### Non Glyph Extension Configuration ###
 
@@ -151,6 +154,7 @@ message EncoderConfig {
 message ActivationCondition {
   repeated GlyphPatches required_patch_groups = 1;
   Features required_features = 2;
+  uint32_t activated_patch = 3;
 }
 
 // A list of glyph patch ids
