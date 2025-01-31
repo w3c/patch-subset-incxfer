@@ -29,6 +29,8 @@ class Encoder {
   typedef absl::flat_hash_map<hb_tag_t, common::AxisRange> design_space_t;
 
   // TODO XXXXXX be consistent with terminology used for patches/segments (ie. standardize on one or the other throughout).
+  // TODO XXXXXX have all conditions be provided even for the initial segment, and then expand the base subset
+  //             based on what segments are requested. Add a test for this expansion.
 
   /*
    *  This conditions is satisfied if the input subset definition matches at
@@ -39,6 +41,15 @@ class Encoder {
     std::vector<absl::btree_set<uint32_t>> required_groups;
     absl::btree_set<hb_tag_t> required_features;
     uint32_t activated_segment_id;
+
+    Condition() :
+      required_groups(),
+      activated_segment_id(0) {}
+
+    // Construct a condition that maps a segment to itself.
+    Condition(uint32_t segment_id) :
+      required_groups({{segment_id}}),
+      activated_segment_id(segment_id) {}
 
     // Returns true if this condition is activated by exactly one segment and no
     // features.

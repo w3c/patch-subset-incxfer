@@ -58,6 +58,8 @@ typedef btree_map<std::string, btree_set<std::string>> graph;
 constexpr hb_tag_t kWght = HB_TAG('w', 'g', 'h', 't');
 constexpr hb_tag_t kWdth = HB_TAG('w', 'd', 't', 'h');
 
+// TODO XXXX add a test that checks the constructed glyph map for a case with complicated conditions.
+
 class EncoderTest : public ::testing::Test {
  protected:
   EncoderTest() {

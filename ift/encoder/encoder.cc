@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <cstdio>
 #include <iterator>
 #include <memory>
 #include <optional>
@@ -378,20 +379,20 @@ Status Encoder::AddGlyphDataSegment(uint32_t id,
 }
 
 Status Encoder::AddGlyphDataActivationCondition(Condition condition) {
-  /*
-  TODO check all referenced ids exist.
-  if (!glyph_data_segments_.contains(original_id)) {
-    return absl::InvalidArgumentError(
-        StrCat("Glyh keyed segment ", original_id,
+  for (const auto& group : condition.required_groups) {
+    for (const auto& id : group) {
+      if (!glyph_data_segments_.contains(id)) {
+        return absl::InvalidArgumentError(StrCat("Glyh keyed segment ", id,
                " has not been supplied via AddGlyphDataSegment()"));
+      }
+    }
   }
-  if (!glyph_data_segments_.contains(id)) {
-    return absl::InvalidArgumentError(
-        StrCat("Glyph keyed segment ", id,
-               " has not been supplied via AddGlyphDataSegment()"));
+  if (!glyph_data_segments_.contains(condition.activated_segment_id)) {
+    return absl::InvalidArgumentError(StrCat("Glyh keyed segment ", condition.activated_segment_id,
+             " has not been supplied via AddGlyphDataSegment()"));
   }
-  */
-  return absl::UnimplementedError("TODO");
+  activation_conditions_.insert(condition);
+  return absl::OkStatus();
 }
 
 Status Encoder::AddFeatureDependency(uint32_t original_id, uint32_t id,
@@ -725,7 +726,7 @@ Status Encoder::PopulateGlyphKeyedPatchMap(PatchMap& patch_map) const {
   uint32_t next_entry_index = 0;
   uint32_t last_patch_id = 0;
   for (auto condition = remaining_conditions.begin();
-       condition != remaining_conditions.begin();) {
+       condition != remaining_conditions.end();) {
     bool remove = false;
     for (const auto& group : condition->required_groups) {
       for (uint32_t patch_id : group) {
@@ -763,7 +764,7 @@ Status Encoder::PopulateGlyphKeyedPatchMap(PatchMap& patch_map) const {
     }
 
     if (remove) {
-      remaining_conditions.erase(condition++);
+      condition = remaining_conditions.erase(condition);
     } else {
       ++condition;
     }
@@ -775,7 +776,7 @@ Status Encoder::PopulateGlyphKeyedPatchMap(PatchMap& patch_map) const {
   // like in Phase 1).
   flat_hash_map<btree_set<uint32_t>, uint32_t> patch_group_to_entry_index;
   for (auto condition = remaining_conditions.begin();
-       condition != remaining_conditions.begin();) {
+       condition != remaining_conditions.end();) {
     bool remove = false;
     for (const auto& group : condition->required_groups) {
       if (group.size() <= 1 || patch_group_to_entry_index.contains(group)) {
@@ -802,7 +803,7 @@ Status Encoder::PopulateGlyphKeyedPatchMap(PatchMap& patch_map) const {
     }
 
     if (remove) {
-      remaining_conditions.erase(condition++);
+      condition = remaining_conditions.erase(condition);
     } else {
       ++condition;
     }
@@ -811,7 +812,7 @@ Status Encoder::PopulateGlyphKeyedPatchMap(PatchMap& patch_map) const {
   // Phase 3 for any remaining conditions create the actual entries utilizing
   // the groups (phase 2) and base entries (phase 1) as needed
   for (auto condition = remaining_conditions.begin();
-       condition != remaining_conditions.begin(); condition++) {
+       condition != remaining_conditions.end(); condition++) {
     PatchMap::Coverage coverage;
     coverage.copy_mode_append = true;  // append the groups (AND)
 
