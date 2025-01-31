@@ -68,7 +68,7 @@ StatusOr<EncoderConfig> create_config(
     const btree_set<uint32_t>& loaded_chunks) {
   EncoderConfig config;
   // Populate segments in the config. chunks are directly analagous to segments.
-  auto segments = config.mutable_glyph_segments();
+  auto segments = config.mutable_glyph_patches();
   for (const auto [gid, chunk] : gid_map) {
     Glyphs glyphs;
     auto [it, added] = segments->insert(std::pair(chunk, glyphs));

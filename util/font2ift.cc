@@ -142,18 +142,19 @@ StatusOr<Encoder::design_space_t> to_design_space(const DesignSpace& proto) {
 
 Status ConfigureEncoder(EncoderConfig config, Encoder& encoder) {
   // First configure the glyph keyed segments, including features deps
-  for (const auto& [id, gids] : config.glyph_segments()) {
+  for (const auto& [id, gids] : config.glyph_patches()) {
     TRYV(encoder.AddGlyphDataSegment(id, values(gids)));
   }
 
-  for (const auto& [id, dep] : config.glyph_patch_dependencies()) {
-    if (dep.required_patches().values_size() != 1 ||
+  for (const auto& [id, dep] : config.glyph_patch_conditions()) {
+    if (dep.required_patch_groups_size() != 1 ||
+        dep.required_patch_groups().at(0).values_size() != 1 ||
         dep.required_features().values_size() != 1) {
       return absl::UnimplementedError(
           "Deps with more than one feature or segment aren't supported yet.");
     }
 
-    uint32_t required_segment_id = dep.required_patches().values().at(0);
+    uint32_t required_segment_id = dep.required_patch_groups().at(0).values().at(0);
     hb_tag_t tag = FontHelper::ToTag(dep.required_features().values().at(0));
     TRYV(encoder.AddFeatureDependency(required_segment_id, id, tag));
   }
