@@ -382,14 +382,16 @@ Status Encoder::AddGlyphDataActivationCondition(Condition condition) {
   for (const auto& group : condition.required_groups) {
     for (const auto& id : group) {
       if (!glyph_data_segments_.contains(id)) {
-        return absl::InvalidArgumentError(StrCat("Glyh keyed segment ", id,
-               " has not been supplied via AddGlyphDataSegment()"));
+        return absl::InvalidArgumentError(
+            StrCat("Glyh keyed segment ", id,
+                   " has not been supplied via AddGlyphDataSegment()"));
       }
     }
   }
   if (!glyph_data_segments_.contains(condition.activated_segment_id)) {
-    return absl::InvalidArgumentError(StrCat("Glyh keyed segment ", condition.activated_segment_id,
-             " has not been supplied via AddGlyphDataSegment()"));
+    return absl::InvalidArgumentError(
+        StrCat("Glyh keyed segment ", condition.activated_segment_id,
+               " has not been supplied via AddGlyphDataSegment()"));
   }
   activation_conditions_.insert(condition);
   return absl::OkStatus();
@@ -778,6 +780,12 @@ Status Encoder::PopulateGlyphKeyedPatchMap(PatchMap& patch_map) const {
   for (auto condition = remaining_conditions.begin();
        condition != remaining_conditions.end();) {
     bool remove = false;
+
+    if (condition->required_features.size() > 1) {
+      return absl::UnimplementedError(
+          "Conditions with more than one feature are not yet supported.");
+    }
+
     for (const auto& group : condition->required_groups) {
       if (group.size() <= 1 || patch_group_to_entry_index.contains(group)) {
         // don't handle groups of size one, those will just reference the base
@@ -788,9 +796,18 @@ Status Encoder::PopulateGlyphKeyedPatchMap(PatchMap& patch_map) const {
       PatchMap::Coverage coverage;
       coverage.copy_mode_append =
           false;  // union the group members together (OR).
-      coverage.copy_indices = group;
 
-      if (condition->required_groups.size() == 1) {
+      for (uint32_t patch_id : group) {
+        auto entry_index = patch_id_to_entry_index.find(patch_id);
+        if (entry_index == patch_id_to_entry_index.end()) {
+          return absl::InternalError(StrCat("entry for patch_id = ", patch_id,
+                                            " was not previously created."));
+        }
+        coverage.copy_indices.insert(entry_index->second);
+      }
+
+      if (condition->required_groups.size() == 1 &&
+          condition->required_features.size() == 0) {
         TRYV(patch_map.AddEntry(coverage, condition->activated_segment_id,
                                 GLYPH_KEYED));
         last_patch_id = condition->activated_segment_id;
@@ -824,6 +841,14 @@ Status Encoder::PopulateGlyphKeyedPatchMap(PatchMap& patch_map) const {
 
       coverage.copy_indices.insert(patch_group_to_entry_index[group]);
     }
+
+    // TODO(garretrieger): required_features implies f1 AND f2 ..., but
+    // coverage.features matches on OR.
+    //                     above we fail on any conditions with more than one
+    //                     feature, so for now this works. Need to correctly
+    //                     implement handling more than one feature by creating
+    //                     an appropriate composite entry.
+    coverage.features = condition->required_features;
 
     TRYV(patch_map.AddEntry(coverage, condition->activated_segment_id,
                             GLYPH_KEYED));

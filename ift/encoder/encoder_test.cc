@@ -58,8 +58,6 @@ typedef btree_map<std::string, btree_set<std::string>> graph;
 constexpr hb_tag_t kWght = HB_TAG('w', 'g', 'h', 't');
 constexpr hb_tag_t kWdth = HB_TAG('w', 'd', 't', 'h');
 
-// TODO XXXX add a test that checks the constructed glyph map for a case with complicated conditions.
-
 class EncoderTest : public ::testing::Test {
  protected:
   EncoderTest() {
@@ -694,6 +692,116 @@ TEST_F(EncoderTest, Encode_FourSubsets_WithJumpAhead) {
       {"abcd", {}},
   };
   ASSERT_EQ(g, expected);
+}
+
+void ClearCompatIdFromFormat2(uint8_t* data) {
+  for (uint32_t index = 5; index < (5 + 16); index++) {
+    data[index] = 0;
+  }
+}
+
+TEST_F(EncoderTest, Encode_ComplicatedActivationConditions) {
+  Encoder encoder;
+  hb_face_t* face = font.reference_face();
+  encoder.SetFace(face);
+
+  auto s = encoder.SetBaseSubset({});
+  s.Update(encoder.AddGlyphDataSegment(1, {69}));  // a
+  s.Update(encoder.AddGlyphDataSegment(2, {70}));  // b
+  s.Update(encoder.AddGlyphDataSegment(3, {71}));  // c
+  s.Update(encoder.AddGlyphDataSegment(4, {72}));  // d
+  s.Update(encoder.AddGlyphDataSegment(5, {50}));
+  s.Update(encoder.AddGlyphDataSegment(6, {60}));
+  s.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({1, 2, 3, 4}));
+
+  Encoder::Condition condition;
+  s.Update(encoder.AddGlyphDataActivationCondition(Encoder::Condition(2)));
+
+  condition.required_groups = {{3}};
+  condition.activated_segment_id = 4;
+  s.Update(encoder.AddGlyphDataActivationCondition(condition));
+
+  condition.required_groups = {{1, 3}};
+  condition.activated_segment_id = 5;
+  s.Update(encoder.AddGlyphDataActivationCondition(condition));
+
+  condition.required_groups = {{1, 3}, {2, 4}};
+  condition.activated_segment_id = 6;
+  s.Update(encoder.AddGlyphDataActivationCondition(condition));
+
+  ASSERT_TRUE(s.ok()) << s;
+  auto encoding = encoder.Encode();
+  hb_face_destroy(face);
+
+  ASSERT_TRUE(encoding.ok()) << encoding.status();
+  auto encoded_face = encoding->init_font.face();
+
+  auto ift_table =
+      FontHelper::TableData(encoded_face.get(), HB_TAG('I', 'F', 'T', 'X'));
+  std::string ift_table_copy = ift_table.string();
+  ClearCompatIdFromFormat2((uint8_t*)ift_table_copy.data());
+  ift_table.copy(ift_table_copy);
+
+  // a = gid69 = cp97
+  // b = gid70 = cp98
+  // c = gid71 = cp99
+  // d = gid72 = cp100
+  uint8_t expected_format2[] = {
+      0x02,                    // format
+      0x00, 0x00, 0x00, 0x00,  // reserved
+      0x0, 0x0, 0x0, 0x0,      // compat id[0]
+      0x0, 0x0, 0x0, 0x0,      // compat id[1]
+      0x0, 0x0, 0x0, 0x0,      // compat id[2]
+      0x0, 0x0, 0x0, 0x0,      // compat id[3]
+      0x03,                    // default patch format = glyph keyed
+      0x00, 0x00, 0x07,        // entry count = 7
+      0x00, 0x00, 0x00, 0x2c,  // entries offset
+      0x00, 0x00, 0x00, 0x00,  // string data offset (NULL)
+      0x00, 0x09,              // uri template length
+      0x31, 0x5f, 0x7b, 0x69,  // uri template
+      0x64, 0x7d, 0x2e, 0x67,  // uri template
+      0x6b,                    // uri template
+
+      // entry[0] {{2}} -> 2,
+      0b00010100,        // format (id delta, code points no bias)
+      0x00, 0x00, 0x01,  // delta +1, id = 2
+      0x11, 0x42, 0x41,  // sparse set {b}
+
+      // entry[1] {{3}} -> 4
+      0b00010100,        // format (id delta, code points no bias)
+      0x00, 0x00, 0x01,  // delta +1, id = 4
+      0x11, 0x42, 0x81,  // sparse set {c}
+
+      // entry[2] {{1}} ignored
+      0b01010000,        // format (ignored, code poitns no bias)
+      0x11, 0x42, 0x21,  // sparse set {a}
+
+      // entry[3] {{4}} ignored
+      0b01010000,        // format (ignored, code poitns no bias)
+      0x11, 0x42, 0x12,  // sparse set {d}
+
+      // entry[4] {{1 OR 3}} -> 5
+      0b00000110,        // format (copy indices, id delta)
+      0x02,              // copy mode union, count 2
+      0x00, 0x00, 0x01,  // copy entry[1] 'c'
+      0x00, 0x00, 0x02,  // copy entry[2] 'a'
+      0xff, 0xff, 0xfe,  // delta -2, id = 5
+
+      // entry[5] {{2 OR 4}} ignored
+      0b01000010,        // format (ignored, copy indices)
+      0x02,              // copy mode union, count 2
+      0x00, 0x00, 0x00,  // copy entry[0] 'b'
+      0x00, 0x00, 0x03,  // copy entry[3] 'd'
+
+      // entry[6] {{1 OR 3} AND {2 OR 4}} -> 6
+      0b00000110,        // format (copy indices, id delta)
+      0x82,              // copy mode append, count 2
+      0x00, 0x00, 0x04,  // copy entry[4] {1 OR 3}
+      0x00, 0x00, 0x05,  // copy entry[5] {2 OR 4}
+      0xff, 0xff, 0xff   // delta -1, id = 6
+  };
+
+  ASSERT_EQ(ift_table.span(), absl::Span<const uint8_t>(expected_format2, 96));
 }
 
 TEST_F(EncoderTest, RoundTripWoff2) {

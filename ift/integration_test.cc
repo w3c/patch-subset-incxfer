@@ -87,7 +87,7 @@ class IntegrationTest : public ::testing::Test {
     auto sc = encoder.AddGlyphDataSegment(1, TestSegment1());
     sc.Update(encoder.AddGlyphDataSegment(2, TestSegment2()));
     sc.Update(encoder.AddGlyphDataSegment(3, TestSegment3()));
-    sc.Update(encoder.AddGlyphDataSegment(4, TestSegment4()));    
+    sc.Update(encoder.AddGlyphDataSegment(4, TestSegment4()));
 
     return sc;
   }
@@ -212,6 +212,8 @@ bool GvarDataMatches(hb_face_t* a, hb_face_t* b, uint32_t codepoint,
 
 // TODO(garretrieger): full expansion test.
 // TODO(garretrieger): test of a woff2 encoded IFT font.
+// TODO XXXXX a test which checks for proper expansion of the base subset based
+// on specified conditions.
 
 TEST_F(IntegrationTest, TableKeyedOnly) {
   Encoder encoder;
