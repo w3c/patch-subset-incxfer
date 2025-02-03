@@ -146,18 +146,29 @@ Status ConfigureEncoder(EncoderConfig config, Encoder& encoder) {
     TRYV(encoder.AddGlyphDataSegment(id, values(gids)));
   }
 
-  for (const auto& [id, dep] : config.glyph_patch_conditions()) {
-    if (dep.required_patch_groups_size() != 1 ||
-        dep.required_patch_groups().at(0).values_size() != 1 ||
-        dep.required_features().values_size() != 1) {
+  for (const auto& c : config.glyph_patch_conditions()) {
+    if (c.required_features().values_size() > 1) {
       return absl::UnimplementedError(
-          "Deps with more than one feature or segment aren't supported yet.");
+          "Conditions with more than one feature or segment aren't supported "
+          "yet.");
     }
 
-    uint32_t required_segment_id =
-        dep.required_patch_groups().at(0).values().at(0);
-    hb_tag_t tag = FontHelper::ToTag(dep.required_features().values().at(0));
-    TRYV(encoder.AddFeatureDependency(required_segment_id, id, tag));
+    Encoder::Condition condition;
+    for (const auto& g : c.required_patch_groups()) {
+      btree_set<uint32_t> group;
+      for (const auto& v : g.values()) {
+        group.insert(v);
+      }
+      condition.required_groups.push_back(group);
+    }
+
+    for (const auto& f : c.required_features().values()) {
+      condition.required_features.insert(FontHelper::ToTag(f));
+    }
+
+    condition.activated_segment_id = c.activated_patch();
+
+    TRYV(encoder.AddGlyphDataActivationCondition(condition));
   }
 
   // Initial subset definition
