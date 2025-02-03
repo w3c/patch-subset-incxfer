@@ -154,7 +154,7 @@ message EncoderConfig {
 message ActivationCondition {
   repeated GlyphPatches required_patch_groups = 1;
   Features required_features = 2;
-  uint32_t activated_patch = 3;
+  uint32 activated_patch = 3;
 }
 
 // A list of glyph patch ids
