@@ -31,6 +31,8 @@ typedef uint32_t glyph_id_t;
  */
 class GlyphSegmentation {
  public:
+  // TODO(garretrieger): merge this with Encoder::Condition they are basically
+  // identical.
   class ActivationCondition {
    public:
     /*
