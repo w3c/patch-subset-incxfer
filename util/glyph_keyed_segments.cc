@@ -13,6 +13,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "common/font_data.h"
+#include "common/hb_set_unique_ptr.h"
 #include "common/try.h"
 #include "hb.h"
 #include "ift/encoder/encoder.h"
@@ -28,7 +29,7 @@ ABSL_FLAG(std::string, input_font, "in.ttf",
           "Name of the font to convert to IFT.");
 
 ABSL_FLAG(
-    std::string, codepoints_file, "codepoints.txt",
+    std::string, codepoints_file, "",
     "Path to a file which defines the desired codepoint based segmentation.");
 
 ABSL_FLAG(uint32_t, number_of_segments, 2,
@@ -44,7 +45,9 @@ using common::FontData;
 using common::FontHelper;
 using common::hb_blob_unique_ptr;
 using common::hb_face_unique_ptr;
+using common::hb_set_unique_ptr;
 using common::make_hb_blob;
+using common::make_hb_set;
 using ift::encoder::Encoder;
 using ift::encoder::GlyphSegmentation;
 
@@ -100,6 +103,29 @@ StatusOr<std::vector<uint32_t>> LoadCodepoints(const char* path) {
   return out;
 }
 
+StatusOr<std::vector<uint32_t>> TargetCodepoints(
+    hb_face_t* font, const std::string& codepoints_file) {
+  hb_set_unique_ptr font_unicodes = make_hb_set();
+  hb_face_collect_unicodes(font, font_unicodes.get());
+  std::vector<uint32_t> codepoints_filtered;
+  if (!codepoints_file.empty()) {
+    auto codepoints = TRY(LoadCodepoints(codepoints_file.c_str()));
+    for (auto cp : codepoints) {
+      if (hb_set_has(font_unicodes.get(), cp)) {
+        codepoints_filtered.push_back(cp);
+      }
+    }
+  } else {
+    // No codepoints file, just use the full set of codepoints supported by the
+    // font.
+    hb_codepoint_t cp = HB_SET_VALUE_INVALID;
+    while (hb_set_next(font_unicodes.get(), &cp)) {
+      codepoints_filtered.push_back(cp);
+    }
+  }
+  return codepoints_filtered;
+}
+
 StatusOr<hb_face_unique_ptr> LoadFont(const char* filename) {
   return TRY(LoadFile(filename)).face();
 }
@@ -107,6 +133,10 @@ StatusOr<hb_face_unique_ptr> LoadFont(const char* filename) {
 constexpr uint32_t NETWORK_REQUEST_BYTE_OVERHEAD = 75;
 
 StatusOr<int> EncodingSize(const Encoder::Encoding& encoding) {
+  // There are three parts to the cost of a segmentation:
+  // - Size of the glyph keyed mapping table.
+  // - Total size of all glyph keyed patches
+  // - Network overhead (fixed cost per patch).
   auto init_font = encoding.init_font.face();
 
   uint32_t total_size = 0;
@@ -126,14 +156,12 @@ StatusOr<int> EncodingSize(const Encoder::Encoding& encoding) {
   return total_size;
 }
 
+// The "ideal" segmentation is one where if we could ignore the glyph closure
+// requirement then the glyphs could be evenly distributed between the desired
+// number of input segments. This should minimize overhead.
 StatusOr<int> IdealSegmentationSize(hb_face_t* font,
                                     const GlyphSegmentation& segmentation,
                                     uint32_t number_input_segments) {
-  // There are three parts to the cost of a segmentation:
-  // - Size of the glyph keyed mapping table.
-  // - Total size of all glyph keyed patches
-  // - Network overhead (fixed cost per patch).
-
   printf("IdealSegmentationSize():\n");
   btree_set<uint32_t> glyphs;
   for (const auto& [id, glyph_set] : segmentation.GidSegments()) {
@@ -174,10 +202,6 @@ StatusOr<int> IdealSegmentationSize(hb_face_t* font,
 
 StatusOr<int> SegmentationSize(hb_face_t* font,
                                const GlyphSegmentation& segmentation) {
-  // There are three parts to the cost of a segmentation:
-  // - Size of the glyph keyed mapping table.
-  // - Total size of all glyph keyed patches
-  // - Network overhead (fixed cost per patch).
   printf("SegmentationSize():\n");
   Encoder encoder;
   encoder.SetFace(font);
@@ -228,6 +252,7 @@ std::vector<flat_hash_set<uint32_t>> GroupCodepoints(
     group.insert(start, end);
     out.push_back(group);
   }
+
   return out;
 }
 
@@ -241,7 +266,7 @@ int main(int argc, char** argv) {
   }
 
   auto codepoints =
-      LoadCodepoints(absl::GetFlag(FLAGS_codepoints_file).c_str());
+      TargetCodepoints(font->get(), absl::GetFlag(FLAGS_codepoints_file));
   if (!codepoints.ok()) {
     std::cerr << "Failed to load codepoints file: " << codepoints.status()
               << std::endl;
@@ -266,12 +291,14 @@ int main(int argc, char** argv) {
   if (!cost.ok()) {
     std::cerr << "Failed to compute segmentation cost: " << cost.status()
               << std::endl;
+    return -1;
   }
   auto ideal_cost = IdealSegmentationSize(
       font->get(), *result, absl::GetFlag(FLAGS_number_of_segments));
   if (!ideal_cost.ok()) {
     std::cerr << "Failed to compute segmentation cost: " << cost.status()
               << std::endl;
+    return -1;
   }
 
   std::cout << std::endl;
@@ -280,9 +307,9 @@ int main(int argc, char** argv) {
   std::cout << "ideal_cost_bytes = " << *ideal_cost << std::endl;
   std::cout << "total_cost_bytes = " << *cost << std::endl;
 
-  double overhead_percent =
+  double over_ideal_percent =
       (((double)*cost) / ((double)*ideal_cost) * 100.0) - 100.0;
-  std::cout << "%_overhead = " << overhead_percent << std::endl;
+  std::cout << "%_extra_over_ideal = " << over_ideal_percent << std::endl;
 
   return 0;
 }
