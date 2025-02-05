@@ -90,14 +90,14 @@ TEST_F(Format2PatchMapTest, CopyIndices) {
   ASSERT_TRUE(sc.ok()) << sc;
 
   PatchMap::Coverage union_cov;
-  union_cov.copy_indices.insert(1);
-  union_cov.copy_indices.insert(0);
+  union_cov.child_indices.insert(1);
+  union_cov.child_indices.insert(0);
   sc = map.AddEntry(union_cov, 3, TABLE_KEYED_FULL);
   ASSERT_TRUE(sc.ok()) << sc;
 
   PatchMap::Coverage append_cov;
-  append_cov.copy_indices.insert(2);
-  append_cov.copy_mode_append = true;
+  append_cov.child_indices.insert(2);
+  append_cov.conjunctive = true;
   sc = map.AddEntry(append_cov, 4, TABLE_KEYED_FULL);
   ASSERT_TRUE(sc.ok()) << sc;
 

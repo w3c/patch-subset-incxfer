@@ -113,10 +113,10 @@ Span<const PatchMap::Entry> PatchMap::GetEntries() const { return entries_; }
 Status PatchMap::AddEntry(const PatchMap::Coverage& coverage,
                           uint32_t patch_index, PatchEncoding encoding,
                           bool ignored) {
-  // If copy indices are present ensure they refer only to entries prior to this
-  // one.
-  if (!coverage.copy_indices.empty()) {
-    for (uint32_t index : coverage.copy_indices) {
+  // If child indices are present ensure they refer only to entries prior to
+  // this one.
+  if (!coverage.child_indices.empty()) {
+    for (uint32_t index : coverage.child_indices) {
       if (index >= entries_.size()) {
         return absl::InvalidArgumentError(
             absl::StrCat("Invalid copy index. ", index, " is out of bounds."));

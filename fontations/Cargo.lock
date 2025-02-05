@@ -542,10 +542,9 @@ dependencies = [
 
 [[package]]
 name = "font-test-data"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
- "read-fonts",
- "write-fonts",
+ "font-types",
 ]
 
 [[package]]
@@ -1186,7 +1185,7 @@ dependencies = [
 
 [[package]]
 name = "read-fonts"
-version = "0.25.3"
+version = "0.26.0"
 dependencies = [
  "bytemuck",
  "core_maths",
@@ -1394,7 +1393,7 @@ checksum = "1de1d4f81173b03af4c0cbed3c898f6bff5b870e4a7f5d6f4057d62a7a4b686e"
 
 [[package]]
 name = "skrifa"
-version = "0.26.5"
+version = "0.27.0"
 dependencies = [
  "bytemuck",
  "core_maths",
@@ -1862,7 +1861,7 @@ dependencies = [
 
 [[package]]
 name = "write-fonts"
-version = "0.33.1"
+version = "0.34.0"
 dependencies = [
  "ansi_term",
  "bincode",

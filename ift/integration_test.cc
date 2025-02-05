@@ -592,6 +592,8 @@ TEST_F(IntegrationTest, MixedMode_OptionalFeatureTags) {
   ASSERT_FALSE(FontHelper::GlyfData(extended_face.get(), chunk6_gid)->empty());
 }
 
+// TODO XXXX test using complex composite activation conditions
+
 TEST_F(IntegrationTest, MixedMode_LocaLenChange) {
   Encoder encoder;
   auto sc = InitEncoderForMixedMode(encoder);

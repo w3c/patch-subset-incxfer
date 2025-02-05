@@ -56,14 +56,12 @@ class PatchMap {
     absl::btree_set<hb_tag_t> features;
     absl::btree_map<hb_tag_t, common::AxisRange> design_space;
 
-    // If true copy mode
-    // (https://w3c.github.io/IFT/Overview.html#mapping-entry-copymodeandcount)
-    // is "append", other it's "union".
-    bool copy_mode_append = false;
-    // Set of copy indices
-    // (https://w3c.github.io/IFT/Overview.html#mapping-entry-copyindices)
+    // https://w3c.github.io/IFT/Overview.html#mapping-entry-childentrymatchmodeandcount)
+    bool conjunctive = false;
+    // Set of child entry indices
+    // (https://w3c.github.io/IFT/Overview.html#mapping-entry-childentrymatchmodeandcount)
     // values are the indices of previous entries.
-    absl::btree_set<uint32_t> copy_indices;
+    absl::btree_set<uint32_t> child_indices;
   };
 
   struct Entry {
