@@ -592,7 +592,78 @@ TEST_F(IntegrationTest, MixedMode_OptionalFeatureTags) {
   ASSERT_FALSE(FontHelper::GlyfData(extended_face.get(), chunk6_gid)->empty());
 }
 
-// TODO XXXX test using complex composite activation conditions
+TEST_F(IntegrationTest, MixedMode_CompositeConditions) {
+  Encoder encoder;
+  auto sc = InitEncoderForMixedMode(encoder);
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  // target paritions: {}, {{1}, {2}, {3, 4}}
+  sc = encoder.SetBaseSubsetFromSegments({});
+  sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({1, 2, 3, 4}));
+  ASSERT_TRUE(sc.ok()) << sc;
+
+  // Setup some composite activation conditions
+  Encoder::Condition condition;
+  condition.required_groups = {{1, 2}, {3}};  // (1 OR 2) AND 3
+  condition.activated_segment_id = {4};
+  sc.Update(encoder.AddGlyphDataActivationCondition(condition));
+
+  condition.required_groups = {{1}, {2, 3}};  // 1 AND (2 OR 3)
+  condition.activated_segment_id = {3};
+  sc.Update(encoder.AddGlyphDataActivationCondition(condition));
+
+  auto encoding = encoder.Encode();
+  ASSERT_TRUE(encoding.ok()) << encoding.status();
+  auto encoded_face = encoding->init_font.face();
+
+  {
+    // No conditions satisfied.
+    auto extended = Extend(*encoding, {chunk1_cp});
+    ASSERT_TRUE(extended.ok()) << extended.status();
+    auto extended_face = extended->face();
+    ASSERT_TRUE(FontHelper::GlyfData(extended_face.get(), chunk1_gid)->empty());
+    ASSERT_TRUE(FontHelper::GlyfData(extended_face.get(), chunk2_gid)->empty());
+    ASSERT_TRUE(FontHelper::GlyfData(extended_face.get(), chunk3_gid)->empty());
+    ASSERT_TRUE(FontHelper::GlyfData(extended_face.get(), chunk4_gid)->empty());
+  }
+
+  {
+    // (1 OR 2) AND 3 satisfied, chunk 4 loaded
+    auto extended = Extend(*encoding, {chunk2_cp, chunk3_cp});
+    ASSERT_TRUE(extended.ok()) << extended.status();
+    auto extended_face = extended->face();
+    ASSERT_TRUE(FontHelper::GlyfData(extended_face.get(), chunk1_gid)->empty());
+    ASSERT_TRUE(FontHelper::GlyfData(extended_face.get(), chunk2_gid)->empty());
+    ASSERT_TRUE(FontHelper::GlyfData(extended_face.get(), chunk3_gid)->empty());
+    ASSERT_FALSE(
+        FontHelper::GlyfData(extended_face.get(), chunk4_gid)->empty());
+  }
+
+  {
+    // 1 AND (2 OR 3) 3 satisfied, chunk 3 loaded
+    auto extended = Extend(*encoding, {chunk1_cp, chunk2_cp});
+    ASSERT_TRUE(extended.ok()) << extended.status();
+    auto extended_face = extended->face();
+    ASSERT_TRUE(FontHelper::GlyfData(extended_face.get(), chunk1_gid)->empty());
+    ASSERT_TRUE(FontHelper::GlyfData(extended_face.get(), chunk2_gid)->empty());
+    ASSERT_FALSE(
+        FontHelper::GlyfData(extended_face.get(), chunk3_gid)->empty());
+    ASSERT_TRUE(FontHelper::GlyfData(extended_face.get(), chunk4_gid)->empty());
+  }
+
+  {
+    // both conditions satisfied chunk 3 and 4 loaded
+    auto extended = Extend(*encoding, {chunk1_cp, chunk2_cp, chunk3_cp});
+    ASSERT_TRUE(extended.ok()) << extended.status();
+    auto extended_face = extended->face();
+    ASSERT_TRUE(FontHelper::GlyfData(extended_face.get(), chunk1_gid)->empty());
+    ASSERT_TRUE(FontHelper::GlyfData(extended_face.get(), chunk2_gid)->empty());
+    ASSERT_FALSE(
+        FontHelper::GlyfData(extended_face.get(), chunk3_gid)->empty());
+    ASSERT_FALSE(
+        FontHelper::GlyfData(extended_face.get(), chunk4_gid)->empty());
+  }
+}
 
 TEST_F(IntegrationTest, MixedMode_LocaLenChange) {
   Encoder encoder;
