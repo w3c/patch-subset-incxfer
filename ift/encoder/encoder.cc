@@ -794,8 +794,7 @@ Status Encoder::PopulateGlyphKeyedPatchMap(PatchMap& patch_map) const {
       }
 
       PatchMap::Coverage coverage;
-      coverage.copy_mode_append =
-          false;  // union the group members together (OR).
+      coverage.conjunctive = false;  // ... OR ...
 
       for (uint32_t patch_id : group) {
         auto entry_index = patch_id_to_entry_index.find(patch_id);
@@ -803,7 +802,7 @@ Status Encoder::PopulateGlyphKeyedPatchMap(PatchMap& patch_map) const {
           return absl::InternalError(StrCat("entry for patch_id = ", patch_id,
                                             " was not previously created."));
         }
-        coverage.copy_indices.insert(entry_index->second);
+        coverage.child_indices.insert(entry_index->second);
       }
 
       if (condition->required_groups.size() == 1 &&
@@ -831,15 +830,15 @@ Status Encoder::PopulateGlyphKeyedPatchMap(PatchMap& patch_map) const {
   for (auto condition = remaining_conditions.begin();
        condition != remaining_conditions.end(); condition++) {
     PatchMap::Coverage coverage;
-    coverage.copy_mode_append = true;  // append the groups (AND)
+    coverage.conjunctive = true;  // ... AND ...
 
     for (const auto& group : condition->required_groups) {
       if (group.size() == 1) {
-        coverage.copy_indices.insert(patch_id_to_entry_index[*group.begin()]);
+        coverage.child_indices.insert(patch_id_to_entry_index[*group.begin()]);
         continue;
       }
 
-      coverage.copy_indices.insert(patch_group_to_entry_index[group]);
+      coverage.child_indices.insert(patch_group_to_entry_index[group]);
     }
 
     // TODO(garretrieger): required_features implies f1 AND f2 ..., but

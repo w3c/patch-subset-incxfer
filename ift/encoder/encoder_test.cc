@@ -700,6 +700,10 @@ void ClearCompatIdFromFormat2(uint8_t* data) {
   }
 }
 
+// TODO(garretrieger): XXXXXXX test with activation conditions that ensures they
+// are expanded appropriately in the
+//                     initial font.
+
 TEST_F(EncoderTest, Encode_ComplicatedActivationConditions) {
   Encoder encoder;
   hb_face_t* face = font.reference_face();

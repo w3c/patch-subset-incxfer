@@ -136,7 +136,7 @@ TEST_F(PatchMapTest, AddEntry_WithCopyIndices) {
   };
 
   PatchMap::Coverage cov;
-  cov.copy_indices = {0, 1};
+  cov.child_indices = {0, 1};
 
   auto sc = map.AddEntry(cov, 5, TABLE_KEYED_FULL);
   ASSERT_TRUE(sc.ok()) << sc;
@@ -151,7 +151,7 @@ TEST_F(PatchMapTest, AddEntry_InvalidCopyIndices) {
   };
 
   PatchMap::Coverage cov;
-  cov.copy_indices = {0, 2};
+  cov.child_indices = {0, 2};
 
   auto sc = map.AddEntry(cov, 5, TABLE_KEYED_FULL);
   ASSERT_EQ(sc, absl::InvalidArgumentError(
