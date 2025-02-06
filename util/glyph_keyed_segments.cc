@@ -35,6 +35,9 @@ ABSL_FLAG(
 ABSL_FLAG(uint32_t, number_of_segments, 2,
           "Number of segments to split the input codepoints into.");
 
+ABSL_FLAG(uint32_t, min_patch_size_bytes, 0,
+          "The segmenter will try to increase patch sizes to at least this amount via merging if needed.");
+
 using absl::btree_set;
 using absl::flat_hash_map;
 using absl::flat_hash_set;
@@ -277,7 +280,7 @@ int main(int argc, char** argv) {
       GroupCodepoints(*codepoints, absl::GetFlag(FLAGS_number_of_segments));
 
   auto result = ift::encoder::GlyphSegmentation::CodepointToGlyphSegments(
-      font->get(), {}, groups);
+      font->get(), {}, groups, absl::GetFlag(FLAGS_min_patch_size_bytes));
   if (!result.ok()) {
     std::cerr << result.status() << std::endl;
     return -1;
