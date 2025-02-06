@@ -30,10 +30,6 @@ class Encoder {
 
   // TODO XXXXXX be consistent with terminology used for patches/segments (ie.
   // standardize on one or the other throughout).
-  // TODO XXXXXX have all conditions be provided even for the initial segment,
-  // and then expand the base subset
-  //             based on what segments are requested. Add a test for this
-  //             expansion.
 
   /*
    * This conditions is satisfied if the input subset definition matches at
@@ -264,9 +260,6 @@ class Encoder {
                               uint32_t number,
                               std::vector<SubsetDefinition>& out);
 
-  SubsetDefinition AddFeatureSpecificChunksIfNeeded(
-      const SubsetDefinition& def) const;
-
   SubsetDefinition Combine(const SubsetDefinition& s1,
                            const SubsetDefinition& s2) const;
 
@@ -316,9 +309,6 @@ class Encoder {
   absl::StatusOr<common::FontData> Instance(
       const ProcessingContext& context, hb_face_t* font,
       const design_space_t& design_space) const;
-
-  template <typename T>
-  void RemoveSegments(T ids);
 
   absl::StatusOr<std::unique_ptr<const common::BinaryDiff>> GetDifferFor(
       const common::FontData& font_data, common::CompatId compat_id,

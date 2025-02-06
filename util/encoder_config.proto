@@ -13,13 +13,11 @@ edition = "2023";
 // contain one glyph keyed patch per specified glyph segment and unique configuration of the design space
 // reachable via the non glyph table keyed patches.
 //
-// By default each glyph segment will be reachable by matching any code points that map to any glyph in that
-// segment. However, this default mapping can be overriden use the glyph_patch_dependecies map to specify a
-// set of glyph segments and features that when matched will trigger that glyph segment. For example if there
-// were three input segments (1, 2, 3) where segment 1 contained the f glyph, segment 2 contained the i glyph
-// and segment 3 contains the fi ligature glyph then segment 3 should be configured to be dependent on
-// segments 1 and 2 which would result in segment 3 to only be selected by the client if segments 1 and 2
-// were also selected.
+// glyph_patches is used to configure a segmentation of the glyphs in the font. These are the building blocks
+// used to construct other parts of the encoding plan. glyph_patches can be moved into the initial font via 
+// initial_glyph_patches or they can be configured to be loaded via patches by specifying a loading condition
+// via glyph_patch_conditions. Note that glyph_patches which do not have an activation condition will not 
+// have patches generated for them.
 //
 // The second section of the configuration is the "Non Glyph Extension Configuration" which describes how to
 // segment the data in all non-glyph tables (everything but glyf, gvar, CFF, and CFF2). These tables will be

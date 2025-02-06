@@ -82,9 +82,25 @@ class IntegrationTest : public ::testing::Test {
 
   Status InitEncoderForMixedMode(Encoder& encoder) {
     auto face = noto_sans_jp_.face();
+
+    hb_set_unique_ptr init = make_hb_set();
+    hb_set_add_range(init.get(), 0, hb_face_get_glyph_count(face.get()) - 1);
+    hb_set_unique_ptr excluded = make_hb_set();
+    hb_set_add_sorted_array(excluded.get(), testdata::TEST_SEGMENT_1,
+                            std::size(testdata::TEST_SEGMENT_1));
+    hb_set_add_sorted_array(excluded.get(), testdata::TEST_SEGMENT_2,
+                            std::size(testdata::TEST_SEGMENT_2));
+    hb_set_add_sorted_array(excluded.get(), testdata::TEST_SEGMENT_3,
+                            std::size(testdata::TEST_SEGMENT_3));
+    hb_set_add_sorted_array(excluded.get(), testdata::TEST_SEGMENT_4,
+                            std::size(testdata::TEST_SEGMENT_4));
+    hb_set_subtract(init.get(), excluded.get());
+    auto init_segment = common::to_hash_set(init);
+
     encoder.SetFace(face.get());
 
-    auto sc = encoder.AddGlyphDataSegment(1, TestSegment1());
+    auto sc = encoder.AddGlyphDataSegment(0, init_segment);
+    sc.Update(encoder.AddGlyphDataSegment(1, TestSegment1()));
     sc.Update(encoder.AddGlyphDataSegment(2, TestSegment2()));
     sc.Update(encoder.AddGlyphDataSegment(3, TestSegment3()));
     sc.Update(encoder.AddGlyphDataSegment(4, TestSegment4()));
@@ -96,7 +112,22 @@ class IntegrationTest : public ::testing::Test {
     auto face = noto_sans_vf_.face();
     encoder.SetFace(face.get());
 
-    auto sc = encoder.AddGlyphDataSegment(1, TestVfSegment1());
+    hb_set_unique_ptr init = make_hb_set();
+    hb_set_add_range(init.get(), 0, hb_face_get_glyph_count(face.get()) - 1);
+    hb_set_unique_ptr excluded = make_hb_set();
+    hb_set_add_sorted_array(excluded.get(), testdata::TEST_VF_SEGMENT_1,
+                            std::size(testdata::TEST_VF_SEGMENT_1));
+    hb_set_add_sorted_array(excluded.get(), testdata::TEST_VF_SEGMENT_2,
+                            std::size(testdata::TEST_VF_SEGMENT_2));
+    hb_set_add_sorted_array(excluded.get(), testdata::TEST_VF_SEGMENT_3,
+                            std::size(testdata::TEST_VF_SEGMENT_3));
+    hb_set_add_sorted_array(excluded.get(), testdata::TEST_VF_SEGMENT_4,
+                            std::size(testdata::TEST_VF_SEGMENT_4));
+    hb_set_subtract(init.get(), excluded.get());
+    auto init_segment = common::to_hash_set(init);
+
+    auto sc = encoder.AddGlyphDataSegment(0, init_segment);
+    sc.Update(encoder.AddGlyphDataSegment(1, TestVfSegment1()));
     sc.Update(encoder.AddGlyphDataSegment(2, TestVfSegment2()));
     sc.Update(encoder.AddGlyphDataSegment(3, TestVfSegment3()));
     sc.Update(encoder.AddGlyphDataSegment(4, TestVfSegment4()));
@@ -107,7 +138,26 @@ class IntegrationTest : public ::testing::Test {
     auto face = feature_test_.face();
     encoder.SetFace(face.get());
 
-    auto sc = encoder.AddGlyphDataSegment(1, TestFeatureSegment1());
+    hb_set_unique_ptr init = make_hb_set();
+    hb_set_add_range(init.get(), 0, hb_face_get_glyph_count(face.get()) - 1);
+    hb_set_unique_ptr excluded = make_hb_set();
+    hb_set_add_sorted_array(excluded.get(), testdata::TEST_FEATURE_SEGMENT_1,
+                            std::size(testdata::TEST_FEATURE_SEGMENT_1));
+    hb_set_add_sorted_array(excluded.get(), testdata::TEST_FEATURE_SEGMENT_2,
+                            std::size(testdata::TEST_FEATURE_SEGMENT_2));
+    hb_set_add_sorted_array(excluded.get(), testdata::TEST_FEATURE_SEGMENT_3,
+                            std::size(testdata::TEST_FEATURE_SEGMENT_3));
+    hb_set_add_sorted_array(excluded.get(), testdata::TEST_FEATURE_SEGMENT_4,
+                            std::size(testdata::TEST_FEATURE_SEGMENT_4));
+    hb_set_add_sorted_array(excluded.get(), testdata::TEST_FEATURE_SEGMENT_5,
+                            std::size(testdata::TEST_FEATURE_SEGMENT_5));
+    hb_set_add_sorted_array(excluded.get(), testdata::TEST_FEATURE_SEGMENT_6,
+                            std::size(testdata::TEST_FEATURE_SEGMENT_6));
+    hb_set_subtract(init.get(), excluded.get());
+    auto init_segment = common::to_hash_set(init);
+
+    auto sc = encoder.AddGlyphDataSegment(0, init_segment);
+    sc.Update(encoder.AddGlyphDataSegment(1, TestFeatureSegment1()));
     sc.Update(encoder.AddGlyphDataSegment(2, TestFeatureSegment2()));
     sc.Update(encoder.AddGlyphDataSegment(3, TestFeatureSegment3()));
     sc.Update(encoder.AddGlyphDataSegment(4, TestFeatureSegment4()));
@@ -212,8 +262,6 @@ bool GvarDataMatches(hb_face_t* a, hb_face_t* b, uint32_t codepoint,
 
 // TODO(garretrieger): full expansion test.
 // TODO(garretrieger): test of a woff2 encoded IFT font.
-// TODO XXXXX a test which checks for proper expansion of the base subset based
-// on specified conditions.
 
 TEST_F(IntegrationTest, TableKeyedOnly) {
   Encoder encoder;
@@ -465,7 +513,7 @@ TEST_F(IntegrationTest, MixedMode) {
   ASSERT_TRUE(sc.ok()) << sc;
 
   // target paritions: {{0, 1}, {2}, {3, 4}}
-  sc = encoder.SetBaseSubsetFromSegments({1});
+  sc = encoder.SetBaseSubsetFromSegments({0, 1});
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({2}));
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({3, 4}));
   ASSERT_TRUE(sc.ok()) << sc;
@@ -478,6 +526,9 @@ TEST_F(IntegrationTest, MixedMode) {
   auto encoding = encoder.Encode();
   ASSERT_TRUE(encoding.ok()) << encoding.status();
   auto encoded_face = encoding->init_font.face();
+
+  ASSERT_TRUE(FontHelper::GlyfData(encoded_face.get(), chunk2_gid_non_cmapped)
+                  ->empty());
 
   auto codepoints = FontHelper::ToCodepointsSet(encoded_face.get());
   ASSERT_TRUE(codepoints.contains(chunk0_cp));
@@ -522,7 +573,7 @@ TEST_F(IntegrationTest, MixedMode_OptionalFeatureTags) {
   // With optional feature chunks for vrt3:
   //   1, 2 -> 5
   //   4    -> 6
-  sc = encoder.SetBaseSubsetFromSegments({});
+  sc = encoder.SetBaseSubsetFromSegments({0});
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({1}));
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({2}));
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({3}));
@@ -671,7 +722,7 @@ TEST_F(IntegrationTest, MixedMode_LocaLenChange) {
   ASSERT_TRUE(sc.ok()) << sc;
 
   // target paritions: {{0}, {1}, {2}, {3}, {4}}
-  sc = encoder.SetBaseSubsetFromSegments({});
+  sc = encoder.SetBaseSubsetFromSegments({0});
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({1}));
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({2}));
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({3}));
@@ -739,7 +790,7 @@ TEST_F(IntegrationTest, MixedMode_Complex) {
   ASSERT_TRUE(sc.ok()) << sc;
 
   // target paritions: {{0}, {1, 2}, {3, 4}}
-  sc = encoder.SetBaseSubsetFromSegments({});
+  sc = encoder.SetBaseSubsetFromSegments({0});
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({1, 2}));
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({3, 4}));
 
@@ -785,7 +836,7 @@ TEST_F(IntegrationTest, MixedMode_SequentialDependentPatches) {
   ASSERT_TRUE(sc.ok()) << sc;
 
   // target paritions: {{0, 1}, {2}, {3}, {4}}
-  sc = encoder.SetBaseSubsetFromSegments({1});
+  sc = encoder.SetBaseSubsetFromSegments({0, 1});
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({2}));
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({3}));
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({4}));
@@ -817,7 +868,8 @@ TEST_F(IntegrationTest, MixedMode_DesignSpaceAugmentation) {
   ASSERT_TRUE(sc.ok()) << sc;
 
   // target paritions: {{0, 1}, {2}, {3, 4}} + add wght axis
-  sc = encoder.SetBaseSubsetFromSegments({1}, {{kWght, AxisRange::Point(100)}});
+  sc = encoder.SetBaseSubsetFromSegments({0, 1},
+                                         {{kWght, AxisRange::Point(100)}});
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({2}));
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({3, 4}));
   encoder.AddDesignSpaceSegment({{kWght, *AxisRange::Range(100, 900)}});
@@ -863,7 +915,8 @@ TEST_F(IntegrationTest, MixedMode_DesignSpaceAugmentation_DropsUnusedPatches) {
   ASSERT_TRUE(sc.ok()) << sc;
 
   // target paritions: {{0, 1}, {2}, {3, 4}} + add wght axis
-  sc = encoder.SetBaseSubsetFromSegments({1}, {{kWght, AxisRange::Point(100)}});
+  sc = encoder.SetBaseSubsetFromSegments({0, 1},
+                                         {{kWght, AxisRange::Point(100)}});
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({2}));
   sc.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({3, 4}));
   encoder.AddDesignSpaceSegment({{kWght, *AxisRange::Range(100, 900)}});
