@@ -94,6 +94,11 @@ class Encoder {
   absl::Status AddGlyphDataSegment(uint32_t segment_id,
                                    const absl::flat_hash_set<uint32_t>& gids);
 
+  // TODO(garretrieger): add a second type of activation condition which is
+  // SubsetDefinition -> segment_id. That will be used to set up the base
+  // activation conditions and then this method is only used for constructing
+  // composite conditions. Stop inferering the subset definition from the gids
+  // in a segment.
   absl::Status AddGlyphDataActivationCondition(Condition condition);
 
   /*

@@ -8,10 +8,13 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
+#include "common/compat_id.h"
 #include "common/font_data.h"
+#include "common/font_helper.h"
 #include "common/hb_set_unique_ptr.h"
 #include "common/try.h"
 #include "hb-subset.h"
+#include "ift/glyph_keyed_diff.h"
 
 using absl::btree_map;
 using absl::btree_set;
@@ -19,9 +22,14 @@ using absl::flat_hash_map;
 using absl::flat_hash_set;
 using absl::Status;
 using absl::StatusOr;
+using absl::StrCat;
 using common::hb_face_unique_ptr;
 using common::hb_set_unique_ptr;
+using common::make_hb_face;
 using common::make_hb_set;
+using common::CompatId;
+using common::FontData;
+using common::FontHelper;
 
 namespace ift::encoder {
 
@@ -56,7 +64,8 @@ class SegmentationContext {
   SegmentationContext(
       hb_face_t* face, const flat_hash_set<uint32_t>& initial_segment,
       const std::vector<flat_hash_set<uint32_t>>& codepoint_segments)
-      : original_face(common::make_hb_face(hb_subset_preprocess(face))),
+      : preprocessed_face(make_hb_face(hb_subset_preprocess(face))),
+        original_face(make_hb_face(hb_face_reference(face))),
         segments(),
         initial_codepoints(make_hb_set(initial_segment)),
         all_codepoints(make_hb_set()),
@@ -97,7 +106,7 @@ class SegmentationContext {
     // based on the IFT default feature list.
 
     hb_subset_plan_t* plan =
-        hb_subset_plan_create_or_fail(original_face.get(), input);
+        hb_subset_plan_create_or_fail(preprocessed_face.get(), input);
     hb_subset_input_destroy(input);
     if (!plan) {
       return absl::InternalError("Closure calculation failed.");
@@ -111,6 +120,7 @@ class SegmentationContext {
     return gids;
   }
 
+  common::hb_face_unique_ptr preprocessed_face;
   common::hb_face_unique_ptr original_face;
   std::vector<hb_set_unique_ptr> segments;
 
@@ -123,6 +133,7 @@ class SegmentationContext {
   std::vector<GlyphConditions> gid_conditions;
   btree_map<btree_set<segment_index_t>, btree_set<glyph_id_t>> and_glyph_groups;
   btree_map<btree_set<segment_index_t>, btree_set<glyph_id_t>> or_glyph_groups;
+  std::vector<segment_index_t> patch_id_to_segment_index;
 };
 
 Status AnalyzeSegment(SegmentationContext& context,
@@ -234,6 +245,7 @@ void GlyphSegmentation::GroupsToSegmentation(
         and_glyph_groups,
     const btree_map<btree_set<segment_index_t>, btree_set<glyph_id_t>>&
         or_glyph_groups,
+    std::vector<segment_index_t>& patch_id_to_segment_index,
     GlyphSegmentation& segmentation) {
   patch_id_t next_id = 0;
   std::vector<patch_id_t> segment_to_patch_id;
@@ -252,6 +264,8 @@ void GlyphSegmentation::GroupsToSegmentation(
     if (segment + 1 > segment_to_patch_id.size()) {
       segment_to_patch_id.resize(segment + 1);
     }
+
+    patch_id_to_segment_index.push_back(segment);
     segment_to_patch_id[segment] = next_id++;
   }
 
@@ -269,6 +283,7 @@ void GlyphSegmentation::GroupsToSegmentation(
     segmentation.patches_.insert(std::pair(next_id, glyphs));
     segmentation.conditions_.push_back(
         ActivationCondition::and_patches(and_patches, next_id));
+
     next_id++;
   }
 
@@ -280,8 +295,51 @@ void GlyphSegmentation::GroupsToSegmentation(
     segmentation.patches_.insert(std::pair(next_id, glyphs));
     segmentation.conditions_.push_back(
         ActivationCondition::or_patches(or_patches, next_id));
+
     next_id++;
   }
+}
+
+StatusOr<uint32_t> PatchSizeBytes(hb_face_t* original_face,
+                        const absl::btree_set<glyph_id_t>& gids) {
+  FontData font_data(original_face);
+  CompatId id;
+  GlyphKeyedDiff diff(font_data, id, {FontHelper::kGlyf, FontHelper::kGvar});
+  auto patch_data = TRY(diff.CreatePatch(gids));
+  return patch_data.size();
+}
+
+Status MergeBaseSegmentsIfNeeded(
+    SegmentationContext& context,
+    const GlyphSegmentation& candidate_segmentation,
+    uint32_t patch_size_min_bytes, uint32_t patch_size_max_bytes) {
+  for (const auto& condition : candidate_segmentation.Conditions()) {
+    if (!condition.IsExclusive()) {
+      continue;
+    }
+
+    patch_id_t base_patch = condition.activated();
+    printf("checking patch size for %u\n", base_patch);
+
+    // step 1: measure the patch size for this segment.
+    auto patch_glyphs = candidate_segmentation.GidSegments().find(base_patch);
+    if (patch_glyphs == candidate_segmentation.GidSegments().end()) {
+      return absl::InternalError(StrCat("patch ", base_patch, " not found."));
+    }
+    uint32_t patch_size_bytes =
+        TRY(PatchSizeBytes(context.original_face.get(), patch_glyphs->second));
+    if (patch_size_bytes >= patch_size_min_bytes) {
+      continue;
+    }
+
+    // step 2: if below min locate candidate groups of segments to merge.
+    printf("patch %u is too small (%u < %u)\n", base_patch, patch_size_bytes, patch_size_min_bytes);
+    // TODO XXXXXXX
+
+    // segment_index_t segment_index =
+    // context.patch_id_to_segment_index[condition.activated()];
+  }
+  return absl::OkStatus();
 }
 
 StatusOr<GlyphSegmentation> GlyphSegmentation::CodepointToGlyphSegments(
@@ -303,7 +361,9 @@ StatusOr<GlyphSegmentation> GlyphSegmentation::CodepointToGlyphSegments(
   segmentation.init_font_glyphs_ = to_btree_set(context.initial_closure.get());
 
   GroupsToSegmentation(context.and_glyph_groups, context.or_glyph_groups,
-                       segmentation);
+                       context.patch_id_to_segment_index, segmentation);
+
+  TRYV(MergeBaseSegmentsIfNeeded(context, segmentation, patch_size_min_bytes, patch_size_max_bytes));
 
   return segmentation;
 }

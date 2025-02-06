@@ -65,6 +65,16 @@ class GlyphSegmentation {
      */
     patch_id_t activated() const { return activated_; }
 
+    bool IsExclusive() const {
+      if (conditions_.size() == 1) {
+        const auto& ids = conditions_.at(0);
+        if (ids.size() == 1) {
+          return *ids.begin() == activated_;
+        }
+      }
+      return false;
+    }
+
    private:
     ActivationCondition() : conditions_(), activated_(0) {}
 
@@ -134,8 +144,13 @@ class GlyphSegmentation {
                             absl::btree_set<glyph_id_t>>& and_glyph_groups,
       const absl::btree_map<absl::btree_set<segment_index_t>,
                             absl::btree_set<glyph_id_t>>& or_glyph_groups,
+      std::vector<segment_index_t>& patch_id_to_segment_index,
       GlyphSegmentation& segmentation);
 
+  // TODO(garretrieger): the output conditions need to also capture the base
+  // codepoint segmentations since those
+  //                     form the base conditions which composite conditions are
+  //                     built up from.
   absl::btree_set<glyph_id_t> init_font_glyphs_;
   absl::btree_set<glyph_id_t> unmapped_glyphs_;
   std::vector<ActivationCondition> conditions_;
