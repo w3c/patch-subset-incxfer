@@ -5,6 +5,8 @@
 
 #include "hb.h"
 
+using absl::flat_hash_set;
+
 namespace common {
 
 hb_set_unique_ptr make_hb_set() {
@@ -45,6 +47,15 @@ hb_set_unique_ptr make_hb_set_from_ranges(int number_of_ranges, ...) {
   }
   va_end(values);
   return result;
+}
+
+flat_hash_set<uint32_t> to_hash_set(const hb_set_unique_ptr& set) {
+  flat_hash_set<uint32_t> out;
+  hb_codepoint_t v = HB_SET_VALUE_INVALID;
+  while (hb_set_next(set.get(), &v)) {
+    out.insert(v);
+  }
+  return out;
 }
 
 }  // namespace common

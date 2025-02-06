@@ -20,6 +20,8 @@ hb_set_unique_ptr make_hb_set_from_ranges(int number_of_ranges, ...);
 
 hb_set_unique_ptr make_hb_set(int length, ...);
 
+absl::flat_hash_set<uint32_t> to_hash_set(const hb_set_unique_ptr& set);
+
 }  // namespace common
 
 #endif  // COMMON_HB_SET_UNIQUE_PTR_H_

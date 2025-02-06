@@ -67,6 +67,20 @@ class EncoderTest : public ::testing::Test {
     vf_font = from_file("common/testdata/Roboto[wdth,wght].ttf");
     noto_sans_jp = from_file("ift/testdata/NotoSansJP-Regular.subset.ttf");
 
+    auto face = noto_sans_jp.face();
+    hb_set_unique_ptr init = make_hb_set();
+    hb_set_add_range(init.get(), 0, hb_face_get_glyph_count(face.get()) - 1);
+    hb_set_unique_ptr excluded = make_hb_set();
+    hb_set_add_sorted_array(excluded.get(), testdata::TEST_SEGMENT_1,
+                            std::size(testdata::TEST_SEGMENT_1));
+    hb_set_add_sorted_array(excluded.get(), testdata::TEST_SEGMENT_2,
+                            std::size(testdata::TEST_SEGMENT_2));
+    hb_set_add_sorted_array(excluded.get(), testdata::TEST_SEGMENT_3,
+                            std::size(testdata::TEST_SEGMENT_3));
+    hb_set_add_sorted_array(excluded.get(), testdata::TEST_SEGMENT_4,
+                            std::size(testdata::TEST_SEGMENT_4));
+    hb_set_subtract(init.get(), excluded.get());
+    segment_0 = common::to_hash_set(init);
     segment_1 = TestSegment1();
     segment_2 = TestSegment2();
     segment_3 = TestSegment3();
@@ -79,6 +93,7 @@ class EncoderTest : public ::testing::Test {
   FontData vf_font;
   FontData noto_sans_jp;
 
+  flat_hash_set<uint32_t> segment_0;
   flat_hash_set<uint32_t> segment_1;
   flat_hash_set<uint32_t> segment_2;
   flat_hash_set<uint32_t> segment_3;
@@ -549,13 +564,17 @@ TEST_F(EncoderTest, Encode_ThreeSubsets_Mixed) {
     hb_face_destroy(face);
   }
 
-  auto s = encoder.AddGlyphDataSegment(1, segment_1);
+  auto s = encoder.AddGlyphDataSegment(0, segment_0);
+  s.Update(encoder.AddGlyphDataSegment(1, segment_1));
   s.Update(encoder.AddGlyphDataSegment(2, segment_2));
   s.Update(encoder.AddGlyphDataSegment(3, segment_3));
   s.Update(encoder.AddGlyphDataSegment(4, segment_4));
   ASSERT_TRUE(s.ok()) << s;
 
-  s.Update(encoder.SetBaseSubsetFromSegments({1, 2}));
+  s.Update(encoder.AddGlyphDataActivationCondition(Encoder::Condition(3)));
+  s.Update(encoder.AddGlyphDataActivationCondition(Encoder::Condition(4)));
+
+  s.Update(encoder.SetBaseSubsetFromSegments({0, 1, 2}));
   s.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({3, 4}));
   ASSERT_TRUE(s.ok()) << s;
 
@@ -600,15 +619,20 @@ TEST_F(EncoderTest, Encode_ThreeSubsets_Mixed_WithFeatureMappings) {
     hb_face_destroy(face);
   }
 
-  auto s = encoder.AddGlyphDataSegment(1, segment_1);
+  auto s = encoder.AddGlyphDataSegment(0, segment_0);
+  s.Update(encoder.AddGlyphDataSegment(1, segment_1));
   s.Update(encoder.AddGlyphDataSegment(2, segment_2));
   s.Update(encoder.AddGlyphDataSegment(3, segment_3));
   s.Update(encoder.AddGlyphDataSegment(4, segment_4));
   s.Update(encoder.AddFeatureDependency(3, 4, HB_TAG('c', 'c', 'm', 'p')));
+  s.Update(encoder.AddGlyphDataActivationCondition(Encoder::Condition(2)));
+  s.Update(encoder.AddGlyphDataActivationCondition(Encoder::Condition(3)));
+  s.Update(encoder.AddGlyphDataActivationCondition(Encoder::Condition(4)));
+
   ASSERT_TRUE(s.ok()) << s;
 
-  // Partitions {1}, {2, 3, 4}, +ccmp
-  s.Update(encoder.SetBaseSubsetFromSegments({1}));
+  // Partitions {0, 1}, {2, 3, 4}, +ccmp
+  s.Update(encoder.SetBaseSubsetFromSegments({0, 1}));
   s.Update(encoder.AddNonGlyphSegmentFromGlyphSegments({2, 3, 4}));
   encoder.AddFeatureGroupSegment({HB_TAG('c', 'c', 'm', 'p')});
   ASSERT_TRUE(s.ok()) << s;
@@ -699,10 +723,6 @@ void ClearCompatIdFromFormat2(uint8_t* data) {
     data[index] = 0;
   }
 }
-
-// TODO(garretrieger): XXXXXXX test with activation conditions that ensures they
-// are expanded appropriately in the
-//                     initial font.
 
 TEST_F(EncoderTest, Encode_ComplicatedActivationConditions) {
   Encoder encoder;

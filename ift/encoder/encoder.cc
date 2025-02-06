@@ -145,55 +145,6 @@ bool is_subset(const flat_hash_set<uint32_t>& a,
                      [&a](const uint32_t& v) { return a.count(v) > 0; });
 }
 
-Encoder::SubsetDefinition Encoder::AddFeatureSpecificChunksIfNeeded(
-    const SubsetDefinition& def) const {
-  // When using optional feature segments we may encounter a particular subset
-  // during the table keyed analysis whose subset definition contains the
-  // necessary prerequisites to trigger the inclusion of a some feature specific
-  // glyph keyed patches. If this is the case then the subset def must be
-  // expanded to include any glyphs from those patches since the IFT font can
-  // access those glyphs at this level of extension and inclusion of the extra
-  // glyphs may affect things like loca size.
-  SubsetDefinition out;
-  out.Union(def);
-  /*
-  // TODO XXXX reimplement under the new conditions framework.
-  for (hb_tag_t feature : def.feature_tags) {
-    // for each included feature check if for any glyph keyed patches that could
-    // be activated under def and add them to the subset.
-    for (const auto& [added_segment_id, triggers] :
-         glyph_data_segment_feature_dependencies_) {
-      auto added_segment = glyph_data_segments_.find(added_segment_id);
-      if (added_segment == glyph_data_segments_.end()) {
-        continue;
-      }
-
-      for (const auto& [trigger_feature, trigger_segments] : triggers) {
-        if (trigger_feature != feature) {
-          continue;
-        }
-
-        for (uint32_t trigger_id : trigger_segments) {
-          auto segment = glyph_data_segments_.find(trigger_id);
-          if (segment == glyph_data_segments_.end()) {
-            continue;
-          }
-
-          if (!is_subset(def.gids, segment->second.gids)) {
-            continue;
-          }
-
-          // The appropriate feature and glyphs are present in def to trigger
-          // the inclusion of added_segment_id so union it into the subset def.
-          out.Union(added_segment->second);
-        }
-      }
-    }
-  }
-  */
-  return out;
-}
-
 std::vector<Encoder::SubsetDefinition> Encoder::OutgoingEdges(
     const SubsetDefinition& base_subset, uint32_t choose) const {
   std::vector<SubsetDefinition> remaining_subsets;
@@ -338,8 +289,7 @@ Encoder::SubsetDefinition Encoder::Combine(const SubsetDefinition& s1,
   SubsetDefinition result;
   result.Union(s1);
   result.Union(s2);
-
-  return AddFeatureSpecificChunksIfNeeded(result);
+  return result;
 }
 
 Status Encoder::AddGlyphDataSegment(uint32_t id,
@@ -417,13 +367,6 @@ Status Encoder::SetBaseSubsetFromSegments(
     const flat_hash_set<uint32_t>& included_segments,
     const design_space_t& design_space) {
   // TODO(garretrieger): support also providing initial features.
-  // TODO(garretrieger): resolve dependencies that are satisified by the
-  // included patches, features and design space
-  //                     and pull those into the base subset.
-  // TODO(garretrieger): handle the case where a patch included in the
-  //  base subset has associated feature specific patches. We could
-  //  merge those in as well, or create special entries for them that only
-  //  utilize feature tag to trigger.
   if (!face_) {
     return absl::FailedPreconditionError("Encoder must have a face set.");
   }
@@ -439,54 +382,27 @@ Status Encoder::SetBaseSubsetFromSegments(
     }
   }
 
-  flat_hash_set<uint32_t> excluded_segments;
-  for (const auto& p : glyph_data_segments_) {
-    if (!included_segments.contains(p.first)) {
-      excluded_segments.insert(p.first);
-    }
+  auto included = SubsetDefinitionForSegments(included_segments);
+  if (!included.ok()) {
+    return included.status();
   }
 
-  auto excluded = SubsetDefinitionForSegments(excluded_segments);
-  if (!excluded.ok()) {
-    return excluded.status();
-  }
-
-  uint32_t glyph_count = hb_face_get_glyph_count(face_.get());
-  for (uint32_t gid = 0; gid < glyph_count; gid++) {
-    if (!excluded->gids.contains(gid)) {
-      base_subset_.gids.insert(gid);
-    }
-  }
-
-  hb_set_unique_ptr cps_in_font = make_hb_set();
-  hb_face_collect_unicodes(face_.get(), cps_in_font.get());
-  uint32_t cp = HB_SET_VALUE_INVALID;
-  while (hb_set_next(cps_in_font.get(), &cp)) {
-    if (!excluded->codepoints.contains(cp)) {
-      base_subset_.codepoints.insert(cp);
-    }
-  }
-
+  base_subset_ = *included;
   base_subset_.design_space = design_space;
-
-  // remove all segments that have been placed into the base subset.
-  RemoveSegments(included_segments);
 
   // Glyph keyed patches can't change the glyph count in the font (and hence
   // loca len) so always include the last gid in the base subset to force the
   // loca table to remain at the full length from the start.
   //
   // TODO(garretrieger): this unnecessarily includes the last gid in the subset,
-  // should
-  //                     update the subsetter to retain the glyph count but not
-  //                     actually keep the last gid.
+  //                     should update the subsetter to retain the glyph count
+  //                     but not actually keep the last gid.
   //
   // TODO(garretrieger): instead of forcing max glyph count here we can utilize
-  // table keyed patches
-  //                     to change loca len/glyph count to the max for any
-  //                     currently reachable segments. This would improve
-  //                     efficiency slightly by avoid including extra space in
-  //                     the initial font.
+  //                     table keyed patches to change loca len/glyph count to
+  //                     the max for any currently reachable segments. This
+  //                     would improve efficiency slightly by avoid including
+  //                     extra space in the initial font.
   uint32_t gid_count = hb_face_get_glyph_count(face_.get());
   if (gid_count > 0) base_subset_.gids.insert(gid_count - 1);
 
@@ -591,6 +507,11 @@ Status Encoder::EnsureGlyphKeyedPatchesPopulated(
     return absl::OkStatus();
   }
 
+  flat_hash_set<uint32_t> reachable_segments;
+  for (const auto& condition : activation_conditions_) {
+    reachable_segments.insert(condition.activated_segment_id);
+  }
+
   if (!AllocatePatchSet(context, design_space, uri_template, compat_id)) {
     // Patches have already been populated for this design space.
     return absl::OkStatus();
@@ -612,12 +533,16 @@ Status Encoder::EnsureGlyphKeyedPatchesPopulated(
   GlyphKeyedDiff differ(instance, compat_id,
                         {FontHelper::kGlyf, FontHelper::kGvar});
 
-  for (const auto& e : glyph_data_segments_) {
-    uint32_t index = e.first;
+  for (uint32_t index : reachable_segments) {
+    auto e = glyph_data_segments_.find(index);
+    if (e == glyph_data_segments_.end()) {
+      return absl::InvalidArgumentError(
+          StrCat("Glyph data segment ", index, " was not provided."));
+    }
 
     std::string url = URLTemplate::PatchToUrl(uri_template, index);
 
-    SubsetDefinition subset = e.second;
+    SubsetDefinition subset = e->second;
     btree_set<uint32_t> gids;
     std::copy(subset.gids.begin(), subset.gids.end(),
               std::inserter(gids, gids.begin()));
@@ -1142,13 +1067,6 @@ StatusOr<FontData> Encoder::Instance(const ProcessingContext& context,
 
   FontData result(out.get());
   return result;
-}
-
-template <typename T>
-void Encoder::RemoveSegments(T ids) {
-  for (uint32_t id : ids) {
-    glyph_data_segments_.erase(id);
-  }
 }
 
 StatusOr<FontData> Encoder::RoundTripWoff2(string_view font,
