@@ -1,6 +1,7 @@
 #ifndef IFT_ENCODER_GLYPH_SEGMENTATION_H_
 #define IFT_ENCODER_GLYPH_SEGMENTATION_H_
 
+#include <cstdint>
 #include <vector>
 
 #include "absl/container/btree_map.h"
@@ -82,7 +83,9 @@ class GlyphSegmentation {
   // TODO(garretrieger): also support optional feature segments.
   static absl::StatusOr<GlyphSegmentation> CodepointToGlyphSegments(
       hb_face_t* face, absl::flat_hash_set<hb_codepoint_t> initial_segment,
-      std::vector<absl::flat_hash_set<hb_codepoint_t>> codepoint_segments);
+      std::vector<absl::flat_hash_set<hb_codepoint_t>> codepoint_segments,
+      uint32_t patch_size_min_bytes = 0,
+      uint32_t patch_size_max_bytes = UINT32_MAX);
 
   /*
    * Returns a human readable string representation of this segmentation and
