@@ -1,5 +1,6 @@
 #include "ift/encoder/glyph_segmentation.h"
 
+#include <cstdint>
 #include <cstdio>
 #include <sstream>
 
@@ -36,6 +37,7 @@ namespace ift::encoder {
 // TODO(garretrieger): extensions/improvements that could be made:
 // - Multi segment combination testing with GSUB dep analysis to guide.
 // - Use merging and/or duplication to ensure minimum patch size.
+// - Add logging
 
 btree_set<uint32_t> to_btree_set(const hb_set_t* set) {
   btree_set<uint32_t> out;
@@ -57,6 +59,11 @@ class GlyphConditions {
   GlyphConditions() : and_segments(make_hb_set()), or_segments(make_hb_set()) {}
   hb_set_unique_ptr and_segments;
   hb_set_unique_ptr or_segments;
+
+  void RemoveSegments(const hb_set_t* segments) {
+    hb_set_subtract(and_segments.get(), segments);
+    hb_set_subtract(or_segments.get(), segments);
+  }
 };
 
 class SegmentationContext {
@@ -95,6 +102,13 @@ class SegmentationContext {
     gid_conditions.resize(hb_face_get_glyph_count(original_face.get()));
   }
 
+  void ResetGroupings() {
+    unmapped_glyphs = {};
+    and_glyph_groups = {};
+    or_glyph_groups = {};
+    patch_id_to_segment_index = {};
+  }
+
   StatusOr<hb_set_unique_ptr> glyph_closure(const hb_set_t* codepoints) {
     hb_subset_input_t* input = hb_subset_input_create_or_fail();
     if (!input) {
@@ -120,6 +134,7 @@ class SegmentationContext {
     return gids;
   }
 
+  // Init
   common::hb_face_unique_ptr preprocessed_face;
   common::hb_face_unique_ptr original_face;
   std::vector<hb_set_unique_ptr> segments;
@@ -128,9 +143,12 @@ class SegmentationContext {
   hb_set_unique_ptr all_codepoints;
   hb_set_unique_ptr full_closure;
   hb_set_unique_ptr initial_closure;
-  btree_set<glyph_id_t> unmapped_glyphs;
-
+  
+  // Phase 1
   std::vector<GlyphConditions> gid_conditions;
+
+  // Phase 2
+  btree_set<glyph_id_t> unmapped_glyphs;
   btree_map<btree_set<segment_index_t>, btree_set<glyph_id_t>> and_glyph_groups;
   btree_map<btree_set<segment_index_t>, btree_set<glyph_id_t>> or_glyph_groups;
   std::vector<segment_index_t> patch_id_to_segment_index;
@@ -139,6 +157,15 @@ class SegmentationContext {
 Status AnalyzeSegment(SegmentationContext& context,
                       segment_index_t segment_index,
                       const hb_set_t* codepoints) {
+  if (hb_set_is_empty(codepoints)) {
+    // Skip empty sets, they will never contribute any conditions.
+    return absl::OkStatus();
+  }                         
+
+  if (segment_index == 2) {
+    printf("AnalyzeSegment(%u) - %u codepoints\n", segment_index, hb_set_get_population(codepoints));
+  }
+
   // This function tests various closures using the segment codepoints to
   // determine what conditions are present for the inclusion of closure glyphs.
   //
@@ -190,6 +217,10 @@ Status AnalyzeSegment(SegmentationContext& context,
   hb_set_unique_ptr exclusive_gids = make_hb_set();
   hb_set_union(exclusive_gids.get(), I_only_segment_closure.get());
   hb_set_intersect(exclusive_gids.get(), D_dropped.get());
+
+  if (segment_index == 2) {
+    printf("  exclusive gids = %u\n", hb_set_get_population(exclusive_gids.get()));
+  }
 
   hb_codepoint_t and_gid = HB_SET_VALUE_INVALID;
   while (hb_set_next(exclusive_gids.get(), &and_gid)) {
@@ -258,7 +289,7 @@ void GlyphSegmentation::GroupsToSegmentation(
 
     segment_index_t segment = *and_segments.begin();
     segmentation.patches_.insert(std::pair(next_id, glyphs));
-    segmentation.conditions_.push_back(
+    segmentation.conditions_.insert(
         ActivationCondition::and_patches({next_id}, next_id));
 
     if (segment + 1 > segment_to_patch_id.size()) {
@@ -281,19 +312,24 @@ void GlyphSegmentation::GroupsToSegmentation(
     }
 
     segmentation.patches_.insert(std::pair(next_id, glyphs));
-    segmentation.conditions_.push_back(
+    segmentation.conditions_.insert(
         ActivationCondition::and_patches(and_patches, next_id));
 
     next_id++;
   }
 
   for (const auto& [or_segments, glyphs] : or_glyph_groups) {
+    if (or_segments.size() == 1) {
+      printf("!! Unexpected or_segment with only one segment: %u\n", *or_segments.begin());
+    }
     btree_set<patch_id_t> or_patches;
     for (segment_index_t segment : or_segments) {
-      or_patches.insert(segment_to_patch_id[segment]);
+      if (!or_patches.insert(segment_to_patch_id[segment]).second) {
+        printf("!! Two different segments mapped to the same patch: s%u -> p%u\n", segment, segment_to_patch_id[segment]);
+      }
     }
     segmentation.patches_.insert(std::pair(next_id, glyphs));
-    segmentation.conditions_.push_back(
+    segmentation.conditions_.insert(
         ActivationCondition::or_patches(or_patches, next_id));
 
     next_id++;
@@ -309,17 +345,40 @@ StatusOr<uint32_t> PatchSizeBytes(hb_face_t* original_face,
   return patch_data.size();
 }
 
-Status MergeBaseSegmentsIfNeeded(
+hb_set_unique_ptr ToSegmentIndices(const hb_set_t* patches, const std::vector<segment_index_t>& map) {
+  hb_set_unique_ptr out = make_hb_set();
+  patch_id_t next = HB_SET_VALUE_INVALID;
+  while (hb_set_next(patches, &next)) {
+    hb_set_add(out.get(), map[next]);
+  }
+  return out;
+}
+
+void MergeSegments(const SegmentationContext& context, const hb_set_t* segments, hb_set_t* base) {
+  segment_index_t next = HB_SET_VALUE_INVALID;
+  while (hb_set_next(segments, &next)) {
+    const hb_set_t* codepoints = context.segments[next].get();
+    hb_set_union(base, codepoints);
+  }
+}
+
+StatusOr<std::optional<segment_index_t>> MergeNextBaseSegment(
     SegmentationContext& context,
     const GlyphSegmentation& candidate_segmentation,
     uint32_t patch_size_min_bytes, uint32_t patch_size_max_bytes) {
-  for (const auto& condition : candidate_segmentation.Conditions()) {
-    if (!condition.IsExclusive()) {
+
+  printf("MergeNextBaseSegment():\n");
+
+  hb_set_unique_ptr triggering_patches = make_hb_set();
+  for (auto condition = candidate_segmentation.Conditions().begin();
+       condition != candidate_segmentation.Conditions().end();
+       condition++) {
+    if (!condition->IsExclusive()) {
       continue;
     }
 
-    patch_id_t base_patch = condition.activated();
-    printf("checking patch size for %u\n", base_patch);
+    patch_id_t base_patch = condition->activated();
+    printf("  checking patch size for %u\n", base_patch);
 
     // step 1: measure the patch size for this segment.
     auto patch_glyphs = candidate_segmentation.GidSegments().find(base_patch);
@@ -333,13 +392,54 @@ Status MergeBaseSegmentsIfNeeded(
     }
 
     // step 2: if below min locate candidate groups of segments to merge.
-    printf("patch %u is too small (%u < %u)\n", base_patch, patch_size_bytes, patch_size_min_bytes);
-    // TODO XXXXXXX
+    segment_index_t base_segment_index = context.patch_id_to_segment_index[base_patch];
+    printf("  patch %u (segment %u) is too small (%u < %u)\n", base_patch, base_segment_index, patch_size_bytes, patch_size_min_bytes);
+    auto next_condition = condition;
+    next_condition++;
+    while (next_condition != candidate_segmentation.Conditions().end()) {
+      hb_set_clear(triggering_patches.get());
+      next_condition->TriggeringPatches(triggering_patches.get());
+      if (!hb_set_has(triggering_patches.get(), base_patch)) {
+        next_condition++;
+        continue;
+      }
 
-    // segment_index_t segment_index =
-    // context.patch_id_to_segment_index[condition.activated()];
+      printf("    merging with: %s\n", next_condition->ToString().c_str());
+
+      // Create a merged segment, and remove all of the others      
+      hb_set_unique_ptr to_merge_segments = ToSegmentIndices(triggering_patches.get(), context.patch_id_to_segment_index);
+      hb_set_del(to_merge_segments.get(), base_segment_index);
+
+      uint32_t size_before = hb_set_get_population(context.segments[base_segment_index].get());
+      MergeSegments(context, to_merge_segments.get(), context.segments[base_segment_index].get());
+      uint32_t size_after = hb_set_get_population(context.segments[base_segment_index].get());
+      printf("   merged %u codepoints up to %u codepoints\n", size_before, size_after);
+
+
+
+      segment_index_t segment_index = HB_SET_VALUE_INVALID;
+      while (hb_set_next(to_merge_segments.get(), &segment_index)) {
+        // To avoid changing the indices of other segments set the ones we're removing to empty sets.
+        // That effectively disables them.
+        printf("    clearing segment %u\n", segment_index);
+        hb_set_clear(context.segments[segment_index].get());
+      }
+
+      // Remove all segments we touched here from gid_conditions so they can be recalculated.
+      hb_set_add(to_merge_segments.get(), base_segment_index);
+      for (auto& condition : context.gid_conditions) {
+        condition.RemoveSegments(to_merge_segments.get());
+      }
+
+      // Return to the parent method so it can reanalyze and reform groups
+      return base_segment_index;
+    }
+
+    // TODO XXXXXX if we didn't find any groupings that can be merged, then just pick the next base segment to merge
+    printf("    no composite to merge with.\n");
   }
-  return absl::OkStatus();
+
+  return std::nullopt;
 }
 
 StatusOr<GlyphSegmentation> GlyphSegmentation::CodepointToGlyphSegments(
@@ -354,18 +454,34 @@ StatusOr<GlyphSegmentation> GlyphSegmentation::CodepointToGlyphSegments(
     segment_index++;
   }
 
-  GroupGlyphs(context);
+  
+  while (true) {
+    GlyphSegmentation segmentation;
+    context.ResetGroupings();
+    GroupGlyphs(context);
+    
+    segmentation.unmapped_glyphs_ = context.unmapped_glyphs;
+    segmentation.init_font_glyphs_ = to_btree_set(context.initial_closure.get());
+    
+    GroupsToSegmentation(context.and_glyph_groups, context.or_glyph_groups,
+                         context.patch_id_to_segment_index, segmentation);
 
-  GlyphSegmentation segmentation;
-  segmentation.unmapped_glyphs_ = context.unmapped_glyphs;
-  segmentation.init_font_glyphs_ = to_btree_set(context.initial_closure.get());
+    if (patch_size_min_bytes == 0) {
+      return segmentation;
+    }
 
-  GroupsToSegmentation(context.and_glyph_groups, context.or_glyph_groups,
-                       context.patch_id_to_segment_index, segmentation);
+    auto merged = TRY(MergeNextBaseSegment(context, segmentation, patch_size_min_bytes, patch_size_max_bytes));
+    if(!merged.has_value()) {
+      // Nothing was merged so we're done.
+      return segmentation;
+    }
+    segment_index_t merged_segment_index = *merged;
 
-  TRYV(MergeBaseSegmentsIfNeeded(context, segmentation, patch_size_min_bytes, patch_size_max_bytes));
+    printf("Reanalyzing segment %u\n", merged_segment_index);
+    TRYV(AnalyzeSegment(context, merged_segment_index, context.segments[merged_segment_index].get()));
+  }
 
-  return segmentation;
+  return absl::InternalError("unreachable");
 }
 
 GlyphSegmentation::ActivationCondition
@@ -417,6 +533,37 @@ void output_set(const char* prefix, It begin, It end, std::stringstream& out) {
   out << " }";
 }
 
+std::string GlyphSegmentation::ActivationCondition::ToString() const {
+  std::stringstream out;
+  out << "if (";
+  bool first = true;
+  for (const auto& set : conditions()) {
+    if (!first) {
+      out << " AND ";
+    } else {
+      first = false;
+    }
+
+    if (set.size() > 1) {
+      out << "(";
+    }
+    bool first_inner = true;
+    for (uint32_t id : set) {
+      if (!first_inner) {
+        out << " OR ";
+      } else {
+        first_inner = false;
+      }
+      out << "p" << id;
+    }
+    if (set.size() > 1) {
+      out << ")";
+    }
+  }
+  out << ") then p" << activated();
+  return out.str();
+}
+
 std::string GlyphSegmentation::ToString() const {
   std::stringstream out;
   out << "initial font: ";
@@ -431,35 +578,44 @@ std::string GlyphSegmentation::ToString() const {
   }
 
   for (const auto& condition : Conditions()) {
-    bool first = true;
-    out << "if (";
-    for (const auto& set : condition.conditions()) {
-      if (!first) {
-        out << " AND ";
-      } else {
-        first = false;
-      }
-
-      if (set.size() > 1) {
-        out << "(";
-      }
-      bool first_inner = true;
-      for (uint32_t id : set) {
-        if (!first_inner) {
-          out << " OR ";
-        } else {
-          first_inner = false;
-        }
-        out << "p" << id;
-      }
-      if (set.size() > 1) {
-        out << ")";
-      }
-    }
-    out << ") then p" << condition.activated() << std::endl;
+    out << condition.ToString() << std::endl;
   }
 
   return out.str();
+}
+
+bool GlyphSegmentation::ActivationCondition::operator<(const ActivationCondition& other) const {
+  if (conditions_.size() != other.conditions_.size()) {
+    return conditions_.size() < other.conditions_.size();
+  }
+
+  auto a = conditions_.begin();
+  auto b = other.conditions_.begin();
+  while (a != conditions_.end() && b != other.conditions_.end()) {
+    if (a->size() != b->size()) {
+      return a->size() < b->size();
+    }
+
+    auto aa = a->begin();
+    auto bb = b->begin();
+    while (aa != a->end() && bb != b->end()) {
+      if (*aa != *bb) {
+        return *aa < *bb;
+      }
+      aa++;
+      bb++;
+    }
+
+    a++;
+    b++;
+  }
+
+  if (activated_ != other.activated_) {
+    return activated_ < other.activated_;
+  }
+
+  // These two are equal
+  return false;
 }
 
 }  // namespace ift::encoder

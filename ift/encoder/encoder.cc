@@ -583,7 +583,7 @@ bool Encoder::Condition::operator<(const Condition& other) const {
 
   auto a = required_groups.begin();
   auto b = other.required_groups.begin();
-  while (a != required_groups.end() && b != required_groups.end()) {
+  while (a != required_groups.end() && b != other.required_groups.end()) {
     if (a->size() != b->size()) {
       return a->size() < b->size();
     }

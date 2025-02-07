@@ -61,6 +61,22 @@ class GlyphSegmentation {
     }
 
     /*
+     * Populates out with the set of patch ids that are part of this condition (excluding the activated patch)
+     */
+    void TriggeringPatches(hb_set_t* out) const {
+      for (auto g : conditions_) {
+        for (auto patch_id : g) {
+          hb_set_add(out, patch_id);
+        }
+      }
+    }
+
+    /*
+     * Returns a human readable string representation of this condition.
+     */
+    std::string ToString() const;
+
+    /*
      * The patch to load when the condition is satisfied.
      */
     patch_id_t activated() const { return activated_; }
@@ -73,6 +89,12 @@ class GlyphSegmentation {
         }
       }
       return false;
+    }
+
+    bool operator<(const ActivationCondition& other) const;
+
+    bool operator==(const ActivationCondition& other) const {
+      return conditions_ == other.conditions_ && activated_ == other.activated_;
     }
 
    private:
@@ -107,7 +129,7 @@ class GlyphSegmentation {
    * The list of all conditions of how the various patches in this segmentation
    * are activated.
    */
-  const std::vector<ActivationCondition>& Conditions() const {
+  const absl::btree_set<ActivationCondition>& Conditions() const {
     return conditions_;
   }
 
@@ -153,7 +175,7 @@ class GlyphSegmentation {
   //                     built up from.
   absl::btree_set<glyph_id_t> init_font_glyphs_;
   absl::btree_set<glyph_id_t> unmapped_glyphs_;
-  std::vector<ActivationCondition> conditions_;
+  absl::btree_set<ActivationCondition> conditions_;
   absl::btree_map<patch_id_t, absl::btree_set<glyph_id_t>> patches_;
 };
 
