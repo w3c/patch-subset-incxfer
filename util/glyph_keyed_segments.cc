@@ -36,7 +36,8 @@ ABSL_FLAG(uint32_t, number_of_segments, 2,
           "Number of segments to split the input codepoints into.");
 
 ABSL_FLAG(uint32_t, min_patch_size_bytes, 0,
-          "The segmenter will try to increase patch sizes to at least this amount via merging if needed.");
+          "The segmenter will try to increase patch sizes to at least this "
+          "amount via merging if needed.");
 
 using absl::btree_set;
 using absl::flat_hash_map;
