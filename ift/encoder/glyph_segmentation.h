@@ -61,7 +61,8 @@ class GlyphSegmentation {
     }
 
     /*
-     * Populates out with the set of patch ids that are part of this condition (excluding the activated patch)
+     * Populates out with the set of patch ids that are part of this condition
+     * (excluding the activated patch)
      */
     void TriggeringPatches(hb_set_t* out) const {
       for (auto g : conditions_) {
