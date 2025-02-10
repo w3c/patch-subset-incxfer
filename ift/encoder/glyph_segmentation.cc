@@ -476,11 +476,9 @@ StatusOr<uint32_t> EstimatePatchSize(SegmentationContext& context,
 
 StatusOr<std::optional<segment_index_t>> MergeNextBaseSegment(
     SegmentationContext& context,
-    const GlyphSegmentation& candidate_segmentation,
+    const GlyphSegmentation& candidate_segmentation, uint32_t start_segment,
     uint32_t patch_size_min_bytes, uint32_t patch_size_max_bytes) {
   printf("MergeNextBaseSegment():\n");
-  // TODO XXXXX allow this function to start after a certain segment so we don't
-  //            need to recheck what's already been processed.
   // TODO XXXX refactor and extract stuff into helpers to improve readability.
 
   hb_set_unique_ptr triggering_patches = make_hb_set();
@@ -493,6 +491,11 @@ StatusOr<std::optional<segment_index_t>> MergeNextBaseSegment(
     patch_id_t base_patch = condition->activated();
     segment_index_t base_segment_index =
         context.patch_id_to_segment_index[base_patch];
+    if (base_segment_index < start_segment) {
+      // Already processed, skip
+      continue;
+    }
+
     printf("  checking patch size for %u (segment %u)\n", base_patch,
            base_segment_index);
 
@@ -598,6 +601,7 @@ StatusOr<GlyphSegmentation> GlyphSegmentation::CodepointToGlyphSegments(
     segment_index++;
   }
 
+  segment_index_t last_merged_segment_index = 0;
   while (true) {
     GlyphSegmentation segmentation;
     context.ResetGroupings();
@@ -615,18 +619,18 @@ StatusOr<GlyphSegmentation> GlyphSegmentation::CodepointToGlyphSegments(
       return segmentation;
     }
 
-    auto merged = TRY(MergeNextBaseSegment(
-        context, segmentation, patch_size_min_bytes, patch_size_max_bytes));
+    auto merged = TRY(
+        MergeNextBaseSegment(context, segmentation, last_merged_segment_index,
+                             patch_size_min_bytes, patch_size_max_bytes));
     if (!merged.has_value()) {
       // Nothing was merged so we're done.
       return segmentation;
     }
-    segment_index_t merged_segment_index = *merged;
 
-    printf("Reanalyzing segment %u\n", merged_segment_index);
-    TRYV(AnalyzeSegment(context, merged_segment_index,
-                        context.segments[merged_segment_index].get()));
-    printf("Done reanalyzing\n");
+    last_merged_segment_index = *merged;
+    printf("Reanalyzing segment %u\n", last_merged_segment_index);
+    TRYV(AnalyzeSegment(context, last_merged_segment_index,
+                        context.segments[last_merged_segment_index].get()));
   }
 
   return absl::InternalError("unreachable");
