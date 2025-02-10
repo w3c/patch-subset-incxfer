@@ -37,6 +37,8 @@ namespace ift::encoder {
 // TODO(garretrieger): extensions/improvements that could be made:
 // - Multi segment combination testing with GSUB dep analysis to guide.
 // - Use merging and/or duplication to ensure minimum patch size.
+//   - base patches (IN PROGRESS):
+//   - composite patches (NOT STARTED)
 // - Add logging
 
 btree_set<uint32_t> to_btree_set(const hb_set_t* set) {
@@ -459,15 +461,27 @@ void MergeSegments(const SegmentationContext& context, const hb_set_t* segments,
   }
 }
 
+StatusOr<uint32_t> EstimatePatchSize(SegmentationContext& context,
+                                     const hb_set_t* codepoints) {
+  // TODO XXXXX keep a cache around for this
+  hb_set_unique_ptr and_gids = make_hb_set();
+  hb_set_unique_ptr or_gids = make_hb_set();
+  hb_set_unique_ptr exclusive_gids = make_hb_set();
+  TRYV(AnalyzeSegment(context, codepoints, and_gids.get(), or_gids.get(),
+                      exclusive_gids.get()));
+
+  auto btree_gids = to_btree_set(exclusive_gids.get());
+  return PatchSizeBytes(context.original_face.get(), btree_gids);
+}
+
 StatusOr<std::optional<segment_index_t>> MergeNextBaseSegment(
     SegmentationContext& context,
     const GlyphSegmentation& candidate_segmentation,
     uint32_t patch_size_min_bytes, uint32_t patch_size_max_bytes) {
   printf("MergeNextBaseSegment():\n");
-  // TODO XXXXX don't do a merge which brings us above the max size.
   // TODO XXXXX allow this function to start after a certain segment so we don't
-  // need to recheck what's already
-  //            been processed.
+  //            need to recheck what's already been processed.
+  // TODO XXXX refactor and extract stuff into helpers to improve readability.
 
   hb_set_unique_ptr triggering_patches = make_hb_set();
   for (auto condition = candidate_segmentation.Conditions().begin();
@@ -477,7 +491,10 @@ StatusOr<std::optional<segment_index_t>> MergeNextBaseSegment(
     }
 
     patch_id_t base_patch = condition->activated();
-    printf("  checking patch size for %u\n", base_patch);
+    segment_index_t base_segment_index =
+        context.patch_id_to_segment_index[base_patch];
+    printf("  checking patch size for %u (segment %u)\n", base_patch,
+           base_segment_index);
 
     // step 1: measure the patch size for this segment.
     auto patch_glyphs = candidate_segmentation.GidSegments().find(base_patch);
@@ -491,8 +508,6 @@ StatusOr<std::optional<segment_index_t>> MergeNextBaseSegment(
     }
 
     // step 2: if below min locate candidate groups of segments to merge.
-    segment_index_t base_segment_index =
-        context.patch_id_to_segment_index[base_patch];
     printf("  patch %u (segment %u) is too small (%u < %u)\n", base_patch,
            base_segment_index, patch_size_bytes, patch_size_min_bytes);
     auto next_condition = condition;
@@ -512,7 +527,7 @@ StatusOr<std::optional<segment_index_t>> MergeNextBaseSegment(
         continue;
       }
 
-      printf("    merging with: %s\n", next_condition->ToString().c_str());
+      printf("    try merging with: %s\n", next_condition->ToString().c_str());
 
       // Create a merged segment, and remove all of the others
       hb_set_unique_ptr to_merge_segments = ToSegmentIndices(
@@ -521,12 +536,28 @@ StatusOr<std::optional<segment_index_t>> MergeNextBaseSegment(
 
       uint32_t size_before =
           hb_set_get_population(context.segments[base_segment_index].get());
-      MergeSegments(context, to_merge_segments.get(),
-                    context.segments[base_segment_index].get());
+      hb_set_unique_ptr merged_codepoints = make_hb_set();
+      hb_set_union(merged_codepoints.get(),
+                   context.segments[base_segment_index].get());
+      MergeSegments(context, to_merge_segments.get(), merged_codepoints.get());
+
+      uint32_t new_patch_size =
+          TRY(EstimatePatchSize(context, merged_codepoints.get()));
+      if (new_patch_size > patch_size_max_bytes) {
+        printf("    skipping, patch would be too large (%u bytes)\n",
+               new_patch_size);
+        next_condition++;
+        continue;
+      }
+
+      hb_set_union(context.segments[base_segment_index].get(),
+                   merged_codepoints.get());
       uint32_t size_after =
           hb_set_get_population(context.segments[base_segment_index].get());
-      printf("   merged %u codepoints up to %u codepoints\n", size_before,
-             size_after);
+      printf(
+          "    merged %u codepoints up to %u codepoints. New patch size %u "
+          "bytes\n",
+          size_before, size_after, new_patch_size);
 
       segment_index_t segment_index = HB_SET_VALUE_INVALID;
       while (hb_set_next(to_merge_segments.get(), &segment_index)) {
