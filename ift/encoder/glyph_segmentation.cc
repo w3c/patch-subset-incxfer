@@ -40,6 +40,7 @@ namespace ift::encoder {
 //   - base patches (IN PROGRESS):
 //   - composite patches (NOT STARTED)
 // - Add logging
+// - at the end output patch sizes by segment and patch index.
 
 btree_set<uint32_t> to_btree_set(const hb_set_t* set) {
   btree_set<uint32_t> out;
@@ -70,9 +71,9 @@ class GlyphConditions {
 
 class SegmentationContext;
 
-Status AnalyzeSegment(SegmentationContext& context, const hb_set_t* codepoints,
-                      hb_set_t* and_gids, hb_set_t* or_gids,
-                      hb_set_t* exclusive_gids);
+Status AnalyzeSegment(const SegmentationContext& context,
+                      const hb_set_t* codepoints, hb_set_t* and_gids,
+                      hb_set_t* or_gids, hb_set_t* exclusive_gids);
 
 class SegmentationContext {
  public:
@@ -118,7 +119,7 @@ class SegmentationContext {
     fallback_segments = {};
   }
 
-  StatusOr<hb_set_unique_ptr> glyph_closure(const hb_set_t* codepoints) {
+  StatusOr<hb_set_unique_ptr> glyph_closure(const hb_set_t* codepoints) const {
     hb_subset_input_t* input = hb_subset_input_create_or_fail();
     if (!input) {
       return absl::InternalError("Closure subset configuration failed.");
@@ -174,6 +175,9 @@ class SegmentationContext {
   hb_set_unique_ptr full_closure;
   hb_set_unique_ptr initial_closure;
 
+  uint32_t patch_size_min_bytes = 0;
+  uint32_t patch_size_max_bytes = UINT32_MAX;
+
   // Phase 1
   std::vector<GlyphConditions> gid_conditions;
 
@@ -187,9 +191,9 @@ class SegmentationContext {
       code_point_set_to_or_gids_cache;
 };
 
-Status AnalyzeSegment(SegmentationContext& context, const hb_set_t* codepoints,
-                      hb_set_t* and_gids, hb_set_t* or_gids,
-                      hb_set_t* exclusive_gids) {
+Status AnalyzeSegment(const SegmentationContext& context,
+                      const hb_set_t* codepoints, hb_set_t* and_gids,
+                      hb_set_t* or_gids, hb_set_t* exclusive_gids) {
   if (hb_set_is_empty(codepoints)) {
     // Skip empty sets, they will never contribute any conditions.
     return absl::OkStatus();
@@ -461,7 +465,7 @@ void MergeSegments(const SegmentationContext& context, const hb_set_t* segments,
   }
 }
 
-StatusOr<uint32_t> EstimatePatchSize(SegmentationContext& context,
+StatusOr<uint32_t> EstimatePatchSize(const SegmentationContext& context,
                                      const hb_set_t* codepoints) {
   // TODO XXXXX keep a cache around for this
   hb_set_unique_ptr and_gids = make_hb_set();
@@ -474,13 +478,117 @@ StatusOr<uint32_t> EstimatePatchSize(SegmentationContext& context,
   return PatchSizeBytes(context.original_face.get(), btree_gids);
 }
 
+StatusOr<bool> TryMerge(SegmentationContext& context,
+                        segment_index_t base_segment_index,
+                        const hb_set_t* patches) {
+  // Create a merged segment, and remove all of the others
+  hb_set_unique_ptr to_merge_segments =
+      ToSegmentIndices(patches, context.patch_id_to_segment_index);
+  hb_set_del(to_merge_segments.get(), base_segment_index);
+
+  uint32_t size_before =
+      hb_set_get_population(context.segments[base_segment_index].get());
+  hb_set_unique_ptr merged_codepoints = make_hb_set();
+  hb_set_union(merged_codepoints.get(),
+               context.segments[base_segment_index].get());
+  MergeSegments(context, to_merge_segments.get(), merged_codepoints.get());
+
+  uint32_t new_patch_size =
+      TRY(EstimatePatchSize(context, merged_codepoints.get()));
+  if (new_patch_size > context.patch_size_max_bytes) {
+    printf("    skipping, patch would be too large (%u bytes)\n",
+           new_patch_size);
+    return false;
+  }
+
+  hb_set_union(context.segments[base_segment_index].get(),
+               merged_codepoints.get());
+  uint32_t size_after =
+      hb_set_get_population(context.segments[base_segment_index].get());
+  printf(
+      "    merged %u codepoints up to %u codepoints. New patch size %u "
+      "bytes\n",
+      size_before, size_after, new_patch_size);
+
+  segment_index_t segment_index = HB_SET_VALUE_INVALID;
+  while (hb_set_next(to_merge_segments.get(), &segment_index)) {
+    // To avoid changing the indices of other segments set the ones we're
+    // removing to empty sets. That effectively disables them.
+    printf("    clearing segment %u\n", segment_index);
+    hb_set_clear(context.segments[segment_index].get());
+  }
+
+  // Remove all segments we touched here from gid_conditions so they can be
+  // recalculated.
+  hb_set_add(to_merge_segments.get(), base_segment_index);
+  for (auto& condition : context.gid_conditions) {
+    condition.RemoveSegments(to_merge_segments.get());
+  }
+
+  return true;
+}
+
+template <typename ConditionIt>
+StatusOr<bool> TryMergingACompositeCondition(
+    SegmentationContext& context,
+    const GlyphSegmentation& candidate_segmentation,
+    segment_index_t base_segment_index, patch_id_t base_patch,
+    ConditionIt& condition_it) {
+  auto next_condition = condition_it;
+  next_condition++;
+  while (next_condition != candidate_segmentation.Conditions().end()) {
+    if (next_condition->IsFallback()) {
+      // Merging the fallback will cause all segments to be merged into one,
+      // which is undesirable so don't consider the fallback.
+      next_condition++;
+      continue;
+    }
+
+    hb_set_unique_ptr triggering_patches = make_hb_set();
+    next_condition->TriggeringPatches(triggering_patches.get());
+    if (!hb_set_has(triggering_patches.get(), base_patch)) {
+      next_condition++;
+      continue;
+    }
+
+    printf("    try merging with: %s\n", next_condition->ToString().c_str());
+    if (!TRY(TryMerge(context, base_segment_index, triggering_patches.get()))) {
+      next_condition++;
+      continue;
+    }
+
+    return true;
+  }
+
+  return false;
+}
+
+StatusOr<bool> IsPatchTooSmall(SegmentationContext& context,
+                               const GlyphSegmentation& candidate_segmentation,
+                               segment_index_t base_segment_index,
+                               patch_id_t base_patch) {
+  printf("  checking patch size for %u (segment %u)\n", base_patch,
+         base_segment_index);
+
+  auto patch_glyphs = candidate_segmentation.GidSegments().find(base_patch);
+  if (patch_glyphs == candidate_segmentation.GidSegments().end()) {
+    return absl::InternalError(StrCat("patch ", base_patch, " not found."));
+  }
+  uint32_t patch_size_bytes =
+      TRY(PatchSizeBytes(context.original_face.get(), patch_glyphs->second));
+  if (patch_size_bytes >= context.patch_size_min_bytes) {
+    return false;
+  }
+
+  printf("  patch %u (segment %u) is too small (%u < %u)\n", base_patch,
+         base_segment_index, patch_size_bytes, context.patch_size_min_bytes);
+  return true;
+}
+
 StatusOr<std::optional<segment_index_t>> MergeNextBaseSegment(
     SegmentationContext& context,
-    const GlyphSegmentation& candidate_segmentation, uint32_t start_segment,
-    uint32_t patch_size_min_bytes, uint32_t patch_size_max_bytes) {
+    const GlyphSegmentation& candidate_segmentation, uint32_t start_segment) {
   printf("MergeNextBaseSegment():\n");
-  // TODO XXXX refactor and extract stuff into helpers to improve readability.
-
   hb_set_unique_ptr triggering_patches = make_hb_set();
   for (auto condition = candidate_segmentation.Conditions().begin();
        condition != candidate_segmentation.Conditions().end(); condition++) {
@@ -496,94 +604,22 @@ StatusOr<std::optional<segment_index_t>> MergeNextBaseSegment(
       continue;
     }
 
-    printf("  checking patch size for %u (segment %u)\n", base_patch,
-           base_segment_index);
-
-    // step 1: measure the patch size for this segment.
-    auto patch_glyphs = candidate_segmentation.GidSegments().find(base_patch);
-    if (patch_glyphs == candidate_segmentation.GidSegments().end()) {
-      return absl::InternalError(StrCat("patch ", base_patch, " not found."));
-    }
-    uint32_t patch_size_bytes =
-        TRY(PatchSizeBytes(context.original_face.get(), patch_glyphs->second));
-    if (patch_size_bytes >= patch_size_min_bytes) {
+    if (!TRY(IsPatchTooSmall(context, candidate_segmentation,
+                             base_segment_index, base_patch))) {
       continue;
     }
 
-    // step 2: if below min locate candidate groups of segments to merge.
-    printf("  patch %u (segment %u) is too small (%u < %u)\n", base_patch,
-           base_segment_index, patch_size_bytes, patch_size_min_bytes);
-    auto next_condition = condition;
-    next_condition++;
-    while (next_condition != candidate_segmentation.Conditions().end()) {
-      if (next_condition->IsFallback()) {
-        // Merging the fallback will cause all segments to be merged into one,
-        // which is undesirable so don't consider the fallback.
-        next_condition++;
-        continue;
-      }
-
-      hb_set_clear(triggering_patches.get());
-      next_condition->TriggeringPatches(triggering_patches.get());
-      if (!hb_set_has(triggering_patches.get(), base_patch)) {
-        next_condition++;
-        continue;
-      }
-
-      printf("    try merging with: %s\n", next_condition->ToString().c_str());
-
-      // Create a merged segment, and remove all of the others
-      hb_set_unique_ptr to_merge_segments = ToSegmentIndices(
-          triggering_patches.get(), context.patch_id_to_segment_index);
-      hb_set_del(to_merge_segments.get(), base_segment_index);
-
-      uint32_t size_before =
-          hb_set_get_population(context.segments[base_segment_index].get());
-      hb_set_unique_ptr merged_codepoints = make_hb_set();
-      hb_set_union(merged_codepoints.get(),
-                   context.segments[base_segment_index].get());
-      MergeSegments(context, to_merge_segments.get(), merged_codepoints.get());
-
-      uint32_t new_patch_size =
-          TRY(EstimatePatchSize(context, merged_codepoints.get()));
-      if (new_patch_size > patch_size_max_bytes) {
-        printf("    skipping, patch would be too large (%u bytes)\n",
-               new_patch_size);
-        next_condition++;
-        continue;
-      }
-
-      hb_set_union(context.segments[base_segment_index].get(),
-                   merged_codepoints.get());
-      uint32_t size_after =
-          hb_set_get_population(context.segments[base_segment_index].get());
-      printf(
-          "    merged %u codepoints up to %u codepoints. New patch size %u "
-          "bytes\n",
-          size_before, size_after, new_patch_size);
-
-      segment_index_t segment_index = HB_SET_VALUE_INVALID;
-      while (hb_set_next(to_merge_segments.get(), &segment_index)) {
-        // To avoid changing the indices of other segments set the ones we're
-        // removing to empty sets. That effectively disables them.
-        printf("    clearing segment %u\n", segment_index);
-        hb_set_clear(context.segments[segment_index].get());
-      }
-
-      // Remove all segments we touched here from gid_conditions so they can be
-      // recalculated.
-      hb_set_add(to_merge_segments.get(), base_segment_index);
-      for (auto& condition : context.gid_conditions) {
-        condition.RemoveSegments(to_merge_segments.get());
-      }
-
+    if (TRY(TryMergingACompositeCondition(context, candidate_segmentation,
+                                          base_segment_index, base_patch,
+                                          condition))) {
       // Return to the parent method so it can reanalyze and reform groups
       return base_segment_index;
     }
 
-    // TODO XXXXXX if we didn't find any groupings that can be merged, then just
-    // pick the next base segment to merge
-    printf("    no composite to merge with.\n");
+    // TODO XXXXXX if we didn't find any groupings that can be merged, then
+    // just pick the next base segment to merge
+    printf("    no composite to merge with (segment %u).\n",
+           base_segment_index);
   }
 
   return std::nullopt;
@@ -594,6 +630,8 @@ StatusOr<GlyphSegmentation> GlyphSegmentation::CodepointToGlyphSegments(
     std::vector<flat_hash_set<hb_codepoint_t>> codepoint_segments,
     uint32_t patch_size_min_bytes, uint32_t patch_size_max_bytes) {
   SegmentationContext context(face, initial_segment, codepoint_segments);
+  context.patch_size_min_bytes = patch_size_min_bytes;
+  context.patch_size_max_bytes = patch_size_max_bytes;
 
   segment_index_t segment_index = 0;
   for (const auto& segment : context.segments) {
@@ -620,8 +658,7 @@ StatusOr<GlyphSegmentation> GlyphSegmentation::CodepointToGlyphSegments(
     }
 
     auto merged = TRY(
-        MergeNextBaseSegment(context, segmentation, last_merged_segment_index,
-                             patch_size_min_bytes, patch_size_max_bytes));
+        MergeNextBaseSegment(context, segmentation, last_merged_segment_index));
     if (!merged.has_value()) {
       // Nothing was merged so we're done.
       return segmentation;
@@ -688,6 +725,8 @@ void output_set(const char* prefix, It begin, It end, std::stringstream& out) {
 }
 
 std::string GlyphSegmentation::ActivationCondition::ToString() const {
+  // TODO XXXX print condition in terms of segment numbers and not patch
+  // indices.
   std::stringstream out;
   out << "if (";
   bool first = true;
