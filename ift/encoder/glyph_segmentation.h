@@ -162,7 +162,7 @@ class GlyphSegmentation {
   };
 
  private:
-  static void GroupsToSegmentation(
+  static absl::Status GroupsToSegmentation(
       const absl::btree_map<absl::btree_set<segment_index_t>,
                             absl::btree_set<glyph_id_t>>& and_glyph_groups,
       const absl::btree_map<absl::btree_set<segment_index_t>,

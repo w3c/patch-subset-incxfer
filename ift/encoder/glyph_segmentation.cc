@@ -246,6 +246,10 @@ Status AnalyzeSegment(SegmentationContext& context,
 Status GroupGlyphs(SegmentationContext& context) {
   btree_set<segment_index_t> all_segments_set;
   for (segment_index_t s = 0; s < context.segments.size(); s++) {
+    if (hb_set_is_empty(context.segments[s].get())) {
+      // Ignore empty segments.
+      continue;
+    }
     all_segments_set.insert(s);
   }
 
@@ -304,7 +308,7 @@ Status GroupGlyphs(SegmentationContext& context) {
   return absl::OkStatus();
 }
 
-void GlyphSegmentation::GroupsToSegmentation(
+Status GlyphSegmentation::GroupsToSegmentation(
     const btree_map<btree_set<segment_index_t>, btree_set<glyph_id_t>>&
         and_glyph_groups,
     const btree_map<btree_set<segment_index_t>, btree_set<glyph_id_t>>&
@@ -326,7 +330,10 @@ void GlyphSegmentation::GroupsToSegmentation(
         ActivationCondition::and_patches({next_id}, next_id));
 
     if (segment + 1 > segment_to_patch_id.size()) {
-      segment_to_patch_id.resize(segment + 1);
+      uint32_t size = segment_to_patch_id.size();
+      for (uint32_t i = 0; i < (segment + 1) - size; i++) {
+        segment_to_patch_id.push_back(-1);
+      }
     }
 
     patch_id_to_segment_index.push_back(segment);
@@ -341,6 +348,11 @@ void GlyphSegmentation::GroupsToSegmentation(
 
     btree_set<patch_id_t> and_patches;
     for (segment_index_t segment : and_segments) {
+      if (segment_to_patch_id[segment] == -1) {
+        return absl::InternalError(StrCat(
+            "Segment s", segment,
+            " does not have an assigned patch id (found in an and_segment)."));
+      }
       and_patches.insert(segment_to_patch_id[segment]);
     }
 
@@ -359,15 +371,22 @@ void GlyphSegmentation::GroupsToSegmentation(
     }
 
     if (or_segments.size() == 1) {
-      printf("!! Unexpected or_segment with only one segment: %u\n",
-             *or_segments.begin());
+      return absl::InternalError(
+          StrCat("Unexpected or_segment with only one segment: s",
+                 *or_segments.begin()));
     }
     btree_set<patch_id_t> or_patches;
     for (segment_index_t segment : or_segments) {
+      if (segment_to_patch_id[segment] == -1) {
+        return absl::InternalError(StrCat(
+            "Segment s", segment,
+            " does not have an assigned patch id (found in an or_segment)."));
+      }
+
       if (!or_patches.insert(segment_to_patch_id[segment]).second) {
-        printf(
-            "!! Two different segments mapped to the same patch: s%u -> p%u\n",
-            segment, segment_to_patch_id[segment]);
+        return absl::InternalError(
+            StrCat("Two different segments are mapped to the same patch: s",
+                   segment, " -> p", segment_to_patch_id[segment]));
       }
     }
     segmentation.patches_.insert(std::pair(next_id, glyphs));
@@ -376,6 +395,8 @@ void GlyphSegmentation::GroupsToSegmentation(
 
     next_id++;
   }
+
+  return absl::OkStatus();
 }
 
 StatusOr<uint32_t> PatchSizeBytes(hb_face_t* original_face,
@@ -512,8 +533,8 @@ StatusOr<GlyphSegmentation> GlyphSegmentation::CodepointToGlyphSegments(
     segmentation.init_font_glyphs_ =
         to_btree_set(context.initial_closure.get());
 
-    GroupsToSegmentation(context.and_glyph_groups, context.or_glyph_groups,
-                         context.patch_id_to_segment_index, segmentation);
+    TRYV(GroupsToSegmentation(context.and_glyph_groups, context.or_glyph_groups,
+                              context.patch_id_to_segment_index, segmentation));
 
     if (patch_size_min_bytes == 0) {
       return segmentation;
