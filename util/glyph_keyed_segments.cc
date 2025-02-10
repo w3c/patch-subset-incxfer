@@ -1,5 +1,6 @@
 #include <google/protobuf/text_format.h>
 
+#include <cstdint>
 #include <cstdio>
 #include <fstream>
 #include <iostream>
@@ -38,6 +39,10 @@ ABSL_FLAG(uint32_t, number_of_segments, 2,
 ABSL_FLAG(uint32_t, min_patch_size_bytes, 0,
           "The segmenter will try to increase patch sizes to at least this "
           "amount via merging if needed.");
+
+ABSL_FLAG(uint32_t, max_patch_size_bytes, UINT32_MAX,
+          "The segmenter will avoid merges which result in patches larger than "
+          "this amount.");
 
 using absl::btree_set;
 using absl::flat_hash_map;
@@ -281,7 +286,8 @@ int main(int argc, char** argv) {
       GroupCodepoints(*codepoints, absl::GetFlag(FLAGS_number_of_segments));
 
   auto result = ift::encoder::GlyphSegmentation::CodepointToGlyphSegments(
-      font->get(), {}, groups, absl::GetFlag(FLAGS_min_patch_size_bytes));
+      font->get(), {}, groups, absl::GetFlag(FLAGS_min_patch_size_bytes),
+      absl::GetFlag(FLAGS_max_patch_size_bytes));
   if (!result.ok()) {
     std::cerr << result.status() << std::endl;
     return -1;
