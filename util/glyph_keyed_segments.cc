@@ -290,6 +290,10 @@ int main(int argc, char** argv) {
   std::cout << ">> Computed Segmentation" << std::endl;
   std::cout << result->ToString() << std::endl;
 
+  // TODO XXXXX add some QA checks on the segmentation:
+  // - Each glyph should be in at most one patch
+  // - All glyphs in the full closure should be in at least one patch.
+
   std::cout << ">> Analysis" << std::endl;
   auto cost = SegmentationSize(font->get(), *result);
   if (!cost.ok()) {

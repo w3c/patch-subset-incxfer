@@ -123,4 +123,9 @@ if ((p2 OR p3)) then p6
 )");
 }
 
+// TODO XXXXXXXXX test where or_set glyphs are moved back to unmapped.
+// bazel run -c opt util:glyph_keyed_segments --
+// --input_font=$HOME/src/fonts/ofl/notonastaliqurdu/NotoNastaliqUrdu\[wght\].ttf
+// --number_of_segments=10 Triggers this case.
+
 }  // namespace ift::encoder
