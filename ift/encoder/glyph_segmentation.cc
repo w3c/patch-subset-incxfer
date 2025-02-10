@@ -66,6 +66,12 @@ class GlyphConditions {
   }
 };
 
+class SegmentationContext;
+
+Status AnalyzeSegment(SegmentationContext& context, const hb_set_t* codepoints,
+                      hb_set_t* and_gids, hb_set_t* or_gids,
+                      hb_set_t* exclusive_gids);
+
 class SegmentationContext {
  public:
   SegmentationContext(
@@ -107,6 +113,7 @@ class SegmentationContext {
     and_glyph_groups = {};
     or_glyph_groups = {};
     patch_id_to_segment_index = {};
+    fallback_segments = {};
   }
 
   StatusOr<hb_set_unique_ptr> glyph_closure(const hb_set_t* codepoints) {
@@ -134,6 +141,27 @@ class SegmentationContext {
     return gids;
   }
 
+  StatusOr<const hb_set_t*> code_point_set_to_or_gids(
+      const hb_set_unique_ptr& codepoints) {
+    auto hash_set_codepoints = common::to_hash_set(codepoints);
+
+    auto it = code_point_set_to_or_gids_cache.find(hash_set_codepoints);
+    if (it != code_point_set_to_or_gids_cache.end()) {
+      return it->second.get();
+    }
+
+    hb_set_unique_ptr and_gids = make_hb_set();
+    hb_set_unique_ptr or_gids = make_hb_set();
+    hb_set_unique_ptr exclusive_gids = make_hb_set();
+    TRYV(AnalyzeSegment(*this, codepoints.get(), and_gids.get(), or_gids.get(),
+                        exclusive_gids.get()));
+
+    const hb_set_t* or_gids_ptr = or_gids.get();
+    code_point_set_to_or_gids_cache.insert(
+        std::pair(hash_set_codepoints, std::move(or_gids)));
+    return or_gids_ptr;
+  }
+
   // Init
   common::hb_face_unique_ptr preprocessed_face;
   common::hb_face_unique_ptr original_face;
@@ -152,6 +180,9 @@ class SegmentationContext {
   btree_map<btree_set<segment_index_t>, btree_set<glyph_id_t>> and_glyph_groups;
   btree_map<btree_set<segment_index_t>, btree_set<glyph_id_t>> or_glyph_groups;
   std::vector<segment_index_t> patch_id_to_segment_index;
+  btree_set<segment_index_t> fallback_segments;
+  flat_hash_map<flat_hash_set<uint32_t>, hb_set_unique_ptr>
+      code_point_set_to_or_gids_cache;
 };
 
 Status AnalyzeSegment(SegmentationContext& context, const hb_set_t* codepoints,
@@ -244,13 +275,13 @@ Status AnalyzeSegment(SegmentationContext& context,
 }
 
 Status GroupGlyphs(SegmentationContext& context) {
-  btree_set<segment_index_t> all_segments_set;
+  btree_set<segment_index_t> fallback_segments_set;
   for (segment_index_t s = 0; s < context.segments.size(); s++) {
     if (hb_set_is_empty(context.segments[s].get())) {
       // Ignore empty segments.
       continue;
     }
-    all_segments_set.insert(s);
+    fallback_segments_set.insert(s);
   }
 
   for (glyph_id_t gid = 0; gid < context.gid_conditions.size(); gid++) {
@@ -282,17 +313,14 @@ Status GroupGlyphs(SegmentationContext& context) {
       hb_set_subtract(all_other_codepoints.get(), context.segments[s].get());
     }
 
-    hb_set_unique_ptr and_gids = make_hb_set();
-    hb_set_unique_ptr or_gids = make_hb_set();
-    hb_set_unique_ptr exclusive_gids = make_hb_set();
-    TRYV(AnalyzeSegment(context, all_other_codepoints.get(), and_gids.get(),
-                        or_gids.get(), exclusive_gids.get()));
+    const hb_set_t* or_gids =
+        TRY(context.code_point_set_to_or_gids(all_other_codepoints));
 
     // Any "OR" glyphs associated with all other codepoints have some additional
     // conditions to activate so we can't safely include them into this or
     // condition. They are instead moved to the set of unmapped glyphs.
     uint32_t gid = HB_SET_VALUE_INVALID;
-    while (hb_set_next(or_gids.get(), &gid)) {
+    while (hb_set_next(or_gids, &gid)) {
       if (glyphs.erase(gid) > 0) {
         context.unmapped_glyphs.insert(gid);
       }
@@ -302,8 +330,10 @@ Status GroupGlyphs(SegmentationContext& context) {
   for (uint32_t gid : context.unmapped_glyphs) {
     // this glyph is not activated anywhere but is needed in the full closure
     // so add it to an activation condition of any segment.
-    context.or_glyph_groups[all_segments_set].insert(gid);
+    context.or_glyph_groups[fallback_segments_set].insert(gid);
   }
+
+  context.fallback_segments = std::move(fallback_segments_set);
 
   return absl::OkStatus();
 }
@@ -313,6 +343,7 @@ Status GlyphSegmentation::GroupsToSegmentation(
         and_glyph_groups,
     const btree_map<btree_set<segment_index_t>, btree_set<glyph_id_t>>&
         or_glyph_groups,
+    const btree_set<segment_index_t>& fallback_group,
     std::vector<segment_index_t>& patch_id_to_segment_index,
     GlyphSegmentation& segmentation) {
   patch_id_t next_id = 0;
@@ -389,9 +420,10 @@ Status GlyphSegmentation::GroupsToSegmentation(
                    segment, " -> p", segment_to_patch_id[segment]));
       }
     }
+    bool is_fallback = (or_segments == fallback_group);
     segmentation.patches_.insert(std::pair(next_id, glyphs));
     segmentation.conditions_.insert(
-        ActivationCondition::or_patches(or_patches, next_id));
+        ActivationCondition::or_patches(or_patches, next_id, is_fallback));
 
     next_id++;
   }
@@ -432,6 +464,10 @@ StatusOr<std::optional<segment_index_t>> MergeNextBaseSegment(
     const GlyphSegmentation& candidate_segmentation,
     uint32_t patch_size_min_bytes, uint32_t patch_size_max_bytes) {
   printf("MergeNextBaseSegment():\n");
+  // TODO XXXXX don't do a merge which brings us above the max size.
+  // TODO XXXXX allow this function to start after a certain segment so we don't
+  // need to recheck what's already
+  //            been processed.
 
   hb_set_unique_ptr triggering_patches = make_hb_set();
   for (auto condition = candidate_segmentation.Conditions().begin();
@@ -462,6 +498,13 @@ StatusOr<std::optional<segment_index_t>> MergeNextBaseSegment(
     auto next_condition = condition;
     next_condition++;
     while (next_condition != candidate_segmentation.Conditions().end()) {
+      if (next_condition->IsFallback()) {
+        // Merging the fallback will cause all segments to be merged into one,
+        // which is undesirable so don't consider the fallback.
+        next_condition++;
+        continue;
+      }
+
       hb_set_clear(triggering_patches.get());
       next_condition->TriggeringPatches(triggering_patches.get());
       if (!hb_set_has(triggering_patches.get(), base_patch)) {
@@ -534,6 +577,7 @@ StatusOr<GlyphSegmentation> GlyphSegmentation::CodepointToGlyphSegments(
         to_btree_set(context.initial_closure.get());
 
     TRYV(GroupsToSegmentation(context.and_glyph_groups, context.or_glyph_groups,
+                              context.fallback_segments,
                               context.patch_id_to_segment_index, segmentation));
 
     if (patch_size_min_bytes == 0) {
@@ -551,6 +595,7 @@ StatusOr<GlyphSegmentation> GlyphSegmentation::CodepointToGlyphSegments(
     printf("Reanalyzing segment %u\n", merged_segment_index);
     TRYV(AnalyzeSegment(context, merged_segment_index,
                         context.segments[merged_segment_index].get()));
+    printf("Done reanalyzing\n");
   }
 
   return absl::InternalError("unreachable");
@@ -571,10 +616,12 @@ GlyphSegmentation::ActivationCondition::and_patches(
 
 GlyphSegmentation::ActivationCondition
 GlyphSegmentation::ActivationCondition::or_patches(
-    const absl::btree_set<patch_id_t>& ids, patch_id_t activated) {
+    const absl::btree_set<patch_id_t>& ids, patch_id_t activated,
+    bool is_fallback) {
   ActivationCondition conditions;
   conditions.activated_ = activated;
   conditions.conditions_.push_back(ids);
+  conditions.is_fallback_ = is_fallback;
 
   return conditions;
 }

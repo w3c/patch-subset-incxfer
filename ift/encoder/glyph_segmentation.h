@@ -48,7 +48,8 @@ class GlyphSegmentation {
      * OR ... OR inersects(patch_n).
      */
     static ActivationCondition or_patches(
-        const absl::btree_set<patch_id_t>& ids, patch_id_t activated);
+        const absl::btree_set<patch_id_t>& ids, patch_id_t activated,
+        bool is_fallback = false);
 
     /*
      * This condition is activated if every set of patch ids intersects the
@@ -59,6 +60,8 @@ class GlyphSegmentation {
     const std::vector<absl::btree_set<patch_id_t>>& conditions() const {
       return conditions_;
     }
+
+    bool IsFallback() const { return is_fallback_; }
 
     /*
      * Populates out with the set of patch ids that are part of this condition
@@ -101,6 +104,7 @@ class GlyphSegmentation {
    private:
     ActivationCondition() : conditions_(), activated_(0) {}
 
+    bool is_fallback_ = false;
     std::vector<absl::btree_set<patch_id_t>> conditions_;
     patch_id_t activated_;
   };
@@ -167,6 +171,7 @@ class GlyphSegmentation {
                             absl::btree_set<glyph_id_t>>& and_glyph_groups,
       const absl::btree_map<absl::btree_set<segment_index_t>,
                             absl::btree_set<glyph_id_t>>& or_glyph_groups,
+      const absl::btree_set<segment_index_t>& fallback_group,
       std::vector<segment_index_t>& patch_id_to_segment_index,
       GlyphSegmentation& segmentation);
 
