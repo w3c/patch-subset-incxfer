@@ -80,7 +80,7 @@ class EncoderTest : public ::testing::Test {
     hb_set_add_sorted_array(excluded.get(), testdata::TEST_SEGMENT_4,
                             std::size(testdata::TEST_SEGMENT_4));
     hb_set_subtract(init.get(), excluded.get());
-    segment_0 = common::to_hash_set(init);
+    segment_0 = common::to_hash_set(init.get());
     segment_1 = TestSegment1();
     segment_2 = TestSegment2();
     segment_3 = TestSegment3();

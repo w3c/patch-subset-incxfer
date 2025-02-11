@@ -11,6 +11,8 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
+#include "absl/log/globals.h"
+#include "absl/log/initialize.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "common/font_data.h"
@@ -25,6 +27,10 @@
  * segmentation and associated activation conditions that maintain the "closure
  * requirement".
  */
+
+// TODO XXXXX better name for this util
+// TODO XXXXX for ideal segmentation match the actual number of base segments
+// after merging.
 
 ABSL_FLAG(std::string, input_font, "in.ttf",
           "Name of the font to convert to IFT.");
@@ -266,7 +272,9 @@ std::vector<flat_hash_set<uint32_t>> GroupCodepoints(
 }
 
 int main(int argc, char** argv) {
+  absl::SetStderrThreshold(absl::LogSeverityAtLeast::kInfo);
   auto args = absl::ParseCommandLine(argc, argv);
+  absl::InitializeLog();
 
   auto font = LoadFont(absl::GetFlag(FLAGS_input_font).c_str());
   if (!font.ok()) {

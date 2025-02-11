@@ -13,8 +13,12 @@ namespace ift {
 class GlyphKeyedDiff {
  public:
   GlyphKeyedDiff(const common::FontData& font, common::CompatId base_compat_id,
-                 absl::flat_hash_set<hb_tag_t> included_tags, unsigned quality = 11)
-      : font_(font), base_compat_id_(base_compat_id), tags_(included_tags), brotli_diff_(quality) {}
+                 absl::flat_hash_set<hb_tag_t> included_tags,
+                 unsigned quality = 11)
+      : font_(font),
+        base_compat_id_(base_compat_id),
+        tags_(included_tags),
+        brotli_diff_(quality) {}
 
   absl::StatusOr<common::FontData> CreatePatch(
       const absl::btree_set<uint32_t>& gids) const;
