@@ -37,7 +37,6 @@ namespace ift::encoder {
 // TODO(garretrieger): extensions/improvements that could be made:
 // - Multi segment combination testing with GSUB dep analysis to guide.
 // - Use merging and/or duplication to ensure minimum patch size.
-//   - base patches (IN PROGRESS):
 //   - composite patches (NOT STARTED)
 // - Add logging
 // - at the end output patch sizes by segment and patch index.
@@ -528,12 +527,17 @@ StatusOr<bool> TryMerge(SegmentationContext& context,
   return true;
 }
 
+/*
+ * Search for a composite condition which can be merged into base_segment_index.
+ *
+ * Returns true if one was found and the merge succeeded, false otherwise.
+ */
 template <typename ConditionIt>
 StatusOr<bool> TryMergingACompositeCondition(
     SegmentationContext& context,
     const GlyphSegmentation& candidate_segmentation,
     segment_index_t base_segment_index, patch_id_t base_patch,
-    ConditionIt& condition_it) {
+    const ConditionIt& condition_it) {
   auto next_condition = condition_it;
   next_condition++;
   while (next_condition != candidate_segmentation.Conditions().end()) {
@@ -551,7 +555,44 @@ StatusOr<bool> TryMergingACompositeCondition(
       continue;
     }
 
-    printf("    try merging with: %s\n", next_condition->ToString().c_str());
+    printf("    try merging with (composite): %s\n",
+           next_condition->ToString().c_str());
+    if (!TRY(TryMerge(context, base_segment_index, triggering_patches.get()))) {
+      next_condition++;
+      continue;
+    }
+
+    return true;
+  }
+
+  return false;
+}
+
+/*
+ * Search for a base segment after base_segment_index which can be merged into
+ * base_segment_index without exceeding the maximum patch size.
+ *
+ * Returns true if found and the merge suceeded.
+ */
+template <typename ConditionIt>
+StatusOr<bool> TryMergingABaseSegment(
+    SegmentationContext& context,
+    const GlyphSegmentation& candidate_segmentation,
+    segment_index_t base_segment_index, const ConditionIt& condition_it) {
+  auto next_condition = condition_it;
+  next_condition++;
+  while (next_condition != candidate_segmentation.Conditions().end()) {
+    if (!next_condition->IsExclusive()) {
+      // Only interested in other base patches.
+      next_condition++;
+      continue;
+    }
+
+    hb_set_unique_ptr triggering_patches = make_hb_set();
+    next_condition->TriggeringPatches(triggering_patches.get());
+
+    printf("    try merging with (base): %s\n",
+           next_condition->ToString().c_str());
     if (!TRY(TryMerge(context, base_segment_index, triggering_patches.get()))) {
       next_condition++;
       continue;
@@ -585,6 +626,14 @@ StatusOr<bool> IsPatchTooSmall(SegmentationContext& context,
   return true;
 }
 
+/*
+ * Searches segments starting from start_segment for the next who's exclusive
+ * gids patch is too small. If found, try increasing the size of the patch via
+ * merging.
+ *
+ * If a merge was performed returns the segment which was modified to allow
+ * groupings to be updated.
+ */
 StatusOr<std::optional<segment_index_t>> MergeNextBaseSegment(
     SegmentationContext& context,
     const GlyphSegmentation& candidate_segmentation, uint32_t start_segment) {
@@ -616,10 +665,16 @@ StatusOr<std::optional<segment_index_t>> MergeNextBaseSegment(
       return base_segment_index;
     }
 
-    // TODO XXXXXX if we didn't find any groupings that can be merged, then
-    // just pick the next base segment to merge
-    printf("    no composite to merge with (segment %u).\n",
-           base_segment_index);
+    if (TRY(TryMergingABaseSegment(context, candidate_segmentation,
+                                   base_segment_index, condition))) {
+      // Return to the parent method so it can reanalyze and reform groups
+      return base_segment_index;
+    }
+
+    printf(
+        "    unable to get segment %u above minimum size. Continuing to next "
+        "segment.\n",
+        base_segment_index);
   }
 
   return std::nullopt;
