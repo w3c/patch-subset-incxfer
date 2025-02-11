@@ -28,7 +28,8 @@ class Encoder {
  public:
   typedef absl::flat_hash_map<hb_tag_t, common::AxisRange> design_space_t;
 
-  // TODO(garretrieger): add api to configure brotli quality level (for glyph and table keyed).
+  // TODO(garretrieger): add api to configure brotli quality level (for glyph
+  // and table keyed).
   //                     Default to 11 but in tests run lower quality.
 
   // TODO XXXXXX be consistent with terminology used for patches/segments (ie.

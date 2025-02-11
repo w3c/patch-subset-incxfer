@@ -95,7 +95,7 @@ class IntegrationTest : public ::testing::Test {
     hb_set_add_sorted_array(excluded.get(), testdata::TEST_SEGMENT_4,
                             std::size(testdata::TEST_SEGMENT_4));
     hb_set_subtract(init.get(), excluded.get());
-    auto init_segment = common::to_hash_set(init);
+    auto init_segment = common::to_hash_set(init.get());
 
     encoder.SetFace(face.get());
 
@@ -124,7 +124,7 @@ class IntegrationTest : public ::testing::Test {
     hb_set_add_sorted_array(excluded.get(), testdata::TEST_VF_SEGMENT_4,
                             std::size(testdata::TEST_VF_SEGMENT_4));
     hb_set_subtract(init.get(), excluded.get());
-    auto init_segment = common::to_hash_set(init);
+    auto init_segment = common::to_hash_set(init.get());
 
     auto sc = encoder.AddGlyphDataSegment(0, init_segment);
     sc.Update(encoder.AddGlyphDataSegment(1, TestVfSegment1()));
@@ -154,7 +154,7 @@ class IntegrationTest : public ::testing::Test {
     hb_set_add_sorted_array(excluded.get(), testdata::TEST_FEATURE_SEGMENT_6,
                             std::size(testdata::TEST_FEATURE_SEGMENT_6));
     hb_set_subtract(init.get(), excluded.get());
-    auto init_segment = common::to_hash_set(init);
+    auto init_segment = common::to_hash_set(init.get());
 
     auto sc = encoder.AddGlyphDataSegment(0, init_segment);
     sc.Update(encoder.AddGlyphDataSegment(1, TestFeatureSegment1()));

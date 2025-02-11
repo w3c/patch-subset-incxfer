@@ -8,6 +8,7 @@
 #include "absl/container/btree_set.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/log/log.h"
 #include "absl/status/statusor.h"
 #include "common/compat_id.h"
 #include "common/font_data.h"
@@ -31,11 +32,17 @@ using common::hb_face_unique_ptr;
 using common::hb_set_unique_ptr;
 using common::make_hb_face;
 using common::make_hb_set;
+using common::to_hash_set;
 
 namespace ift::encoder {
 
 // TODO(garretrieger): extensions/improvements that could be made:
+// - Make a HbSet class which implements hash and equality so we can use in map
+// keys and sets.
+// - Can we reduce # of closures for the additional conditions checks?
+//   - is the full analysis needed to get the or set?
 // - Add logging
+//   - timing info
 // - at the end output patch sizes by segment and patch index.
 // - Use merging and/or duplication to ensure minimum patch size.
 //   - composite patches (NOT STARTED)
@@ -70,9 +77,9 @@ class GlyphConditions {
 
 class SegmentationContext;
 
-Status AnalyzeSegment(const SegmentationContext& context,
-                      const hb_set_t* codepoints, hb_set_t* and_gids,
-                      hb_set_t* or_gids, hb_set_t* exclusive_gids);
+Status AnalyzeSegment(SegmentationContext& context, const hb_set_t* codepoints,
+                      hb_set_t* and_gids, hb_set_t* or_gids,
+                      hb_set_t* exclusive_gids);
 
 class SegmentationContext {
  public:
@@ -96,13 +103,13 @@ class SegmentationContext {
     }
 
     {
-      auto closure = glyph_closure(initial_codepoints.get());
+      auto closure = GlyphClosure(initial_codepoints.get());
       if (closure.ok()) {
         initial_closure.reset(closure->release());
       }
     }
 
-    auto closure = glyph_closure(all_codepoints.get());
+    auto closure = GlyphClosure(all_codepoints.get());
     if (closure.ok()) {
       full_closure.reset(closure->release());
     }
@@ -118,7 +125,21 @@ class SegmentationContext {
     fallback_segments = {};
   }
 
-  StatusOr<hb_set_unique_ptr> glyph_closure(const hb_set_t* codepoints) const {
+  StatusOr<hb_set_unique_ptr> GlyphClosure(const hb_set_t* codepoints) {
+    auto cache_key = to_hash_set(codepoints);
+
+    auto it = glyph_closure_cache.find(cache_key);
+    if (it != glyph_closure_cache.end()) {
+      glyph_closure_cache_hit++;
+      hb_set_unique_ptr result = make_hb_set();
+      hb_set_union(result.get(), it->second.get());
+      return result;
+    }
+
+    glyph_closure_cache_miss++;
+    closure_count_cumulative++;
+    closure_count_delta++;
+
     hb_subset_input_t* input = hb_subset_input_create_or_fail();
     if (!input) {
       return absl::InternalError("Closure subset configuration failed.");
@@ -136,26 +157,53 @@ class SegmentationContext {
     }
 
     hb_map_t* new_to_old = hb_subset_plan_new_to_old_glyph_mapping(plan);
-    hb_set_unique_ptr gids = common::make_hb_set();
+    hb_set_unique_ptr gids = make_hb_set();
     hb_map_values(new_to_old, gids.get());
     hb_subset_plan_destroy(plan);
+
+    hb_set_unique_ptr cached_gids = make_hb_set();
+    hb_set_union(cached_gids.get(), gids.get());
+    glyph_closure_cache.insert(std::pair(cache_key, std::move(cached_gids)));
 
     return gids;
   }
 
-  StatusOr<const hb_set_t*> code_point_set_to_or_gids(
-      const hb_set_unique_ptr& codepoints) {
+  void LogClosureCount(absl::string_view operation) {
+    VLOG(0) << operation << ": cumulative number of glyph closures "
+            << closure_count_cumulative << " (+" << closure_count_delta << ")";
+    closure_count_delta = 0;
+  }
+
+  void LogCacheStats() {
+    double hit_rate = 100.0 * ((double)code_point_set_to_or_gids_cache_hit) /
+                      ((double)(code_point_set_to_or_gids_cache_hit +
+                                code_point_set_to_or_gids_cache_miss));
+    VLOG(0) << "Codepoints to or_gids cache hit rate: " << hit_rate << "% ("
+            << code_point_set_to_or_gids_cache_hit << " hits, "
+            << code_point_set_to_or_gids_cache_miss << " misses)";
+
+    double closure_hit_rate =
+        100.0 * ((double)glyph_closure_cache_hit) /
+        ((double)(glyph_closure_cache_hit + glyph_closure_cache_miss));
+    VLOG(0) << "Glyph closure cache hit rate: " << closure_hit_rate << "% ("
+            << glyph_closure_cache_hit << " hits, " << glyph_closure_cache_miss
+            << " misses)";
+  }
+
+  StatusOr<const hb_set_t*> CodepointsToOrGids(const hb_set_t* codepoints) {
     auto hash_set_codepoints = common::to_hash_set(codepoints);
 
     auto it = code_point_set_to_or_gids_cache.find(hash_set_codepoints);
     if (it != code_point_set_to_or_gids_cache.end()) {
+      code_point_set_to_or_gids_cache_hit++;
       return it->second.get();
     }
 
+    code_point_set_to_or_gids_cache_miss++;
     hb_set_unique_ptr and_gids = make_hb_set();
     hb_set_unique_ptr or_gids = make_hb_set();
     hb_set_unique_ptr exclusive_gids = make_hb_set();
-    TRYV(AnalyzeSegment(*this, codepoints.get(), and_gids.get(), or_gids.get(),
+    TRYV(AnalyzeSegment(*this, codepoints, and_gids.get(), or_gids.get(),
                         exclusive_gids.get()));
 
     const hb_set_t* or_gids_ptr = or_gids.get();
@@ -186,13 +234,24 @@ class SegmentationContext {
   btree_map<btree_set<segment_index_t>, btree_set<glyph_id_t>> or_glyph_groups;
   std::vector<segment_index_t> patch_id_to_segment_index;
   btree_set<segment_index_t> fallback_segments;
+
+  // Caches and logging
+  flat_hash_map<flat_hash_set<uint32_t>, hb_set_unique_ptr> glyph_closure_cache;
+  uint32_t glyph_closure_cache_hit = 0;
+  uint32_t glyph_closure_cache_miss = 0;
+
   flat_hash_map<flat_hash_set<uint32_t>, hb_set_unique_ptr>
       code_point_set_to_or_gids_cache;
+  uint32_t code_point_set_to_or_gids_cache_hit = 0;
+  uint32_t code_point_set_to_or_gids_cache_miss = 0;
+
+  uint32_t closure_count_cumulative = 0;
+  uint32_t closure_count_delta = 0;
 };
 
-Status AnalyzeSegment(const SegmentationContext& context,
-                      const hb_set_t* codepoints, hb_set_t* and_gids,
-                      hb_set_t* or_gids, hb_set_t* exclusive_gids) {
+Status AnalyzeSegment(SegmentationContext& context, const hb_set_t* codepoints,
+                      hb_set_t* and_gids, hb_set_t* or_gids,
+                      hb_set_t* exclusive_gids) {
   if (hb_set_is_empty(codepoints)) {
     // Skip empty sets, they will never contribute any conditions.
     return absl::OkStatus();
@@ -226,12 +285,12 @@ Status AnalyzeSegment(const SegmentationContext& context,
   hb_set_union(except_segment.get(), context.all_codepoints.get());
   hb_set_subtract(except_segment.get(), codepoints);
   auto B_except_segment_closure =
-      TRY(context.glyph_closure(except_segment.get()));
+      TRY(context.GlyphClosure(except_segment.get()));
 
   hb_set_unique_ptr only_segment = make_hb_set();
   hb_set_union(only_segment.get(), context.initial_codepoints.get());
   hb_set_union(only_segment.get(), codepoints);
-  auto I_only_segment_closure = TRY(context.glyph_closure(only_segment.get()));
+  auto I_only_segment_closure = TRY(context.GlyphClosure(only_segment.get()));
   hb_set_subtract(I_only_segment_closure.get(), context.initial_closure.get());
 
   hb_set_unique_ptr D_dropped = make_hb_set();
@@ -319,7 +378,7 @@ Status GroupGlyphs(SegmentationContext& context) {
     }
 
     const hb_set_t* or_gids =
-        TRY(context.code_point_set_to_or_gids(all_other_codepoints));
+        TRY(context.CodepointsToOrGids(all_other_codepoints.get()));
 
     // Any "OR" glyphs associated with all other codepoints have some additional
     // conditions to activate so we can't safely include them into this or
@@ -466,7 +525,7 @@ void MergeSegments(const SegmentationContext& context, const hb_set_t* segments,
   }
 }
 
-StatusOr<uint32_t> EstimatePatchSize(const SegmentationContext& context,
+StatusOr<uint32_t> EstimatePatchSize(SegmentationContext& context,
                                      const hb_set_t* codepoints) {
   hb_set_unique_ptr and_gids = make_hb_set();
   hb_set_unique_ptr or_gids = make_hb_set();
@@ -496,8 +555,6 @@ StatusOr<bool> TryMerge(SegmentationContext& context,
   uint32_t new_patch_size =
       TRY(EstimatePatchSize(context, merged_codepoints.get()));
   if (new_patch_size > context.patch_size_max_bytes) {
-    printf("    skipping, patch would be too large (%u bytes)\n",
-           new_patch_size);
     return false;
   }
 
@@ -505,16 +562,15 @@ StatusOr<bool> TryMerge(SegmentationContext& context,
                merged_codepoints.get());
   uint32_t size_after =
       hb_set_get_population(context.segments[base_segment_index].get());
-  printf(
-      "    merged %u codepoints up to %u codepoints. New patch size %u "
-      "bytes\n",
-      size_before, size_after, new_patch_size);
+
+  VLOG(0) << "  Merged " << size_before << " codepoints up to " << size_after
+          << " codepoints for segment " << base_segment_index
+          << ". New patch size " << new_patch_size << " bytes.";
 
   segment_index_t segment_index = HB_SET_VALUE_INVALID;
   while (hb_set_next(to_merge_segments.get(), &segment_index)) {
     // To avoid changing the indices of other segments set the ones we're
     // removing to empty sets. That effectively disables them.
-    printf("    clearing segment %u\n", segment_index);
     hb_set_clear(context.segments[segment_index].get());
   }
 
@@ -556,13 +612,13 @@ StatusOr<bool> TryMergingACompositeCondition(
       continue;
     }
 
-    printf("    try merging with (composite): %s\n",
-           next_condition->ToString().c_str());
     if (!TRY(TryMerge(context, base_segment_index, triggering_patches.get()))) {
       next_condition++;
       continue;
     }
 
+    VLOG(0) << "  Merging segments from composite patch into segment "
+            << base_segment_index << ": " << next_condition->ToString();
     return true;
   }
 
@@ -592,13 +648,13 @@ StatusOr<bool> TryMergingABaseSegment(
     hb_set_unique_ptr triggering_patches = make_hb_set();
     next_condition->TriggeringPatches(triggering_patches.get());
 
-    printf("    try merging with (base): %s\n",
-           next_condition->ToString().c_str());
     if (!TRY(TryMerge(context, base_segment_index, triggering_patches.get()))) {
       next_condition++;
       continue;
     }
 
+    VLOG(0) << "  Merging segments from base patch into segment "
+            << base_segment_index << ": " << next_condition->ToString();
     return true;
   }
 
@@ -609,9 +665,6 @@ StatusOr<bool> IsPatchTooSmall(SegmentationContext& context,
                                const GlyphSegmentation& candidate_segmentation,
                                segment_index_t base_segment_index,
                                patch_id_t base_patch) {
-  printf("  checking patch size for %u (segment %u)\n", base_patch,
-         base_segment_index);
-
   auto patch_glyphs = candidate_segmentation.GidSegments().find(base_patch);
   if (patch_glyphs == candidate_segmentation.GidSegments().end()) {
     return absl::InternalError(StrCat("patch ", base_patch, " not found."));
@@ -622,8 +675,11 @@ StatusOr<bool> IsPatchTooSmall(SegmentationContext& context,
     return false;
   }
 
-  printf("  patch %u (segment %u) is too small (%u < %u)\n", base_patch,
-         base_segment_index, patch_size_bytes, context.patch_size_min_bytes);
+  VLOG(0) << "Patch " << base_patch << " (segment " << base_segment_index
+          << ") is too small "
+          << "(" << patch_size_bytes << " < " << context.patch_size_min_bytes
+          << "). Merging...";
+
   return true;
 }
 
@@ -638,7 +694,6 @@ StatusOr<bool> IsPatchTooSmall(SegmentationContext& context,
 StatusOr<std::optional<segment_index_t>> MergeNextBaseSegment(
     SegmentationContext& context,
     const GlyphSegmentation& candidate_segmentation, uint32_t start_segment) {
-  printf("MergeNextBaseSegment():\n");
   hb_set_unique_ptr triggering_patches = make_hb_set();
   for (auto condition = candidate_segmentation.Conditions().begin();
        condition != candidate_segmentation.Conditions().end(); condition++) {
@@ -672,10 +727,8 @@ StatusOr<std::optional<segment_index_t>> MergeNextBaseSegment(
       return base_segment_index;
     }
 
-    printf(
-        "    unable to get segment %u above minimum size. Continuing to next "
-        "segment.\n",
-        base_segment_index);
+    VLOG(0) << "Unable to get segment " << base_segment_index
+            << " above minimum size. Continuing to next segment.";
   }
 
   return std::nullopt;
@@ -689,11 +742,13 @@ StatusOr<GlyphSegmentation> GlyphSegmentation::CodepointToGlyphSegments(
   context.patch_size_min_bytes = patch_size_min_bytes;
   context.patch_size_max_bytes = patch_size_max_bytes;
 
+  VLOG(0) << "Forming initial segmentation plan.";
   segment_index_t segment_index = 0;
   for (const auto& segment : context.segments) {
     TRYV(AnalyzeSegment(context, segment_index, segment.get()));
     segment_index++;
   }
+  context.LogClosureCount("Inital segment analysis");
 
   segment_index_t last_merged_segment_index = 0;
   while (true) {
@@ -708,8 +763,10 @@ StatusOr<GlyphSegmentation> GlyphSegmentation::CodepointToGlyphSegments(
     TRYV(GroupsToSegmentation(context.and_glyph_groups, context.or_glyph_groups,
                               context.fallback_segments,
                               context.patch_id_to_segment_index, segmentation));
+    context.LogClosureCount("Condition grouping");
 
     if (patch_size_min_bytes == 0) {
+      context.LogCacheStats();
       return segmentation;
     }
 
@@ -717,11 +774,13 @@ StatusOr<GlyphSegmentation> GlyphSegmentation::CodepointToGlyphSegments(
         MergeNextBaseSegment(context, segmentation, last_merged_segment_index));
     if (!merged.has_value()) {
       // Nothing was merged so we're done.
+      context.LogCacheStats();
       return segmentation;
     }
 
     last_merged_segment_index = *merged;
-    printf("Reanalyzing segment %u\n", last_merged_segment_index);
+    VLOG(0) << "Re-analyzing segment " << last_merged_segment_index
+            << " due to merge.";
     TRYV(AnalyzeSegment(context, last_merged_segment_index,
                         context.segments[last_merged_segment_index].get()));
   }
