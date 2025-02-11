@@ -734,6 +734,41 @@ StatusOr<std::optional<segment_index_t>> MergeNextBaseSegment(
   return std::nullopt;
 }
 
+/*
+ * Ensures that the produce segmentation is:
+ * - Disjoint (no duplicated glyphs) and doesn't overlap what's in the initial
+ * font.
+ * - Fully covers the full closure.
+ */
+Status ValidateSegmentation(const SegmentationContext& context,
+                            const GlyphSegmentation& segementation) {
+  hb_set_unique_ptr visited = make_hb_set();
+  for (const auto& [id, gids] : segementation.GidSegments()) {
+    for (glyph_id_t gid : gids) {
+      if (hb_set_has(context.initial_closure.get(), gid)) {
+        return absl::FailedPreconditionError(
+            "Initial font glyph is present in a patch.");
+      }
+      if (hb_set_has(visited.get(), gid)) {
+        return absl::FailedPreconditionError(
+            "Glyph segments are not disjoint.");
+      }
+      hb_set_add(visited.get(), gid);
+    }
+  }
+
+  hb_set_unique_ptr full_minus_initial = make_hb_set();
+  hb_set_union(full_minus_initial.get(), context.full_closure.get());
+  hb_set_subtract(full_minus_initial.get(), context.initial_closure.get());
+
+  if (!hb_set_is_equal(full_minus_initial.get(), visited.get())) {
+    return absl::FailedPreconditionError(
+        "Not all glyphs in the full closure have been placed.");
+  }
+
+  return absl::OkStatus();
+}
+
 StatusOr<GlyphSegmentation> GlyphSegmentation::CodepointToGlyphSegments(
     hb_face_t* face, flat_hash_set<hb_codepoint_t> initial_segment,
     std::vector<flat_hash_set<hb_codepoint_t>> codepoint_segments,
@@ -767,6 +802,7 @@ StatusOr<GlyphSegmentation> GlyphSegmentation::CodepointToGlyphSegments(
 
     if (patch_size_min_bytes == 0) {
       context.LogCacheStats();
+      TRYV(ValidateSegmentation(context, segmentation));
       return segmentation;
     }
 
@@ -775,6 +811,7 @@ StatusOr<GlyphSegmentation> GlyphSegmentation::CodepointToGlyphSegments(
     if (!merged.has_value()) {
       // Nothing was merged so we're done.
       context.LogCacheStats();
+      TRYV(ValidateSegmentation(context, segmentation));
       return segmentation;
     }
 

@@ -28,9 +28,10 @@
  * requirement".
  */
 
-// TODO XXXXX better name for this util
-// TODO XXXXX for ideal segmentation match the actual number of base segments
-// after merging.
+// TODO(garretrieger): have option to output the glyph segmentation plan as an
+//                     encoder config proto. Basically two output modes:
+//                     - Report
+//                     - Config
 
 ABSL_FLAG(std::string, input_font, "in.ttf",
           "Name of the font to convert to IFT.");
@@ -215,6 +216,16 @@ StatusOr<int> IdealSegmentationSize(hb_face_t* font,
   return EncodingSize(encoding);
 }
 
+uint32_t NumExclusivePatches(const GlyphSegmentation& segmentation) {
+  uint32_t count = 0;
+  for (const auto& condition : segmentation.Conditions()) {
+    if (condition.IsExclusive()) {
+      count++;
+    }
+  }
+  return count;
+}
+
 StatusOr<int> SegmentationSize(hb_face_t* font,
                                const GlyphSegmentation& segmentation) {
   printf("SegmentationSize():\n");
@@ -304,10 +315,6 @@ int main(int argc, char** argv) {
   std::cout << ">> Computed Segmentation" << std::endl;
   std::cout << result->ToString() << std::endl;
 
-  // TODO XXXXX add some QA checks on the segmentation:
-  // - Each glyph should be in at most one patch
-  // - All glyphs in the full closure should be in at least one patch.
-
   std::cout << ">> Analysis" << std::endl;
   auto cost = SegmentationSize(font->get(), *result);
   if (!cost.ok()) {
@@ -315,8 +322,8 @@ int main(int argc, char** argv) {
               << std::endl;
     return -1;
   }
-  auto ideal_cost = IdealSegmentationSize(
-      font->get(), *result, absl::GetFlag(FLAGS_number_of_segments));
+  auto ideal_cost =
+      IdealSegmentationSize(font->get(), *result, NumExclusivePatches(*result));
   if (!ideal_cost.ok()) {
     std::cerr << "Failed to compute segmentation cost: " << cost.status()
               << std::endl;
