@@ -43,7 +43,6 @@ namespace ift::encoder {
 //   - is the full analysis needed to get the or set?
 // - Add logging
 //   - timing info
-// - at the end output patch sizes by segment and patch index.
 // - Use merging and/or duplication to ensure minimum patch size.
 //   - composite patches (NOT STARTED)
 // - Multi segment combination testing with GSUB dep analysis to guide.

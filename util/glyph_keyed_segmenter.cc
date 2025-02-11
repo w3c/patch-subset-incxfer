@@ -6,6 +6,7 @@
 #include <iostream>
 #include <sstream>
 
+#include "absl/container/btree_map.h"
 #include "absl/container/btree_set.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
@@ -21,6 +22,7 @@
 #include "hb.h"
 #include "ift/encoder/encoder.h"
 #include "ift/encoder/glyph_segmentation.h"
+#include "ift/url_template.h"
 
 /*
  * Given a code point based segmentation creates an appropriate glyph based
@@ -51,6 +53,7 @@ ABSL_FLAG(uint32_t, max_patch_size_bytes, UINT32_MAX,
           "The segmenter will avoid merges which result in patches larger than "
           "this amount.");
 
+using absl::btree_map;
 using absl::btree_set;
 using absl::flat_hash_map;
 using absl::flat_hash_set;
@@ -64,6 +67,7 @@ using common::hb_face_unique_ptr;
 using common::hb_set_unique_ptr;
 using common::make_hb_blob;
 using common::make_hb_set;
+using ift::URLTemplate;
 using ift::encoder::Encoder;
 using ift::encoder::GlyphSegmentation;
 
@@ -148,19 +152,48 @@ StatusOr<hb_face_unique_ptr> LoadFont(const char* filename) {
 
 constexpr uint32_t NETWORK_REQUEST_BYTE_OVERHEAD = 75;
 
-StatusOr<int> EncodingSize(const Encoder::Encoding& encoding) {
+StatusOr<int> EncodingSize(const GlyphSegmentation* segmentation,
+                           const Encoder::Encoding& encoding) {
   // There are three parts to the cost of a segmentation:
   // - Size of the glyph keyed mapping table.
   // - Total size of all glyph keyed patches
   // - Network overhead (fixed cost per patch).
   auto init_font = encoding.init_font.face();
 
+  btree_map<std::string, uint32_t> url_to_size;
   uint32_t total_size = 0;
   for (const auto& [url, data] : encoding.patches) {
     if (url.substr(url.size() - 2) == "gk") {
       total_size += data.size() + NETWORK_REQUEST_BYTE_OVERHEAD;
-      printf("  patch %s adds %u bytes, %u bytes overhead\n", url.c_str(),
-             data.size(), NETWORK_REQUEST_BYTE_OVERHEAD);
+      url_to_size[url] = data.size();
+    }
+  }
+
+  if (segmentation != nullptr) {
+    btree_map<ift::encoder::patch_id_t, std::pair<std::string, bool>> patch_id_to_url;
+    for (const auto& condition : segmentation->Conditions()) {
+      std::string url =
+          URLTemplate::PatchToUrl("1_{id}.gk", condition.activated());
+      patch_id_to_url[condition.activated()] = std::pair(url, condition.IsExclusive());
+    }
+
+    for (const auto& [id, pair] : patch_id_to_url) {
+      const std::string& url = pair.first;
+      bool is_exclusive = pair.second;
+      auto url_size = url_to_size.find(url);
+      if (url_size == url_to_size.end()) {
+        return absl::InternalError("URL is missing.");
+      }
+
+      const char* id_postfix = is_exclusive ? "*" : "";
+
+      printf("  patch %s (p%u%s) adds %u bytes, %u bytes overhead\n", url.c_str(),
+             id, id_postfix, url_size->second, NETWORK_REQUEST_BYTE_OVERHEAD);
+    }
+  } else {
+    for (const auto& [url, size] : url_to_size) {
+      printf("  patch %s adds %u bytes, %u bytes overhead\n", url.c_str(), size,
+             NETWORK_REQUEST_BYTE_OVERHEAD);
     }
   }
 
@@ -213,7 +246,7 @@ StatusOr<int> IdealSegmentationSize(hb_face_t* font,
   TRYV(encoder.AddNonGlyphSegmentFromGlyphSegments(all_segments));
 
   auto encoding = TRY(encoder.Encode());
-  return EncodingSize(encoding);
+  return EncodingSize(nullptr, encoding);
 }
 
 uint32_t NumExclusivePatches(const GlyphSegmentation& segmentation) {
@@ -255,7 +288,7 @@ StatusOr<int> SegmentationSize(hb_face_t* font,
   }
 
   auto encoding = TRY(encoder.Encode());
-  return EncodingSize(encoding);
+  return EncodingSize(&segmentation, encoding);
 }
 
 std::vector<flat_hash_set<uint32_t>> GroupCodepoints(
