@@ -35,11 +35,11 @@ using common::make_hb_set;
 namespace ift::encoder {
 
 // TODO(garretrieger): extensions/improvements that could be made:
-// - Multi segment combination testing with GSUB dep analysis to guide.
-// - Use merging and/or duplication to ensure minimum patch size.
-//   - composite patches (NOT STARTED)
 // - Add logging
 // - at the end output patch sizes by segment and patch index.
+// - Use merging and/or duplication to ensure minimum patch size.
+//   - composite patches (NOT STARTED)
+// - Multi segment combination testing with GSUB dep analysis to guide.
 
 btree_set<uint32_t> to_btree_set(const hb_set_t* set) {
   btree_set<uint32_t> out;
@@ -440,7 +440,9 @@ StatusOr<uint32_t> PatchSizeBytes(hb_face_t* original_face,
                                   const absl::btree_set<glyph_id_t>& gids) {
   FontData font_data(original_face);
   CompatId id;
-  GlyphKeyedDiff diff(font_data, id, {FontHelper::kGlyf, FontHelper::kGvar});
+  // Since this is just an estimate and we don't need ultra precise numbers run
+  // at a lower brotli quality to improve performance.
+  GlyphKeyedDiff diff(font_data, id, {FontHelper::kGlyf, FontHelper::kGvar}, 9);
   auto patch_data = TRY(diff.CreatePatch(gids));
   return patch_data.size();
 }
@@ -466,7 +468,6 @@ void MergeSegments(const SegmentationContext& context, const hb_set_t* segments,
 
 StatusOr<uint32_t> EstimatePatchSize(const SegmentationContext& context,
                                      const hb_set_t* codepoints) {
-  // TODO XXXXX keep a cache around for this
   hb_set_unique_ptr and_gids = make_hb_set();
   hb_set_unique_ptr or_gids = make_hb_set();
   hb_set_unique_ptr exclusive_gids = make_hb_set();
