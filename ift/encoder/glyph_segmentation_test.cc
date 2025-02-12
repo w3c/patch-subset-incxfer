@@ -79,6 +79,62 @@ if ((p0 OR p1)) then p2
 )");
 }
 
+TEST_F(GlyphSegmentationTest, MergeBase_ViaConditions) {
+  // {e, f} is too small, the merger should select {i, l} to merge since
+  // there is a dependency between these two. The result should have no conditional
+  // patches since ligatures will have been brought into the merged {e, f, i, l}
+  auto segmentation = GlyphSegmentation::CodepointToGlyphSegments(
+      roboto.get(), {}, {{'a', 'b', 'd'}, {'e', 'f'}, {'j', 'k', 'm', 'n'}, {'i', 'l'}}, 370);
+  ASSERT_TRUE(segmentation.ok()) << segmentation.status();
+
+  ASSERT_EQ(segmentation->ToString(),
+            R"(initial font: { gid0 }
+p0: { gid69, gid70, gid72 }
+p1: { gid73, gid74, gid77, gid80, gid444, gid445, gid446, gid447 }
+p2: { gid78, gid79, gid81, gid82 }
+if (p0) then p0
+if (p1) then p1
+if (p2) then p2
+)");
+}
+
+TEST_F(GlyphSegmentationTest, MergeBases) {
+  // {e, f} is too smal, since no conditional patches exist it should merge with the next available base
+  // which is {'j', 'k'}
+  auto segmentation = GlyphSegmentation::CodepointToGlyphSegments(
+      roboto.get(), {}, {{'a', 'b', 'd'}, {'e', 'f'}, {'j', 'k'}, {'m', 'n', 'o', 'p'}}, 370);
+  ASSERT_TRUE(segmentation.ok()) << segmentation.status();
+
+  ASSERT_EQ(segmentation->ToString(),
+            R"(initial font: { gid0 }
+p0: { gid69, gid70, gid72 }
+p1: { gid73, gid74, gid78, gid79 }
+p2: { gid81, gid82, gid83, gid84 }
+if (p0) then p0
+if (p1) then p1
+if (p2) then p2
+)");
+}
+
+TEST_F(GlyphSegmentationTest, MergeBases_MaxSize) {
+  // {e, f} is too smal, since no conditional patches exist it will merge with the next available base
+  // which is {'m', 'n', 'o', 'p'}. However that patch is too large, so the next one {j, k} will actually be 
+  // chosen.
+  auto segmentation = GlyphSegmentation::CodepointToGlyphSegments(
+      roboto.get(), {}, {{'a', 'b', 'd'}, {'e', 'f'}, {'m', 'n', 'o', 'p'}, {'j', 'k'}}, 370, 700);
+  ASSERT_TRUE(segmentation.ok()) << segmentation.status();
+
+  ASSERT_EQ(segmentation->ToString(),
+            R"(initial font: { gid0 }
+p0: { gid69, gid70, gid72 }
+p1: { gid73, gid74, gid78, gid79 }
+p2: { gid81, gid82, gid83, gid84 }
+if (p0) then p0
+if (p1) then p1
+if (p2) then p2
+)");
+}
+
 TEST_F(GlyphSegmentationTest, MixedAndOr) {
   auto segmentation = GlyphSegmentation::CodepointToGlyphSegments(
       roboto.get(), {'a'}, {{'f', 0xc1}, {'i', 0x106}});
@@ -92,8 +148,8 @@ p2: { gid444, gid446 }
 p3: { gid117 }
 if (p0) then p0
 if (p1) then p1
-if (p0 AND p1) then p2
 if ((p0 OR p1)) then p3
+if (p0 AND p1) then p2
 )");
 }
 
@@ -118,14 +174,11 @@ if (p1) then p1
 if (p2) then p2
 if (p3) then p3
 if ((p0 OR p1)) then p4
-if ((p0 OR p1 OR p2 OR p3)) then p5
 if ((p2 OR p3)) then p6
+if ((p0 OR p1 OR p2 OR p3)) then p5
 )");
 }
 
-// TODO XXXXXXXXX test where or_set glyphs are moved back to unmapped.
-// bazel run -c opt util:glyph_keyed_segments --
-// --input_font=$HOME/src/fonts/ofl/notonastaliqurdu/NotoNastaliqUrdu\[wght\].ttf
-// --number_of_segments=10 Triggers this case.
+// TODO(garretrieger): add test where or_set glyphs are moved back to unmapped due to found "additional conditions".
 
 }  // namespace ift::encoder

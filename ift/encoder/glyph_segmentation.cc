@@ -876,8 +876,6 @@ void output_set(const char* prefix, It begin, It end, std::stringstream& out) {
 }
 
 std::string GlyphSegmentation::ActivationCondition::ToString() const {
-  // TODO XXXX print condition in terms of segment numbers and not patch
-  // indices.
   std::stringstream out;
   out << "if (";
   bool first = true;
