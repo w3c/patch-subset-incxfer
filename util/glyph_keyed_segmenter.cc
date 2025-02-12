@@ -162,6 +162,9 @@ StatusOr<int> EncodingSize(const GlyphSegmentation* segmentation,
 
   btree_map<std::string, uint32_t> url_to_size;
   uint32_t total_size = 0;
+  uint32_t base_size = 0;
+  uint32_t conditional_size = 0;
+  uint32_t fallback_size = 0;
   for (const auto& [url, data] : encoding.patches) {
     if (url.substr(url.size() - 2) == "gk") {
       total_size += data.size() + NETWORK_REQUEST_BYTE_OVERHEAD;
@@ -170,22 +173,33 @@ StatusOr<int> EncodingSize(const GlyphSegmentation* segmentation,
   }
 
   if (segmentation != nullptr) {
-    btree_map<ift::encoder::patch_id_t, std::pair<std::string, bool>> patch_id_to_url;
+    btree_map<ift::encoder::patch_id_t, std::pair<std::string, int>> patch_id_to_url;
     for (const auto& condition : segmentation->Conditions()) {
       std::string url =
           URLTemplate::PatchToUrl("1_{id}.gk", condition.activated());
-      patch_id_to_url[condition.activated()] = std::pair(url, condition.IsExclusive());
+
+      int type = condition.IsExclusive() ? 0 : (!condition.IsFallback() ? 1 : 2);
+      patch_id_to_url[condition.activated()] = std::pair(url, type);
     }
 
     for (const auto& [id, pair] : patch_id_to_url) {
       const std::string& url = pair.first;
-      bool is_exclusive = pair.second;
+      int type = pair.second;
       auto url_size = url_to_size.find(url);
       if (url_size == url_to_size.end()) {
         return absl::InternalError("URL is missing.");
       }
 
-      const char* id_postfix = is_exclusive ? "*" : "";
+      const char* id_postfix = (type == 0) ? "*" : ((type == 1) ? "" : "f");
+      if (type == 0) {
+        base_size += url_size->second;
+      }
+      if (type == 1) {
+        conditional_size += url_size->second;
+      }
+      if (type == 2) {
+        fallback_size += url_size->second;
+      }
 
       printf("  patch %s (p%u%s) adds %u bytes, %u bytes overhead\n", url.c_str(),
              id, id_postfix, url_size->second, NETWORK_REQUEST_BYTE_OVERHEAD);
@@ -200,7 +214,16 @@ StatusOr<int> EncodingSize(const GlyphSegmentation* segmentation,
   auto iftx =
       FontHelper::TableData(init_font.get(), HB_TAG('I', 'F', 'T', 'X'));
   total_size += iftx.size();
-  printf("  mapping table %u bytes\n", iftx.size());
+  printf("  mapping table: %u bytes\n", iftx.size());
+
+  if (segmentation != nullptr) {
+    double base_percent = ((double) base_size / (double) total_size) * 100.0;
+    double conditional_percent = ((double) conditional_size / (double) total_size) * 100.0;
+    double fallback_percent = ((double) fallback_size / (double) total_size) * 100.0;
+    printf("  base patches total size:        %u bytes (%f%%)\n", base_size, base_percent);
+    printf("  conditional patches total size: %u bytes (%f%%)\n", conditional_size, conditional_percent);
+    printf("  fallback patch total size:      %u bytes (%f%%)\n", fallback_size, fallback_percent);
+  }
 
   return total_size;
 }
