@@ -2968,4 +2968,63 @@ TEST_F(ClosureGlyphSegmenterTest,
   }
 }
 
+TEST_F(ClosureGlyphSegmenterTest,
+       UnicodeRangeValidation_RejectsMoveToInitFont) {
+  ClosureGlyphSegmenter seg(8, 8, MOVE_TO_INIT_FONT, CLOSURE_ONLY, resolver,
+                            ift::config::UNICODE_RANGE);
+  auto result = seg.CodepointToGlyphSegments(roboto.get(), {'a'}, {{'b'}, {'c'}});
+  EXPECT_TRUE(absl::IsInvalidArgument(result.status())) << result.status();
+}
+
+TEST_F(ClosureGlyphSegmenterTest,
+       UnicodeRangeValidation_RejectsFeatureSegments) {
+  ClosureGlyphSegmenter seg(8, 8, FIND_CONDITIONS, CLOSURE_ONLY, resolver,
+                            ift::config::UNICODE_RANGE);
+  SubsetDefinition smcp;
+  smcp.feature_tags.insert(HB_TAG('s', 'm', 'c', 'p'));
+  auto result =
+      seg.CodepointToGlyphSegments(roboto.get(), {'a'}, {{'b'}, smcp});
+  EXPECT_TRUE(absl::IsInvalidArgument(result.status())) << result.status();
+}
+
+TEST_F(ClosureGlyphSegmenterTest,
+       UnicodeRangeValidation_RejectsInitFontMerging) {
+  ClosureGlyphSegmenter seg(8, 8, FIND_CONDITIONS, CLOSURE_ONLY, resolver,
+                            ift::config::UNICODE_RANGE);
+  MergeStrategy strategy = MergeStrategy::CostBased(ProbabilityProfile(
+      std::make_shared<MockProbabilityCalculator>(
+          std::vector<std::pair<Segment, double>>{}),
+      -50.0));
+  auto result = seg.CodepointToGlyphSegments(roboto.get(), {'a'},
+                                             {{'b'}, {'c'}}, strategy);
+  EXPECT_TRUE(absl::IsInvalidArgument(result.status())) << result.status();
+}
+
+TEST_F(ClosureGlyphSegmenterTest, UnicodeRangeValidation_RejectsPatchMerging) {
+  ClosureGlyphSegmenter seg(8, 8, FIND_CONDITIONS, CLOSURE_ONLY, resolver,
+                            ift::config::UNICODE_RANGE);
+  MergeStrategy strategy = MergeStrategy::CostBased(
+      ProbabilityProfile(std::make_shared<MockProbabilityCalculator>(
+          std::vector<std::pair<Segment, double>>{})));
+  strategy.SetUsePatchMerges(true);
+  auto result = seg.CodepointToGlyphSegments(roboto.get(), {'a'},
+                                             {{'b'}, {'c'}}, strategy);
+  EXPECT_TRUE(absl::IsInvalidArgument(result.status())) << result.status();
+}
+
+TEST_F(ClosureGlyphSegmenterTest,
+       UnicodeRangeValidation_RejectsInvalidThreshold) {
+  ClosureGlyphSegmenter seg_neg(8, 8, FIND_CONDITIONS, CLOSURE_ONLY, resolver,
+                                ift::config::UNICODE_RANGE, -0.1);
+  auto result =
+      seg_neg.CodepointToGlyphSegments(roboto.get(), {'a'}, {{'b'}, {'c'}});
+  EXPECT_TRUE(absl::IsInvalidArgument(result.status())) << result.status();
+
+  ClosureGlyphSegmenter seg_gt1(8, 8, FIND_CONDITIONS, CLOSURE_ONLY, resolver,
+                                ift::config::UNICODE_RANGE, 1.1);
+  result =
+      seg_gt1.CodepointToGlyphSegments(roboto.get(), {'a'}, {{'b'}, {'c'}});
+  EXPECT_TRUE(absl::IsInvalidArgument(result.status())) << result.status();
+}
+
 }  // namespace ift::encoder

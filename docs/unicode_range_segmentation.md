@@ -96,3 +96,12 @@ The resulting `SegmentationPlan` protobuf directly encodes the `@font-face` `uni
 * Each entry in `glyph_patch_conditions` is an exclusive condition referencing a single segment `s_i` (`segments[s_i].codepoints` defines the `unicode-range` for that `@font-face` rule) and activating patch `p_i`.
 * `glyph_patches[p_i]` lists the disjoint set of glyphs belonging to subset `p_i` (to be unioned with `initial_segment` when producing the subset font).
 * `non_glyph_segments` and table-keyed patch fields remain empty.
+
+---
+
+## Implementation Plan / TODO
+
+- [x] Add `TargetMode` enum (`IFT`, `UNICODE_RANGE`), `target_mode`, and `disjoint_conditions_probability_threshold` to `SegmenterConfig` in `ift/config/segmenter_config.proto` (with proto comments documenting invalid settings in `UNICODE_RANGE` mode), wire them through `SegmenterConfigUtil` and `ClosureGlyphSegmenter`, and enforce `UNICODE_RANGE` configuration validation (with unit tests in `ift/config/segmenter_config_util_test.cc` and `ift/encoder/closure_glyph_segmenter_test.cc`).
+- [ ] Update `AutoSegmenterConfig::GenerateConfig` and CLI utilities (`util/auto_config_flags.*`, `util/gen_ift_segmentation_plan.cc`, `util/gen_ift_segmenter_config.cc`) to accept `TargetMode` and configure `UNICODE_RANGE` defaults (with unit tests in `ift/config/auto_segmenter_config_test.cc`).
+- [ ] Implement `MakeActivationConditionsDisjoint` (with `disjoint_conditions_probability_threshold` filtering) in `ClosureGlyphSegmenter`, filter out any remaining non-exclusive patch conditions when constructing the final `GlyphSegmentation` in `UNICODE_RANGE` mode, and update `SegmentationContext::ValidateSegmentation` (with unit tests in `ift/encoder/closure_glyph_segmenter_test.cc`).
+- [ ] Implement `Woff2PatchSizeCache` (for `brotli_quality > 0`) and `EstimatedWoff2PatchSizeCache` (for `brotli_quality == 0`), sizing the WOFF2 subset formed by `initial_segment` $\cup$ patch glyphs, and wire into `SegmentationContext` and `ClosureGlyphSegmenter::TotalCosts` when `target_mode == UNICODE_RANGE` (with unit tests in `ift/encoder/woff2_patch_size_cache_test.cc` and `ift/encoder/closure_glyph_segmenter_test.cc`).
