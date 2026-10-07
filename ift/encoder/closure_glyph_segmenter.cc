@@ -558,15 +558,59 @@ static StatusOr<GlyphSegmentation> ToFinalSegmentation(
   return context.ToGlyphSegmentation();
 }
 
-StatusOr<GlyphSegmentation> ClosureGlyphSegmenter::CodepointToGlyphSegments(
-    hb_face_t* face, SubsetDefinition initial_segment,
+Status ClosureGlyphSegmenter::ValidateInput(
     const std::vector<SubsetDefinition>& subset_definitions,
-    btree_map<SegmentSet, MergeStrategy> merge_groups) const {
+    const btree_map<SegmentSet, MergeStrategy>& merge_groups) const {
+  if (disjoint_conditions_probability_threshold_ < 0.0 ||
+      disjoint_conditions_probability_threshold_ > 1.0) {
+    return absl::InvalidArgumentError(
+        "disjoint_conditions_probability_threshold must be in [0.0, 1.0].");
+  }
+
+  if (target_mode_ == ift::config::UNICODE_RANGE) {
+    if (unmapped_glyph_handling_ != ift::config::FIND_CONDITIONS &&
+        unmapped_glyph_handling_ != ift::config::PATCH) {
+      return absl::InvalidArgumentError(
+          "unmapped_glyph_handling must be FIND_CONDITIONS or PATCH when "
+          "target_mode is UNICODE_RANGE.");
+    }
+
+    for (const auto& def : subset_definitions) {
+      if (!def.feature_tags.empty()) {
+        return absl::InvalidArgumentError(
+            "Input subset definitions must not contain layout features when "
+            "target_mode is UNICODE_RANGE.");
+      }
+    }
+
+    for (const auto& [segments, strategy] : merge_groups) {
+      if (strategy.UseCosts() && strategy.HasInitFontMerge()) {
+        return absl::InvalidArgumentError(
+            "Initial font merging must not be enabled when target_mode is "
+            "UNICODE_RANGE.");
+      }
+      if (strategy.UsePatchMerges()) {
+        return absl::InvalidArgumentError(
+            "Patch merging must be disabled when target_mode is "
+            "UNICODE_RANGE.");
+      }
+    }
+  }
+
   for (const auto& [segments, strategy] : merge_groups) {
     if (strategy.UseCosts()) {
       TRYV(CheckForDisjointCodepoints(subset_definitions, segments));
     }
   }
+
+  return absl::OkStatus();
+}
+
+StatusOr<GlyphSegmentation> ClosureGlyphSegmenter::CodepointToGlyphSegments(
+    hb_face_t* face, SubsetDefinition initial_segment,
+    const std::vector<SubsetDefinition>& subset_definitions,
+    btree_map<SegmentSet, MergeStrategy> merge_groups) const {
+  TRYV(ValidateInput(subset_definitions, merge_groups));
 
   hb_face_unique_ptr normalized_face = TRY(FontHelper::Normalize(face));
   face = normalized_face.get();
