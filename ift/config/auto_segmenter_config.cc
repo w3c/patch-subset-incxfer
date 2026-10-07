@@ -770,7 +770,11 @@ static void ApplyQualityLevelTo(Quality quality, MergeGroup& merge_group) {
 static void ApplyQualityLevelTo(Quality quality, SegmenterConfig& config) {
   config.set_preprocess_merging_group_size_for_ungrouped(kMinimumGroupSize * 3);
 
-  config.set_unmapped_glyph_handling(MOVE_TO_INIT_FONT);
+  if (config.target_mode() == UNICODE_RANGE) {
+    config.set_unmapped_glyph_handling(FIND_CONDITIONS);
+  } else {
+    config.set_unmapped_glyph_handling(MOVE_TO_INIT_FONT);
+  }
 
   if (quality == ONE) {
     config.set_condition_analysis_mode(DEP_GRAPH_ONLY_WITH_SIMPLIFICATION);
@@ -795,21 +799,23 @@ static void ApplyQualityLevelTo(Quality quality, SegmenterConfig& config) {
       break;
   }
 
-  switch (quality) {
-    case ONE:
-    case TWO:
-    case THREE:
-    case FOUR:
-      config.set_brotli_quality_for_initial_font_merging(0);
-      break;
-    case FIVE:
-    case SIX:
-      config.set_brotli_quality_for_initial_font_merging(9);
-      break;
-    case SEVEN:
-    default:
-      config.set_brotli_quality_for_initial_font_merging(11);
-      break;
+  if (config.target_mode() != UNICODE_RANGE) {
+    switch (quality) {
+      case ONE:
+      case TWO:
+      case THREE:
+      case FOUR:
+        config.set_brotli_quality_for_initial_font_merging(0);
+        break;
+      case FIVE:
+      case SIX:
+        config.set_brotli_quality_for_initial_font_merging(9);
+        break;
+      case SEVEN:
+      default:
+        config.set_brotli_quality_for_initial_font_merging(11);
+        break;
+    }
   }
 
   ApplyQualityLevelTo(quality, *config.mutable_base_heuristic_config());
@@ -820,7 +826,7 @@ static void ApplyQualityLevelTo(Quality quality, SegmenterConfig& config) {
   // ift demo.
   config.mutable_base_cost_config()->set_network_overhead_cost(
       kDefaultNetworkCost);
-  config.mutable_base_cost_config()->set_experimental_use_patch_merges(true);
+  config.mutable_base_cost_config()->set_experimental_use_patch_merges(config.target_mode() != UNICODE_RANGE);
 
   for (auto& merge_group : *config.mutable_merge_groups()) {
     ApplyQualityLevelTo(quality, merge_group);
@@ -966,7 +972,7 @@ void AutoSegmenterConfig::ConfigureMaxDepth(uint32_t num_segments,
 
 // Adds a merge group to config which uses the frequency data of each of
 // scripts. The script matching primary_script_file (if any) is configured to
-// do initial font merging.
+// do initial font merging (in IFT mode).
 //
 // By default the group covers all segments which the supplied frequency data
 // sets have data for. If covered_codepoints is provided the group is instead
@@ -985,7 +991,8 @@ static void AddMergeGroup(const std::vector<std::string>& scripts,
 
     auto* freq_data = cost->add_frequency_data();
     freq_data->set_built_in_freq_data_name(script);
-    if (script == primary_script_file) {
+    if (config.target_mode() != UNICODE_RANGE &&
+        script == primary_script_file) {
       freq_data->set_initial_font_merge_threshold(
           -(double)kDefaultNetworkCost * (0.8));
     }
@@ -1007,14 +1014,18 @@ static void AddMergeGroup(const std::vector<std::string>& scripts,
 StatusOr<SegmenterConfig> AutoSegmenterConfig::GenerateConfig(
     hb_face_t* face, const ift::common::DataFileResolver& resolver,
     std::optional<std::string> primary_script,
-    std::optional<int> quality_level) {
+    std::optional<int> quality_level, TargetMode target_mode) {
   SegmenterConfig config;
-  config.set_generate_table_keyed_segments_mode(FROM_FREQ_DATA);
-  config.set_generate_feature_segments(true);
+  if (target_mode == UNICODE_RANGE) {
+    config.set_target_mode(UNICODE_RANGE);
+  } else {
+    config.set_generate_table_keyed_segments_mode(FROM_FREQ_DATA);
+    config.set_generate_feature_segments(true);
 
-  auto* base_plan = config.mutable_base_segmentation_plan();
-  base_plan->set_jump_ahead(2);
-  base_plan->set_use_prefetch_lists(true);
+    auto* base_plan = config.mutable_base_segmentation_plan();
+    base_plan->set_jump_ahead(2);
+    base_plan->set_use_prefetch_lists(true);
+  }
 
   // Collect codepoints
   auto freq_list = TRY(BuiltInFrequenciesList(resolver));
@@ -1046,9 +1057,11 @@ StatusOr<SegmenterConfig> AutoSegmenterConfig::GenerateConfig(
   std::string primary_script_file =
       TRY(FindFileName(primary_script.value_or("Script_latin"), freq_list));
 
-  ConfigureMaxDepth(
-      CountTableKeyedSegments(face, unicodes, freq_list, detected_scripts),
-      *base_plan);
+  if (target_mode != UNICODE_RANGE) {
+    ConfigureMaxDepth(
+        CountTableKeyedSegments(face, unicodes, freq_list, detected_scripts),
+        *config.mutable_base_segmentation_plan());
+  }
 
   // Add a merge group for each group of detected scripts. Scripts which
   // overlap each other are placed into the same merge group so that their

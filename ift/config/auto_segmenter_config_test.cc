@@ -666,5 +666,136 @@ TEST_F(AutoSegmenterConfigTest, ConfigureMaxDepth) {
   }
 }
 
+TEST_F(AutoSegmenterConfigTest, Roboto_UnspecifiedPrimary_UnicodeRange) {
+  auto config_or = AutoSegmenterConfig::GenerateConfig(
+      face_.get(), *resolver, std::nullopt, std::nullopt, UNICODE_RANGE);
+  ASSERT_TRUE(config_or.ok()) << config_or.status();
+
+  EXPECT_THAT(
+      GetScripts(*config_or),
+      UnorderedElementsAre(kLatin, kSymbols, kCyrillic, kGreek, kFallback));
+  EXPECT_TRUE(GetScriptsWithInitialMergeThreshold(*config_or).empty());
+
+  std::string config_string;
+  TextFormat::PrintToString(*config_or, &config_string);
+  ASSERT_EQ(config_string, R"(unmapped_glyph_handling: FIND_CONDITIONS
+brotli_quality: 11
+base_heuristic_config {
+  min_patch_size: 2500
+}
+base_cost_config {
+  network_overhead_cost: 200
+  min_group_size: 4
+  optimization_cutoff_fraction: 0.005
+  experimental_use_patch_merges: false
+}
+ungrouped_config {
+  min_patch_size: 2500
+}
+preprocess_merging_group_size_for_ungrouped: 12
+merge_groups {
+  name: "Cyrillic"
+  preprocess_merging_group_size: 4
+  preprocess_merging_probability_threshold: 0.005
+  cost_config {
+    frequency_data {
+      built_in_freq_data_name: "Script_cyrillic.riegeli"
+      use_bigrams: true
+    }
+  }
+}
+merge_groups {
+  name: "Greek"
+  preprocess_merging_group_size: 4
+  preprocess_merging_probability_threshold: 0.005
+  cost_config {
+    frequency_data {
+      built_in_freq_data_name: "Script_greek.riegeli"
+      use_bigrams: true
+    }
+  }
+}
+merge_groups {
+  name: "Latin"
+  preprocess_merging_group_size: 4
+  preprocess_merging_probability_threshold: 0.005
+  cost_config {
+    frequency_data {
+      built_in_freq_data_name: "Script_latin.riegeli"
+      use_bigrams: true
+    }
+  }
+}
+merge_groups {
+  name: "Symbols"
+  preprocess_merging_group_size: 4
+  preprocess_merging_probability_threshold: 0.005
+  cost_config {
+    frequency_data {
+      built_in_freq_data_name: "Script_symbols.riegeli"
+      use_bigrams: true
+    }
+  }
+}
+merge_groups {
+  name: "Fallback"
+  preprocess_merging_group_size: 4
+  preprocess_merging_probability_threshold: 0.005
+  cost_config {
+    frequency_data {
+      built_in_freq_data_name: "fallback.riegeli"
+      use_bigrams: true
+    }
+  }
+}
+condition_analysis_mode: DEP_GRAPH_ONLY
+target_mode: UNICODE_RANGE
+)");
+}
+
+TEST_F(AutoSegmenterConfigTest, UnicodeRange_QualityLevels) {
+  auto config_q1 = AutoSegmenterConfig::GenerateConfig(
+      face_.get(), *resolver, std::nullopt, 1, UNICODE_RANGE);
+  ASSERT_TRUE(config_q1.ok()) << config_q1.status();
+  EXPECT_EQ(config_q1->target_mode(), UNICODE_RANGE);
+  EXPECT_EQ(config_q1->brotli_quality(), 0);
+  EXPECT_EQ(config_q1->unmapped_glyph_handling(), FIND_CONDITIONS);
+  EXPECT_FALSE(config_q1->has_brotli_quality_for_initial_font_merging());
+  EXPECT_FALSE(config_q1->base_cost_config().experimental_use_patch_merges());
+  EXPECT_THAT(GetUseBigrams(*config_q1), Each(false));
+  EXPECT_TRUE(GetScriptsWithInitialMergeThreshold(*config_q1).empty());
+
+  auto config_q7 = AutoSegmenterConfig::GenerateConfig(
+      face_.get(), *resolver, std::nullopt, 7, UNICODE_RANGE);
+  ASSERT_TRUE(config_q7.ok()) << config_q7.status();
+  EXPECT_EQ(config_q7->target_mode(), UNICODE_RANGE);
+  EXPECT_EQ(config_q7->brotli_quality(), 11);
+  EXPECT_EQ(config_q7->unmapped_glyph_handling(), FIND_CONDITIONS);
+  EXPECT_FALSE(config_q7->has_brotli_quality_for_initial_font_merging());
+  EXPECT_FALSE(config_q7->base_cost_config().experimental_use_patch_merges());
+  EXPECT_THAT(GetUseBigrams(*config_q7), Each(true));
+  EXPECT_TRUE(GetScriptsWithInitialMergeThreshold(*config_q7).empty());
+}
+
+TEST_F(AutoSegmenterConfigTest, UnicodeRange_PrimaryScriptSplitting) {
+  ASSERT_TRUE(cjk_face_) << "NotoSansJP-Regular.ttf not found";
+
+  auto config_or = AutoSegmenterConfig::GenerateConfig(
+      cjk_face_.get(), *resolver, "Script_japanese", std::nullopt,
+      UNICODE_RANGE);
+  ASSERT_TRUE(config_or.ok()) << config_or.status();
+  EXPECT_EQ(config_or->target_mode(), UNICODE_RANGE);
+  EXPECT_FALSE(config_or->has_base_segmentation_plan());
+  EXPECT_THAT(GetScripts(*config_or),
+              UnorderedElementsAre(kEmojiLatinAndSymbols, kGreek, kCyrillic,
+                                   kJapanese, kCJKWithoutJapanese, kFallback));
+  EXPECT_TRUE(GetScriptsWithInitialMergeThreshold(*config_or).empty());
+
+  EXPECT_FALSE(GetSegmentIds(*config_or, kJapanese.first).has_value());
+  auto covered = GetSegmentIds(*config_or, kCJKWithoutJapanese.first);
+  ASSERT_TRUE(covered.has_value());
+  EXPECT_FALSE(covered->empty());
+}
+
 }  // namespace
 }  // namespace ift::config
