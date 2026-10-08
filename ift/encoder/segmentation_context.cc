@@ -32,7 +32,7 @@ Status SegmentationContext::ValidateSegmentation(
     const GlyphSegmentation& segmentation) const {
   GlyphSet visited;
   const auto& initial_closure = segmentation.InitialFontGlyphClosure();
-  for (const auto& [id, gids] : segmentation.GidSegments()) {
+  auto check_disjoint = [&](const GlyphSet& gids) -> Status {
     for (glyph_id_t gid : gids) {
       if (initial_closure.contains(gid)) {
         return absl::FailedPreconditionError(absl::StrCat(
@@ -43,6 +43,30 @@ Status SegmentationContext::ValidateSegmentation(
             "Glyph segments are not disjoint.");
       }
       visited.insert(gid);
+    }
+    return absl::OkStatus();
+  };
+
+  for (const auto& [id, gids] : segmentation.GidSegments()) {
+    TRYV(check_disjoint(gids));
+  }
+
+  if (target_mode_ == config::UNICODE_RANGE) {
+    for (const auto& condition : segmentation.Conditions()) {
+      if (!condition.IsExclusive()) {
+        return absl::FailedPreconditionError(absl::StrCat(
+            "Non-exclusive condition found in UNICODE_RANGE mode: ",
+            condition.ToString()));
+      }
+    }
+
+    // In unicode range mode not all conditions get record into segmentation, so
+    // check disjointness across the non-exclusive patches which were skipped.
+    TRYV(check_disjoint(glyph_groupings.UnmappedGlyphs()));
+    for (const auto& [cond, gids] : glyph_groupings.ConditionsAndGlyphs()) {
+      if (!cond.IsExclusive()) {
+        TRYV(check_disjoint(gids));
+      }
     }
   }
 
@@ -245,6 +269,20 @@ Status SegmentationContext::ReassignInitSubset(SubsetDefinition new_def) {
   return absl::OkStatus();
 }
 
+Status SegmentationContext::ResetSegments(std::vector<Segment> segments) {
+  segmentation_info_->ResetSegments(std::move(segments));
+  if (dependency_closure_.has_value()) {
+    TRYV((*dependency_closure_)->SegmentsReset());
+  }
+  uint32_t glyph_count = hb_face_get_glyph_count(original_face.get());
+  glyph_condition_set = GlyphConditionSet(glyph_count);
+  glyph_groupings = GlyphGroupings(
+      glyph_count,
+      condition_analysis_mode_ == config::DEP_GRAPH_ONLY_WITH_SIMPLIFICATION);
+  inert_segments_.clear();
+  return ReprocessAll();
+}
+
 static void PrintDiff(absl::string_view set_name, const GlyphSet& closure,
                       const GlyphSet& dep) {
   std::string op = " == ";
@@ -326,7 +364,8 @@ SegmentationContext::InitializeSegmentationContext(
     UnmappedGlyphHandling unmapped_glyph_handling,
     ConditionAnalysisMode condition_analysis_mode, uint32_t brotli_quality,
     uint32_t init_font_brotli_quality,
-    std::shared_ptr<DataFileResolver> resolver) {
+    std::shared_ptr<DataFileResolver> resolver,
+    ift::config::TargetMode target_mode) {
   if (!hb_face_get_glyph_count(face)) {
     return absl::InvalidArgumentError("Provided font has no glyphs.");
   }
@@ -339,7 +378,7 @@ SegmentationContext::InitializeSegmentationContext(
   SegmentationContext context = TRY(SegmentationContext::Create(
       face, initial_segment, segments, unmapped_glyph_handling,
       condition_analysis_mode, brotli_quality, init_font_brotli_quality,
-      std::move(resolver)));
+      std::move(resolver), target_mode));
 
   // ### Generate the initial conditions and groupings by processing all
   // segments and glyphs. ###
