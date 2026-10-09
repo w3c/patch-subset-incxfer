@@ -24,6 +24,7 @@
 #include "ift/encoder/segment.h"
 #include "ift/encoder/subset_definition.h"
 #include "ift/encoder/types.h"
+#include "ift/encoder/woff2_patch_size_cache.h"
 
 namespace ift::encoder {
 
@@ -86,7 +87,8 @@ class SegmentationContext {
         original_face.get(), SegmentationInfo().GetUnmappedGlyphHandling(),
         condition_analysis_mode_, brotli_quality_, init_font_brotli_quality_,
         std::move(closure_cache), std::move(segmentation_info), resolver_,
-        target_mode_, estimated_compression_ratio_);
+        target_mode_, estimated_compression_ratio_,
+        estimated_woff2_base_overhead_);
 
     TRYV(context.InitDependencyClosure());
     return std::move(context);
@@ -117,11 +119,10 @@ class SegmentationContext {
       std::unique_ptr<RequestedSegmentationInformation> segmentation_info,
       std::shared_ptr<ift::common::DataFileResolver> resolver,
       ift::config::TargetMode target_mode = ift::config::IFT,
-      std::optional<double> estimated_compression_ratio = std::nullopt)
+      std::optional<double> estimated_compression_ratio = std::nullopt,
+      std::optional<uint32_t> estimated_woff2_base_overhead = std::nullopt)
       : estimated_compression_ratio_(estimated_compression_ratio),
-        patch_size_cache(NewPatchSizeCache(face, brotli_quality)),
-        patch_size_cache_for_init_font(
-            NewPatchSizeCache(face, init_font_brotli_quality)),
+        estimated_woff2_base_overhead_(estimated_woff2_base_overhead),
         glyph_closure_cache(std::move(closure_cache)),
         original_face(ift::common::make_hb_face(hb_face_reference(face))),
         segmentation_info_(std::move(segmentation_info)),
@@ -134,7 +135,11 @@ class SegmentationContext {
         init_font_brotli_quality_(init_font_brotli_quality),
         condition_analysis_mode_(condition_analysis_mode),
         target_mode_(target_mode),
-        resolver_(std::move(resolver)) {}
+        resolver_(std::move(resolver)) {
+    patch_size_cache = NewPatchSizeCache(face, brotli_quality);
+    patch_size_cache_for_init_font =
+        NewPatchSizeCache(face, init_font_brotli_quality);
+  }
 
   absl::Status InitDependencyClosure() {
     if (UsingDepGraph()) {
@@ -336,6 +341,30 @@ class SegmentationContext {
   // TODO XXXX make this return StatusOr<...>
   std::unique_ptr<PatchSizeCache> NewPatchSizeCache(hb_face_t* face,
                                                     uint32_t brotli_quality) {
+    if (target_mode_ == config::UNICODE_RANGE) {
+      SubsetDefinition base_subset = segmentation_info_->InitFontSegment();
+      base_subset.gids.union_set(segmentation_info_->InitFontGlyphs());
+      if (brotli_quality == 0) {
+        if (!estimated_compression_ratio_.has_value() ||
+            !estimated_woff2_base_overhead_.has_value()) {
+          auto params = EstimatedWoff2PatchSizeCache::EstimateParameters(
+              face, base_subset);
+          if (params.ok()) {
+            estimated_woff2_base_overhead_ = params->first;
+            estimated_compression_ratio_ = params->second;
+          }
+        }
+        if (estimated_compression_ratio_.has_value() &&
+            estimated_woff2_base_overhead_.has_value()) {
+          return EstimatedWoff2PatchSizeCache::New(
+              face, *estimated_woff2_base_overhead_,
+              *estimated_compression_ratio_);
+        }
+      }
+      return std::make_unique<Woff2PatchSizeCache>(
+          face, std::move(base_subset), brotli_quality);
+    }
+
     if (brotli_quality == 0) {
       if (!estimated_compression_ratio_.has_value()) {
         auto r = EstimatedPatchSizeCache::EstimateCompressionRatio(face);
@@ -355,6 +384,7 @@ class SegmentationContext {
 
  private:
   std::optional<double> estimated_compression_ratio_;
+  std::optional<uint32_t> estimated_woff2_base_overhead_;
 
  public:
   // Caches and logging

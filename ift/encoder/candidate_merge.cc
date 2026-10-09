@@ -647,7 +647,8 @@ StatusOr<double> CandidateMerge::ComputeCostDelta(
   struct Info {
     GlyphSet glyphs;
     uint32_t largest_patch_size = 0;
-    uint32_t combined_patch_size = 0;
+    uint32_t largest_incremental_size = 0;
+    uint32_t combined_incremental_size = 0;
   };
   flat_hash_map<ActivationCondition, Info> new_conditions;
   new_conditions.reserve(modified_conditions.size());
@@ -655,6 +656,9 @@ StatusOr<double> CandidateMerge::ComputeCostDelta(
   segment_index_t base = *merged_segments.min();
   const auto& context = merger.Context();
   const auto& patch_size_cache = context.patch_size_cache;
+  uint32_t base_overhead = (context.GetTargetMode() == config::UNICODE_RANGE)
+                               ? TRY(patch_size_cache->GetPatchSize({}))
+                               : 0;
 
   // Cost delta contributions are collected here and summed at the end rather
   // than accumulated as we go. modified_conditions and new_conditions are both
@@ -691,8 +695,12 @@ StatusOr<double> CandidateMerge::ComputeCostDelta(
       info.glyphs.union_set(*glyphs);
     }
 
+    uint32_t incremental_size =
+        (patch_size > base_overhead) ? (patch_size - base_overhead) : 0;
     info.largest_patch_size = std::max(info.largest_patch_size, patch_size);
-    info.combined_patch_size += patch_size;
+    info.largest_incremental_size =
+        std::max(info.largest_incremental_size, incremental_size);
+    info.combined_incremental_size += incremental_size;
   }
 
   double initial_magnitude_sum = -current_delta;
@@ -727,7 +735,8 @@ StatusOr<double> CandidateMerge::ComputeCostDelta(
   for (auto& [c, info] : new_conditions) {
     uint32_t size = 0;
     if (best_case) {
-      uint32_t extra = info.combined_patch_size - info.largest_patch_size;
+      uint32_t extra =
+          info.combined_incremental_size - info.largest_incremental_size;
       extra = std::max((uint32_t)(extra * best_case_reduction_fraction),
                        Merger::BEST_CASE_MERGE_SIZE_DELTA);
       size = info.largest_patch_size + extra;
@@ -749,7 +758,8 @@ StatusOr<double> CandidateMerge::ComputeCostDelta(
       }
       size = TRY(patch_size_cache->GetPatchSize(info.glyphs));
       if (merger.ShouldRecordMergedSizeReductions()) {
-        int32_t extra_raw = info.combined_patch_size - info.largest_patch_size;
+        int32_t extra_raw =
+            info.combined_incremental_size - info.largest_incremental_size;
         int32_t extra_actual = ((int32_t)size) - info.largest_patch_size;
         if (extra_raw != 0.0) {
           merger.RecordMergedSizeReduction((double)extra_actual /
