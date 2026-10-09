@@ -932,17 +932,31 @@ StatusOr<std::vector<SegmentationCost>> ClosureGlyphSegmenter::TotalCosts(
     non_ift.Union(def);
   }
 
-  double init_font_size = TRY(CandidateMerge::Woff2SizeOf(
-      original_face, segmentation.InitialFontSegment(), 11));
+  double init_font_size = 0.0;
+  if (target_mode_ != ift::config::UNICODE_RANGE) {
+    init_font_size = TRY(CandidateMerge::Woff2SizeOf(
+        original_face, segmentation.InitialFontSegment(), 11));
+  }
   double non_ift_font_size =
       TRY(CandidateMerge::Woff2SizeOf(original_face, non_ift, 11));
   double incremental_size =
       non_ift_font_size / (double)non_ift.codepoints.size();
   double init_font_ideal_size =
-      incremental_size * segmentation.InitialFontSegment().codepoints.size();
+      (target_mode_ == ift::config::UNICODE_RANGE)
+          ? 0.0
+          : incremental_size *
+                segmentation.InitialFontSegment().codepoints.size();
 
   // Use highest quality so we get the true cost.
-  PatchSizeCacheImpl patch_sizer(original_face, 11);
+  std::unique_ptr<PatchSizeCache> patch_sizer;
+  if (target_mode_ == ift::config::UNICODE_RANGE) {
+    SubsetDefinition base_subset = segmentation.InitialFontSegment();
+    base_subset.gids.union_set(segmentation.InitialFontGlyphClosure());
+    patch_sizer = std::make_unique<Woff2PatchSizeCache>(
+        original_face, std::move(base_subset), 11);
+  } else {
+    patch_sizer = std::make_unique<PatchSizeCacheImpl>(original_face, 11);
+  }
 
   CodepointSet covered_codepoints;
   for (const ProbabilityCalculator* probability_calculator :
@@ -964,7 +978,7 @@ StatusOr<std::vector<SegmentationCost>> ClosureGlyphSegmenter::TotalCosts(
       continue;
     }
     const GlyphSet& gids = segmentation.GidSegments().at(c.activated());
-    double patch_size = (double)TRY(patch_sizer.GetPatchSize(gids));
+    double patch_size = (double)TRY(patch_sizer->GetPatchSize(gids));
     uncovered_patch_cost += patch_size + kDefaultNetworkCost;
   }
 
@@ -988,7 +1002,7 @@ StatusOr<std::vector<SegmentationCost>> ClosureGlyphSegmenter::TotalCosts(
     for (const auto& c : segmentation.Conditions()) {
       double Pc = TRY(c.Probability(segments, *probability_calculator));
       const GlyphSet& gids = segmentation.GidSegments().at(c.activated());
-      double patch_size = (double)TRY(patch_sizer.GetPatchSize(gids));
+      double patch_size = (double)TRY(patch_sizer->GetPatchSize(gids));
       total_cost += Pc * (patch_size + kDefaultNetworkCost);
     }
 

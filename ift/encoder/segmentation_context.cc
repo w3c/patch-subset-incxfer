@@ -226,6 +226,14 @@ Status SegmentationContext::ReassignInitSubset(SubsetDefinition new_def) {
 
   TRYV(segmentation_info_->ReassignInitSubset(*glyph_closure_cache, new_def));
 
+  if (target_mode_ == config::UNICODE_RANGE) {
+    estimated_compression_ratio_ = std::nullopt;
+    estimated_woff2_base_overhead_ = std::nullopt;
+    patch_size_cache = NewPatchSizeCache(original_face.get(), brotli_quality_);
+    patch_size_cache_for_init_font = NewPatchSizeCache(
+        original_face.get(), init_font_brotli_quality_);
+  }
+
   if (dependency_closure_.has_value()) {
     // Dep closure doesn't need the expanded affected set, as it will traverse
     // from the input segments to find the affected subgraph.

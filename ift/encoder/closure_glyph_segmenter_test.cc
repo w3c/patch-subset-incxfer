@@ -16,6 +16,7 @@
 #include "ift/encoder/merger.h"
 #include "ift/encoder/segmentation_context.h"
 #include "ift/encoder/subset_definition.h"
+#include "ift/encoder/woff2_patch_size_cache.h"
 #include "ift/freq/bigram_probability_calculator.h"
 #include "ift/freq/mock_probability_calculator.h"
 #include "ift/freq/unicode_frequencies.h"
@@ -3298,6 +3299,94 @@ TEST_F(ClosureGlyphSegmenterTest,
   std::vector<SubsetDefinition> expected_segments = {
       {'f', 'i'}, {'b'}, {'c'}};
   EXPECT_EQ(segmentation->Segments(), expected_segments);
+}
+
+TEST_F(ClosureGlyphSegmenterTest, UnicodeRange_Woff2PatchSizeCostFunction) {
+  // 'b' and 'c' do not interact in Roboto. With P('b') = 0.6, P('c') = 0.6,
+  // P({'b', 'c'}) = 0.84, and network_overhead_cost = 0:
+  // - In IFT mode, glyph-keyed patches only have a small patch header, so
+  //   0.6 * size('b') + 0.6 * size('c') < 0.84 * size({'b', 'c'}) and the
+  //   segments remain separate.
+  // - In UNICODE_RANGE mode, each patch is a standalone WOFF2 font subset that
+  //   includes shared font table overhead (~1.4KB), so merging deduplicates the
+  //   shared table overhead and reduces total expected bytes for both
+  //   brotli_quality > 0 (Woff2PatchSizeCache) and brotli_quality == 0
+  //   (EstimatedWoff2PatchSizeCache).
+  auto calc = std::make_shared<MockProbabilityCalculator>(
+      std::vector<std::pair<Segment, double>>{
+          {Segment({'b'}), 0.6},
+          {Segment({'c'}), 0.6},
+          {Segment({'b', 'c'}), 0.84},
+      });
+  MergeStrategy strategy = MergeStrategy::CostBased(
+      ProbabilityProfile(calc), /*network_overhead_cost=*/0,
+      /*min_group_size=*/1);
+  strategy.SetUsePatchMerges(false);
+
+  {
+    ClosureGlyphSegmenter ift_seg(1, 1, FIND_CONDITIONS,
+                                  CLOSURE_AND_VALIDATE_DEP_GRAPH, resolver,
+                                  ift::config::IFT);
+    auto ift_segmentation = ift_seg.CodepointToGlyphSegments(
+        roboto.get(), {'a'}, {{'b'}, {'c'}}, strategy);
+    ASSERT_TRUE(ift_segmentation.ok()) << ift_segmentation.status();
+    std::vector<SubsetDefinition> expected_ift = {{'b'}, {'c'}};
+    EXPECT_EQ(ift_segmentation->Segments(), expected_ift);
+  }
+
+  for (uint32_t quality : {0u, 1u}) {
+    ClosureGlyphSegmenter ur_seg(quality, quality, FIND_CONDITIONS,
+                                 CLOSURE_AND_VALIDATE_DEP_GRAPH, resolver,
+                                 ift::config::UNICODE_RANGE);
+    auto ur_segmentation = ur_seg.CodepointToGlyphSegments(
+        roboto.get(), {'a'}, {{'b'}, {'c'}}, strategy);
+    ASSERT_TRUE(ur_segmentation.ok()) << ur_segmentation.status();
+    std::vector<SubsetDefinition> expected_ur = {{'b', 'c'}, {}};
+    EXPECT_EQ(ur_segmentation->Segments(), expected_ur)
+        << "quality=" << quality;
+  }
+}
+
+TEST_F(ClosureGlyphSegmenterTest, UnicodeRange_TotalCosts) {
+  UnicodeFrequencies frequencies{
+      {{' ', ' '}, 100}, {{'a', 'a'}, 95}, {{'b', 'b'}, 50}, {{'c', 'c'}, 25},
+  };
+  UnigramProbabilityCalculator calculator(std::move(frequencies));
+
+  GlyphSegmentation segmentation({'a'}, {}, {});
+  auto sc = GlyphSegmentation::ConditionsToSegmentation(
+      {
+          {ActivationCondition::exclusive_segment(0, 0), {70}},
+          {ActivationCondition::exclusive_segment(1, 0), {71}},
+      },
+      {}, segmentation);
+  ASSERT_TRUE(sc.ok()) << sc;
+  segmentation.CopySegments({{'b'}, {'c'}});
+
+  ClosureGlyphSegmenter ift_seg(8, 8, FIND_CONDITIONS, CLOSURE_ONLY, resolver,
+                                ift::config::IFT);
+  std::vector<SegmentationCost> ift_costs =
+      *ift_seg.TotalCosts(roboto.get(), segmentation, {&calculator});
+
+  ClosureGlyphSegmenter ur_seg(8, 8, FIND_CONDITIONS, CLOSURE_ONLY, resolver,
+                               ift::config::UNICODE_RANGE);
+  std::vector<SegmentationCost> ur_costs =
+      *ur_seg.TotalCosts(roboto.get(), segmentation, {&calculator});
+
+  EXPECT_EQ(ur_costs[0].ift_init_cost, 0.0);
+  EXPECT_EQ(ur_costs[0].ideal_init_cost, 0.0);
+  EXPECT_GT(ur_costs[0].ift_patch_cost, ift_costs[0].ift_patch_cost);
+
+  SubsetDefinition base_subset = segmentation.InitialFontSegment();
+  base_subset.gids.union_set(segmentation.InitialFontGlyphClosure());
+  Woff2PatchSizeCache woff2_sizer(roboto.get(), base_subset, 11);
+  double size_0 = (double)*woff2_sizer.GetPatchSize({70});
+  double size_1 = (double)*woff2_sizer.GetPatchSize({71});
+  double p_b = calculator.ComputeProbability('b').Value();
+  double p_c = calculator.ComputeProbability('c').Value();
+  double expected_patch_cost = p_b * (size_0 + kDefaultNetworkCost) +
+                               p_c * (size_1 + kDefaultNetworkCost);
+  EXPECT_NEAR(ur_costs[0].ift_patch_cost, expected_patch_cost, 1e-6);
 }
 
 }  // namespace ift::encoder

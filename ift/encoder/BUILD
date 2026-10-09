@@ -82,6 +82,7 @@ cc_library(
         "glyph_groupings.cc",
         "merger.cc",
         "segmentation_context.cc",
+        "woff2_patch_size_cache.cc",
     ],
     hdrs = [
         "candidate_merge.h",
@@ -95,6 +96,7 @@ cc_library(
         "merger.h",
         "patch_size_cache.h",
         "segmentation_context.h",
+        "woff2_patch_size_cache.h",
     ],
     deps = [
         ":activation_condition",
@@ -108,6 +110,7 @@ cc_library(
         "//ift/common:try",
         "//ift/config:segmenter_config_cc_proto",
         "//ift/dep_graph",
+        "//ift/dep_graph:unicode_edges",
         "//ift/feature_registry",
         "//ift/freq",
         "//ift/freq:common",
@@ -533,6 +536,25 @@ cc_test(
         "//ift/common:test_font_loader",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "woff2_patch_size_cache_test",
+    size = "small",
+    srcs = ["woff2_patch_size_cache_test.cc"],
+    data = [
+        "//ift/common:testdata",
+    ],
+    deps = [
+        ":common",
+        ":segmentation_context",
+        ":segmentation_info",
+        "//ift/common",
+        "//ift/common:test_font_loader",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+        "@harfbuzz",
     ],
 )
 
