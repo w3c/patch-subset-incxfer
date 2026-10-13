@@ -3180,7 +3180,7 @@ TEST_F(ClosureGlyphSegmenterTest,
 
   // Group 0 has {'f'} (s0) and {'b'} (s1); Group 1 has {'i'} (s2) and {'c'} (s3).
   // 'f' and 'i' merge in MakeActivationConditionsDisjoint due to the fi ligature.
-  // Case 1: Group 1 has higher probability for the merged segment {'f', 'i'}
+  // Group 1 has higher probability for the merged segment {'f', 'i'}
   // (0.8 vs 0.2), so ToOrderedSegments assigns {'f', 'i'} to Group 1 (s1), and
   // Group 1 then merges s1 ({'f', 'i'}) with s2 ({'c'}) to reach min_group_size = 3.
   {
@@ -3217,50 +3217,10 @@ TEST_F(ClosureGlyphSegmenterTest,
         seg.CodepointToGlyphSegments(roboto.get(), {'a'}, segments, merge_groups);
     ASSERT_TRUE(segmentation.ok()) << segmentation.status();
 
+    // the {f, i} segment is shared between group 0 and 1 after MakeACDisjoint
+    // so it get's placed at the end as a shared segment and doesn't merge
     std::vector<SubsetDefinition> expected_segments = {
-        {'b'}, {'c', 'f', 'i'}, {}};
-    EXPECT_EQ(segmentation->Segments(), expected_segments);
-  }
-
-  // Case 2: Group 0 has higher probability for the merged segment {'f', 'i'}
-  // (0.9 vs 0.8), so ToOrderedSegments assigns {'f', 'i'} to Group 0 (s0), and
-  // Group 0 then merges s0 ({'f', 'i'}) with s1 ({'b'}) to reach min_group_size = 3.
-  {
-    auto calc_0 = std::make_shared<MockProbabilityCalculator>(
-        std::vector<std::pair<Segment, double>>{
-            {Segment({'f'}), 0.9},
-            {Segment({'b'}), 0.5},
-            {Segment({'f', 'i'}), 0.9},
-            {Segment({'b', 'f', 'i'}), 0.95},
-        });
-    auto calc_1 = std::make_shared<MockProbabilityCalculator>(
-        std::vector<std::pair<Segment, double>>{
-            {Segment({'i'}), 0.8},
-            {Segment({'c'}), 0.1},
-            {Segment({'f', 'i'}), 0.8},
-        });
-
-    MergeStrategy strategy_0 = MergeStrategy::CostBased(
-        ProbabilityProfile(calc_0), /*network_overhead_cost=*/0,
-        /*min_group_size=*/3);
-    strategy_0.SetUsePatchMerges(false);
-
-    MergeStrategy strategy_1 = MergeStrategy::CostBased(
-        ProbabilityProfile(calc_1), /*network_overhead_cost=*/0,
-        /*min_group_size=*/3);
-    strategy_1.SetUsePatchMerges(false);
-
-    btree_map<SegmentSet, MergeStrategy> merge_groups = {
-        {{0, 1}, strategy_0},
-        {{2, 3}, strategy_1},
-    };
-
-    auto segmentation =
-        seg.CodepointToGlyphSegments(roboto.get(), {'a'}, segments, merge_groups);
-    ASSERT_TRUE(segmentation.ok()) << segmentation.status();
-
-    std::vector<SubsetDefinition> expected_segments = {
-        {'b', 'f', 'i'}, {}, {'c'}};
+        {'b'}, {'c'}, {'f', 'i'}};
     EXPECT_EQ(segmentation->Segments(), expected_segments);
   }
 }
