@@ -25,6 +25,7 @@
 #include "ift/encoder/subset_definition.h"
 #include "ift/encoder/types.h"
 #include "ift/encoder/woff2_patch_size_cache.h"
+#include "ift/freq/probability_calculator.h"
 
 namespace ift::encoder {
 
@@ -157,10 +158,12 @@ class SegmentationContext {
 
   // Convert the information in this context into a finalized GlyphSegmentation
   // representation.
-  absl::StatusOr<GlyphSegmentation> ToGlyphSegmentation() const {
+  absl::StatusOr<GlyphSegmentation> ToGlyphSegmentation(
+      absl::Span<const freq::ProbabilityCalculator* const>
+          probability_calculators = {}) const {
     GlyphSegmentation segmentation = TRY(glyph_groupings.ToGlyphSegmentation(
         *segmentation_info_, target_mode_ == config::UNICODE_RANGE));
-    TRYV(ValidateSegmentation(segmentation));
+    TRYV(ValidateSegmentation(segmentation, probability_calculators));
     return segmentation;
   }
 
@@ -330,7 +333,9 @@ class SegmentationContext {
    * - Fully covers the full closure.
    */
   absl::Status ValidateSegmentation(
-      const GlyphSegmentation& segmentation) const;
+      const GlyphSegmentation& segmentation,
+      absl::Span<const freq::ProbabilityCalculator* const>
+          probability_calculators = {}) const;
 
   // If the merging strategy specifies a minimum cost threshold, this computes
   // the segment where we should stop computing optimized merges. This is

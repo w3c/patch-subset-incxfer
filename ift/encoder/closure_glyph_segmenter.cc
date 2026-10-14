@@ -602,10 +602,18 @@ StatusOr<std::vector<Merger>> ToMergers(
 }
 
 static StatusOr<GlyphSegmentation> ToFinalSegmentation(
-    SegmentationContext& context,
-    UnmappedGlyphHandling unmapped_glyph_handling) {
+    SegmentationContext& context, Span<const Merger> mergers) {
   context.LogClosureStatistics();
-  return context.ToGlyphSegmentation();
+  std::vector<const ProbabilityCalculator*> calculators;
+  for (const Merger& merger : mergers) {
+    if (!merger.Strategy().UseCosts()) {
+      continue;
+    }
+    for (const auto& profile : merger.Strategy().ProbabilityProfiles()) {
+      calculators.push_back(TRY(profile.Calculator()));
+    }
+  }
+  return context.ToGlyphSegmentation(calculators);
 }
 
 Status ClosureGlyphSegmenter::ValidateInput(
@@ -656,6 +664,19 @@ Status ClosureGlyphSegmenter::ValidateInput(
   return absl::OkStatus();
 }
 
+static void LogMergeForDisjointConditions(
+    const ActivationCondition& condition,
+    std::optional<double> condition_probability = std::nullopt) {
+  if (condition_probability.has_value()) {
+    VLOG(0) << "  Merging segments "
+            << condition.TriggeringSegments().size() << " segments "
+            << "(probability = " << *condition_probability << ")";
+  } else {
+    VLOG(0) << "  Merging segments "
+            << condition.TriggeringSegments().size() << " segments";
+  }
+}
+
 static StatusOr<bool> ShouldMergeForDisjointConditions(
     const SegmentationContext& context, const ActivationCondition& condition,
     double probability_threshold,
@@ -664,6 +685,7 @@ static StatusOr<bool> ShouldMergeForDisjointConditions(
     return false;
   }
   if (merge_groups.empty()) {
+    LogMergeForDisjointConditions(condition);
     return true;
   }
 
@@ -678,8 +700,9 @@ static StatusOr<bool> ShouldMergeForDisjointConditions(
     return false;
   }
 
-  if (probability_threshold <= 0.0 || !matching_strategy->UseCosts() ||
+  if (!matching_strategy->UseCosts() ||
       matching_strategy->ProbabilityProfiles().empty()) {
+    LogMergeForDisjointConditions(condition);
     return true;
   }
 
@@ -691,33 +714,50 @@ static StatusOr<bool> ShouldMergeForDisjointConditions(
   }
   double avg_prob =
       total_prob / (double)matching_strategy->ProbabilityProfiles().size();
-  return avg_prob > probability_threshold;
+  if (probability_threshold <= 0.0 || avg_prob > probability_threshold) {
+    LogMergeForDisjointConditions(condition, avg_prob);
+    return true;
+  }
+  return false;
 }
 
 static StatusOr<GlyphPartition> PartitionInteractingSegments(
     const SegmentationContext& context, double probability_threshold,
     const btree_map<SegmentSet, MergeStrategy>& merge_groups) {
   size_t num_segments = context.SegmentationInfo().Segments().size();
-  if (probability_threshold > 0.0) {
-    for (const auto& [_, strategy] : merge_groups) {
-      if (strategy.UseCosts()) {
-        TRYV(strategy.ResetSegmentProbabilities(num_segments));
-      }
+  for (const auto& [_, strategy] : merge_groups) {
+    if (strategy.UseCosts()) {
+      TRYV(strategy.ResetSegmentProbabilities(num_segments));
     }
   }
 
+  size_t skipped_conditions = 0;
+  GlyphSet skipped_glyphs;
   GlyphPartition segment_partition(num_segments);
   for (const auto& condition : context.glyph_groupings.OrderedConditions()) {
-    if (!TRY(ShouldMergeForDisjointConditions(
-            context, condition, probability_threshold, merge_groups))) {
+    SegmentSet triggering = condition.TriggeringSegments();
+    if (condition.IsExclusive() || condition.IsFallback() || triggering.size() <= 1) {
       continue;
     }
 
-    GlyphSet triggering;
-    triggering.union_set(condition.TriggeringSegments());
+    if (TRY(segment_partition.InSameGroup(triggering))) {
+      // These segments are already planned to be merged.
+      continue;
+    }
+
+    if (!TRY(ShouldMergeForDisjointConditions(
+            context, condition, probability_threshold, merge_groups))) {
+      skipped_conditions++;
+      skipped_glyphs.union_set(
+          context.glyph_groupings.ConditionsAndGlyphs().at(condition));
+      continue;
+    }
+
     TRYV(segment_partition.Union(triggering));
   }
 
+  VLOG(0) << "  Skipped merging for " << skipped_conditions
+          << " conditions and " << skipped_glyphs.size() << " glyphs.";
   return segment_partition;
 }
 
@@ -864,7 +904,7 @@ StatusOr<GlyphSegmentation> ClosureGlyphSegmenter::CodepointToGlyphSegments(
     if (target_mode_ == ift::config::UNICODE_RANGE) {
       TRYV(ValidateIncrementalGroupings(face, context));
     }
-    return ToFinalSegmentation(context, unmapped_glyph_handling_);
+    return ToFinalSegmentation(context, mergers);
   }
 
   // ### Iteratively merge segments and incrementally reprocess affected data.
@@ -914,7 +954,7 @@ StatusOr<GlyphSegmentation> ClosureGlyphSegmenter::CodepointToGlyphSegments(
         merger.LogMergedSizeHistogram();
       }
 
-      return ToFinalSegmentation(context, unmapped_glyph_handling_);
+      return ToFinalSegmentation(context, mergers);
     }
 
     TRYV(context.ReprocessChanged(std::move(*maybe_modified)));
