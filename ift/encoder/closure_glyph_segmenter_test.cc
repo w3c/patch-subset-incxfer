@@ -3176,53 +3176,54 @@ TEST_F(ClosureGlyphSegmenterTest,
                             CLOSURE_AND_VALIDATE_DEP_GRAPH, resolver,
                             ift::config::UNICODE_RANGE);
 
-  std::vector<SubsetDefinition> segments = {{'f'}, {'b'}, {'i'}, {'c'}};
+  // s0 ('f') and s1 ('i') are non-shared in Group 0 and interact via 'fi'.
+  // s2 ('l') and s3 (0xC1) are non-shared in Group 1; 'l' interacts with 'f'
+  // across Group 0 and Group 1 via 'fl'.
+  // s4 (0x106) is shared between Group 0 and Group 1 and interacts with 0xC1
+  // via the acute accent component.
+  // MakeActivationConditionsDisjoint only merges within the non-shared segments
+  // of each group, so 'f' and 'i' merge into {'f', 'i'}, while cross-group
+  // ('f' + 'l') and shared-segment (0xC1 + 0x106) interactions are not merged.
+  std::vector<SubsetDefinition> segments = {
+      {'f'}, {'i'}, {'l'}, {0xC1}, {0x106}};
 
-  // Group 0 has {'f'} (s0) and {'b'} (s1); Group 1 has {'i'} (s2) and {'c'} (s3).
-  // 'f' and 'i' merge in MakeActivationConditionsDisjoint due to the fi ligature.
-  // Group 1 has higher probability for the merged segment {'f', 'i'}
-  // (0.8 vs 0.2), so ToOrderedSegments assigns {'f', 'i'} to Group 1 (s1), and
-  // Group 1 then merges s1 ({'f', 'i'}) with s2 ({'c'}) to reach min_group_size = 3.
-  {
-    auto calc_0 = std::make_shared<MockProbabilityCalculator>(
-        std::vector<std::pair<Segment, double>>{
-            {Segment({'f'}), 0.2},
-            {Segment({'b'}), 0.1},
-            {Segment({'f', 'i'}), 0.2},
-        });
-    auto calc_1 = std::make_shared<MockProbabilityCalculator>(
-        std::vector<std::pair<Segment, double>>{
-            {Segment({'i'}), 0.8},
-            {Segment({'c'}), 0.5},
-            {Segment({'f', 'i'}), 0.8},
-            {Segment({'c', 'f', 'i'}), 0.9},
-        });
+  auto calc_0 = std::make_shared<MockProbabilityCalculator>(
+      std::vector<std::pair<Segment, double>>{
+          {Segment({'f'}), 0.5},
+          {Segment({'i'}), 0.4},
+          {Segment({'f', 'i'}), 0.7},
+          {Segment({0x106}), 0.1},
+      });
+  auto calc_1 = std::make_shared<MockProbabilityCalculator>(
+      std::vector<std::pair<Segment, double>>{
+          {Segment({'l'}), 0.4},
+          {Segment({0xC1}), 0.3},
+          {Segment({'l', 0xC1}), 1.0},
+          {Segment({0x106}), 0.1},
+      });
 
-    MergeStrategy strategy_0 = MergeStrategy::CostBased(
-        ProbabilityProfile(calc_0), /*network_overhead_cost=*/0,
-        /*min_group_size=*/3);
-    strategy_0.SetUsePatchMerges(false);
+  MergeStrategy strategy_0 = MergeStrategy::CostBased(
+      ProbabilityProfile(calc_0), /*network_overhead_cost=*/0,
+      /*min_group_size=*/1);
+  strategy_0.SetUsePatchMerges(false);
 
-    MergeStrategy strategy_1 = MergeStrategy::CostBased(
-        ProbabilityProfile(calc_1), /*network_overhead_cost=*/0,
-        /*min_group_size=*/3);
-    strategy_1.SetUsePatchMerges(false);
+  MergeStrategy strategy_1 = MergeStrategy::CostBased(
+      ProbabilityProfile(calc_1), /*network_overhead_cost=*/0,
+      /*min_group_size=*/1);
+  strategy_1.SetUsePatchMerges(false);
 
-    btree_map<SegmentSet, MergeStrategy> merge_groups = {
-        {{0, 1}, strategy_0},
-        {{2, 3}, strategy_1},
-    };
+  btree_map<SegmentSet, MergeStrategy> merge_groups = {
+      {{0, 1, 4}, strategy_0},
+      {{2, 3, 4}, strategy_1},
+  };
 
-    auto segmentation =
-        seg.CodepointToGlyphSegments(roboto.get(), {'a'}, segments, merge_groups);
-    ASSERT_TRUE(segmentation.ok()) << segmentation.status();
+  auto segmentation =
+      seg.CodepointToGlyphSegments(roboto.get(), {'a'}, segments, merge_groups);
+  ASSERT_TRUE(segmentation.ok()) << segmentation.status();
 
-    // the {f, i} segment is shared between group 0 and 1 after MakeACDisjoint
-    // so it get's placed at the end as a shared segment and doesn't merge
-    std::vector<SubsetDefinition> expected_segments = {
-        {'b'}, {'c'}, {'f', 'i'}};
-    EXPECT_EQ(segmentation->Segments(), expected_segments);
-  }
+  std::vector<SubsetDefinition> expected_segments = {
+      {'f', 'i'}, {'l'}, {0xC1}, {0x106}};
+  EXPECT_EQ(segmentation->Segments(), expected_segments);
 }
 
 TEST_F(ClosureGlyphSegmenterTest,

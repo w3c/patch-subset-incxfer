@@ -642,44 +642,44 @@ Status ClosureGlyphSegmenter::ValidateInput(
 static StatusOr<bool> ShouldMergeForDisjointConditions(
     const SegmentationContext& context, const ActivationCondition& condition,
     double probability_threshold,
-    const btree_map<SegmentSet, MergeStrategy>& merge_groups,
-    const btree_map<SegmentSet, SegmentSet>& with_shared) {
-  if (condition.IsExclusive()) {
+    const btree_map<SegmentSet, MergeStrategy>& merge_groups) {
+  if (condition.IsExclusive() || condition.IsFallback()) {
     return false;
   }
-  if (probability_threshold <= 0.0) {
+  if (merge_groups.empty()) {
     return true;
   }
 
-  bool has_cost_strategy = false;
-  double max_probability = 0.0;
+  const MergeStrategy* matching_strategy = nullptr;
   for (const auto& [merge_group_segments, strategy] : merge_groups) {
-    if (!strategy.UseCosts() || strategy.ProbabilityProfiles().empty()) {
-      continue;
+    if (condition.TriggeringSegments().is_subset_of(merge_group_segments)) {
+      matching_strategy = &strategy;
+      break;
     }
-    if (!with_shared.at(merge_group_segments)
-             .intersects(condition.TriggeringSegments())) {
-      continue;
-    }
-    has_cost_strategy = true;
-    double total_prob = 0.0;
-    for (const auto& profile : strategy.ProbabilityProfiles()) {
-      total_prob +=
-          TRY(condition.Probability(context.SegmentationInfo().Segments(),
-                                    *TRY(profile.Calculator())));
-    }
-    double avg_prob =
-        total_prob / (double)strategy.ProbabilityProfiles().size();
-    max_probability = std::max(max_probability, avg_prob);
+  }
+  if (matching_strategy == nullptr) {
+    return false;
   }
 
-  return !has_cost_strategy || max_probability >= probability_threshold;
+  if (probability_threshold <= 0.0 || !matching_strategy->UseCosts() ||
+      matching_strategy->ProbabilityProfiles().empty()) {
+    return true;
+  }
+
+  double total_prob = 0.0;
+  for (const auto& profile : matching_strategy->ProbabilityProfiles()) {
+    total_prob +=
+        TRY(condition.Probability(context.SegmentationInfo().Segments(),
+                                  *TRY(profile.Calculator())));
+  }
+  double avg_prob =
+      total_prob / (double)matching_strategy->ProbabilityProfiles().size();
+  return avg_prob > probability_threshold;
 }
 
 static StatusOr<GlyphPartition> PartitionInteractingSegments(
     const SegmentationContext& context, double probability_threshold,
-    const btree_map<SegmentSet, MergeStrategy>& merge_groups,
-    const btree_map<SegmentSet, SegmentSet>& with_shared) {
+    const btree_map<SegmentSet, MergeStrategy>& merge_groups) {
   size_t num_segments = context.SegmentationInfo().Segments().size();
   if (probability_threshold > 0.0) {
     for (const auto& [_, strategy] : merge_groups) {
@@ -692,8 +692,7 @@ static StatusOr<GlyphPartition> PartitionInteractingSegments(
   GlyphPartition segment_partition(num_segments);
   for (const auto& condition : context.glyph_groupings.OrderedConditions()) {
     if (!TRY(ShouldMergeForDisjointConditions(
-            context, condition, probability_threshold, merge_groups,
-            with_shared))) {
+            context, condition, probability_threshold, merge_groups))) {
       continue;
     }
 
@@ -768,8 +767,7 @@ static Status MakeActivationConditionsDisjoint(
   bool merged_any = false;
   while (true) {
     GlyphPartition segment_partition = TRY(PartitionInteractingSegments(
-        context, disjoint_conditions_probability_threshold, merge_groups,
-        with_shared));
+        context, disjoint_conditions_probability_threshold, merge_groups));
     auto interacting_segment_sets = TRY(segment_partition.NonIdentityGroups());
     if (interacting_segment_sets.empty()) {
       break;
