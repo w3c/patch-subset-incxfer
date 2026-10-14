@@ -727,8 +727,7 @@ static Status MergeInteractingSegmentSet(
 
 static Status MergeInteractingSegmentSets(
     SegmentationContext& context,
-    Span<const GlyphSet> interacting_segment_sets,
-    btree_map<SegmentSet, SegmentSet>& with_shared) {
+    Span<const GlyphSet> interacting_segment_sets) {
   for (const GlyphSet& raw_segment_set : interacting_segment_sets) {
     SegmentSet interacting_segments;
     interacting_segments.union_set(raw_segment_set);
@@ -742,13 +741,6 @@ static Status MergeInteractingSegmentSets(
 
     TRYV(MergeInteractingSegmentSet(context, interacting_segments, base_segment,
                                     merged_def));
-
-    for (auto& [_, full_segments] : with_shared) {
-      if (full_segments.intersects(interacting_segments)) {
-        full_segments.subtract(interacting_segments);
-        full_segments.insert(base_segment);
-      }
-    }
   }
 
   return absl::OkStatus();
@@ -764,25 +756,17 @@ static Status MakeActivationConditionsDisjoint(
     return absl::OkStatus();
   }
 
-  bool merged_any = false;
-  while (true) {
-    GlyphPartition segment_partition = TRY(PartitionInteractingSegments(
-        context, disjoint_conditions_probability_threshold, merge_groups));
-    auto interacting_segment_sets = TRY(segment_partition.NonIdentityGroups());
-    if (interacting_segment_sets.empty()) {
-      break;
+  GlyphPartition segment_partition = TRY(PartitionInteractingSegments(
+      context, disjoint_conditions_probability_threshold, merge_groups));
+  auto interacting_segment_sets = TRY(segment_partition.NonIdentityGroups());
+  if (!interacting_segment_sets.empty()) {
+    TRYV(MergeInteractingSegmentSets(context, interacting_segment_sets));
+    if (!merge_groups.empty()) {
+      std::vector<Segment> ordered_segments = TRY(ToOrderedSegments(
+          context.SegmentationInfo().SegmentSubsetDefinitions(), merge_groups,
+          with_shared, /*pregroup_segments=*/false));
+      TRYV(context.ResetSegments(std::move(ordered_segments)));
     }
-
-    TRYV(MergeInteractingSegmentSets(context, interacting_segment_sets,
-                                     with_shared));
-    merged_any = true;
-  }
-
-  if (merged_any && !merge_groups.empty()) {
-    std::vector<Segment> ordered_segments = TRY(ToOrderedSegments(
-        context.SegmentationInfo().SegmentSubsetDefinitions(), merge_groups,
-        with_shared, /*pregroup_segments=*/false));
-    TRYV(context.ResetSegments(std::move(ordered_segments)));
   }
 
   return absl::OkStatus();
