@@ -453,14 +453,29 @@ static StatusOr<std::vector<Segment>> ToOrderedSegments(
       ClassifySegments(subset_definitions, merge_groups, with_shared,
                        !pregroup_segments, ungrouped_segments, shared_segments);
 
-  VLOG(0) << "Segment classification: " << std::endl
-          << "  "
+  size_t grouped_codepoint_count = 0;
+  size_t ungrouped_codepoint_count = 0;
+  size_t shared_codepoint_count = 0;
+  for (uint32_t s = 0; s < subset_definitions.size(); s++) {
+    uint32_t count = subset_definitions.at(s).codepoints.size();
+    if (ungrouped_segments.contains(s)) {
+      ungrouped_codepoint_count += count;
+    } else if (shared_segments.contains(s)) {
+      shared_codepoint_count += count;
+    } else {
+      grouped_codepoint_count += count;
+    }
+  }
+
+
+  VLOG(0) << "Segment classification: ";
+  VLOG(0) << "  "
           << active_segments - ungrouped_segments.size() -
                  shared_segments.size()
-          << " segments in exactly one merge groups" << std::endl
-          << "  " << shared_segments.size()
-          << " segments that in two or more merge groups" << std::endl
-          << "  " << ungrouped_segments.size() << " segments that are ungrouped";
+          << " segments and " << grouped_codepoint_count << " codepoints in exactly one merge groups";
+  VLOG(0) << "  " << shared_segments.size()
+          << " segments and " << shared_codepoint_count << " codepoints that in two or more merge groups";
+  VLOG(0) << "  " << ungrouped_segments.size() << " segments and " << ungrouped_codepoint_count << " codepoints that are ungrouped";
 
   std::vector<ProbabilityBound> segment_probabilities =
       TRY(ComputeSegmentProbabilities(subset_definitions, merge_groups, with_shared));
@@ -509,7 +524,9 @@ static StatusOr<std::vector<Segment>> ToOrderedSegments(
       PreGroupSegments(merge_groups, ordering, subset_definitions,
                        pregroup_segments, segment_index_map);
   size_t num_segments = segment_defs.size();
-  VLOG(0) << segment_defs.size() << " segments after pregrouping.";
+  if (pregroup_segments) {
+    VLOG(0) << "Segments pregrouped, " << segment_defs.size() << " remain:";
+  }
 
   btree_map<SegmentSet, MergeStrategy> new_merge_groups;
   group_index = 0;
@@ -751,6 +768,8 @@ static Status MakeActivationConditionsDisjoint(
     double disjoint_conditions_probability_threshold,
     btree_map<SegmentSet, MergeStrategy>& merge_groups,
     btree_map<SegmentSet, SegmentSet>& with_shared) {
+
+  VLOG(0) << "Making activation conditions disjoint for unicode range.";
   size_t num_segments = context.SegmentationInfo().Segments().size();
   if (num_segments <= 1) {
     return absl::OkStatus();
