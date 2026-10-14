@@ -29,7 +29,9 @@ using ift::common::SegmentSet;
 namespace ift::encoder {
 
 Status SegmentationContext::ValidateSegmentation(
-    const GlyphSegmentation& segmentation) const {
+    const GlyphSegmentation& segmentation,
+    absl::Span<const freq::ProbabilityCalculator* const>
+        probability_calculators) const {
   GlyphSet visited;
   const auto& initial_closure = segmentation.InitialFontGlyphClosure();
   auto check_disjoint = [&](const GlyphSet& gids) -> Status {
@@ -60,14 +62,37 @@ Status SegmentationContext::ValidateSegmentation(
       }
     }
 
+    for (const freq::ProbabilityCalculator* calculator :
+         probability_calculators) {
+      calculator->ResetSegmentProbabilities(
+          segmentation_info_->Segments().size());
+    }
+
     // In unicode range mode not all conditions get record into segmentation, so
     // check disjointness across the non-exclusive patches which were skipped.
     TRYV(check_disjoint(glyph_groupings.UnmappedGlyphs()));
-    for (const auto& [cond, gids] : glyph_groupings.ConditionsAndGlyphs()) {
-      if (!cond.IsExclusive()) {
-        TRYV(check_disjoint(gids));
+    size_t unreachable_glyph_count = glyph_groupings.UnmappedGlyphs().size();
+    for (const auto& cond : glyph_groupings.OrderedConditions()) {
+      if (cond.IsExclusive()) {
+        continue;
       }
+      const GlyphSet& gids = glyph_groupings.ConditionsAndGlyphs().at(cond);
+      TRYV(check_disjoint(gids));
+      unreachable_glyph_count += gids.size();
+
+      double max_prob = 0.0;
+      for (const freq::ProbabilityCalculator* calculator :
+           probability_calculators) {
+        double prob =
+            TRY(cond.Probability(segmentation_info_->Segments(), *calculator));
+        if (prob > max_prob) {
+          max_prob = prob;
+        }
+      }
+      VLOG(0) << "Unreachable condition " << cond.ToString() << " => "
+              << gids.ToString() << " (max probability = " << max_prob << ")";
     }
+    VLOG(0) << "Total unreachable glyphs: " << unreachable_glyph_count;
   }
 
   GlyphSet full_minus_initial = segmentation_info_->FullClosure();
