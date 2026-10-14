@@ -102,6 +102,9 @@ cc_library(
         "segmentation_context.h",
         "woff2_patch_size_cache.h",
     ],
+    visibility = [
+        "//ift/config:__pkg__",
+    ],
     deps = [
         ":activation_condition",
         ":common",
@@ -143,6 +146,7 @@ cc_library(
         "requested_segmentation_information.h",
     ],
     visibility = [
+        "//ift/config:__pkg__",
         "//ift/dep_graph:__pkg__",
     ],
     deps = [

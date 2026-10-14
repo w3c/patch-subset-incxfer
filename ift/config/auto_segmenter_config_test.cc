@@ -132,6 +132,7 @@ const ScriptGroup kCyrillic = {"Cyrillic", {"Script_cyrillic.riegeli"}};
 const ScriptGroup kGreek = {"Greek", {"Script_greek.riegeli"}};
 const ScriptGroup kSymbols = {"Symbols", {"Script_symbols.riegeli"}};
 const ScriptGroup kLatin = {"Latin", {"Script_latin.riegeli"}};
+const ScriptGroup kLatinCyrillic = {"Cyrillic+Latin", {"Script_cyrillic.riegeli", "Script_latin.riegeli"}};
 const ScriptGroup kLanguageFr = {"Language_fr", {"Language_fr.riegeli"}};
 const ScriptGroup kFallback = {"Fallback", {"fallback.riegeli"}};
 // Most of the emoji code points in the font are ones shared with latin
@@ -667,17 +668,45 @@ TEST_F(AutoSegmenterConfigTest, ConfigureMaxDepth) {
 }
 
 TEST_F(AutoSegmenterConfigTest, Roboto_UnspecifiedPrimary_UnicodeRange) {
+  // Since this config will specify explicit segment definitions, use a subsetted
+  // version of Roboto.
+  hb_subset_input_t* input = hb_subset_input_create_or_fail();
+  ASSERT_TRUE(input);
+  CodepointSet subset {
+    0x20,  // Shared w/ All
+    0x301, // Shared w/ Latin + Cyrillic
+    // Latin
+    'A',
+    'B',
+    'C',
+    // Greek
+    0x384,
+    0x385,
+    0x394,
+    // Cyrillic
+    0x401,
+    0x402,
+    0x403,
+  };
+  subset.union_into(hb_subset_input_unicode_set(input));
+  hb_face_unique_ptr subset_face = make_hb_face(hb_subset_or_fail(face_.get(), input));
+  hb_subset_input_destroy(input);
+
   auto config_or = AutoSegmenterConfig::GenerateConfig(
-      face_.get(), *resolver, std::nullopt, std::nullopt, UNICODE_RANGE);
+      subset_face.get(), *resolver, std::nullopt, std::nullopt, UNICODE_RANGE);
   ASSERT_TRUE(config_or.ok()) << config_or.status();
 
   EXPECT_THAT(
       GetScripts(*config_or),
-      UnorderedElementsAre(kLatin, kSymbols, kCyrillic, kGreek, kFallback));
+      UnorderedElementsAre(kLatinCyrillic, kGreek));
   EXPECT_TRUE(GetScriptsWithInitialMergeThreshold(*config_or).empty());
 
   std::string config_string;
   TextFormat::PrintToString(*config_or, &config_string);
+  // Because this is unicode range target mode, there's a few unique behaviours:
+  // - Ignored for overlap codepoints present in multiple groups (ie. 0x20) are moved to exactly one group.
+  // - This in turn requires explicit segment definitions for affected groups.
+  // - Combining marks are not ignored for overlap detection so latin + cyrillic are grouped.
   ASSERT_EQ(config_string, R"(unmapped_glyph_handling: FIND_CONDITIONS
 brotli_quality: 11
 base_heuristic_config {
@@ -696,32 +725,24 @@ ungrouped_config {
 }
 preprocess_merging_group_size_for_ungrouped: 12
 merge_groups {
-  name: "Cyrillic"
+  name: "Cyrillic+Latin"
+  segment_ids {
+    values: 32
+    values: 65
+    values: 66
+    values: 67
+    values: 769
+    values: 1025
+    values: 1026
+    values: 1027
+  }
   preprocess_merging_group_size: 4
-  preprocess_merging_probability_threshold: 0.005
+  preprocess_merging_probability_threshold: 0.0005
   cost_config {
     frequency_data {
       built_in_freq_data_name: "Script_cyrillic.riegeli"
       use_bigrams: true
     }
-  }
-}
-merge_groups {
-  name: "Greek"
-  preprocess_merging_group_size: 4
-  preprocess_merging_probability_threshold: 0.005
-  cost_config {
-    frequency_data {
-      built_in_freq_data_name: "Script_greek.riegeli"
-      use_bigrams: true
-    }
-  }
-}
-merge_groups {
-  name: "Latin"
-  preprocess_merging_group_size: 4
-  preprocess_merging_probability_threshold: 0.005
-  cost_config {
     frequency_data {
       built_in_freq_data_name: "Script_latin.riegeli"
       use_bigrams: true
@@ -729,23 +750,17 @@ merge_groups {
   }
 }
 merge_groups {
-  name: "Symbols"
-  preprocess_merging_group_size: 4
-  preprocess_merging_probability_threshold: 0.005
-  cost_config {
-    frequency_data {
-      built_in_freq_data_name: "Script_symbols.riegeli"
-      use_bigrams: true
-    }
+  name: "Greek"
+  segment_ids {
+    values: 900
+    values: 901
+    values: 916
   }
-}
-merge_groups {
-  name: "Fallback"
   preprocess_merging_group_size: 4
-  preprocess_merging_probability_threshold: 0.005
+  preprocess_merging_probability_threshold: 0.0005
   cost_config {
     frequency_data {
-      built_in_freq_data_name: "fallback.riegeli"
+      built_in_freq_data_name: "Script_greek.riegeli"
       use_bigrams: true
     }
   }
@@ -779,6 +794,38 @@ TEST_F(AutoSegmenterConfigTest, UnicodeRange_QualityLevels) {
   EXPECT_TRUE(GetScriptsWithInitialMergeThreshold(*config_q7).empty());
 }
 
+TEST_F(AutoSegmenterConfigTest, Roboto_InteractingScripts_UnicodeRange) {
+  hb_subset_input_t* input = hb_subset_input_create_or_fail();
+  ASSERT_TRUE(input);
+  CodepointSet subset{
+      // Latin
+      'A',
+      'B',
+      'C',
+      // Greek (0x386 is a composite glyph using 'A' as a component)
+      0x384,
+      0x385,
+      0x386,
+      // Cyrillic
+      0x401,
+      0x402,
+      0x403,
+  };
+  subset.union_into(hb_subset_input_unicode_set(input));
+  hb_face_unique_ptr subset_face =
+      make_hb_face(hb_subset_or_fail(face_.get(), input));
+  hb_subset_input_destroy(input);
+
+  auto config_or = AutoSegmenterConfig::GenerateConfig(
+      subset_face.get(), *resolver, std::nullopt, std::nullopt, UNICODE_RANGE);
+  ASSERT_TRUE(config_or.ok()) << config_or.status();
+
+  const ScriptGroup kGreekLatin = {
+      "Greek+Latin", {"Script_greek.riegeli", "Script_latin.riegeli"}};
+  EXPECT_THAT(GetScripts(*config_or),
+              UnorderedElementsAre(kGreekLatin, kCyrillic));
+}
+
 TEST_F(AutoSegmenterConfigTest, UnicodeRange_PrimaryScriptSplitting) {
   ASSERT_TRUE(cjk_face_) << "NotoSansJP-Regular.ttf not found";
 
@@ -788,15 +835,30 @@ TEST_F(AutoSegmenterConfigTest, UnicodeRange_PrimaryScriptSplitting) {
   ASSERT_TRUE(config_or.ok()) << config_or.status();
   EXPECT_EQ(config_or->target_mode(), UNICODE_RANGE);
   EXPECT_FALSE(config_or->has_base_segmentation_plan());
-  EXPECT_THAT(GetScripts(*config_or),
-              UnorderedElementsAre(kEmojiLatinAndSymbols, kGreek, kCyrillic,
-                                   kJapanese, kCJKWithoutJapanese, kFallback));
+
+  const ScriptGroup kRemainingWithoutJapanese = {
+      "Chinese-simplified+Chinese-traditional+Cyrillic+Emoji+Korean+Latin+"
+      "Symbols+Fallback",
+      {"Script_chinese-simplified.riegeli@*",
+       "Script_chinese-traditional.riegeli@*", "Script_cyrillic.riegeli",
+       "Script_emoji.riegeli", "Script_korean.riegeli@*",
+       "Script_latin.riegeli", "Script_symbols.riegeli", "fallback.riegeli"}};
+
+  EXPECT_THAT(
+      GetScripts(*config_or),
+      UnorderedElementsAre(kGreek, kJapanese, kRemainingWithoutJapanese));
   EXPECT_TRUE(GetScriptsWithInitialMergeThreshold(*config_or).empty());
 
-  EXPECT_FALSE(GetSegmentIds(*config_or, kJapanese.first).has_value());
-  auto covered = GetSegmentIds(*config_or, kCJKWithoutJapanese.first);
-  ASSERT_TRUE(covered.has_value());
-  EXPECT_FALSE(covered->empty());
+  auto japanese_covered = GetSegmentIds(*config_or, kJapanese.first);
+  ASSERT_TRUE(japanese_covered.has_value());
+  EXPECT_FALSE(japanese_covered->empty());
+  EXPECT_TRUE(japanese_covered->contains(0x20));
+
+  auto remaining_covered =
+      GetSegmentIds(*config_or, kRemainingWithoutJapanese.first);
+  ASSERT_TRUE(remaining_covered.has_value());
+  EXPECT_FALSE(remaining_covered->empty());
+  EXPECT_FALSE(remaining_covered->intersects(*japanese_covered));
 }
 
 }  // namespace
