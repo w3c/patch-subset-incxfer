@@ -655,10 +655,11 @@ StatusOr<double> CandidateMerge::ComputeCostDelta(
 
   segment_index_t base = *merged_segments.min();
   const auto& context = merger.Context();
+  const bool unicode_range_mode =
+      (context.GetTargetMode() == config::UNICODE_RANGE);
   const auto& patch_size_cache = context.patch_size_cache;
-  uint32_t base_overhead = (context.GetTargetMode() == config::UNICODE_RANGE)
-                               ? TRY(patch_size_cache->GetPatchSize({}))
-                               : 0;
+  uint32_t base_overhead =
+      unicode_range_mode ? TRY(patch_size_cache->GetPatchSize({})) : 0;
 
   // Cost delta contributions are collected here and summed at the end rather
   // than accumulated as we go. modified_conditions and new_conditions are both
@@ -670,21 +671,30 @@ StatusOr<double> CandidateMerge::ComputeCostDelta(
   bool has_unitary = false;
   const uint32_t per_request_overhead = merger.Strategy().NetworkOverheadCost();
   for (const auto& [condition, glyphs] : modified_conditions) {
-    uint32_t patch_size = TRY(patch_size_cache->GetPatchSize(*glyphs));
-    double p = TRY(merger.AggregateProbability(*condition));
-    double d = p * (patch_size + per_request_overhead);
-    deltas.push_back(-d);
-    current_delta -= d;
-    VLOG(1) << "    - (" << p << " * " << (patch_size + per_request_overhead)
-            << ") -> " << d << " [removed patch " << condition->ToString()
-            << "]";
-
     ActivationCondition updated =
         condition->ReplaceSegments(base, merged_segments);
     if (updated.IsExclusive()) {
       // Clear is exclusive flag so that de-dup happens properly
       updated = ActivationCondition::clear_exclusive(std::move(updated));
     }
+    if (unicode_range_mode && !updated.IsUnitary()) {
+      // In unicode range mode non-exclusive patches are dropped from the final
+      // segmentation and do not contribute to total cost. Any condition that is
+      // not unitary after the merge was also non-exclusive before the merge.
+      continue;
+    }
+
+    uint32_t patch_size = TRY(patch_size_cache->GetPatchSize(*glyphs));
+    if (!unicode_range_mode || condition->IsExclusive()) {
+      double p = TRY(merger.AggregateProbability(*condition));
+      double d = p * (patch_size + per_request_overhead);
+      deltas.push_back(-d);
+      current_delta -= d;
+      VLOG(1) << "    - (" << p << " * " << (patch_size + per_request_overhead)
+              << ") -> " << d << " [removed patch " << condition->ToString()
+              << "]";
+    }
+
     if (!best_case && updated.IsUnitary()) {
       has_unitary = true;
     }
@@ -703,10 +713,16 @@ StatusOr<double> CandidateMerge::ComputeCostDelta(
     info.combined_incremental_size += incremental_size;
   }
 
+  if (unicode_range_mode && !best_case && exclusive_gids.has_value() &&
+      !exclusive_gids->empty()) {
+    new_conditions.try_emplace(ActivationCondition::or_segments({base}, 0));
+  }
+
   double initial_magnitude_sum = -current_delta;
 
   bool fallback_changed =
-      !best_case && has_unitary && exclusive_gids.has_value() &&
+      !unicode_range_mode && !best_case && has_unitary &&
+      exclusive_gids.has_value() &&
       context.glyph_groupings.UnmappedGlyphs().intersects(*exclusive_gids);
   if (fallback_changed) {
     GlyphSet new_fallback = context.glyph_groupings.UnmappedGlyphs();
