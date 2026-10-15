@@ -1,6 +1,7 @@
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
+load("@rules_python//python:defs.bzl", "py_binary")
 
 package(features = ["layering_check"])
 
@@ -200,6 +201,13 @@ cc_binary(
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/flags:parse",
         "@abseil-cpp//absl/status:statusor",
+    ],
+)
+
+py_binary(
+    name = "select_quality_thresholds",
+    srcs = [
+        "select_quality_thresholds.py",
     ],
 )
 
