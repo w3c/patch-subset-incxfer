@@ -63,8 +63,11 @@ enum TargetMode {
   // Produces a segmentation plan suitable for Incremental Font Transfer (IFT).
   IFT = 0;
 
-  // Produces a segmentation plan suitable for serving font subsets via
+  // [EXPERIMENTAL] Produces a segmentation plan suitable for serving font subsets via
   // @font-face unicode-range.
+  //
+  // Implementation of this is still in progress and performance of produced unicode ranges
+  // hasn't been verified yet.
   UNICODE_RANGE = 1;
 }
 
