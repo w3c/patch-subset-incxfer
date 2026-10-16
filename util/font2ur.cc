@@ -46,6 +46,10 @@ using ift::encoder::UnicodeRangeCompiler;
 using ift::util::JoinAndValidatePath;
 
 /*
+ * [EXPERIMENTAL]
+ *
+ * Note: this feature is still under development and performance of produced unicode ranges
+ *
  * Utility that converts a standard font file into a set of WOFF2 font subsets
  * and a @font-face unicode-range CSS file, optionally following a supplied
  * segmentation plan.
