@@ -33,7 +33,7 @@ Status TableKeyedDiff::Diff(const FontData& font_base,
   flat_hash_set<hb_tag_t> new_tables;
   flat_hash_set<hb_tag_t> unchanged_tables;
 
-  for (std::string tag : diff_tags) {
+  for (const std::string& tag : diff_tags) {
     hb_tag_t t = HB_TAG(tag[0], tag[1], tag[2], tag[3]);
     bool in_base = base_tags.contains(t);
     bool in_derived = derived_tags.contains(t);
@@ -99,7 +99,7 @@ Status TableKeyedDiff::Diff(const FontData& font_base,
   // Skip past all of the offsets (there's patchesCount + 1 of them)
   uint32_t current_offset = data.size() + (diff_tags.size() + 1) * 4;
 
-  for (std::string tag : diff_tags) {
+  for (const std::string& tag : diff_tags) {
     FontHelper::WriteUInt32(current_offset, data);
     uint32_t min_size = 9;
     current_offset += min_size;
@@ -112,7 +112,7 @@ Status TableKeyedDiff::Diff(const FontData& font_base,
   FontHelper::WriteUInt32(current_offset, data);
 
   // Write out table patches
-  for (std::string tag : diff_tags) {
+  for (const std::string& tag : diff_tags) {
     hb_tag_t t = HB_TAG(tag[0], tag[1], tag[2], tag[3]);
 
     FontHelper::WriteUInt32(t, data);
